@@ -1381,123 +1381,30 @@ function findIntersections(creases) {
   return intersections;
 }
 
-// Process creases with intersection-count-based death
-// Each crease has a max intersection count - once it participates in too many intersections, it dies
-// Returns { activeCreases, intersections, cellWeights, cellMaxGap }
-function processCreasesWithThreshold(
-  creases,
-  gridCols,
-  gridRows,
-  cellWidth,
-  cellHeight,
-  seed,
-  baseThreshold
-) {
-  if (creases.length === 0) {
-    return {
-      activeCreases: [],
-      intersections: [],
-      cellWeights: {},
-      cellMaxGap: {},
-      destroyed: 0,
-    };
-  }
-
-  // Assign each crease its max intersection count (threshold)
-  const creaseMaxIntersections = {};
-  for (const crease of creases) {
-    const creaseRng = seededRandom(seed + crease.depth * 7919);
-    const thresholdMultiplier = 0.5 + creaseRng() * 1.0; // 50% to 150%
-    creaseMaxIntersections[crease.depth] = Math.max(
-      1,
-      Math.floor(baseThreshold * thresholdMultiplier)
-    );
-  }
-
-  // Calculate ALL potential intersections between all creases
-  const allPotentialIntersections = [];
-  for (let i = 0; i < creases.length; i++) {
-    for (let j = i + 1; j < creases.length; j++) {
-      const hit = segmentIntersect(
-        creases[i].p1,
-        creases[i].p2,
-        creases[j].p1,
-        creases[j].p2
-      );
-      if (hit) {
-        const col = Math.floor(hit.point.x / cellWidth);
-        const row = Math.floor(hit.point.y / cellHeight);
-        if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
-          const weight1 = creases[i].weight || 1;
-          const weight2 = creases[j].weight || 1;
-          allPotentialIntersections.push({
-            x: hit.point.x,
-            y: hit.point.y,
-            crease1: creases[i].depth,
-            crease2: creases[j].depth,
-            gap: Math.abs(creases[j].depth - creases[i].depth),
-            weight: weight1 + weight2,
-            key: `${col},${row}`,
-          });
-        }
-      }
-    }
-  }
-
-  // Iteratively remove creases that exceed their intersection threshold
-  // Continue until no more creases die (stable state)
-  const aliveCreases = new Set(creases.map((c) => c.depth));
-  let changed = true;
-  let iterations = 0;
-  const maxIterations = 50; // Safety limit
-
-  while (changed && iterations < maxIterations) {
-    changed = false;
-    iterations++;
-
-    // Count intersections per crease (only counting intersections between alive creases)
-    const intersectionCount = {};
-    for (const depth of aliveCreases) {
-      intersectionCount[depth] = 0;
-    }
-
-    for (const inter of allPotentialIntersections) {
-      if (aliveCreases.has(inter.crease1) && aliveCreases.has(inter.crease2)) {
-        intersectionCount[inter.crease1]++;
-        intersectionCount[inter.crease2]++;
-      }
-    }
-
-    // Kill creases that exceeded their threshold
-    for (const depth of [...aliveCreases]) {
-      if (intersectionCount[depth] > creaseMaxIntersections[depth]) {
-        aliveCreases.delete(depth);
-        changed = true;
-      }
-    }
-  }
-
-  // Build final output with only alive creases
-  const activeCreases = creases.filter((c) => aliveCreases.has(c.depth));
-  const finalIntersections = allPotentialIntersections.filter(
-    (inter) =>
-      aliveCreases.has(inter.crease1) && aliveCreases.has(inter.crease2)
-  );
+// Simple crease processing - just find intersections and build cell weights
+function processCreases(creases, gridCols, gridRows, cellWidth, cellHeight) {
+  const intersections = findIntersections(creases);
 
   // Build cell weights and gaps
   const cellWeights = {};
   const cellMaxGap = {};
-  for (const inter of finalIntersections) {
-    cellWeights[inter.key] = (cellWeights[inter.key] || 0) + inter.weight;
-    cellMaxGap[inter.key] = Math.max(cellMaxGap[inter.key] || 0, inter.gap);
+
+  for (const inter of intersections) {
+    const col = Math.floor(inter.x / cellWidth);
+    const row = Math.floor(inter.y / cellHeight);
+    if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
+      const key = `${col},${row}`;
+      cellWeights[key] = (cellWeights[key] || 0) + inter.weight;
+      cellMaxGap[key] = Math.max(cellMaxGap[key] || 0, inter.gap);
+    }
   }
 
   return {
-    activeCreases,
-    intersections: finalIntersections,
+    activeCreases: creases,
+    intersections,
     cellWeights,
     cellMaxGap,
-    destroyed: creases.length - activeCreases.length,
+    destroyed: 0,
   };
 }
 
@@ -1546,7 +1453,6 @@ function renderToCanvas({
   multiColor,
   levelColors,
   foldStrategy = null,
-  destructionThreshold = 0.5,
 }) {
   // Create canvas
   const canvas = document.createElement("canvas");
@@ -1578,31 +1484,13 @@ function renderToCanvas({
     foldStrategy
   );
 
-  // === INTERSECTION-BASED CREASE REMOVAL ===
-  // Each crease has a threshold - if it hits a cell with >= threshold weight, it dies
-  // Seed-based threshold variation - some outputs are "fragile", others are "durable"
-  const thresholdRng = seededRandom(seed + 1234);
-  const seedDurability = 0.3 + thresholdRng() * 1.4; // 0.3x to 1.7x multiplier
-  const baseThreshold = Math.max(
-    2,
-    Math.floor((3 + destructionThreshold * 17) * seedDurability)
-  );
-
-  // Process creases with threshold-based removal
+  // Process creases - find all intersections
   const {
     activeCreases,
     intersections: activeIntersections,
     cellWeights: intersectionWeight,
     cellMaxGap,
-  } = processCreasesWithThreshold(
-    creases,
-    cols,
-    rows,
-    cellWidth,
-    cellHeight,
-    seed,
-    baseThreshold
-  );
+  } = processCreases(creases, cols, rows, cellWidth, cellHeight);
 
   // Font setup
   ctx.font = `${cellHeight - 2}px "Courier New", Courier, monospace`;
@@ -1720,7 +1608,6 @@ function ASCIICanvas({
   showCreases = false,
   showPaperShape = false,
   showHitCounts = false,
-  destructionThreshold = 0.5,
   onStatsUpdate = null,
 }) {
   const canvasRef = useRef(null);
@@ -1765,33 +1652,13 @@ function ASCIICanvas({
       foldStrategy
     );
 
-    // === INTERSECTION-BASED CREASE REMOVAL ===
-    // Each crease has a threshold - if it hits a cell with >= threshold weight, it dies
-    // This creates organic saturation - heavily intersected areas "wear out" earlier creases
-    // Seed-based threshold variation - some outputs are "fragile", others are "durable"
-    const thresholdRng = seededRandom(seed + 1234);
-    const seedDurability = 0.3 + thresholdRng() * 1.4; // 0.3x to 1.7x multiplier
-    const baseThreshold = Math.max(
-      2,
-      Math.floor((3 + destructionThreshold * 17) * seedDurability)
-    );
-
-    // Process creases with threshold-based removal
+    // Process creases - find all intersections
     const {
       activeCreases,
       intersections: activeIntersections,
       cellWeights: intersectionWeight,
       cellMaxGap,
-      destroyed: destroyedCount,
-    } = processCreasesWithThreshold(
-      creases,
-      cols,
-      rows,
-      charWidth,
-      charHeight,
-      seed,
-      baseThreshold
-    );
+    } = processCreases(creases, cols, rows, charWidth, charHeight);
 
     // For rendering
     const creasesForRender = activeCreases;
@@ -1801,7 +1668,7 @@ function ASCIICanvas({
       onStatsUpdate({
         intersections: activeIntersections.length,
         creases: activeCreases.length,
-        destroyed: destroyedCount,
+        destroyed: 0,
       });
     }
 
@@ -1989,7 +1856,6 @@ function ASCIICanvas({
     showCreases,
     showPaperShape,
     showHitCounts,
-    destructionThreshold,
     onStatsUpdate,
   ]);
 
@@ -2083,7 +1949,6 @@ export default function FoldedPaper() {
       multiColor,
       levelColors,
       foldStrategy,
-      destructionThreshold,
     });
     const a = document.createElement("a");
     a.href = dataUrl;
@@ -2177,11 +2042,8 @@ export default function FoldedPaper() {
   const [showCreases, setShowCreases] = useState(false); // Debug: show crease lines
   const [showPaperShape, setShowPaperShape] = useState(false); // Debug: show folded paper outline
   const [showHitCounts, setShowHitCounts] = useState(false); // Debug: show intersection counts per cell
-  const [destructionThreshold, setDestructionThreshold] = useState(0.5); // How long creases survive (0 = short, 1 = long)
   const [intersectionCount, setIntersectionCount] = useState(0); // Track intersection count from canvas
   const [creaseCount, setCreaseCount] = useState(0); // Track crease count from canvas
-  const [destroyedCount, setDestroyedCount] = useState(0); // Track destroyed creases
-  const [totalCreases, setTotalCreases] = useState(0); // Track total creases before removal
 
   // Preset palettes for reference/quick access: [name, background, text, accent]
   const presetPalettes = [
@@ -2400,16 +2262,7 @@ export default function FoldedPaper() {
               }}
             >
               <span>
-                <span style={{ color: "#999" }}>creases:</span>{" "}
-                <span
-                  style={{ color: destroyedCount > 0 ? "#e74c3c" : "#666" }}
-                >
-                  {creaseCount}
-                </span>
-                {destroyedCount > 0 && (
-                  <span style={{ color: "#e74c3c" }}> (−{destroyedCount})</span>
-                )}
-                <span style={{ color: "#999" }}> / {totalCreases}</span>
+                <span style={{ color: "#999" }}>creases:</span> {creaseCount}
               </span>
               <span>
                 <span style={{ color: "#999" }}>intersections:</span>{" "}
@@ -2419,7 +2272,7 @@ export default function FoldedPaper() {
           </div>
 
           <ASCIICanvas
-            key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}-${destructionThreshold}`}
+            key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
             width={width}
             height={height}
             folds={folds}
@@ -2437,12 +2290,9 @@ export default function FoldedPaper() {
             showCreases={showCreases}
             showPaperShape={showPaperShape}
             showHitCounts={showHitCounts}
-            destructionThreshold={destructionThreshold}
             onStatsUpdate={(stats) => {
               setIntersectionCount(stats.intersections);
               setCreaseCount(stats.creases);
-              setDestroyedCount(stats.destroyed);
-              setTotalCreases(stats.creases + stats.destroyed);
             }}
           />
 
@@ -2545,7 +2395,6 @@ export default function FoldedPaper() {
             <button
               onClick={() => {
                 setSeed(Math.floor(Math.random() * 99999) + 1);
-                setDestructionThreshold(Math.random());
                 if (randomizeFolds) {
                   setFolds(Math.floor(Math.random() * 199) + 1);
                 }
@@ -2805,45 +2654,6 @@ export default function FoldedPaper() {
               />
               Show hit counts
             </label>
-          </div>
-
-          <div style={{ marginTop: 8 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 4,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Saturation Threshold
-              </span>
-              <span style={{ fontSize: 10 }}>
-                {destructionThreshold.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={destructionThreshold}
-              onChange={(e) =>
-                setDestructionThreshold(parseFloat(e.target.value))
-              }
-              style={{ width: "100%" }}
-            />
-            <div style={{ fontSize: 8, color: "#999", marginTop: 2 }}>
-              Lower = creases die at fewer intersections, Higher = creases
-              survive more intersections
-            </div>
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
