@@ -6,9 +6,322 @@ const CELL_MIN = 4;
 const CELL_MAX = 600;
 const CELL_ASPECT_MAX = 3; // Max ratio between cell width and height (e.g., 3:1 or 1:3)
 
-// ============ COLOR SYSTEM ============
+// ============ VGA 256-COLOR PALETTE SYSTEM ============
 
-// HSL to Hex conversion
+// Build the complete 256-color VGA palette
+// Consists of: 216 web-safe (6x6x6 RGB cube) + 16 CGA colors + 24 grayscale
+const VGA_LEVELS = [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff];
+
+// Generate hex from RGB values
+function rgbToHex(r, g, b) {
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => x.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()
+  );
+}
+
+// Calculate perceived luminance (0-100)
+function getLuminance(r, g, b) {
+  // Relative luminance formula (ITU-R BT.709)
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  return (0.2126 * rNorm + 0.7152 * gNorm + 0.0722 * bNorm) * 100;
+}
+
+// Determine color temperature: 'warm', 'cool', or 'neutral'
+function getTemperature(r, g, b) {
+  const warmth = r - b; // positive = warm, negative = cool
+  if (Math.abs(warmth) < 30 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+    return "neutral";
+  }
+  return warmth > 0 ? "warm" : "cool";
+}
+
+// Determine saturation tier: 'gray', 'muted', 'chromatic', 'vivid'
+function getSaturationTier(r, g, b) {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+
+  if (delta < 20) return "gray";
+  if (delta < 80) return "muted";
+  if (delta < 160) return "chromatic";
+  return "vivid";
+}
+
+// Build the 216 web-safe colors (6x6x6 RGB cube)
+function buildWebSafeColors() {
+  const colors = [];
+  for (let ri = 0; ri < 6; ri++) {
+    for (let gi = 0; gi < 6; gi++) {
+      for (let bi = 0; bi < 6; bi++) {
+        const r = VGA_LEVELS[ri];
+        const g = VGA_LEVELS[gi];
+        const b = VGA_LEVELS[bi];
+        colors.push({
+          hex: rgbToHex(r, g, b),
+          r,
+          g,
+          b,
+          cubePos: { ri, gi, bi }, // Position in 6x6x6 cube
+          luminance: getLuminance(r, g, b),
+          temperature: getTemperature(r, g, b),
+          saturation: getSaturationTier(r, g, b),
+          type: "websafe",
+        });
+      }
+    }
+  }
+  return colors;
+}
+
+// The 16 classic CGA/EGA colors
+const CGA_COLORS = [
+  { hex: "#000000", name: "black" },
+  { hex: "#0000AA", name: "blue" },
+  { hex: "#00AA00", name: "green" },
+  { hex: "#00AAAA", name: "cyan" },
+  { hex: "#AA0000", name: "red" },
+  { hex: "#AA00AA", name: "magenta" },
+  { hex: "#AA5500", name: "brown" },
+  { hex: "#AAAAAA", name: "lightGray" },
+  { hex: "#555555", name: "darkGray" },
+  { hex: "#5555FF", name: "lightBlue" },
+  { hex: "#55FF55", name: "lightGreen" },
+  { hex: "#55FFFF", name: "lightCyan" },
+  { hex: "#FF5555", name: "lightRed" },
+  { hex: "#FF55FF", name: "lightMagenta" },
+  { hex: "#FFFF55", name: "yellow" },
+  { hex: "#FFFFFF", name: "white" },
+];
+
+function buildCGAColors() {
+  return CGA_COLORS.map((c) => {
+    const r = parseInt(c.hex.slice(1, 3), 16);
+    const g = parseInt(c.hex.slice(3, 5), 16);
+    const b = parseInt(c.hex.slice(5, 7), 16);
+    return {
+      hex: c.hex,
+      r,
+      g,
+      b,
+      cubePos: null, // Not in the 6x6x6 cube
+      luminance: getLuminance(r, g, b),
+      temperature: getTemperature(r, g, b),
+      saturation: getSaturationTier(r, g, b),
+      type: "cga",
+      name: c.name,
+    };
+  });
+}
+
+// 24 grayscale shades (evenly distributed)
+function buildGrayscaleColors() {
+  const colors = [];
+  for (let i = 0; i < 24; i++) {
+    const v = Math.round((i / 23) * 255);
+    colors.push({
+      hex: rgbToHex(v, v, v),
+      r: v,
+      g: v,
+      b: v,
+      cubePos: null,
+      luminance: getLuminance(v, v, v),
+      temperature: "neutral",
+      saturation: "gray",
+      type: "grayscale",
+      grayIndex: i,
+    });
+  }
+  return colors;
+}
+
+// Build the complete palette index
+const VGA_PALETTE = [
+  ...buildWebSafeColors(),
+  ...buildCGAColors(),
+  ...buildGrayscaleColors(),
+];
+
+// Create lookup indices for fast access
+const PALETTE_BY_LUMINANCE = {
+  dark: VGA_PALETTE.filter((c) => c.luminance < 25),
+  midDark: VGA_PALETTE.filter((c) => c.luminance >= 25 && c.luminance < 45),
+  mid: VGA_PALETTE.filter((c) => c.luminance >= 45 && c.luminance < 65),
+  midLight: VGA_PALETTE.filter((c) => c.luminance >= 65 && c.luminance < 80),
+  light: VGA_PALETTE.filter((c) => c.luminance >= 80),
+};
+
+const PALETTE_BY_TEMPERATURE = {
+  warm: VGA_PALETTE.filter((c) => c.temperature === "warm"),
+  cool: VGA_PALETTE.filter((c) => c.temperature === "cool"),
+  neutral: VGA_PALETTE.filter((c) => c.temperature === "neutral"),
+};
+
+const PALETTE_BY_SATURATION = {
+  gray: VGA_PALETTE.filter((c) => c.saturation === "gray"),
+  muted: VGA_PALETTE.filter((c) => c.saturation === "muted"),
+  chromatic: VGA_PALETTE.filter((c) => c.saturation === "chromatic"),
+  vivid: VGA_PALETTE.filter((c) => c.saturation === "vivid"),
+};
+
+// High-contrast accent colors (saturated CGA + vivid web-safe)
+const ACCENT_POOL = VGA_PALETTE.filter(
+  (c) =>
+    c.saturation === "vivid" || (c.type === "cga" && c.saturation !== "gray")
+);
+
+// Calculate color distance in RGB space (weighted for perception)
+function colorDistance(c1, c2) {
+  // Weighted Euclidean distance (more weight on green as humans are most sensitive to it)
+  const dr = c1.r - c2.r;
+  const dg = c1.g - c2.g;
+  const db = c1.b - c2.b;
+  return Math.sqrt(dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11);
+}
+
+// Find colors within N cube-steps (for web-safe colors only)
+function getCubeNeighbors(color, maxSteps) {
+  if (!color.cubePos) return [];
+  const { ri, gi, bi } = color.cubePos;
+
+  return VGA_PALETTE.filter((c) => {
+    if (!c.cubePos) return false;
+    const dist =
+      Math.abs(c.cubePos.ri - ri) +
+      Math.abs(c.cubePos.gi - gi) +
+      Math.abs(c.cubePos.bi - bi);
+    return dist > 0 && dist <= maxSteps;
+  });
+}
+
+// Get colors from the opposite cube octant
+function getComplementaryRegion(color) {
+  if (!color.cubePos) {
+    // For non-websafe colors, find opposite by luminance and temperature
+    const oppTemp =
+      color.temperature === "warm"
+        ? "cool"
+        : color.temperature === "cool"
+        ? "warm"
+        : "neutral";
+    return PALETTE_BY_TEMPERATURE[oppTemp];
+  }
+
+  const { ri, gi, bi } = color.cubePos;
+  // Opposite octant: flip each coordinate around the midpoint (2.5)
+  const oppRi = ri < 3 ? 4 : 1;
+  const oppGi = gi < 3 ? 4 : 1;
+  const oppBi = bi < 3 ? 4 : 1;
+
+  return VGA_PALETTE.filter((c) => {
+    if (!c.cubePos) return false;
+    // Colors in the opposite region (±1 from opposite corner)
+    return (
+      Math.abs(c.cubePos.ri - oppRi) <= 1 &&
+      Math.abs(c.cubePos.gi - oppGi) <= 1 &&
+      Math.abs(c.cubePos.bi - oppBi) <= 1
+    );
+  });
+}
+
+// Get colors along a cube diagonal path
+function getCubeDiagonalPath(startColor, endColor, steps) {
+  if (!startColor.cubePos || !endColor.cubePos) {
+    // Fallback: interpolate by luminance
+    return interpolateByLuminance(startColor, endColor, steps);
+  }
+
+  const path = [];
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    const targetRi = Math.round(
+      startColor.cubePos.ri + (endColor.cubePos.ri - startColor.cubePos.ri) * t
+    );
+    const targetGi = Math.round(
+      startColor.cubePos.gi + (endColor.cubePos.gi - startColor.cubePos.gi) * t
+    );
+    const targetBi = Math.round(
+      startColor.cubePos.bi + (endColor.cubePos.bi - startColor.cubePos.bi) * t
+    );
+
+    // Find the color at this cube position
+    const found = VGA_PALETTE.find(
+      (c) =>
+        c.cubePos &&
+        c.cubePos.ri === targetRi &&
+        c.cubePos.gi === targetGi &&
+        c.cubePos.bi === targetBi
+    );
+    if (found) path.push(found);
+  }
+  return path;
+}
+
+// Interpolate between two colors by luminance (fallback for non-websafe)
+function interpolateByLuminance(startColor, endColor, steps) {
+  const startLum = startColor.luminance;
+  const endLum = endColor.luminance;
+
+  const path = [];
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    const targetLum = startLum + (endLum - startLum) * t;
+
+    // Find closest color by luminance that maintains temperature
+    const candidates = VGA_PALETTE.filter(
+      (c) =>
+        c.temperature === startColor.temperature || c.temperature === "neutral"
+    );
+
+    let closest = candidates[0];
+    let closestDist = Math.abs(closest.luminance - targetLum);
+
+    for (const c of candidates) {
+      const dist = Math.abs(c.luminance - targetLum);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = c;
+      }
+    }
+    path.push(closest);
+  }
+  return path;
+}
+
+// Check if two colors have sufficient contrast (WCAG AA = 4.5:1)
+function hasGoodContrast(c1, c2, minRatio = 4.5) {
+  const l1 = c1.luminance / 100;
+  const l2 = c2.luminance / 100;
+  const lighter = Math.max(l1, l2) + 0.05;
+  const darker = Math.min(l1, l2) + 0.05;
+  return lighter / darker >= minRatio;
+}
+
+// Pick a random element from array using seeded RNG
+function pickRandom(rng, arr) {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
+// Pick from array with bias toward certain indices
+function pickBiased(rng, arr, bias) {
+  // bias: 'start' = favor low indices, 'end' = favor high indices, 'middle' = favor middle
+  const idx = Math.floor(rng() * arr.length);
+  if (bias === "start") {
+    return arr[Math.floor(idx * rng())];
+  } else if (bias === "end") {
+    return arr[arr.length - 1 - Math.floor((arr.length - 1 - idx) * rng())];
+  }
+  return arr[idx];
+}
+
+// ============ HSL UTILITIES (for color manipulation, not palette generation) ============
+
+// HSL to Hex conversion (used for extreme color effects)
 function hslToHex(h, s, l) {
   s /= 100;
   l /= 100;
@@ -23,7 +336,7 @@ function hslToHex(h, s, l) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-// Hex to HSL conversion
+// Hex to HSL conversion (used for extreme color effects)
 function hexToHsl(hex) {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -55,150 +368,188 @@ function hexToHsl(hex) {
   return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
-// Hue zones - named regions of the color wheel
-const HUE_ZONES = {
-  ember: [5, 25], // red-orange
-  earth: [25, 50], // orange-ochre
-  gold: [45, 65], // yellow-gold
-  moss: [70, 100], // yellow-green
-  forest: [100, 150], // green
-  teal: [160, 190], // cyan-teal
-  sky: [195, 225], // blue
-  deep: [225, 260], // deep blue-indigo
-  dusk: [260, 290], // purple
-  berry: [290, 330], // magenta-pink
-  blood: [345, 360], // red (wraps to 0-10)
-};
-
-// Saturation bands
-const SAT_BANDS = {
-  whisper: [8, 20], // barely there
-  muted: [25, 42], // sophisticated quiet
-  moderate: [45, 62], // present but calm
-  rich: [65, 82], // full, confident
-  vivid: [85, 100], // rare, loud
-};
-
-// Value structures (bg lightness, text lightness)
-const VALUE_STRUCTURES = {
-  paper: { bg: [88, 96], text: [12, 28] }, // light bg, dark text
-  parchment: { bg: [78, 88], text: [18, 35] }, // aged paper
-  screen: { bg: [3, 12], text: [75, 92] }, // terminal
-  slate: { bg: [15, 25], text: [65, 80] }, // dark but not black
-  fog: { bg: [70, 82], text: [35, 50] }, // low contrast light
-  storm: { bg: [25, 40], text: [55, 72] }, // low contrast dark
-};
-
-// Temperature families
-const WARM_ZONES = ["ember", "earth", "gold", "berry", "blood"];
-const COOL_ZONES = ["forest", "teal", "sky", "deep", "dusk"];
-const NEUTRAL_ZONES = ["moss"];
-
-// Pick from a range
-function pickInRange(rng, range) {
-  return range[0] + rng() * (range[1] - range[0]);
-}
-
-// Pick a random key from an object
-function pickKey(rng, obj) {
-  const keys = Object.keys(obj);
-  return keys[Math.floor(rng() * keys.length)];
-}
-
-// Generate palette using constrained system
+// Generate palette using VGA 256-color cube-space logic
 function generatePalette(seed) {
   const rng = seededRandom(seed);
 
-  // 1. Choose a value structure first (this is the foundation)
-  const structureName = pickKey(rng, VALUE_STRUCTURES);
-  const structure = VALUE_STRUCTURES[structureName];
+  // 1. Choose palette archetype
+  const archetypeRoll = rng();
+  let archetype;
+  if (archetypeRoll < 0.3)
+    archetype = "monochrome"; // Same temperature, value variation
+  else if (archetypeRoll < 0.55) archetype = "analogous"; // Cube neighbors
+  else if (archetypeRoll < 0.75)
+    archetype = "complementary"; // Opposite cube octant
+  else if (archetypeRoll < 0.88)
+    archetype = "triadic"; // Three equidistant positions
+  else archetype = "split"; // One dominant + distant accent
 
-  // 2. Choose temperature commitment
+  // 2. Choose value structure (light bg vs dark bg)
+  const structureRoll = rng();
+  let bgPool, textPool, structureName;
+
+  if (structureRoll < 0.35) {
+    // Light background (paper-like)
+    structureName = "paper";
+    bgPool = PALETTE_BY_LUMINANCE.light;
+    textPool = PALETTE_BY_LUMINANCE.dark;
+  } else if (structureRoll < 0.55) {
+    // Dark background (terminal-like)
+    structureName = "screen";
+    bgPool = PALETTE_BY_LUMINANCE.dark;
+    textPool = PALETTE_BY_LUMINANCE.light;
+  } else if (structureRoll < 0.7) {
+    // Mid-light background (parchment)
+    structureName = "parchment";
+    bgPool = PALETTE_BY_LUMINANCE.midLight;
+    textPool = [...PALETTE_BY_LUMINANCE.dark, ...PALETTE_BY_LUMINANCE.midDark];
+  } else if (structureRoll < 0.85) {
+    // Mid-dark background (slate)
+    structureName = "slate";
+    bgPool = PALETTE_BY_LUMINANCE.midDark;
+    textPool = [
+      ...PALETTE_BY_LUMINANCE.light,
+      ...PALETTE_BY_LUMINANCE.midLight,
+    ];
+  } else {
+    // Low contrast (fog/storm)
+    structureName = rng() < 0.5 ? "fog" : "storm";
+    if (structureName === "fog") {
+      bgPool = PALETTE_BY_LUMINANCE.midLight;
+      textPool = PALETTE_BY_LUMINANCE.mid;
+    } else {
+      bgPool = PALETTE_BY_LUMINANCE.midDark;
+      textPool = PALETTE_BY_LUMINANCE.mid;
+    }
+  }
+
+  // 3. Choose temperature commitment
   const tempRoll = rng();
-  let temperature, availableZones;
-  if (tempRoll < 0.45) {
-    temperature = "warm";
-    availableZones = WARM_ZONES;
-  } else if (tempRoll < 0.9) {
-    temperature = "cool";
-    availableZones = COOL_ZONES;
-  } else {
-    temperature = "neutral";
-    availableZones = [...WARM_ZONES, ...COOL_ZONES, ...NEUTRAL_ZONES];
+  let temperature;
+  if (tempRoll < 0.42) temperature = "warm";
+  else if (tempRoll < 0.84) temperature = "cool";
+  else temperature = "neutral";
+
+  // 4. Select background color
+  // Filter by temperature preference, with some flexibility
+  let bgCandidates = bgPool.filter(
+    (c) =>
+      c.temperature === temperature ||
+      c.temperature === "neutral" ||
+      rng() < 0.15 // 15% chance to break temperature rule
+  );
+
+  // Prefer less saturated backgrounds
+  const mutedBgCandidates = bgCandidates.filter(
+    (c) => c.saturation === "gray" || c.saturation === "muted"
+  );
+  if (mutedBgCandidates.length > 3) {
+    bgCandidates = rng() < 0.7 ? mutedBgCandidates : bgCandidates;
   }
 
-  // 3. Choose primary hue zone
-  const zoneName = availableZones[Math.floor(rng() * availableZones.length)];
-  const zone = HUE_ZONES[zoneName] || HUE_ZONES.earth;
-  const primaryHue = pickInRange(rng, zone);
+  const bgColor = pickRandom(
+    rng,
+    bgCandidates.length > 0 ? bgCandidates : bgPool
+  );
 
-  // 4. Choose saturation band
-  const satRoll = rng();
-  let satBandName;
-  if (satRoll < 0.15) satBandName = "whisper";
-  else if (satRoll < 0.4) satBandName = "muted";
-  else if (satRoll < 0.7) satBandName = "moderate";
-  else if (satRoll < 0.92) satBandName = "rich";
-  else satBandName = "vivid";
+  // 5. Select text color based on archetype
+  let textCandidates;
 
-  const satBand = SAT_BANDS[satBandName];
+  switch (archetype) {
+    case "monochrome":
+      // Same temperature, just value contrast
+      textCandidates = textPool.filter(
+        (c) =>
+          c.temperature === bgColor.temperature || c.temperature === "neutral"
+      );
+      break;
 
-  // 5. Choose relationship type
-  const relationRoll = rng();
-  let relationship, secondaryHue;
+    case "analogous":
+      // Cube neighbors if bg is websafe, otherwise same temperature
+      if (bgColor.cubePos) {
+        const neighbors = getCubeNeighbors(bgColor, 3);
+        textCandidates = neighbors.filter((c) => hasGoodContrast(bgColor, c));
+        if (textCandidates.length < 3) {
+          textCandidates = textPool.filter(
+            (c) => c.temperature === bgColor.temperature
+          );
+        }
+      } else {
+        textCandidates = textPool.filter(
+          (c) => c.temperature === bgColor.temperature
+        );
+      }
+      break;
 
-  if (relationRoll < 0.45) {
-    // Monochrome - same hue for bg and text
-    relationship = "mono";
-    secondaryHue = primaryHue;
-  } else if (relationRoll < 0.75) {
-    // Analogous - nearby hue (±15-40°)
-    relationship = "analogous";
-    const shift = 15 + rng() * 25;
-    secondaryHue = (primaryHue + (rng() > 0.5 ? shift : -shift) + 360) % 360;
-  } else if (relationRoll < 0.88) {
-    // Temperature tension - opposite temperature
-    relationship = "tension";
-    const oppositeZones = temperature === "warm" ? COOL_ZONES : WARM_ZONES;
-    const oppZoneName = oppositeZones[Math.floor(rng() * oppositeZones.length)];
-    const oppZone = HUE_ZONES[oppZoneName];
-    secondaryHue = pickInRange(rng, oppZone);
-  } else {
-    // Complement - opposite on wheel
-    relationship = "complement";
-    secondaryHue = (primaryHue + 150 + rng() * 60) % 360;
+    case "complementary":
+      // Opposite cube region
+      const complementary = getComplementaryRegion(bgColor);
+      textCandidates = complementary.filter((c) => hasGoodContrast(bgColor, c));
+      if (textCandidates.length < 3) {
+        textCandidates = textPool.filter(
+          (c) => c.temperature !== bgColor.temperature
+        );
+      }
+      break;
+
+    case "triadic":
+      // Different temperature, chromatic
+      textCandidates = textPool.filter(
+        (c) =>
+          c.temperature !== bgColor.temperature &&
+          (c.saturation === "chromatic" || c.saturation === "vivid")
+      );
+      break;
+
+    case "split":
+    default:
+      // Any contrasting color
+      textCandidates = textPool.filter((c) => hasGoodContrast(bgColor, c));
+      break;
   }
 
-  // 6. Assign hues to bg/text based on structure
-  const isLightBg = structure.bg[0] > 50;
-  const bgHue = isLightBg ? secondaryHue : primaryHue;
-  const textHue = isLightBg ? primaryHue : secondaryHue;
+  // Ensure we have candidates
+  if (textCandidates.length === 0) {
+    textCandidates = textPool.filter((c) => hasGoodContrast(bgColor, c));
+  }
+  if (textCandidates.length === 0) {
+    textCandidates = textPool;
+  }
 
-  // 7. Calculate final values
-  const bgL = pickInRange(rng, structure.bg);
-  const textL = pickInRange(rng, structure.text);
+  const textColor = pickRandom(rng, textCandidates);
 
-  // 8. Saturation - bg often more muted than text
-  const bgSat = pickInRange(rng, [satBand[0] * 0.6, satBand[1] * 0.8]);
-  const textSat = pickInRange(rng, satBand);
+  // 6. Select accent color
+  // Accent should be high saturation and high contrast with both bg and text
+  let accentCandidates = ACCENT_POOL.filter(
+    (c) =>
+      hasGoodContrast(bgColor, c, 3.0) && // Slightly lower threshold for accent
+      colorDistance(c, textColor) > 80 // Must be distinct from text
+  );
 
-  // For very light or very dark bgs, reduce saturation further
-  const bgSatFinal = bgL > 85 || bgL < 15 ? bgSat * 0.5 : bgSat;
+  // Prefer accents from opposite temperature
+  const oppositeTemp =
+    bgColor.temperature === "warm"
+      ? "cool"
+      : bgColor.temperature === "cool"
+      ? "warm"
+      : "warm";
+  const tempAccents = accentCandidates.filter(
+    (c) => c.temperature === oppositeTemp
+  );
+  if (tempAccents.length > 2) {
+    accentCandidates = rng() < 0.7 ? tempAccents : accentCandidates;
+  }
 
-  const bg = hslToHex(bgHue, bgSatFinal, bgL);
-  const text = hslToHex(textHue, textSat, textL);
-
-  // 9. Generate accent - complementary, high contrast
-  const accentHue = (primaryHue + 150 + rng() * 60) % 360;
-  const accentSat = 70 + rng() * 30;
-  const accentL = bgL > 50 ? 30 + rng() * 25 : 60 + rng() * 25;
-  const accent = hslToHex(accentHue, accentSat, accentL);
+  const accentColor =
+    accentCandidates.length > 0
+      ? pickRandom(rng, accentCandidates)
+      : pickRandom(rng, ACCENT_POOL);
 
   return {
-    bg,
-    text,
-    accent,
-    strategy: `${structureName}/${relationship}`,
+    bg: bgColor.hex,
+    text: textColor.hex,
+    accent: accentColor.hex,
+    strategy: `${structureName}/${archetype}`,
   };
 }
 
@@ -371,121 +722,159 @@ function generateFoldStrategy(seed) {
 // Generate multi-color palette for intersection levels
 // Returns array of 4 colors: [empty, light, medium, dense]
 // Works within the same constrained system as main palette
+// Find a VGA palette color by hex value
+function findVGAColor(hex) {
+  const upperHex = hex.toUpperCase();
+  return VGA_PALETTE.find((c) => c.hex === upperHex) || VGA_PALETTE[0];
+}
+
+// Generate multi-color palette using VGA cube-path interpolation
+// Returns array of 4 colors: [level0, level1, level2, level3]
 function generateMultiColorPalette(seed, bgColor, textColor) {
   const rng = seededRandom(seed + 3333);
-  const bgHsl = hexToHsl(bgColor);
-  const textHsl = hexToHsl(textColor);
-  const isLightBg = bgHsl.l > 50;
 
-  // Determine base saturation from text color
-  const baseSat = textHsl.s;
-  let satBand;
-  if (baseSat < 25) satBand = SAT_BANDS.whisper;
-  else if (baseSat < 45) satBand = SAT_BANDS.muted;
-  else if (baseSat < 65) satBand = SAT_BANDS.moderate;
-  else if (baseSat < 85) satBand = SAT_BANDS.rich;
-  else satBand = SAT_BANDS.vivid;
+  // Find the VGA colors closest to bg and text
+  const bgVGA = findVGAColor(bgColor);
+  const textVGA = findVGAColor(textColor);
+  const isLightBg = bgVGA.luminance > 50;
 
   const strategy = rng();
 
-  if (strategy < 0.5) {
-    // Value gradient within same hue zone - most cohesive
-    const baseHue = textHsl.h;
-    const hueVariation = 8 + rng() * 12; // subtle hue shift
+  if (strategy < 0.45) {
+    // Cube path interpolation - walk through the RGB cube from bg region to text
+    // This creates a natural gradient using only VGA colors
 
-    if (isLightBg) {
-      // Light bg: colors go from light/muted to dark/saturated
-      return [
-        hslToHex(
-          baseHue - hueVariation,
-          pickInRange(rng, satBand) * 0.5,
-          75 + rng() * 15
-        ),
-        hslToHex(
-          baseHue - hueVariation * 0.5,
-          pickInRange(rng, satBand) * 0.7,
-          55 + rng() * 12
-        ),
-        hslToHex(baseHue, pickInRange(rng, satBand) * 0.9, 38 + rng() * 12),
-        hslToHex(
-          baseHue + hueVariation,
-          pickInRange(rng, satBand),
-          22 + rng() * 12
-        ),
-      ];
-    } else {
-      // Dark bg: colors go from dark/muted to light/saturated
-      return [
-        hslToHex(
-          baseHue - hueVariation,
-          pickInRange(rng, satBand) * 0.5,
-          25 + rng() * 12
-        ),
-        hslToHex(
-          baseHue - hueVariation * 0.5,
-          pickInRange(rng, satBand) * 0.7,
-          42 + rng() * 12
-        ),
-        hslToHex(baseHue, pickInRange(rng, satBand) * 0.9, 58 + rng() * 12),
-        hslToHex(
-          baseHue + hueVariation,
-          pickInRange(rng, satBand),
-          72 + rng() * 15
-        ),
-      ];
+    if (bgVGA.cubePos && textVGA.cubePos) {
+      const path = getCubeDiagonalPath(bgVGA, textVGA, 6);
+      if (path.length >= 4) {
+        // Pick 4 evenly spaced colors from the path
+        return [
+          path[0].hex,
+          path[Math.floor(path.length * 0.33)].hex,
+          path[Math.floor(path.length * 0.66)].hex,
+          path[path.length - 1].hex,
+        ];
+      }
     }
-  } else if (strategy < 0.8) {
-    // Analogous journey - stays in same temperature
-    const baseHue = textHsl.h;
-    const shift = 18 + rng() * 25;
-    const direction = rng() > 0.5 ? 1 : -1;
 
-    const hues = [
-      baseHue,
-      (baseHue + direction * shift + 360) % 360,
-      (baseHue + direction * shift * 2 + 360) % 360,
-      (baseHue + direction * shift * 2.5 + 360) % 360,
+    // Fallback: luminance-based interpolation
+    const path = interpolateByLuminance(bgVGA, textVGA, 6);
+    return [
+      path[0].hex,
+      path[Math.floor(path.length * 0.33)].hex,
+      path[Math.floor(path.length * 0.66)].hex,
+      path[path.length - 1].hex,
     ];
+  } else if (strategy < 0.75) {
+    // Neighborhood expansion - start from text color, expand outward in cube
+    // Creates cohesive palettes that stay in the same "region"
 
-    if (isLightBg) {
-      return [
-        hslToHex(hues[0], pickInRange(rng, satBand) * 0.6, 72 + rng() * 15),
-        hslToHex(hues[1], pickInRange(rng, satBand) * 0.75, 52 + rng() * 12),
-        hslToHex(hues[2], pickInRange(rng, satBand) * 0.9, 38 + rng() * 10),
-        hslToHex(hues[3], pickInRange(rng, satBand), 24 + rng() * 10),
-      ];
+    const neighbors1 = getCubeNeighbors(textVGA, 1);
+    const neighbors2 = getCubeNeighbors(textVGA, 2);
+    const neighbors3 = getCubeNeighbors(textVGA, 3);
+
+    // Filter by contrast and sort by luminance
+    const sortByLum = (a, b) =>
+      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance;
+
+    const level1Candidates = neighbors1
+      .filter((c) => hasGoodContrast(bgVGA, c, 2.0))
+      .sort(sortByLum);
+    const level2Candidates = neighbors2
+      .filter((c) => hasGoodContrast(bgVGA, c, 3.0))
+      .sort(sortByLum);
+    const level3Candidates = neighbors3
+      .filter((c) => hasGoodContrast(bgVGA, c, 4.0))
+      .sort(sortByLum);
+
+    // Select colors, ensuring they're distinct
+    const colors = [textVGA.hex];
+
+    // Level 1 - closest to text
+    if (level1Candidates.length > 0) {
+      colors.push(pickRandom(rng, level1Candidates).hex);
     } else {
-      return [
-        hslToHex(hues[0], pickInRange(rng, satBand) * 0.6, 28 + rng() * 12),
-        hslToHex(hues[1], pickInRange(rng, satBand) * 0.75, 45 + rng() * 12),
-        hslToHex(hues[2], pickInRange(rng, satBand) * 0.9, 60 + rng() * 12),
-        hslToHex(hues[3], pickInRange(rng, satBand), 75 + rng() * 15),
-      ];
+      colors.push(textVGA.hex);
     }
+
+    // Level 2 - mid distance
+    if (level2Candidates.length > 0) {
+      const unused = level2Candidates.filter((c) => !colors.includes(c.hex));
+      colors.push(
+        unused.length > 0
+          ? pickRandom(rng, unused).hex
+          : level2Candidates[0].hex
+      );
+    } else {
+      colors.push(colors[1]);
+    }
+
+    // Level 3 - furthest, most contrast
+    if (level3Candidates.length > 0) {
+      const unused = level3Candidates.filter((c) => !colors.includes(c.hex));
+      colors.push(
+        unused.length > 0
+          ? pickRandom(rng, unused).hex
+          : level3Candidates[0].hex
+      );
+    } else {
+      colors.push(textVGA.hex);
+    }
+
+    // Reorder by luminance for proper gradient
+    const colorObjs = colors.map((hex) => findVGAColor(hex));
+    colorObjs.sort((a, b) =>
+      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance
+    );
+
+    return colorObjs.map((c) => c.hex);
   } else {
-    // Split complement - more tension but still structured
-    const baseHue = textHsl.h;
-    const complement = (baseHue + 180) % 360;
-    const split1 = (complement - 30 + 360) % 360;
-    const split2 = (complement + 30) % 360;
+    // Temperature tension - use colors from opposite temperature for some levels
+    // Creates more dynamic, contrasting palettes
 
-    const hues = [baseHue, split1, split2, complement];
+    const textTemp = textVGA.temperature;
+    const oppositeTemp =
+      textTemp === "warm" ? "cool" : textTemp === "cool" ? "warm" : "warm";
 
-    if (isLightBg) {
-      return [
-        hslToHex(hues[0], pickInRange(rng, satBand) * 0.5, 70 + rng() * 15),
-        hslToHex(hues[1], pickInRange(rng, satBand) * 0.7, 50 + rng() * 12),
-        hslToHex(hues[2], pickInRange(rng, satBand) * 0.85, 38 + rng() * 10),
-        hslToHex(hues[3], pickInRange(rng, satBand), 25 + rng() * 10),
-      ];
-    } else {
-      return [
-        hslToHex(hues[0], pickInRange(rng, satBand) * 0.5, 30 + rng() * 12),
-        hslToHex(hues[1], pickInRange(rng, satBand) * 0.7, 48 + rng() * 12),
-        hslToHex(hues[2], pickInRange(rng, satBand) * 0.85, 62 + rng() * 12),
-        hslToHex(hues[3], pickInRange(rng, satBand), 75 + rng() * 15),
-      ];
-    }
+    // Get candidates from both temperatures
+    const sameTemp = PALETTE_BY_TEMPERATURE[textTemp].filter((c) =>
+      hasGoodContrast(bgVGA, c, 2.5)
+    );
+    const oppTemp = PALETTE_BY_TEMPERATURE[oppositeTemp].filter((c) =>
+      hasGoodContrast(bgVGA, c, 2.5)
+    );
+
+    // Sort by luminance
+    const sortByLum = (a, b) =>
+      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance;
+    sameTemp.sort(sortByLum);
+    oppTemp.sort(sortByLum);
+
+    const colors = [];
+
+    // Level 0 - lightest/darkest, same temperature
+    colors.push(sameTemp.length > 0 ? sameTemp[0].hex : textVGA.hex);
+
+    // Level 1 - same temperature, mid value
+    const mid1 = sameTemp.filter((c) => !colors.includes(c.hex));
+    colors.push(
+      mid1.length > 0 ? mid1[Math.floor(mid1.length * 0.3)].hex : textVGA.hex
+    );
+
+    // Level 2 - opposite temperature for tension
+    const mid2 = oppTemp.filter((c) => !colors.includes(c.hex));
+    colors.push(
+      mid2.length > 0 ? mid2[Math.floor(mid2.length * 0.5)].hex : textVGA.hex
+    );
+
+    // Level 3 - highest contrast, could be either
+    const final = [...sameTemp, ...oppTemp].filter(
+      (c) => !colors.includes(c.hex)
+    );
+    final.sort(sortByLum);
+    colors.push(final.length > 0 ? final[final.length - 1].hex : textVGA.hex);
+
+    return colors;
   }
 }
 
@@ -515,14 +904,14 @@ function calculateAdaptiveThresholds(cellWeights) {
     return arr[Math.min(idx, arr.length - 1)];
   };
 
-  // Level 1 (▒): bottom 40% of non-zero weights
-  // Level 2 (▓): 40th to 85th percentile
-  // Level 3 (█): top 15% (rare)
-  // Extreme (inverted): top 3% - transcends the palette
-  const t1 = percentile(weights, 0.4);
-  const t2 = percentile(weights, 0.85);
-  const t3 = percentile(weights, 0.85) + 1; // anything above t2
-  const tExtreme = percentile(weights, 0.97); // top 3%
+  // Level 1 (░): bottom 70% of non-zero weights - most common
+  // Level 2 (▒): 70th to 94th percentile - less common
+  // Level 3 (▓): top 6% only - rare, darkest areas
+  // Extreme (color shift): top 1.5% - transcends the palette
+  const t1 = percentile(weights, 0.7);
+  const t2 = percentile(weights, 0.94);
+  const t3 = percentile(weights, 0.94) + 1; // anything above t2
+  const tExtreme = percentile(weights, 0.985); // top 1.5%
 
   // Ensure thresholds are distinct
   return {
@@ -1146,8 +1535,8 @@ function simulateFolds(
     }
 
     // Smooth offset drift using sine waves - no hard resets
-    // Amplitude increases slightly with fold count for more spread at high counts
-    const amplitude = 0.3 + (f / numFolds) * 0.2;
+    // Amplitude grows with fold index (not ratio) so existing folds stay stable
+    const amplitude = 0.3 + Math.min(f * 0.002, 0.2); // caps at 0.5 after 100 folds
     const offsetX = Math.sin(f * freqX + phaseX) * width * amplitude;
     const offsetY = Math.sin(f * freqY + phaseY) * height * amplitude;
 
@@ -1496,8 +1885,8 @@ function renderToCanvas({
   ctx.font = `${cellHeight - 2}px "Courier New", Courier, monospace`;
   ctx.textBaseline = "top";
 
-  // Block shade characters
-  const shadeChars = ["░", "▒", "▓", "█"];
+  // Block shade characters - graduated density, no solid blocks
+  const shadeChars = [" ", "░", "▒", "▓"];
 
   // Find accent cells
   const accentCells = new Set();
@@ -1676,8 +2065,8 @@ function ASCIICanvas({
     ctx.font = `${charHeight - 2}px "Courier New", Courier, monospace`;
     ctx.textBaseline = "top";
 
-    // Block shade characters by density
-    const shadeChars = ["░", "▒", "▓", "█"];
+    // Block shade characters by density - graduated, no solid blocks
+    const shadeChars = [" ", "░", "▒", "▓"];
 
     // Calculate adaptive thresholds based on this output's weight distribution
     const thresholds = calculateAdaptiveThresholds(intersectionWeight);
@@ -2046,13 +2435,16 @@ export default function FoldedPaper() {
   const [creaseCount, setCreaseCount] = useState(0); // Track crease count from canvas
 
   // Preset palettes for reference/quick access: [name, background, text, accent]
+  // All colors are from the VGA 256-color palette (web-safe + CGA)
   const presetPalettes = [
-    ["cream", "#f4f1eb", "#1a1816", "#aa0000"],
-    ["paper", "#ffffff", "#0000aa", "#ff0000"],
-    ["ink", "#000000", "#0000aa", "#00aaff"],
-    ["amber", "#ffd899", "#663300", "#0044aa"],
-    ["blue/gold", "#002aff", "#a5a800", "#ffffff"],
-    ["red/gold", "#ff0000", "#a5a800", "#ffffff"],
+    ["cream", "#FFFFCC", "#333333", "#AA0000"], // VGA cream paper
+    ["paper", "#FFFFFF", "#0000AA", "#FF0000"], // Classic CGA paper
+    ["ink", "#000000", "#00CCFF", "#FF5555"], // Dark terminal
+    ["amber", "#FFCC99", "#663300", "#0066CC"], // Warm amber
+    ["blue/gold", "#0033FF", "#FFFF00", "#FFFFFF"], // Bold blue/gold
+    ["red/gold", "#FF0000", "#FFFF55", "#FFFFFF"], // CGA red/yellow
+    ["forest", "#003300", "#99FF99", "#FFCC00"], // Deep forest
+    ["lavender", "#CCCCFF", "#330066", "#FF0066"], // Soft purple
   ];
 
   // Handle palette change
