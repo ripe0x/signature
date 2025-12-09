@@ -1968,7 +1968,13 @@ function renderToCanvas({
       }
 
       if (char) {
-        ctx.fillStyle = color;
+        // Always use getColorForLevel to ensure VGA palette colors
+        const finalColor = getColorForLevel(
+          countToLevelAdaptive(weight, thresholds),
+          key
+        );
+        ctx.fillStyle =
+          accentCells.has(key) && weight > 0 ? accentColor : finalColor;
         ctx.fillText(char, x, y);
       }
     }
@@ -2065,7 +2071,7 @@ function ASCIICanvas({
     ctx.font = `${charHeight - 2}px "Courier New", Courier, monospace`;
     ctx.textBaseline = "top";
 
-    // Block shade characters by density - graduated, no solid blocks
+    // Block shade characters - graduated density, no solid blocks
     const shadeChars = [" ", "░", "▒", "▓"];
 
     // Calculate adaptive thresholds based on this output's weight distribution
@@ -2181,7 +2187,13 @@ function ASCIICanvas({
           }
 
           if (char) {
-            ctx.fillStyle = color;
+            // Always use getColorForLevel to ensure VGA palette colors
+            const finalColor = getColorForLevel(
+              countToLevelAdaptive(weight, thresholds),
+              key
+            );
+            ctx.fillStyle =
+              accentCells.has(key) && weight > 0 ? accentColor : finalColor;
             ctx.fillText(char, x, y);
           }
         }
