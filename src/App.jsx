@@ -380,226 +380,389 @@ function hexToHsl(hex) {
   return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
-// Generate palette using VGA 256-color cube-space logic
-function generatePalette(seed) {
-  const rng = seededRandom(seed);
+// ============ ALBERS-INSPIRED PALETTE GENERATION ============
+// Based on Josef Albers' "Interaction of Color" principles:
+// - Color is relational, not absolute
+// - Derive colors through transformations, not independent selection
+// - Restriction reveals relationships
+// - Near-neighbors create optical effects
+// - The transformation IS the artistic choice
 
-  // 1. Choose palette archetype
-  const archetypeRoll = rng();
-  let archetype;
-  if (archetypeRoll < 0.3)
-    archetype = "monochrome"; // Same temperature, value variation
-  else if (archetypeRoll < 0.55) archetype = "analogous"; // Cube neighbors
-  else if (archetypeRoll < 0.75)
-    archetype = "complementary"; // Opposite cube octant
-  else if (archetypeRoll < 0.88)
-    archetype = "triadic"; // Three equidistant positions
-  else archetype = "split"; // One dominant + distant accent
+// Find colors that could be perceptually confused with the given color
+// (similar luminance, different hue/saturation) - Albers' deception principle
+function findConfusableColors(color, lumTolerance = 10) {
+  return VGA_PALETTE.filter(
+    (c) =>
+      c.hex !== color.hex &&
+      Math.abs(c.luminance - color.luminance) < lumTolerance &&
+      (c.temperature !== color.temperature || c.saturation !== color.saturation)
+  );
+}
 
-  // 2. Choose value structure (light bg vs dark bg)
-  const structureRoll = rng();
-  let bgPool, textPool, structureName;
+// Find the visual midpoint between two colors - a color the eye might mix
+function findVisualMidpoint(c1, c2) {
+  const targetR = Math.round((c1.r + c2.r) / 2);
+  const targetG = Math.round((c1.g + c2.g) / 2);
+  const targetB = Math.round((c1.b + c2.b) / 2);
+  const targetLum = (c1.luminance + c2.luminance) / 2;
 
-  if (structureRoll < 0.35) {
-    // Light background (paper-like)
-    structureName = "paper";
-    bgPool = PALETTE_BY_LUMINANCE.light;
-    textPool = PALETTE_BY_LUMINANCE.dark;
-  } else if (structureRoll < 0.55) {
-    // Dark background (terminal-like)
-    structureName = "screen";
-    bgPool = PALETTE_BY_LUMINANCE.dark;
-    textPool = PALETTE_BY_LUMINANCE.light;
-  } else if (structureRoll < 0.7) {
-    // Mid-light background (parchment)
-    structureName = "parchment";
-    bgPool = PALETTE_BY_LUMINANCE.midLight;
-    textPool = [...PALETTE_BY_LUMINANCE.dark, ...PALETTE_BY_LUMINANCE.midDark];
-  } else if (structureRoll < 0.85) {
-    // Mid-dark background (slate)
-    structureName = "slate";
-    bgPool = PALETTE_BY_LUMINANCE.midDark;
-    textPool = [
-      ...PALETTE_BY_LUMINANCE.light,
-      ...PALETTE_BY_LUMINANCE.midLight,
-    ];
-  } else {
-    // Low contrast (fog/storm)
-    structureName = rng() < 0.5 ? "fog" : "storm";
-    if (structureName === "fog") {
-      bgPool = PALETTE_BY_LUMINANCE.midLight;
-      textPool = PALETTE_BY_LUMINANCE.mid;
-    } else {
-      bgPool = PALETTE_BY_LUMINANCE.midDark;
-      textPool = PALETTE_BY_LUMINANCE.mid;
+  // Find closest VGA color to the theoretical midpoint
+  let closest = VGA_PALETTE[0];
+  let closestDist = Infinity;
+
+  for (const c of VGA_PALETTE) {
+    // Weight both RGB distance and luminance match
+    const rgbDist = Math.sqrt(
+      Math.pow(c.r - targetR, 2) +
+        Math.pow(c.g - targetG, 2) +
+        Math.pow(c.b - targetB, 2)
+    );
+    const lumDist = Math.abs(c.luminance - targetLum) * 2;
+    const totalDist = rgbDist + lumDist;
+
+    if (totalDist < closestDist) {
+      closestDist = totalDist;
+      closest = c;
     }
   }
 
-  // 3. Choose temperature commitment
-  const tempRoll = rng();
-  let temperature;
-  if (tempRoll < 0.42) temperature = "warm";
-  else if (tempRoll < 0.84) temperature = "cool";
-  else temperature = "neutral";
+  return closest;
+}
 
-  // 4. Select background color
-  // Filter by temperature preference, with some flexibility
-  let bgCandidates = bgPool.filter(
-    (c) =>
-      c.temperature === temperature ||
-      c.temperature === "neutral" ||
-      rng() < 0.25 // 25% chance to break temperature rule for more variety
-  );
+// Apply a transformation to derive a new color from the mother color
+// Returns array of candidates sorted by transformation fidelity
+function applyTransformation(mother, transformType, rng) {
+  let candidates = [];
 
-  // Prefer chromatic colors over pure grays to avoid gray dominance
-  // Grays are overrepresented in the palette (30/256) and pass all filters
-  const chromaticBgCandidates = bgCandidates.filter(
-    (c) => c.saturation !== "gray"
-  );
-  if (chromaticBgCandidates.length > 5) {
-    // 80% chance to pick chromatic, 20% allow grays
-    bgCandidates = rng() < 0.8 ? chromaticBgCandidates : bgCandidates;
-  }
+  switch (transformType) {
+    case "value": {
+      // Pure value shift - same hue region, different luminance
+      // Albers: "colors of equal light intensity but different hue"
+      const lumDiff = mother.luminance > 50 ? -40 : 40; // Go opposite direction
+      const targetLum = Math.max(5, Math.min(95, mother.luminance + lumDiff));
 
-  const bgColor = pickRandom(
-    rng,
-    bgCandidates.length > 0 ? bgCandidates : bgPool
-  );
-
-  // 5. Select text color based on archetype
-  let textCandidates;
-
-  switch (archetype) {
-    case "monochrome":
-      // Same temperature, just value contrast
-      textCandidates = textPool.filter(
+      candidates = VGA_PALETTE.filter(
         (c) =>
-          c.temperature === bgColor.temperature || c.temperature === "neutral"
+          c.hex !== mother.hex &&
+          Math.abs(c.luminance - targetLum) < 20 &&
+          (c.temperature === mother.temperature ||
+            c.temperature === "neutral" ||
+            mother.temperature === "neutral")
+      );
+
+      // Sort by how well they maintain the temperature while shifting value
+      candidates.sort((a, b) => {
+        const aTempMatch = a.temperature === mother.temperature ? 0 : 1;
+        const bTempMatch = b.temperature === mother.temperature ? 0 : 1;
+        if (aTempMatch !== bTempMatch) return aTempMatch - bTempMatch;
+        return Math.abs(a.luminance - targetLum) - Math.abs(b.luminance - targetLum);
+      });
+      break;
+    }
+
+    case "temperature": {
+      // Temperature shift - warm↔cool while maintaining value
+      // Albers: spatial relationships through temperature
+      const targetTemp =
+        mother.temperature === "warm"
+          ? "cool"
+          : mother.temperature === "cool"
+          ? "warm"
+          : rng() < 0.5
+          ? "warm"
+          : "cool";
+
+      candidates = VGA_PALETTE.filter(
+        (c) =>
+          c.hex !== mother.hex &&
+          c.temperature === targetTemp &&
+          Math.abs(c.luminance - mother.luminance) < 25
+      );
+
+      // Sort by luminance similarity (maintain value)
+      candidates.sort(
+        (a, b) =>
+          Math.abs(a.luminance - mother.luminance) -
+          Math.abs(b.luminance - mother.luminance)
       );
       break;
+    }
 
-    case "analogous":
-      // Cube neighbors if bg is websafe, otherwise same temperature
-      if (bgColor.cubePos) {
-        const neighbors = getCubeNeighbors(bgColor, 3);
-        textCandidates = neighbors.filter((c) => hasGoodContrast(bgColor, c));
-        if (textCandidates.length < 3) {
-          textCandidates = textPool.filter(
-            (c) => c.temperature === bgColor.temperature
-          );
+    case "saturation": {
+      // Saturation shift - chromatic↔muted
+      // Albers: "free studies" exploring saturation relationships
+      const satOrder = ["gray", "muted", "chromatic", "vivid"];
+      const motherIdx = satOrder.indexOf(mother.saturation);
+      // Move toward opposite end of saturation spectrum
+      const targetSats =
+        motherIdx <= 1 ? ["chromatic", "vivid"] : ["muted", "gray"];
+
+      candidates = VGA_PALETTE.filter(
+        (c) =>
+          c.hex !== mother.hex &&
+          targetSats.includes(c.saturation) &&
+          Math.abs(c.luminance - mother.luminance) < 30 &&
+          (c.temperature === mother.temperature || c.temperature === "neutral")
+      );
+
+      // Sort by saturation distance (prefer stronger shift)
+      candidates.sort((a, b) => {
+        const aIdx = satOrder.indexOf(a.saturation);
+        const bIdx = satOrder.indexOf(b.saturation);
+        return Math.abs(bIdx - motherIdx) - Math.abs(aIdx - motherIdx);
+      });
+      break;
+    }
+
+    case "complement": {
+      // Complementary - opposite cube octant
+      // Albers: "after-image" and simultaneous contrast studies
+      candidates = getComplementaryRegion(mother);
+
+      // Sort by luminance contrast (complement should create tension)
+      candidates.sort(
+        (a, b) =>
+          Math.abs(b.luminance - mother.luminance) -
+          Math.abs(a.luminance - mother.luminance)
+      );
+      break;
+    }
+
+    case "neighbor": {
+      // Near-neighbor - Albers' "fluting" studies
+      // Adjacent colors that create subtle optical vibration
+      if (mother.cubePos) {
+        candidates = getCubeNeighbors(mother, 1); // Only immediate neighbors
+        if (candidates.length < 3) {
+          candidates = getCubeNeighbors(mother, 2);
         }
       } else {
-        textCandidates = textPool.filter(
-          (c) => c.temperature === bgColor.temperature
+        // For non-websafe, find perceptually similar colors
+        candidates = VGA_PALETTE.filter(
+          (c) =>
+            c.hex !== mother.hex &&
+            colorDistance(mother, c) < 60 &&
+            colorDistance(mother, c) > 20
         );
       }
-      break;
 
-    case "complementary":
-      // Opposite cube region
-      const complementary = getComplementaryRegion(bgColor);
-      textCandidates = complementary.filter((c) => hasGoodContrast(bgColor, c));
-      if (textCandidates.length < 3) {
-        textCandidates = textPool.filter(
-          (c) => c.temperature !== bgColor.temperature
-        );
+      // Sort by distance (prefer closest neighbors)
+      candidates.sort((a, b) => colorDistance(mother, a) - colorDistance(mother, b));
+      break;
+    }
+  }
+
+  return candidates;
+}
+
+// Generate palette using Albers' transformation-based approach
+function generatePalette(seed) {
+  const rng = seededRandom(seed);
+
+  // 0. GLITCH MODE - ~3% chance of "broken" palette
+  // Intentional wrongness: low contrast, clashing temps, or monochrome chaos
+  const glitchRoll = rng();
+  if (glitchRoll < 0.03) {
+    const glitchType = Math.floor(rng() * 5);
+
+    switch (glitchType) {
+      case 0: {
+        // "Washed out" - all colors from same luminance band, barely readable
+        const lumBand = rng() < 0.5 ? PALETTE_BY_LUMINANCE.midLight : PALETTE_BY_LUMINANCE.midDark;
+        const colors = [pickRandom(rng, lumBand), pickRandom(rng, lumBand), pickRandom(rng, lumBand)];
+        return { bg: colors[0].hex, text: colors[1].hex, accent: colors[2].hex, strategy: "glitch/washed" };
       }
-      break;
-
-    case "triadic":
-      // Different temperature, chromatic
-      textCandidates = textPool.filter(
-        (c) =>
-          c.temperature !== bgColor.temperature &&
-          (c.saturation === "chromatic" || c.saturation === "vivid")
-      );
-      break;
-
-    case "split":
-    default:
-      // Any contrasting color
-      textCandidates = textPool.filter((c) => hasGoodContrast(bgColor, c));
-      break;
+      case 1: {
+        // "Acid" - clashing vivid colors, temperature war
+        const warm = PALETTE_BY_SATURATION.vivid.filter(c => c.temperature === "warm");
+        const cool = PALETTE_BY_SATURATION.vivid.filter(c => c.temperature === "cool");
+        return {
+          bg: pickRandom(rng, warm).hex,
+          text: pickRandom(rng, cool).hex,
+          accent: pickRandom(rng, rng() < 0.5 ? warm : cool).hex,
+          strategy: "glitch/acid"
+        };
+      }
+      case 2: {
+        // "Void" - near-black on black, barely there
+        const darks = VGA_PALETTE.filter(c => c.luminance < 15);
+        const lessdarks = VGA_PALETTE.filter(c => c.luminance >= 10 && c.luminance < 25);
+        return {
+          bg: pickRandom(rng, darks).hex,
+          text: pickRandom(rng, lessdarks).hex,
+          accent: pickRandom(rng, lessdarks).hex,
+          strategy: "glitch/void"
+        };
+      }
+      case 3: {
+        // "Bleach" - near-white on white, overexposed
+        const lights = VGA_PALETTE.filter(c => c.luminance > 85);
+        const lesslights = VGA_PALETTE.filter(c => c.luminance >= 70 && c.luminance < 90);
+        return {
+          bg: pickRandom(rng, lights).hex,
+          text: pickRandom(rng, lesslights).hex,
+          accent: pickRandom(rng, lesslights).hex,
+          strategy: "glitch/bleach"
+        };
+      }
+      case 4:
+      default: {
+        // "Corrupt" - random CGA colors, no logic
+        const cgaOnly = VGA_PALETTE.filter(c => c.type === "cga");
+        return {
+          bg: pickRandom(rng, cgaOnly).hex,
+          text: pickRandom(rng, cgaOnly).hex,
+          accent: pickRandom(rng, cgaOnly).hex,
+          strategy: "glitch/corrupt"
+        };
+      }
+    }
   }
 
-  // Ensure we have candidates
-  if (textCandidates.length === 0) {
-    textCandidates = textPool.filter((c) => hasGoodContrast(bgColor, c));
-  }
-  if (textCandidates.length === 0) {
-    textCandidates = textPool;
-  }
-
-  // Prefer chromatic text colors over pure grays for more variety
-  const chromaticTextCandidates = textCandidates.filter(
-    (c) => c.saturation !== "gray"
+  // 1. SELECT MOTHER COLOR
+  // The seed determines which color becomes the generative source
+  // Bias toward chromatic colors (grays are less generative)
+  const chromaticPool = VGA_PALETTE.filter(
+    (c) => c.saturation !== "gray" && c.type === "websafe"
   );
-  if (chromaticTextCandidates.length > 5) {
-    // 75% chance to pick chromatic, 25% allow grays (text grays are more acceptable)
-    textCandidates = rng() < 0.75 ? chromaticTextCandidates : textCandidates;
-  }
+  const motherColor = pickRandom(rng, chromaticPool);
 
-  const textColor = pickRandom(rng, textCandidates);
+  // 2. CHOOSE GROUND (light or dark)
+  // This is a compositional choice, not a color choice
+  // Albers: the ground determines how colors are read
+  const groundRoll = rng();
+  let ground;
+  if (groundRoll < 0.4) ground = "light"; // Mother recedes
+  else if (groundRoll < 0.8) ground = "dark"; // Mother advances
+  else ground = "mid"; // Ambiguous space
 
-  // 6. Select accent color
-  // Accent should be high saturation and high contrast with both bg and text
-  let accentCandidates = ACCENT_POOL.filter(
-    (c) =>
-      hasGoodContrast(bgColor, c, 3.0) && // Slightly lower threshold for accent
-      colorDistance(c, textColor) > 80 // Must be distinct from text
-  );
+  // 3. CHOOSE PRIMARY TRANSFORMATION
+  // This is THE artistic choice - how will we derive the palette?
+  const transformRoll = rng();
+  let primaryTransform;
+  if (transformRoll < 0.30) primaryTransform = "value"; // 30% - value studies
+  else if (transformRoll < 0.50) primaryTransform = "temperature"; // 20% - warm/cool
+  else if (transformRoll < 0.65) primaryTransform = "saturation"; // 15% - chroma studies
+  else if (transformRoll < 0.80) primaryTransform = "complement"; // 15% - opposition
+  else primaryTransform = "neighbor"; // 20% - fluting/vibration
 
-  // Group accent candidates by hue for balanced distribution
-  // This prevents any single hue family from dominating
-  const getHueGroup = (c) => {
-    if (!c.cubePos && c.type !== "cga") return "other";
-    const { r, g, b } = c;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    if (max === min) return "other";
-    let h;
-    const d = max - min;
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-    else if (max === g) h = ((b - r) / d + 2) / 6;
-    else h = ((r - g) / d + 4) / 6;
-    const hue = h * 360;
-    if (hue <= 30 || hue >= 330) return "red";
-    if (hue <= 75) return "orange";
-    if (hue <= 165) return "green";
-    if (hue <= 195) return "cyan";
-    if (hue <= 255) return "blue";
-    return "purple";
-  };
-
-  // Group candidates by hue
-  const hueGroups = {};
-  for (const c of accentCandidates) {
-    const group = getHueGroup(c);
-    if (!hueGroups[group]) hueGroups[group] = [];
-    hueGroups[group].push(c);
-  }
-
-  // Pick a random hue group first, then pick from within it
-  // This gives equal weight to each available hue family
-  const availableGroups = Object.keys(hueGroups).filter(
-    (g) => hueGroups[g].length > 0
-  );
-
-  let accentColor;
-  if (availableGroups.length > 0) {
-    const chosenGroup = pickRandom(rng, availableGroups);
-    accentColor = pickRandom(rng, hueGroups[chosenGroup]);
-  } else if (accentCandidates.length > 0) {
-    accentColor = pickRandom(rng, accentCandidates);
+  // 4. DERIVE BACKGROUND FROM GROUND CHOICE
+  let bgCandidates;
+  if (ground === "light") {
+    bgCandidates = PALETTE_BY_LUMINANCE.light.filter(
+      (c) =>
+        c.temperature === motherColor.temperature ||
+        c.temperature === "neutral" ||
+        c.saturation === "gray"
+    );
+  } else if (ground === "dark") {
+    bgCandidates = PALETTE_BY_LUMINANCE.dark.filter(
+      (c) =>
+        c.temperature === motherColor.temperature ||
+        c.temperature === "neutral" ||
+        c.saturation === "gray"
+    );
   } else {
-    accentColor = pickRandom(rng, ACCENT_POOL);
+    // Mid ground - use muted version of mother's region
+    bgCandidates = VGA_PALETTE.filter(
+      (c) =>
+        c.luminance >= 35 &&
+        c.luminance <= 65 &&
+        (c.saturation === "muted" || c.saturation === "gray") &&
+        (c.temperature === motherColor.temperature || c.temperature === "neutral")
+    );
+  }
+
+  // Fallback if no candidates
+  if (bgCandidates.length === 0) {
+    bgCandidates =
+      ground === "light" ? PALETTE_BY_LUMINANCE.light : PALETTE_BY_LUMINANCE.dark;
+  }
+
+  const bgColor = pickRandom(rng, bgCandidates);
+
+  // 5. DERIVE TEXT COLOR VIA TRANSFORMATION
+  // Apply the chosen transformation to the mother color
+  let textCandidates = applyTransformation(motherColor, primaryTransform, rng);
+
+  // Filter for contrast with background
+  textCandidates = textCandidates.filter((c) => hasGoodContrast(bgColor, c, 4.5));
+
+  // If transformation yields nothing usable, fall back to value shift
+  if (textCandidates.length === 0) {
+    textCandidates = applyTransformation(motherColor, "value", rng).filter((c) =>
+      hasGoodContrast(bgColor, c, 4.5)
+    );
+  }
+
+  // Ultimate fallback: any contrasting color
+  if (textCandidates.length === 0) {
+    textCandidates = VGA_PALETTE.filter((c) => hasGoodContrast(bgColor, c, 4.5));
+  }
+
+  // Pick from top candidates (sorted by transformation fidelity)
+  const textColor =
+    textCandidates.length > 3
+      ? textCandidates[Math.floor(rng() * Math.min(3, textCandidates.length))]
+      : textCandidates[0] || motherColor;
+
+  // 6. ACCENT: ONLY IF IT DESTABILIZES
+  // Albers: accent should make other colors appear to shift
+  // 80% of palettes have NO accent (text color serves as accent)
+  const useAccent = rng() < 0.20;
+  let accentColor;
+
+  if (useAccent) {
+    // Find a color that creates visual tension
+    // It should be confusable with EITHER bg or text at certain values
+    const bgConfusable = findConfusableColors(bgColor, 15);
+    const textConfusable = findConfusableColors(textColor, 15);
+
+    // Accent candidates: colors that could "belong" to either camp
+    // but are actually distinct - this creates the destabilization
+    let accentCandidates = [...bgConfusable, ...textConfusable].filter(
+      (c) =>
+        hasGoodContrast(bgColor, c, 3.0) &&
+        c.hex !== textColor.hex &&
+        c.saturation !== "gray"
+    );
+
+    // Remove duplicates
+    const seen = new Set();
+    accentCandidates = accentCandidates.filter((c) => {
+      if (seen.has(c.hex)) return false;
+      seen.add(c.hex);
+      return true;
+    });
+
+    if (accentCandidates.length > 0) {
+      // Prefer vivid accents for maximum destabilization
+      const vividAccents = accentCandidates.filter(
+        (c) => c.saturation === "vivid" || c.saturation === "chromatic"
+      );
+      accentColor = pickRandom(
+        rng,
+        vividAccents.length > 0 ? vividAccents : accentCandidates
+      );
+    } else {
+      // Fallback: visual midpoint creates subtle third color effect
+      const midpoint = findVisualMidpoint(bgColor, textColor);
+      if (hasGoodContrast(bgColor, midpoint, 2.5)) {
+        accentColor = midpoint;
+      } else {
+        accentColor = textColor; // No accent, use text
+      }
+    }
+  } else {
+    // No accent - cleaner, more Albers-like
+    accentColor = textColor;
   }
 
   return {
     bg: bgColor.hex,
     text: textColor.hex,
     accent: accentColor.hex,
-    strategy: `${structureName}/${archetype}`,
+    strategy: `${ground}/${primaryTransform}${useAccent ? "+accent" : ""}`,
   };
 }
 
