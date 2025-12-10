@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 // ============ GLOBAL CONSTANTS ============
 
@@ -6,6 +6,8 @@ const CELL_MIN = 4;
 const CELL_MAX = 600;
 const CELL_ASPECT_MAX = 3; // Max ratio between cell width and height (e.g., 3:1 or 1:3)
 const DRAWING_MARGIN = 50; // Consistent margin around the drawing area (pixels) - centers the bounding box
+const REFERENCE_WIDTH = 1200; // Fixed reference canvas width for consistent grid structure
+const REFERENCE_HEIGHT = 1500; // Fixed reference canvas height for consistent grid structure
 
 // ============ VGA 256-COLOR PALETTE SYSTEM ============
 
@@ -149,12 +151,13 @@ const VGA_PALETTE = [
 ];
 
 // Create lookup indices for fast access
+// Widened luminance ranges for better color distribution
 const PALETTE_BY_LUMINANCE = {
-  dark: VGA_PALETTE.filter((c) => c.luminance < 25),
-  midDark: VGA_PALETTE.filter((c) => c.luminance >= 25 && c.luminance < 45),
-  mid: VGA_PALETTE.filter((c) => c.luminance >= 45 && c.luminance < 65),
-  midLight: VGA_PALETTE.filter((c) => c.luminance >= 65 && c.luminance < 80),
-  light: VGA_PALETTE.filter((c) => c.luminance >= 80),
+  dark: VGA_PALETTE.filter((c) => c.luminance < 30),
+  midDark: VGA_PALETTE.filter((c) => c.luminance >= 20 && c.luminance < 50),
+  mid: VGA_PALETTE.filter((c) => c.luminance >= 40 && c.luminance < 70),
+  midLight: VGA_PALETTE.filter((c) => c.luminance >= 55 && c.luminance < 85),
+  light: VGA_PALETTE.filter((c) => c.luminance >= 70),
 };
 
 const PALETTE_BY_TEMPERATURE = {
@@ -445,15 +448,17 @@ function generatePalette(seed) {
     (c) =>
       c.temperature === temperature ||
       c.temperature === "neutral" ||
-      rng() < 0.15 // 15% chance to break temperature rule
+      rng() < 0.25 // 25% chance to break temperature rule for more variety
   );
 
-  // Prefer less saturated backgrounds
-  const mutedBgCandidates = bgCandidates.filter(
-    (c) => c.saturation === "gray" || c.saturation === "muted"
+  // Prefer chromatic colors over pure grays to avoid gray dominance
+  // Grays are overrepresented in the palette (30/256) and pass all filters
+  const chromaticBgCandidates = bgCandidates.filter(
+    (c) => c.saturation !== "gray"
   );
-  if (mutedBgCandidates.length > 3) {
-    bgCandidates = rng() < 0.7 ? mutedBgCandidates : bgCandidates;
+  if (chromaticBgCandidates.length > 5) {
+    // 80% chance to pick chromatic, 20% allow grays
+    bgCandidates = rng() < 0.8 ? chromaticBgCandidates : bgCandidates;
   }
 
   const bgColor = pickRandom(
@@ -525,6 +530,15 @@ function generatePalette(seed) {
     textCandidates = textPool;
   }
 
+  // Prefer chromatic text colors over pure grays for more variety
+  const chromaticTextCandidates = textCandidates.filter(
+    (c) => c.saturation !== "gray"
+  );
+  if (chromaticTextCandidates.length > 5) {
+    // 75% chance to pick chromatic, 25% allow grays (text grays are more acceptable)
+    textCandidates = rng() < 0.75 ? chromaticTextCandidates : textCandidates;
+  }
+
   const textColor = pickRandom(rng, textCandidates);
 
   // 6. Select accent color
@@ -535,24 +549,51 @@ function generatePalette(seed) {
       colorDistance(c, textColor) > 80 // Must be distinct from text
   );
 
-  // Prefer accents from opposite temperature
-  const oppositeTemp =
-    bgColor.temperature === "warm"
-      ? "cool"
-      : bgColor.temperature === "cool"
-      ? "warm"
-      : "warm";
-  const tempAccents = accentCandidates.filter(
-    (c) => c.temperature === oppositeTemp
-  );
-  if (tempAccents.length > 2) {
-    accentCandidates = rng() < 0.7 ? tempAccents : accentCandidates;
+  // Group accent candidates by hue for balanced distribution
+  // This prevents any single hue family from dominating
+  const getHueGroup = (c) => {
+    if (!c.cubePos && c.type !== "cga") return "other";
+    const { r, g, b } = c;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    if (max === min) return "other";
+    let h;
+    const d = max - min;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    const hue = h * 360;
+    if (hue <= 30 || hue >= 330) return "red";
+    if (hue <= 75) return "orange";
+    if (hue <= 165) return "green";
+    if (hue <= 195) return "cyan";
+    if (hue <= 255) return "blue";
+    return "purple";
+  };
+
+  // Group candidates by hue
+  const hueGroups = {};
+  for (const c of accentCandidates) {
+    const group = getHueGroup(c);
+    if (!hueGroups[group]) hueGroups[group] = [];
+    hueGroups[group].push(c);
   }
 
-  const accentColor =
-    accentCandidates.length > 0
-      ? pickRandom(rng, accentCandidates)
-      : pickRandom(rng, ACCENT_POOL);
+  // Pick a random hue group first, then pick from within it
+  // This gives equal weight to each available hue family
+  const availableGroups = Object.keys(hueGroups).filter(
+    (g) => hueGroups[g].length > 0
+  );
+
+  let accentColor;
+  if (availableGroups.length > 0) {
+    const chosenGroup = pickRandom(rng, availableGroups);
+    accentColor = pickRandom(rng, hueGroups[chosenGroup]);
+  } else if (accentCandidates.length > 0) {
+    accentColor = pickRandom(rng, accentCandidates);
+  } else {
+    accentColor = pickRandom(rng, ACCENT_POOL);
+  }
 
   return {
     bg: bgColor.hex,
@@ -594,9 +635,11 @@ function snapToDivisor(value, n, min, max) {
 }
 
 // Generate cell dimensions that perfectly fill the canvas
+// Always uses reference dimensions to ensure consistent grid structure across all canvas sizes
 function generateCellDimensions(width, height, padding, seed) {
-  const innerW = width - padding * 2;
-  const innerH = height - padding * 2;
+  // Use reference dimensions for consistent grid structure regardless of actual canvas size
+  const innerW = REFERENCE_WIDTH - padding * 2;
+  const innerH = REFERENCE_HEIGHT - padding * 2;
 
   // Find valid cell widths and heights (divisors that give reasonable grid)
   const validWidths = getDivisors(innerW, CELL_MIN, CELL_MAX);
@@ -1947,33 +1990,57 @@ function renderToCanvas({
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-  // Calculate drawing area with consistent margins (centers the bounding box)
-  const drawWidth = outputWidth - DRAWING_MARGIN * 2;
-  const drawHeight = outputHeight - DRAWING_MARGIN * 2;
-  const offsetX = DRAWING_MARGIN; // Centers horizontally
-  const offsetY = DRAWING_MARGIN; // Centers vertically
+  // Calculate scale factors to maintain consistent grid structure
+  const scaleX = outputWidth / REFERENCE_WIDTH;
+  const scaleY = outputHeight / REFERENCE_HEIGHT;
 
-  // Grid calculations based on drawing area
-  const cols = Math.max(1, Math.floor(drawWidth / cellWidth));
-  const rows = Math.max(1, Math.floor(drawHeight / cellHeight));
+  // Calculate reference drawing area (always based on reference dimensions)
+  const refDrawWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
+  const refDrawHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
+  const refOffsetX = DRAWING_MARGIN;
+  const refOffsetY = DRAWING_MARGIN;
 
-  // Calculate actual cell dimensions to fill the drawing area completely
-  // This ensures the grid starts at offsetX and ends exactly at offsetX + drawWidth
-  const actualCellWidth = drawWidth / cols;
-  const actualCellHeight = drawHeight / rows;
+  // Grid calculations based on reference dimensions (ensures consistent structure)
+  const cols = Math.max(1, Math.floor(refDrawWidth / cellWidth));
+  const rows = Math.max(1, Math.floor(refDrawHeight / cellHeight));
+
+  // Calculate reference cell dimensions (always consistent)
+  const refCellWidth = refDrawWidth / cols;
+  const refCellHeight = refDrawHeight / rows;
+
+  // Scale to actual output dimensions
+  const drawWidth = refDrawWidth * scaleX;
+  const drawHeight = refDrawHeight * scaleY;
+  const offsetX = refOffsetX * scaleX;
+  const offsetY = refOffsetY * scaleY;
+  const actualCellWidth = refCellWidth * scaleX;
+  const actualCellHeight = refCellHeight * scaleY;
 
   // Generate weight range for this output
   const weightRange = generateWeightRange(seed);
 
-  // Generate fold structure with weights (in drawing area)
+  // Generate fold structure with weights (in reference space, then scale)
   const { creases, finalShape, maxFolds } = simulateFolds(
-    drawWidth,
-    drawHeight,
+    refDrawWidth,
+    refDrawHeight,
     folds,
     seed,
     weightRange,
     foldStrategy
   );
+
+  // Scale creases from reference space to actual output space
+  const scaledCreases = creases.map((crease) => ({
+    ...crease,
+    p1: {
+      x: crease.p1.x * scaleX,
+      y: crease.p1.y * scaleY,
+    },
+    p2: {
+      x: crease.p2.x * scaleX,
+      y: crease.p2.y * scaleY,
+    },
+  }));
 
   // Process creases - find all intersections (use actual cell dimensions)
   const {
@@ -1982,7 +2049,7 @@ function renderToCanvas({
     cellWeights: intersectionWeight,
     cellMaxGap,
   } = processCreases(
-    creases,
+    scaledCreases,
     cols,
     rows,
     actualCellWidth,
@@ -2001,8 +2068,10 @@ function renderToCanvas({
     }
   }
 
-  // Font setup
-  ctx.font = `${cellHeight - 2}px "Courier New", Courier, monospace`;
+  // Font setup (scaled to actual output size)
+  ctx.font = `${
+    actualCellHeight - 2 * scaleY
+  }px "Courier New", Courier, monospace`;
   ctx.textBaseline = "top";
 
   // Block shade characters - graduated density, no solid blocks
@@ -2134,6 +2203,1365 @@ function renderToCanvas({
   return canvas.toDataURL("image/png");
 }
 
+// ============ BATCH GENERATION HELPERS ============
+
+// Generate all parameters for a given seed (for batch mode)
+function generateAllParams(
+  seed,
+  width = 1200,
+  height = 1500,
+  padding = 0,
+  folds = null
+) {
+  const palette = generatePalette(seed);
+  const cells = generateCellDimensions(width, height, padding, seed);
+  const renderMode = generateRenderMode(seed);
+  const weightRange = generateWeightRange(seed);
+  const foldStrategy = generateFoldStrategy(seed);
+  const multiColor = generateMultiColorEnabled(seed);
+  const levelColors = multiColor
+    ? generateMultiColorPalette(seed, palette.bg, palette.text)
+    : null;
+  const maxFolds = generateMaxFolds(seed);
+
+  // If folds is provided, use it; otherwise generate from seed (for random folds)
+  let foldCount = folds;
+  if (foldCount === null) {
+    const foldRng = seededRandom(seed + 9999);
+    foldCount = Math.floor(1 + foldRng() * 500); // Random between 1-500
+  }
+
+  return {
+    seed,
+    palette,
+    cells,
+    renderMode,
+    weightRange,
+    foldStrategy,
+    multiColor,
+    levelColors,
+    maxFolds,
+    folds: foldCount,
+  };
+}
+
+// Calculate distribution statistics for a batch of outputs
+function calculateBatchStats(batchItems) {
+  const stats = {
+    renderModes: {},
+    foldStrategies: {},
+    multiColorCount: 0,
+    paletteArchetypes: {},
+    paletteStructures: {},
+    bgTemperatures: {},
+    textTemperatures: {},
+    cellSizeRanges: { small: 0, medium: 0, large: 0 },
+    totalItems: batchItems.length,
+    // Detailed color frequency
+    bgColors: {},
+    textColors: {},
+    accentColors: {},
+    // Color property distributions
+    bgLuminance: { dark: 0, midDark: 0, mid: 0, midLight: 0, light: 0 },
+    textLuminance: { dark: 0, midDark: 0, mid: 0, midLight: 0, light: 0 },
+    bgSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
+    textSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
+    accentSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
+  };
+
+  for (const item of batchItems) {
+    // Render mode distribution
+    stats.renderModes[item.params.renderMode] =
+      (stats.renderModes[item.params.renderMode] || 0) + 1;
+
+    // Fold strategy distribution
+    const stratType = item.params.foldStrategy.type;
+    stats.foldStrategies[stratType] =
+      (stats.foldStrategies[stratType] || 0) + 1;
+
+    // Multi-color count
+    if (item.params.multiColor) stats.multiColorCount++;
+
+    // Palette archetype distribution (extract from strategy string)
+    const paletteStrategy = item.params.palette.strategy;
+    const [structure, archetype] = paletteStrategy.split("/");
+    stats.paletteArchetypes[archetype || "unknown"] =
+      (stats.paletteArchetypes[archetype || "unknown"] || 0) + 1;
+    stats.paletteStructures[structure || "unknown"] =
+      (stats.paletteStructures[structure || "unknown"] || 0) + 1;
+
+    // Get VGA color objects for detailed analysis
+    const bgColor = findVGAColor(item.params.palette.bg);
+    const textColor = findVGAColor(item.params.palette.text);
+    const accentColor = findVGAColor(item.params.palette.accent);
+
+    // Temperature distributions
+    stats.bgTemperatures[bgColor.temperature] =
+      (stats.bgTemperatures[bgColor.temperature] || 0) + 1;
+    stats.textTemperatures[textColor.temperature] =
+      (stats.textTemperatures[textColor.temperature] || 0) + 1;
+
+    // Hex color frequency (exact colors used)
+    stats.bgColors[item.params.palette.bg] =
+      (stats.bgColors[item.params.palette.bg] || 0) + 1;
+    stats.textColors[item.params.palette.text] =
+      (stats.textColors[item.params.palette.text] || 0) + 1;
+    stats.accentColors[item.params.palette.accent] =
+      (stats.accentColors[item.params.palette.accent] || 0) + 1;
+
+    // Luminance distributions
+    const getLumBucket = (lum) => {
+      if (lum < 25) return "dark";
+      if (lum < 45) return "midDark";
+      if (lum < 65) return "mid";
+      if (lum < 80) return "midLight";
+      return "light";
+    };
+    stats.bgLuminance[getLumBucket(bgColor.luminance)]++;
+    stats.textLuminance[getLumBucket(textColor.luminance)]++;
+
+    // Saturation distributions
+    stats.bgSaturation[bgColor.saturation]++;
+    stats.textSaturation[textColor.saturation]++;
+    stats.accentSaturation[accentColor.saturation]++;
+
+    // Cell size ranges
+    const cellArea = item.params.cells.cellW * item.params.cells.cellH;
+    if (cellArea < 100) stats.cellSizeRanges.small++;
+    else if (cellArea < 400) stats.cellSizeRanges.medium++;
+    else stats.cellSizeRanges.large++;
+  }
+
+  return stats;
+}
+
+// ============ BATCH MODE COMPONENTS ============
+
+// Mini canvas for grid thumbnails
+function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Render at smaller size for performance
+    const thumbWidth = 120;
+    const thumbHeight = 150;
+    const scale = thumbWidth / width;
+
+    canvas.width = thumbWidth;
+    canvas.height = thumbHeight;
+
+    // Background
+    ctx.fillStyle = params.palette.bg;
+    ctx.fillRect(0, 0, thumbWidth, thumbHeight);
+
+    // Generate fold structure
+    const innerWidth = width - DRAWING_MARGIN * 2;
+    const innerHeight = height - DRAWING_MARGIN * 2;
+    const { creases } = simulateFolds(
+      innerWidth,
+      innerHeight,
+      folds,
+      params.seed,
+      params.weightRange,
+      params.foldStrategy
+    );
+
+    // Simplified rendering - just draw creases as lines
+    ctx.strokeStyle = params.palette.text;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.6;
+
+    for (const crease of creases) {
+      ctx.beginPath();
+      ctx.moveTo(
+        (crease.p1.x + DRAWING_MARGIN) * scale,
+        (crease.p1.y + DRAWING_MARGIN) * scale
+      );
+      ctx.lineTo(
+        (crease.p2.x + DRAWING_MARGIN) * scale,
+        (crease.p2.y + DRAWING_MARGIN) * scale
+      );
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }, [params, folds, width, height]);
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        cursor: "pointer",
+        border: isSelected ? "2px solid #4a9eff" : "2px solid transparent",
+        borderRadius: 4,
+        overflow: "hidden",
+        transition: "border-color 0.15s, transform 0.15s",
+        transform: isSelected ? "scale(1.02)" : "scale(1)",
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: "block",
+          width: 120,
+          height: 150,
+        }}
+      />
+    </div>
+  );
+}
+
+// Distribution bar chart component
+function DistributionBar({ label, data, colorFn }) {
+  const total = Object.values(data).reduce((a, b) => a + b, 0);
+  if (total === 0) return null;
+
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 9,
+          color: "#777",
+          marginBottom: 4,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          height: 16,
+          borderRadius: 3,
+          overflow: "hidden",
+          background: "#222",
+        }}
+      >
+        {entries.map(([key, count], i) => (
+          <div
+            key={key}
+            title={`${key}: ${count} (${Math.round((count / total) * 100)}%)`}
+            style={{
+              width: `${(count / total) * 100}%`,
+              background: colorFn
+                ? colorFn(key, i)
+                : `hsl(${i * 47}, 50%, 45%)`,
+              transition: "width 0.3s",
+            }}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginTop: 6,
+          fontSize: 8,
+          color: "#666",
+        }}
+      >
+        {entries.map(([key, count], i) => (
+          <span
+            key={key}
+            style={{ display: "flex", alignItems: "center", gap: 3 }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: colorFn
+                  ? colorFn(key, i)
+                  : `hsl(${i * 47}, 50%, 45%)`,
+              }}
+            />
+            {key}: {count}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Color frequency swatch grid component
+function ColorFrequencyGrid({ label, colorData, totalItems }) {
+  const entries = Object.entries(colorData)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20); // Top 20 colors
+
+  if (entries.length === 0) return null;
+
+  const maxCount = entries[0][1];
+  const uniqueCount = Object.keys(colorData).length;
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          fontSize: 9,
+          color: "#777",
+          marginBottom: 6,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>{label}</span>
+        <span style={{ color: "#555" }}>{uniqueCount} unique</span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 3,
+        }}
+      >
+        {entries.map(([hex, count]) => (
+          <div
+            key={hex}
+            title={`${hex}: ${count} (${Math.round(
+              (count / totalItems) * 100
+            )}%)`}
+            style={{
+              width: 18,
+              height: 18,
+              background: hex,
+              borderRadius: 2,
+              border: "1px solid rgba(255,255,255,0.1)",
+              position: "relative",
+              cursor: "default",
+            }}
+          >
+            {count > 1 && (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: -1,
+                  right: -1,
+                  background: "#000",
+                  color: "#fff",
+                  fontSize: 7,
+                  padding: "0 2px",
+                  borderRadius: 2,
+                  lineHeight: 1.2,
+                }}
+              >
+                {count}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {entries.length > 0 && (
+        <div style={{ fontSize: 8, color: "#555", marginTop: 4 }}>
+          Most common: {entries[0][0]} ({entries[0][1]}x ={" "}
+          {Math.round((entries[0][1] / totalItems) * 100)}%)
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Statistics panel component
+function BatchStats({ stats }) {
+  const [expandedSection, setExpandedSection] = useState(null);
+
+  const renderModeColors = {
+    normal: "#4a9eff",
+    binary: "#ff6b6b",
+    inverted: "#ffd93d",
+    sparse: "#6bcb77",
+    dense: "#9b59b6",
+  };
+
+  const strategyColors = {
+    horizontal: "#e74c3c",
+    vertical: "#3498db",
+    diagonal: "#9b59b6",
+    radial: "#f39c12",
+    grid: "#1abc9c",
+    clustered: "#e91e63",
+    random: "#95a5a6",
+  };
+
+  const tempColors = {
+    warm: "#ff7043",
+    cool: "#42a5f5",
+    neutral: "#90a4ae",
+  };
+
+  const lumColors = {
+    dark: "#2c2c2c",
+    midDark: "#555",
+    mid: "#888",
+    midLight: "#bbb",
+    light: "#eee",
+  };
+
+  const satColors = {
+    gray: "#888",
+    muted: "#9a8a7a",
+    chromatic: "#c49a6c",
+    vivid: "#ff6b6b",
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  return (
+    <div
+      style={{
+        background: "#1a1a1a",
+        padding: 16,
+        borderRadius: 6,
+        marginBottom: 16,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: "#aaa",
+          marginBottom: 16,
+          fontWeight: 500,
+        }}
+      >
+        Distribution ({stats.totalItems} outputs)
+      </div>
+
+      <DistributionBar
+        label="Render Mode"
+        data={stats.renderModes}
+        colorFn={(key) => renderModeColors[key] || "#666"}
+      />
+
+      <DistributionBar
+        label="Fold Strategy"
+        data={stats.foldStrategies}
+        colorFn={(key) => strategyColors[key] || "#666"}
+      />
+
+      <DistributionBar
+        label="Palette Archetype"
+        data={stats.paletteArchetypes}
+      />
+
+      <DistributionBar
+        label="Palette Structure"
+        data={stats.paletteStructures}
+      />
+
+      <DistributionBar
+        label="Cell Size"
+        data={stats.cellSizeRanges}
+        colorFn={(key) =>
+          key === "small" ? "#6bcb77" : key === "medium" ? "#ffd93d" : "#ff6b6b"
+        }
+      />
+
+      <div
+        style={{ fontSize: 9, color: "#666", marginTop: 8, marginBottom: 12 }}
+      >
+        Multi-color enabled: {stats.multiColorCount} / {stats.totalItems} (
+        {Math.round((stats.multiColorCount / stats.totalItems) * 100)}%)
+      </div>
+
+      {/* Collapsible Color Details Section */}
+      <div style={{ borderTop: "1px solid #333", paddingTop: 12 }}>
+        <button
+          onClick={() => toggleSection("colors")}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#888",
+            fontSize: 10,
+            cursor: "pointer",
+            padding: 0,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            width: "100%",
+            marginBottom: expandedSection === "colors" ? 12 : 0,
+          }}
+        >
+          <span style={{ fontSize: 8 }}>
+            {expandedSection === "colors" ? "▼" : "▶"}
+          </span>
+          Color Frequency Details
+        </button>
+
+        {expandedSection === "colors" && (
+          <div>
+            <ColorFrequencyGrid
+              label="Background Colors"
+              colorData={stats.bgColors}
+              totalItems={stats.totalItems}
+            />
+            <ColorFrequencyGrid
+              label="Text Colors"
+              colorData={stats.textColors}
+              totalItems={stats.totalItems}
+            />
+            <ColorFrequencyGrid
+              label="Accent Colors"
+              colorData={stats.accentColors}
+              totalItems={stats.totalItems}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Temperature & Luminance Section */}
+      <div
+        style={{ borderTop: "1px solid #333", paddingTop: 12, marginTop: 12 }}
+      >
+        <button
+          onClick={() => toggleSection("properties")}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#888",
+            fontSize: 10,
+            cursor: "pointer",
+            padding: 0,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            width: "100%",
+            marginBottom: expandedSection === "properties" ? 12 : 0,
+          }}
+        >
+          <span style={{ fontSize: 8 }}>
+            {expandedSection === "properties" ? "▼" : "▶"}
+          </span>
+          Color Properties
+        </button>
+
+        {expandedSection === "properties" && (
+          <div>
+            <DistributionBar
+              label="BG Temperature"
+              data={stats.bgTemperatures}
+              colorFn={(key) => tempColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="Text Temperature"
+              data={stats.textTemperatures}
+              colorFn={(key) => tempColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="BG Luminance"
+              data={stats.bgLuminance}
+              colorFn={(key) => lumColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="Text Luminance"
+              data={stats.textLuminance}
+              colorFn={(key) => lumColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="BG Saturation"
+              data={stats.bgSaturation}
+              colorFn={(key) => satColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="Text Saturation"
+              data={stats.textSaturation}
+              colorFn={(key) => satColors[key] || "#666"}
+            />
+            <DistributionBar
+              label="Accent Saturation"
+              data={stats.accentSaturation}
+              colorFn={(key) => satColors[key] || "#666"}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Detail modal component
+function DetailModal({
+  item,
+  folds: defaultFolds,
+  width,
+  height,
+  onClose,
+  onSelect,
+  batchItems,
+  onNavigate,
+}) {
+  const folds =
+    item?.params?.folds !== undefined ? item.params.folds : defaultFolds;
+  const canvasRef = useRef(null);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!item || !batchItems || !onNavigate) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const currentIndex = batchItems.findIndex((i) => i.id === item.id);
+        if (currentIndex === -1) return;
+
+        if (e.key === "ArrowLeft" && currentIndex > 0) {
+          onNavigate(batchItems[currentIndex - 1]);
+        } else if (
+          e.key === "ArrowRight" &&
+          currentIndex < batchItems.length - 1
+        ) {
+          onNavigate(batchItems[currentIndex + 1]);
+        }
+      } else if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [item, batchItems, onNavigate, onClose]);
+
+  useEffect(() => {
+    if (!item) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Use the shared renderToCanvas function
+    const dataUrl = renderToCanvas({
+      folds,
+      seed: item.params.seed,
+      outputWidth: width,
+      outputHeight: height,
+      bgColor: item.params.palette.bg,
+      textColor: item.params.palette.text,
+      accentColor: item.params.palette.accent,
+      cellWidth: item.params.cells.cellW,
+      cellHeight: item.params.cells.cellH,
+      renderMode: item.params.renderMode,
+      multiColor: item.params.multiColor,
+      levelColors: item.params.levelColors,
+      foldStrategy: item.params.foldStrategy,
+    });
+
+    // Load the data URL into an image and draw it to the canvas
+    const img = new Image();
+    img.onload = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = "100%";
+      canvas.style.maxWidth = width + "px";
+      canvas.style.height = "auto";
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.drawImage(img, 0, 0, width, height);
+    };
+    img.src = dataUrl;
+  }, [item, folds, width, height]);
+
+  if (!item) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0,0,0,0.9)",
+        display: "flex",
+        zIndex: 1000,
+        overflow: "auto",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          display: "flex",
+          margin: "auto",
+          padding: 20,
+          gap: 30,
+          maxWidth: "95vw",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Canvas preview */}
+        <div style={{ flex: "0 0 auto" }}>
+          <canvas
+            ref={canvasRef}
+            style={{
+              display: "block",
+              maxHeight: "85vh",
+              width: "auto",
+              borderRadius: 4,
+            }}
+          />
+        </div>
+
+        {/* Details panel */}
+        <div
+          style={{
+            width: 280,
+            background: "#111",
+            padding: 20,
+            borderRadius: 6,
+            color: "#888",
+            fontSize: 11,
+            lineHeight: 1.8,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 14,
+                color: "#aaa",
+                fontWeight: 500,
+              }}
+            >
+              Seed #{item.params.seed}
+              {item.params.folds !== undefined &&
+                ` · ${item.params.folds} folds`}
+            </div>
+            {batchItems && onNavigate && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentIndex = batchItems.findIndex(
+                      (i) => i.id === item.id
+                    );
+                    if (currentIndex > 0) {
+                      onNavigate(batchItems[currentIndex - 1]);
+                    }
+                  }}
+                  disabled={batchItems.findIndex((i) => i.id === item.id) === 0}
+                  style={{
+                    background:
+                      batchItems.findIndex((i) => i.id === item.id) === 0
+                        ? "#222"
+                        : "#333",
+                    border: "1px solid #444",
+                    padding: "4px 8px",
+                    color:
+                      batchItems.findIndex((i) => i.id === item.id) === 0
+                        ? "#444"
+                        : "#aaa",
+                    fontFamily: "inherit",
+                    fontSize: 10,
+                    cursor:
+                      batchItems.findIndex((i) => i.id === item.id) === 0
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      batchItems.findIndex((i) => i.id === item.id) === 0
+                        ? 0.5
+                        : 1,
+                  }}
+                >
+                  ←
+                </button>
+                <span style={{ fontSize: 9, color: "#555" }}>
+                  {batchItems.findIndex((i) => i.id === item.id) + 1} /{" "}
+                  {batchItems.length}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentIndex = batchItems.findIndex(
+                      (i) => i.id === item.id
+                    );
+                    if (currentIndex < batchItems.length - 1) {
+                      onNavigate(batchItems[currentIndex + 1]);
+                    }
+                  }}
+                  disabled={
+                    batchItems.findIndex((i) => i.id === item.id) ===
+                    batchItems.length - 1
+                  }
+                  style={{
+                    background:
+                      batchItems.findIndex((i) => i.id === item.id) ===
+                      batchItems.length - 1
+                        ? "#222"
+                        : "#333",
+                    border: "1px solid #444",
+                    padding: "4px 8px",
+                    color:
+                      batchItems.findIndex((i) => i.id === item.id) ===
+                      batchItems.length - 1
+                        ? "#444"
+                        : "#aaa",
+                    fontFamily: "inherit",
+                    fontSize: 10,
+                    cursor:
+                      batchItems.findIndex((i) => i.id === item.id) ===
+                      batchItems.length - 1
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      batchItems.findIndex((i) => i.id === item.id) ===
+                      batchItems.length - 1
+                        ? 0.5
+                        : 1,
+                  }}
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </div>
+          {batchItems && onNavigate && (
+            <div
+              style={{
+                fontSize: 8,
+                color: "#444",
+                marginBottom: 12,
+                fontStyle: "italic",
+              }}
+            >
+              Use ← → arrow keys to navigate
+            </div>
+          )}
+
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{ color: "#666", fontSize: 9, textTransform: "uppercase" }}
+            >
+              Palette
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  background: item.params.palette.bg,
+                  border: "1px solid #333",
+                  borderRadius: 3,
+                }}
+                title={`BG: ${item.params.palette.bg}`}
+              />
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  background: item.params.palette.text,
+                  border: "1px solid #333",
+                  borderRadius: 3,
+                }}
+                title={`Text: ${item.params.palette.text}`}
+              />
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  background: item.params.palette.accent,
+                  border: "1px solid #333",
+                  borderRadius: 3,
+                }}
+                title={`Accent: ${item.params.palette.accent}`}
+              />
+            </div>
+            <div style={{ color: "#555", fontSize: 9, marginTop: 4 }}>
+              {item.params.palette.strategy}
+            </div>
+          </div>
+
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Folds
+              </div>
+              <div>
+                {item.params.folds !== undefined ? item.params.folds : folds}
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Cell Size
+              </div>
+              <div>
+                {item.params.cells.cellW} x {item.params.cells.cellH}
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Render Mode
+              </div>
+              <div>{item.params.renderMode}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Fold Strategy
+              </div>
+              <div>{item.params.foldStrategy.type}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Max Folds
+              </div>
+              <div>{item.params.maxFolds}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Multi-Color
+              </div>
+              <div>{item.params.multiColor ? "Yes" : "No"}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Weight Range
+              </div>
+              <div>
+                {item.params.weightRange.min.toFixed(2)} -{" "}
+                {item.params.weightRange.max.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onSelect(item)}
+            style={{
+              marginTop: 20,
+              width: "100%",
+              background: "#333",
+              border: "1px solid #444",
+              padding: "10px 16px",
+              color: "#aaa",
+              fontFamily: "inherit",
+              fontSize: 10,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              cursor: "pointer",
+            }}
+          >
+            Use This Seed
+          </button>
+
+          <button
+            onClick={onClose}
+            style={{
+              marginTop: 8,
+              width: "100%",
+              background: "#222",
+              border: "1px solid #333",
+              padding: "10px 16px",
+              color: "#666",
+              fontFamily: "inherit",
+              fontSize: 10,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main batch mode component
+function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
+  const [batchSize, setBatchSize] = useState(24);
+  const [batchItems, setBatchItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [randomFolds, setRandomFolds] = useState(false);
+  const [batchFolds, setBatchFolds] = useState(folds);
+
+  // Sync batchFolds when folds prop changes
+  useEffect(() => {
+    setBatchFolds(folds);
+  }, [folds]);
+
+  const generateBatch = useCallback(() => {
+    setIsGenerating(true);
+    const items = [];
+    const usedSeeds = new Set();
+
+    for (let i = 0; i < batchSize; i++) {
+      let seed;
+      do {
+        seed = Math.floor(Math.random() * 99999) + 1;
+      } while (usedSeeds.has(seed));
+      usedSeeds.add(seed);
+
+      items.push({
+        id: `${seed}-${Date.now()}-${i}`,
+        params: generateAllParams(
+          seed,
+          width,
+          height,
+          0,
+          randomFolds ? null : batchFolds
+        ),
+      });
+    }
+
+    setBatchItems(items);
+    setIsGenerating(false);
+  }, [batchSize, width, height, randomFolds, batchFolds]);
+
+  // Generate initial batch on mount
+  useEffect(() => {
+    if (batchItems.length === 0) {
+      generateBatch();
+    }
+  }, []);
+
+  const stats = useMemo(() => calculateBatchStats(batchItems), [batchItems]);
+
+  const handleSelectItem = (item) => {
+    onSelectSeed(item.params.seed);
+    onClose();
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "#0a0a0a",
+        zIndex: 500,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "16px 24px",
+          borderBottom: "1px solid #222",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background: "#111",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span
+            style={{
+              fontSize: 13,
+              color: "#aaa",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Batch Explorer
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 10, color: "#666" }}>Size:</label>
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={batchSize}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1;
+                  setBatchSize(Math.max(1, Math.min(1000, val)));
+                }}
+                style={{
+                  background: "#222",
+                  border: "1px solid #333",
+                  color: "#aaa",
+                  padding: "4px 8px",
+                  fontSize: 10,
+                  fontFamily: "inherit",
+                  width: 60,
+                  textAlign: "center",
+                }}
+              />
+              <div style={{ display: "flex", gap: 4 }}>
+                {[12, 24, 48, 100, 200].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setBatchSize(size)}
+                    style={{
+                      background: batchSize === size ? "#444" : "#222",
+                      border: "1px solid #333",
+                      color: batchSize === size ? "#ccc" : "#666",
+                      padding: "4px 8px",
+                      fontSize: 9,
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                paddingLeft: 12,
+                borderLeft: "1px solid #333",
+              }}
+            >
+              <label style={{ fontSize: 10, color: "#666" }}>Folds:</label>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                value={batchFolds}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setBatchFolds(Math.max(0, Math.min(200, val)));
+                }}
+                disabled={randomFolds}
+                style={{
+                  background: randomFolds ? "#1a1a1a" : "#222",
+                  border: "1px solid #333",
+                  color: randomFolds ? "#444" : "#aaa",
+                  padding: "4px 8px",
+                  fontSize: 10,
+                  fontFamily: "inherit",
+                  width: 60,
+                  textAlign: "center",
+                  cursor: randomFolds ? "not-allowed" : "text",
+                }}
+              />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 9,
+                  color: "#666",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={randomFolds}
+                  onChange={(e) => setRandomFolds(e.target.checked)}
+                  style={{ cursor: "pointer" }}
+                />
+                <span>Random</span>
+              </label>
+            </div>
+
+            <button
+              onClick={generateBatch}
+              disabled={isGenerating}
+              style={{
+                background: "#333",
+                border: "1px solid #444",
+                color: "#aaa",
+                padding: "6px 16px",
+                fontSize: 9,
+                fontFamily: "inherit",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                cursor: isGenerating ? "wait" : "pointer",
+                opacity: isGenerating ? 0.6 : 1,
+              }}
+            >
+              {isGenerating ? "Generating..." : "Generate New Batch"}
+            </button>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "#222",
+            border: "1px solid #333",
+            color: "#888",
+            padding: "8px 16px",
+            fontSize: 10,
+            fontFamily: "inherit",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            cursor: "pointer",
+          }}
+        >
+          Close
+        </button>
+      </div>
+
+      {/* Main content */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          overflow: "hidden",
+        }}
+      >
+        {/* Grid */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {batchItems.map((item) => (
+              <div key={item.id} style={{ position: "relative" }}>
+                <MiniCanvas
+                  params={item.params}
+                  folds={
+                    item.params.folds !== undefined ? item.params.folds : folds
+                  }
+                  width={width}
+                  height={height}
+                  onClick={() => setSelectedItem(item)}
+                  isSelected={selectedItem?.id === item.id}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 4,
+                    left: 4,
+                    right: 4,
+                    fontSize: 8,
+                    color: "#fff",
+                    background: "rgba(0,0,0,0.7)",
+                    padding: "2px 4px",
+                    borderRadius: 2,
+                    textAlign: "center",
+                  }}
+                >
+                  #{item.params.seed}
+                  {item.params.folds !== undefined &&
+                    ` · ${item.params.folds}f`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats sidebar */}
+        <div
+          style={{
+            width: 300,
+            borderLeft: "1px solid #222",
+            background: "#111",
+            padding: 16,
+            overflow: "auto",
+          }}
+        >
+          <BatchStats stats={stats} />
+
+          <div
+            style={{
+              fontSize: 9,
+              color: "#555",
+              lineHeight: 1.8,
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: "1px solid #222",
+            }}
+          >
+            <div style={{ color: "#777", marginBottom: 8 }}>Quick Tips:</div>
+            <div>Click any thumbnail to view details</div>
+            <div>Use "Use This Seed" to apply settings</div>
+            <div>Generate new batches to explore variations</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detail modal */}
+      {selectedItem && (
+        <DetailModal
+          item={selectedItem}
+          folds={batchFolds}
+          width={width}
+          height={height}
+          onClose={() => setSelectedItem(null)}
+          onSelect={handleSelectItem}
+          batchItems={batchItems}
+          onNavigate={setSelectedItem}
+        />
+      )}
+    </div>
+  );
+}
+
 // ============ COMPONENT ============
 
 function ASCIICanvas({
@@ -2161,13 +3589,30 @@ function ASCIICanvas({
   // Character grid settings from props
   const charWidth = cellWidth;
   const charHeight = cellHeight;
-  // Calculate drawing area: account for padding and consistent margin (centers the bounding box)
-  const innerWidth = width - padding * 2 - DRAWING_MARGIN * 2;
-  const innerHeight = height - padding * 2 - DRAWING_MARGIN * 2;
-  const offsetX = padding + DRAWING_MARGIN; // Centers horizontally
-  const offsetY = padding + DRAWING_MARGIN; // Centers vertically
-  const cols = Math.max(1, Math.floor(innerWidth / charWidth));
-  const rows = Math.max(1, Math.floor(innerHeight / charHeight));
+
+  // Calculate scale factors to maintain consistent grid structure
+  const scaleX = width / REFERENCE_WIDTH;
+  const scaleY = height / REFERENCE_HEIGHT;
+
+  // Calculate reference drawing area (always based on reference dimensions)
+  const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
+  const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
+  const refOffsetX = padding + DRAWING_MARGIN;
+  const refOffsetY = padding + DRAWING_MARGIN;
+
+  // Grid calculations based on reference dimensions (ensures consistent structure)
+  const cols = Math.max(1, Math.floor(refInnerWidth / charWidth));
+  const rows = Math.max(1, Math.floor(refInnerHeight / charHeight));
+
+  // Calculate reference cell dimensions (always consistent)
+  const refCellWidth = refInnerWidth / cols;
+  const refCellHeight = refInnerHeight / rows;
+
+  // Scale to actual output dimensions
+  const innerWidth = refInnerWidth * scaleX;
+  const innerHeight = refInnerHeight * scaleY;
+  const offsetX = (padding + DRAWING_MARGIN) * scaleX;
+  const offsetY = (padding + DRAWING_MARGIN) * scaleY;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2191,19 +3636,38 @@ function ASCIICanvas({
     // Generate weight range for this output
     const weightRange = generateWeightRange(seed);
 
-    // Calculate actual cell dimensions to fill the drawing area completely
-    const actualCharWidth = innerWidth / cols;
-    const actualCharHeight = innerHeight / rows;
+    // Calculate actual cell dimensions (scaled)
+    const actualCharWidth = refCellWidth * scaleX;
+    const actualCharHeight = refCellHeight * scaleY;
 
-    // Generate fold structure with weights (in inner area)
+    // Generate fold structure with weights (in reference space, then scale)
     const { creases, finalShape, maxFolds } = simulateFolds(
-      innerWidth,
-      innerHeight,
+      refInnerWidth,
+      refInnerHeight,
       folds,
       seed,
       weightRange,
       foldStrategy
     );
+
+    // Scale creases from reference space to actual output space
+    const scaledCreases = creases.map((crease) => ({
+      ...crease,
+      p1: {
+        x: crease.p1.x * scaleX,
+        y: crease.p1.y * scaleY,
+      },
+      p2: {
+        x: crease.p2.x * scaleX,
+        y: crease.p2.y * scaleY,
+      },
+    }));
+
+    // Scale finalShape from reference space to actual output space
+    const scaledFinalShape = finalShape.map((point) => ({
+      x: point.x * scaleX,
+      y: point.y * scaleY,
+    }));
 
     // Process creases - find all intersections (use actual cell dimensions)
     const {
@@ -2213,7 +3677,7 @@ function ASCIICanvas({
       cellMaxGap,
       cellIntersectionCounts,
     } = processCreases(
-      creases,
+      scaledCreases,
       cols,
       rows,
       actualCharWidth,
@@ -2234,8 +3698,10 @@ function ASCIICanvas({
       });
     }
 
-    // Font setup
-    ctx.font = `${charHeight - 2}px "Courier New", Courier, monospace`;
+    // Font setup (scaled to actual output size)
+    ctx.font = `${
+      actualCharHeight - 2 * scaleY
+    }px "Courier New", Courier, monospace`;
     ctx.textBaseline = "top";
 
     // Block shade characters - graduated density, no solid blocks
@@ -2430,14 +3896,20 @@ function ASCIICanvas({
 
     // Draw paper shape if enabled
     if (showPaperShape) {
-      if (finalShape.length >= 3) {
+      if (scaledFinalShape.length >= 3) {
         ctx.strokeStyle = "#00ffff";
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.moveTo(offsetX + finalShape[0].x, offsetY + finalShape[0].y);
-        for (let i = 1; i < finalShape.length; i++) {
-          ctx.lineTo(offsetX + finalShape[i].x, offsetY + finalShape[i].y);
+        ctx.moveTo(
+          offsetX + scaledFinalShape[0].x,
+          offsetY + scaledFinalShape[0].y
+        );
+        for (let i = 1; i < scaledFinalShape.length; i++) {
+          ctx.lineTo(
+            offsetX + scaledFinalShape[i].x,
+            offsetY + scaledFinalShape[i].y
+          );
         }
         ctx.closePath();
         ctx.stroke();
@@ -2477,62 +3949,6 @@ function ASCIICanvas({
   return <canvas ref={canvasRef} />;
 }
 
-// Thumbnail component for grid view - derives all params from tokenId (fold count)
-function TokenThumbnail({ tokenId, size = 150, onClick }) {
-  // Use tokenId as seed for all random params
-  const folds = tokenId;
-  const seed = tokenId;
-
-  const baseHeight = 1500;
-  const baseWidth = 1200;
-  const scale = size / baseHeight;
-  const width = Math.round(baseWidth * scale);
-  const height = size;
-
-  // Generate palette, cell dimensions, render mode, and multi-color from seed
-  const palette = generatePalette(seed);
-  const cells = generateCellDimensions(baseWidth, baseHeight, 0, seed);
-  const renderMode = generateRenderMode(seed);
-  const multiColor = generateMultiColorEnabled(seed);
-  const levelColors = multiColor
-    ? generateMultiColorPalette(seed, palette.bg, palette.text)
-    : null;
-
-  // Scale cell dimensions
-  const cellWidth = Math.max(2, Math.round(cells.cellW * scale));
-  const cellHeight = Math.max(2, Math.round(cells.cellH * scale));
-
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        cursor: onClick ? "pointer" : "default",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-      }}
-    >
-      <ASCIICanvas
-        width={width}
-        height={height}
-        folds={folds}
-        seed={seed}
-        bgColor={palette.bg}
-        textColor={palette.text}
-        accentColor={palette.accent}
-        cellWidth={cellWidth}
-        cellHeight={cellHeight}
-        padding={0}
-        renderMode={renderMode}
-        multiColor={multiColor}
-        levelColors={levelColors}
-      />
-      <span style={{ fontSize: 9, color: "#666" }}>#{tokenId}</span>
-    </div>
-  );
-}
-
 export default function FoldedPaper() {
   const [folds, setFolds] = useState(15);
   const [seed, setSeed] = useState(42);
@@ -2540,13 +3956,6 @@ export default function FoldedPaper() {
   const [padding, setPadding] = useState(0);
   const [colorScheme, setColorScheme] = useState("generative");
   const [randomizeFolds, setRandomizeFolds] = useState(false);
-
-  // Grid view state
-  const [gridView, setGridView] = useState(false);
-  const [gridCount, setGridCount] = useState(20);
-  const [gridStart, setGridStart] = useState(0);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   // Download single token as PNG (uses current view settings)
   const downloadSingleToken = () => {
@@ -2571,63 +3980,6 @@ export default function FoldedPaper() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
-
-  // Download all tokens in grid as a zip file
-  const downloadAllTokens = async () => {
-    setDownloading(true);
-    setDownloadProgress(0);
-
-    try {
-      // Load JSZip from CDN
-      const JSZip = await new Promise((resolve, reject) => {
-        if (window.JSZip) {
-          resolve(window.JSZip);
-          return;
-        }
-        const script = document.createElement("script");
-        script.src =
-          "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-        script.onload = () => resolve(window.JSZip);
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-
-      const zip = new JSZip();
-
-      for (let i = 0; i < gridCount; i++) {
-        const tokenId = gridStart + i;
-        const dataUrl = renderTokenToCanvas(tokenId);
-
-        // Convert data URL to blob
-        const base64 = dataUrl.split(",")[1];
-        zip.file(`fold-${tokenId.toString().padStart(4, "0")}.png`, base64, {
-          base64: true,
-        });
-
-        setDownloadProgress(Math.round(((i + 1) / gridCount) * 100));
-
-        // Small delay to let UI update
-        await new Promise((r) => setTimeout(r, 10));
-      }
-
-      // Generate and download zip
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `folds-${gridStart}-to-${gridStart + gridCount - 1}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed:", err);
-      alert("Download failed: " + err.message);
-    }
-
-    setDownloading(false);
-    setDownloadProgress(0);
   };
 
   // Canvas size (1200 and 1500 have many divisors for clean grid)
@@ -2660,6 +4012,7 @@ export default function FoldedPaper() {
   const [intersectionCount, setIntersectionCount] = useState(0); // Track intersection count from canvas
   const [creaseCount, setCreaseCount] = useState(0); // Track crease count from canvas
   const [maxFoldsValue, setMaxFoldsValue] = useState(0); // Track maxFolds from canvas
+  const [showBatchMode, setShowBatchMode] = useState(false); // Batch explorer mode
 
   // Preset palettes for reference/quick access: [name, background, text, accent]
   // All colors are from the VGA 256-color palette (web-safe + CGA)
@@ -2770,136 +4123,46 @@ export default function FoldedPaper() {
           minHeight: "100vh",
         }}
       >
-        {gridView ? (
-          <div style={{ maxWidth: 900, width: "100%" }}>
-            <div style={{ marginBottom: 16, textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.3em",
-                  textTransform: "uppercase",
-                  color: "#666",
-                }}
-              >
-                Collection Preview
-              </div>
-              <div style={{ fontSize: 9, color: "#555", marginTop: 4 }}>
-                tokens #{gridStart} – #{gridStart + gridCount - 1}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                gap: 16,
-                width: "100%",
-              }}
-            >
-              {Array.from({ length: gridCount }, (_, i) => (
-                <TokenThumbnail
-                  key={gridStart + i}
-                  tokenId={gridStart + i}
-                  size={150}
-                  onClick={() => {
-                    setFolds(gridStart + i);
-                    setSeed(gridStart + i);
-                    setGridView(false);
-                    const palette = generatePalette(gridStart + i);
-                    setBgColor(palette.bg);
-                    setTextColor(palette.text);
-                    setAccentColor(palette.accent);
-                    const cells = generateCellDimensions(
-                      width,
-                      height,
-                      padding,
-                      gridStart + i
-                    );
-                    setCellWidth(cells.cellW);
-                    setCellHeight(cells.cellH);
-                    setRenderMode(generateRenderMode(gridStart + i));
-                    const newMultiColor = generateMultiColorEnabled(
-                      gridStart + i
-                    );
-                    setMultiColor(newMultiColor);
-                    setLevelColors(
-                      newMultiColor
-                        ? generateMultiColorPalette(
-                            gridStart + i,
-                            palette.bg,
-                            palette.text
-                          )
-                        : null
-                    );
-                  }}
-                />
-              ))}
-            </div>
-
-            <div style={{ textAlign: "center", marginTop: 24 }}>
-              <button
-                onClick={downloadAllTokens}
-                disabled={downloading}
-                style={{
-                  background: downloading ? "#555" : "#333",
-                  border: "1px solid #444",
-                  padding: "12px 24px",
-                  color: "#ccc",
-                  fontFamily: "inherit",
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  cursor: downloading ? "wait" : "pointer",
-                }}
-              >
-                {downloading
-                  ? `Generating... ${downloadProgress}%`
-                  : `Download All ${gridCount} Images (ZIP)`}
-              </button>
-            </div>
-          </div>
-        ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              transform: `scale(${displayHeight / height})`,
+              transformOrigin: "top center",
             }}
           >
-            <div
-              style={{
-                transform: `scale(${displayHeight / height})`,
-                transformOrigin: "top center",
+            <ASCIICanvas
+              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
+              width={width}
+              height={height}
+              folds={folds}
+              seed={seed}
+              bgColor={bgColor}
+              textColor={textColor}
+              accentColor={accentColor}
+              cellWidth={cellWidth}
+              cellHeight={cellHeight}
+              padding={padding}
+              renderMode={renderMode}
+              multiColor={multiColor}
+              levelColors={levelColors}
+              foldStrategy={foldStrategy}
+              showCreases={showCreases}
+              showPaperShape={showPaperShape}
+              showHitCounts={showHitCounts}
+              onStatsUpdate={(stats) => {
+                setIntersectionCount(stats.intersections);
+                setCreaseCount(stats.creases);
+                setMaxFoldsValue(stats.maxFolds || 0);
               }}
-            >
-              <ASCIICanvas
-                key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
-                width={width}
-                height={height}
-                folds={folds}
-                seed={seed}
-                bgColor={bgColor}
-                textColor={textColor}
-                accentColor={accentColor}
-                cellWidth={cellWidth}
-                cellHeight={cellHeight}
-                padding={padding}
-                renderMode={renderMode}
-                multiColor={multiColor}
-                levelColors={levelColors}
-                foldStrategy={foldStrategy}
-                showCreases={showCreases}
-                showPaperShape={showPaperShape}
-                showHitCounts={showHitCounts}
-                onStatsUpdate={(stats) => {
-                  setIntersectionCount(stats.intersections);
-                  setCreaseCount(stats.creases);
-                  setMaxFoldsValue(stats.maxFolds || 0);
-                }}
-              />
-            </div>
+            />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Sidebar */}
@@ -3565,88 +4828,6 @@ export default function FoldedPaper() {
                 ))}
               </div>
             </div>
-
-            {/* Grid View */}
-            <div style={{ paddingTop: 16, borderTop: "1px solid #333" }}>
-              <button
-                onClick={() => setGridView(!gridView)}
-                style={{
-                  width: "100%",
-                  background: gridView ? "#444" : "#222",
-                  border: "1px solid #444",
-                  padding: "8px 12px",
-                  color: gridView ? "#fff" : "#888",
-                  fontFamily: "inherit",
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  cursor: "pointer",
-                  marginBottom: gridView ? 12 : 0,
-                }}
-              >
-                {gridView ? "← Single View" : "Grid View →"}
-              </button>
-
-              {gridView && (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{ fontSize: 8, color: "#555", marginBottom: 4 }}
-                    >
-                      Start
-                    </div>
-                    <input
-                      type="number"
-                      min={0}
-                      value={gridStart}
-                      onChange={(e) =>
-                        setGridStart(Math.max(0, parseInt(e.target.value) || 0))
-                      }
-                      style={{
-                        width: "100%",
-                        background: "#222",
-                        border: "1px solid #444",
-                        padding: "4px 6px",
-                        color: "#ccc",
-                        fontFamily: "inherit",
-                        fontSize: 10,
-                        textAlign: "center",
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{ fontSize: 8, color: "#555", marginBottom: 4 }}
-                    >
-                      Count
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={gridCount}
-                      onChange={(e) =>
-                        setGridCount(
-                          Math.max(
-                            1,
-                            Math.min(100, parseInt(e.target.value) || 20)
-                          )
-                        )
-                      }
-                      style={{
-                        width: "100%",
-                        background: "#222",
-                        border: "1px solid #444",
-                        padding: "4px 6px",
-                        color: "#ccc",
-                        fontFamily: "inherit",
-                        fontSize: 10,
-                        textAlign: "center",
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -3672,6 +4853,67 @@ export default function FoldedPaper() {
       >
         {showUI ? "Hide" : "Show"}
       </button>
+
+      {/* Batch Mode Button */}
+      <button
+        onClick={() => setShowBatchMode(true)}
+        style={{
+          position: "fixed",
+          top: 20,
+          right: showUI ? 340 : 80,
+          background: "#333",
+          border: "1px solid #555",
+          padding: "8px 12px",
+          color: "#aaa",
+          fontFamily: 'ui-monospace, "Courier New", monospace',
+          fontSize: 9,
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+          cursor: "pointer",
+          zIndex: 100,
+          transition: "right 0.2s",
+        }}
+      >
+        Batch
+      </button>
+
+      {/* Batch Mode Overlay */}
+      {showBatchMode && (
+        <BatchMode
+          folds={folds}
+          width={width}
+          height={height}
+          onSelectSeed={(newSeed) => {
+            setSeed(newSeed);
+            if (colorScheme === "generative") {
+              const palette = generatePalette(newSeed);
+              setBgColor(palette.bg);
+              setTextColor(palette.text);
+              setAccentColor(palette.accent);
+              const cells = generateCellDimensions(
+                width,
+                height,
+                padding,
+                newSeed
+              );
+              setCellWidth(cells.cellW);
+              setCellHeight(cells.cellH);
+              setRenderMode(generateRenderMode(newSeed));
+              const newMultiColor = generateMultiColorEnabled(newSeed);
+              setMultiColor(newMultiColor);
+              setLevelColors(
+                newMultiColor
+                  ? generateMultiColorPalette(newSeed, palette.bg, palette.text)
+                  : null
+              );
+              if (strategyOverride === "auto") {
+                setFoldStrategy(generateFoldStrategy(newSeed));
+              }
+            }
+          }}
+          onClose={() => setShowBatchMode(false)}
+        />
+      )}
     </div>
   );
 }
