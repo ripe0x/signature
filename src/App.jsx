@@ -455,7 +455,9 @@ function applyTransformation(mother, transformType, rng) {
         const aTempMatch = a.temperature === mother.temperature ? 0 : 1;
         const bTempMatch = b.temperature === mother.temperature ? 0 : 1;
         if (aTempMatch !== bTempMatch) return aTempMatch - bTempMatch;
-        return Math.abs(a.luminance - targetLum) - Math.abs(b.luminance - targetLum);
+        return (
+          Math.abs(a.luminance - targetLum) - Math.abs(b.luminance - targetLum)
+        );
       });
       break;
     }
@@ -547,7 +549,9 @@ function applyTransformation(mother, transformType, rng) {
       }
 
       // Sort by distance (prefer closest neighbors)
-      candidates.sort((a, b) => colorDistance(mother, a) - colorDistance(mother, b));
+      candidates.sort(
+        (a, b) => colorDistance(mother, a) - colorDistance(mother, b)
+      );
       break;
     }
   }
@@ -568,52 +572,72 @@ function generatePalette(seed) {
     switch (glitchType) {
       case 0: {
         // "Washed out" - all colors from same luminance band, barely readable
-        const lumBand = rng() < 0.5 ? PALETTE_BY_LUMINANCE.midLight : PALETTE_BY_LUMINANCE.midDark;
-        const colors = [pickRandom(rng, lumBand), pickRandom(rng, lumBand), pickRandom(rng, lumBand)];
-        return { bg: colors[0].hex, text: colors[1].hex, accent: colors[2].hex, strategy: "glitch/washed" };
+        const lumBand =
+          rng() < 0.5
+            ? PALETTE_BY_LUMINANCE.midLight
+            : PALETTE_BY_LUMINANCE.midDark;
+        const colors = [
+          pickRandom(rng, lumBand),
+          pickRandom(rng, lumBand),
+          pickRandom(rng, lumBand),
+        ];
+        return {
+          bg: colors[0].hex,
+          text: colors[1].hex,
+          accent: colors[2].hex,
+          strategy: "glitch/washed",
+        };
       }
       case 1: {
         // "Acid" - clashing vivid colors, temperature war
-        const warm = PALETTE_BY_SATURATION.vivid.filter(c => c.temperature === "warm");
-        const cool = PALETTE_BY_SATURATION.vivid.filter(c => c.temperature === "cool");
+        const warm = PALETTE_BY_SATURATION.vivid.filter(
+          (c) => c.temperature === "warm"
+        );
+        const cool = PALETTE_BY_SATURATION.vivid.filter(
+          (c) => c.temperature === "cool"
+        );
         return {
           bg: pickRandom(rng, warm).hex,
           text: pickRandom(rng, cool).hex,
           accent: pickRandom(rng, rng() < 0.5 ? warm : cool).hex,
-          strategy: "glitch/acid"
+          strategy: "glitch/acid",
         };
       }
       case 2: {
         // "Void" - near-black on black, barely there
-        const darks = VGA_PALETTE.filter(c => c.luminance < 15);
-        const lessdarks = VGA_PALETTE.filter(c => c.luminance >= 10 && c.luminance < 25);
+        const darks = VGA_PALETTE.filter((c) => c.luminance < 15);
+        const lessdarks = VGA_PALETTE.filter(
+          (c) => c.luminance >= 10 && c.luminance < 25
+        );
         return {
           bg: pickRandom(rng, darks).hex,
           text: pickRandom(rng, lessdarks).hex,
           accent: pickRandom(rng, lessdarks).hex,
-          strategy: "glitch/void"
+          strategy: "glitch/void",
         };
       }
       case 3: {
         // "Bleach" - near-white on white, overexposed
-        const lights = VGA_PALETTE.filter(c => c.luminance > 85);
-        const lesslights = VGA_PALETTE.filter(c => c.luminance >= 70 && c.luminance < 90);
+        const lights = VGA_PALETTE.filter((c) => c.luminance > 85);
+        const lesslights = VGA_PALETTE.filter(
+          (c) => c.luminance >= 70 && c.luminance < 90
+        );
         return {
           bg: pickRandom(rng, lights).hex,
           text: pickRandom(rng, lesslights).hex,
           accent: pickRandom(rng, lesslights).hex,
-          strategy: "glitch/bleach"
+          strategy: "glitch/bleach",
         };
       }
       case 4:
       default: {
         // "Corrupt" - random CGA colors, no logic
-        const cgaOnly = VGA_PALETTE.filter(c => c.type === "cga");
+        const cgaOnly = VGA_PALETTE.filter((c) => c.type === "cga");
         return {
           bg: pickRandom(rng, cgaOnly).hex,
           text: pickRandom(rng, cgaOnly).hex,
           accent: pickRandom(rng, cgaOnly).hex,
-          strategy: "glitch/corrupt"
+          strategy: "glitch/corrupt",
         };
       }
     }
@@ -640,10 +664,13 @@ function generatePalette(seed) {
   // This is THE artistic choice - how will we derive the palette?
   const transformRoll = rng();
   let primaryTransform;
-  if (transformRoll < 0.30) primaryTransform = "value"; // 30% - value studies
-  else if (transformRoll < 0.50) primaryTransform = "temperature"; // 20% - warm/cool
-  else if (transformRoll < 0.65) primaryTransform = "saturation"; // 15% - chroma studies
-  else if (transformRoll < 0.80) primaryTransform = "complement"; // 15% - opposition
+  if (transformRoll < 0.3) primaryTransform = "value"; // 30% - value studies
+  else if (transformRoll < 0.5)
+    primaryTransform = "temperature"; // 20% - warm/cool
+  else if (transformRoll < 0.65)
+    primaryTransform = "saturation"; // 15% - chroma studies
+  else if (transformRoll < 0.8)
+    primaryTransform = "complement"; // 15% - opposition
   else primaryTransform = "neighbor"; // 20% - fluting/vibration
 
   // 4. DERIVE BACKGROUND FROM GROUND CHOICE
@@ -669,14 +696,17 @@ function generatePalette(seed) {
         c.luminance >= 35 &&
         c.luminance <= 65 &&
         (c.saturation === "muted" || c.saturation === "gray") &&
-        (c.temperature === motherColor.temperature || c.temperature === "neutral")
+        (c.temperature === motherColor.temperature ||
+          c.temperature === "neutral")
     );
   }
 
   // Fallback if no candidates
   if (bgCandidates.length === 0) {
     bgCandidates =
-      ground === "light" ? PALETTE_BY_LUMINANCE.light : PALETTE_BY_LUMINANCE.dark;
+      ground === "light"
+        ? PALETTE_BY_LUMINANCE.light
+        : PALETTE_BY_LUMINANCE.dark;
   }
 
   const bgColor = pickRandom(rng, bgCandidates);
@@ -686,18 +716,22 @@ function generatePalette(seed) {
   let textCandidates = applyTransformation(motherColor, primaryTransform, rng);
 
   // Filter for contrast with background
-  textCandidates = textCandidates.filter((c) => hasGoodContrast(bgColor, c, 4.5));
+  textCandidates = textCandidates.filter((c) =>
+    hasGoodContrast(bgColor, c, 4.5)
+  );
 
   // If transformation yields nothing usable, fall back to value shift
   if (textCandidates.length === 0) {
-    textCandidates = applyTransformation(motherColor, "value", rng).filter((c) =>
-      hasGoodContrast(bgColor, c, 4.5)
+    textCandidates = applyTransformation(motherColor, "value", rng).filter(
+      (c) => hasGoodContrast(bgColor, c, 4.5)
     );
   }
 
   // Ultimate fallback: any contrasting color
   if (textCandidates.length === 0) {
-    textCandidates = VGA_PALETTE.filter((c) => hasGoodContrast(bgColor, c, 4.5));
+    textCandidates = VGA_PALETTE.filter((c) =>
+      hasGoodContrast(bgColor, c, 4.5)
+    );
   }
 
   // Pick from top candidates (sorted by transformation fidelity)
@@ -709,7 +743,7 @@ function generatePalette(seed) {
   // 6. ACCENT: ONLY IF IT DESTABILIZES
   // Albers: accent should make other colors appear to shift
   // 80% of palettes have NO accent (text color serves as accent)
-  const useAccent = rng() < 0.20;
+  const useAccent = rng() < 0.2;
   let accentColor;
 
   if (useAccent) {
@@ -1640,10 +1674,11 @@ function simulateFolds(
   ]);
 
   const creases = [];
+  let lastFoldTarget = null; // Track destination point of most recent fold
 
   // If no folds requested, return initial state
   if (!numFolds || numFolds <= 0) {
-    return { creases: [], finalShape: shape, maxFolds };
+    return { creases: [], finalShape: shape, maxFolds, lastFoldTarget: null };
   }
 
   let currentSeed = seed;
@@ -1828,6 +1863,12 @@ function simulateFolds(
         cyclePosition: cyclePosition,
         reductionMultiplier: reductionMultipliers[cyclePosition], // Store multiplier for future exhales
       });
+
+      // Store the target of this fold (with same offset as crease)
+      lastFoldTarget = {
+        x: target.x + offsetX,
+        y: target.y + offsetY,
+      };
     }
 
     shape = ensureCCW(newShape);
@@ -1838,7 +1879,7 @@ function simulateFolds(
   shape = normalizePolygon(shape, width, height, 0);
   shape = ensureCCW(shape);
 
-  return { creases, finalShape: shape, maxFolds };
+  return { creases, finalShape: shape, maxFolds, lastFoldTarget };
 }
 
 // Pick source vertex from shape vertices
@@ -2183,7 +2224,7 @@ function renderToCanvas({
   const weightRange = generateWeightRange(seed);
 
   // Generate fold structure with weights (in reference space, then scale)
-  const { creases, finalShape, maxFolds } = simulateFolds(
+  const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
     refDrawWidth,
     refDrawHeight,
     folds,
@@ -2204,6 +2245,23 @@ function renderToCanvas({
       y: crease.p2.y * scaleY,
     },
   }));
+
+  // Scale last fold target to actual output space and determine cell
+  let lastFoldTargetCell = null;
+  if (lastFoldTarget) {
+    const scaledTargetX = lastFoldTarget.x * scaleX;
+    const scaledTargetY = lastFoldTarget.y * scaleY;
+    const targetCol = Math.floor(scaledTargetX / actualCellWidth);
+    const targetRow = Math.floor(scaledTargetY / actualCellHeight);
+    if (
+      targetCol >= 0 &&
+      targetCol < cols &&
+      targetRow >= 0 &&
+      targetRow < rows
+    ) {
+      lastFoldTargetCell = `${targetCol},${targetRow}`;
+    }
+  }
 
   // Process creases - find all intersections (use actual cell dimensions)
   const {
@@ -2264,7 +2322,12 @@ function renderToCanvas({
       let color = textColor;
       let level = -1;
 
-      if (accentCells.has(key) && weight > 0) {
+      // Last fold target cell gets accent color (or text color if no accent)
+      if (lastFoldTargetCell === key) {
+        char = shadeChars[3];
+        level = 3;
+        color = accentColor || textColor;
+      } else if (accentCells.has(key) && weight > 0) {
         char = shadeChars[2];
         level = 2;
         color = accentColor;
@@ -2322,8 +2385,13 @@ function renderToCanvas({
           countToLevelAdaptive(weight, thresholds),
           key
         );
+        // Last fold target gets accent color, then accent cells, then normal color
         ctx.fillStyle =
-          accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+          lastFoldTargetCell === key
+            ? accentColor || textColor
+            : accentCells.has(key) && weight > 0
+            ? accentColor
+            : finalColor;
 
         // Fill the entire cell width with characters - use aggressive overlap to eliminate gaps
         const measuredCharWidth = ctx.measureText(char).width;
@@ -3737,6 +3805,8 @@ function ASCIICanvas({
   accentColor,
   cellWidth,
   cellHeight,
+  colGap = 0,
+  rowGap = 0,
   padding,
   renderMode = "normal",
   multiColor = false,
@@ -3763,13 +3833,28 @@ function ASCIICanvas({
   const refOffsetX = padding + DRAWING_MARGIN;
   const refOffsetY = padding + DRAWING_MARGIN;
 
-  // Grid calculations based on reference dimensions (ensures consistent structure)
-  const cols = Math.max(1, Math.floor(refInnerWidth / charWidth));
-  const rows = Math.max(1, Math.floor(refInnerHeight / charHeight));
+  // Calculate actual gap sizes (as multiples of 0.5 * cell dimension)
+  const actualColGap = colGap * 0.5 * charWidth;
+  const actualRowGap = rowGap * 0.5 * charHeight;
 
-  // Calculate reference cell dimensions (always consistent)
-  const refCellWidth = refInnerWidth / cols;
-  const refCellHeight = refInnerHeight / rows;
+  // Grid calculations based on reference dimensions (ensures consistent structure)
+  // Account for gaps: total width = cols * charWidth + (cols - 1) * actualColGap
+  // Solving for cols: cols = (refInnerWidth + actualColGap) / (charWidth + actualColGap)
+  const cols = Math.max(
+    1,
+    Math.floor((refInnerWidth + actualColGap) / (charWidth + actualColGap))
+  );
+  const rows = Math.max(
+    1,
+    Math.floor((refInnerHeight + actualRowGap) / (charHeight + actualRowGap))
+  );
+
+  // Calculate reference cell dimensions including gap (always consistent)
+  // Total cell stride = cell content + gap (except last cell has no trailing gap)
+  const refCellWidth = charWidth;
+  const refCellHeight = charHeight;
+  const refCellStrideX = charWidth + actualColGap;
+  const refCellStrideY = charHeight + actualRowGap;
 
   // Scale to actual output dimensions
   const innerWidth = refInnerWidth * scaleX;
@@ -3802,9 +3887,11 @@ function ASCIICanvas({
     // Calculate actual cell dimensions (scaled)
     const actualCharWidth = refCellWidth * scaleX;
     const actualCharHeight = refCellHeight * scaleY;
+    const actualStrideX = refCellStrideX * scaleX;
+    const actualStrideY = refCellStrideY * scaleY;
 
     // Generate fold structure with weights (in reference space, then scale)
-    const { creases, finalShape, maxFolds } = simulateFolds(
+    const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
       refInnerWidth,
       refInnerHeight,
       folds,
@@ -3826,13 +3913,37 @@ function ASCIICanvas({
       },
     }));
 
+    // Scale last fold target to actual output space and determine cell
+    let lastFoldTargetCell = null;
+    if (lastFoldTarget) {
+      const scaledTargetX = lastFoldTarget.x * scaleX;
+      const scaledTargetY = lastFoldTarget.y * scaleY;
+      const targetCol = Math.floor(scaledTargetX / actualStrideX);
+      const targetRow = Math.floor(scaledTargetY / actualStrideY);
+      if (
+        targetCol >= 0 &&
+        targetCol < cols &&
+        targetRow >= 0 &&
+        targetRow < rows
+      ) {
+        lastFoldTargetCell = `${targetCol},${targetRow}`;
+      }
+      console.log(
+        `[Last fold target] raw: (${lastFoldTarget.x.toFixed(
+          1
+        )}, ${lastFoldTarget.y.toFixed(1)}) → cell: ${lastFoldTargetCell}`
+      );
+    } else {
+      console.log(`[Last fold target] none`);
+    }
+
     // Scale finalShape from reference space to actual output space
     const scaledFinalShape = finalShape.map((point) => ({
       x: point.x * scaleX,
       y: point.y * scaleY,
     }));
 
-    // Process creases - find all intersections (use actual cell dimensions)
+    // Process creases - find all intersections (use stride for cell positioning when gaps exist)
     const {
       activeCreases,
       intersections: activeIntersections,
@@ -3843,8 +3954,8 @@ function ASCIICanvas({
       scaledCreases,
       cols,
       rows,
-      actualCharWidth,
-      actualCharHeight,
+      actualStrideX,
+      actualStrideY,
       maxFolds
     );
 
@@ -3904,10 +4015,10 @@ function ASCIICanvas({
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const x = Math.round(
-            offsetX + col * actualCharWidth + actualCharWidth / 2
+            offsetX + col * actualStrideX + actualCharWidth / 2
           );
           const y = Math.round(
-            offsetY + row * actualCharHeight + actualCharHeight / 2
+            offsetY + row * actualStrideY + actualCharHeight / 2
           );
           const key = `${col},${row}`;
           const weight = intersectionWeight[key] || 0;
@@ -3925,8 +4036,8 @@ function ASCIICanvas({
       // Normal rendering
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const x = Math.round(offsetX + col * actualCharWidth);
-          const y = Math.round(offsetY + row * actualCharHeight);
+          const x = Math.round(offsetX + col * actualStrideX);
+          const y = Math.round(offsetY + row * actualStrideY);
           const key = `${col},${row}`;
           const weight = intersectionWeight[key] || 0;
 
@@ -3943,7 +4054,12 @@ function ASCIICanvas({
             return textColor;
           };
 
-          if (accentCells.has(key) && weight > 0) {
+          // Last fold target cell gets accent color (or text color if no accent)
+          if (lastFoldTargetCell === key) {
+            char = shadeChars[3];
+            level = 3;
+            color = accentColor || textColor;
+          } else if (accentCells.has(key) && weight > 0) {
             char = shadeChars[2];
             level = 2;
             color = accentColor;
@@ -4001,13 +4117,18 @@ function ASCIICanvas({
               countToLevelAdaptive(weight, thresholds),
               key
             );
+            // Last fold target gets accent color, then accent cells, then normal color
             ctx.fillStyle =
-              accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+              lastFoldTargetCell === key
+                ? accentColor || textColor
+                : accentCells.has(key) && weight > 0
+                ? accentColor
+                : finalColor;
 
             // Fill the entire cell width with characters - use aggressive overlap to eliminate gaps
             const measuredCharWidth = ctx.measureText(char).width;
-            // Calculate exact cell boundary (next cell's start position)
-            const cellEndX = Math.round(offsetX + (col + 1) * actualCharWidth);
+            // Calculate exact cell boundary (cell content area, not including gap)
+            const cellEndX = x + actualCharWidth;
 
             // Draw characters with tight overlap (95% of width) to ensure no gaps
             let currentX = x;
@@ -4054,6 +4175,20 @@ function ASCIICanvas({
         ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
         ctx.stroke();
       }
+
+      // Draw circle at last fold target
+      if (lastFoldTarget) {
+        const targetX = offsetX + lastFoldTarget.x * scaleX;
+        const targetY = offsetY + lastFoldTarget.y * scaleY;
+        const radius = 8;
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       ctx.globalAlpha = 1;
     }
 
@@ -4160,6 +4295,8 @@ export default function FoldedPaper() {
   const [accentColor, setAccentColor] = useState(initialPalette.accent);
   const [cellWidth, setCellWidth] = useState(initialCells.cellW);
   const [cellHeight, setCellHeight] = useState(initialCells.cellH);
+  const [colGap, setColGap] = useState(0); // Gap between columns as multiple of 0.5 * cellWidth
+  const [rowGap, setRowGap] = useState(0); // Gap between rows as multiple of 0.5 * cellHeight
   const [renderMode, setRenderMode] = useState(initialRenderMode);
   const [multiColor, setMultiColor] = useState(initialMultiColor);
   const [levelColors, setLevelColors] = useState(
@@ -4237,11 +4374,17 @@ export default function FoldedPaper() {
     }
   }, [seed, colorScheme, width, height, padding, strategyOverride]);
 
-  // Calculate stats using inner dimensions
+  // Calculate stats using inner dimensions (accounting for gaps)
   const innerWidth = width - padding * 2;
   const innerHeight = height - padding * 2;
-  const cols = Math.floor(innerWidth / cellWidth);
-  const rows = Math.floor(innerHeight / cellHeight);
+  const effectiveColGap = colGap * 0.5 * cellWidth;
+  const effectiveRowGap = rowGap * 0.5 * cellHeight;
+  const cols = Math.floor(
+    (innerWidth + effectiveColGap) / (cellWidth + effectiveColGap)
+  );
+  const rows = Math.floor(
+    (innerHeight + effectiveRowGap) / (cellHeight + effectiveRowGap)
+  );
   const totalCells = cols * rows;
   const weightRange = generateWeightRange(seed);
   const { creases, finalShape, maxFolds } = simulateFolds(
@@ -4300,7 +4443,7 @@ export default function FoldedPaper() {
             }}
           >
             <ASCIICanvas
-              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
+              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
               width={width}
               height={height}
               folds={folds}
@@ -4310,6 +4453,8 @@ export default function FoldedPaper() {
               accentColor={accentColor}
               cellWidth={cellWidth}
               cellHeight={cellHeight}
+              colGap={colGap}
+              rowGap={rowGap}
               padding={padding}
               renderMode={renderMode}
               multiColor={multiColor}
@@ -4474,6 +4619,9 @@ export default function FoldedPaper() {
                     if (randomizeFolds) {
                       setFolds(Math.floor(Math.random() * 199) + 1);
                     }
+                    // Randomize gaps (0-4, where value represents multiples of 0.5)
+                    setColGap(Math.floor(Math.random() * 5));
+                    setRowGap(Math.floor(Math.random() * 5));
                   }}
                   style={{
                     background: "#333",
@@ -4989,6 +5137,80 @@ export default function FoldedPaper() {
                     {label}
                   </button>
                 ))}
+              </div>
+
+              {/* Cell Gaps */}
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginTop: 12,
+                  marginBottom: 8,
+                  color: "#777",
+                }}
+              >
+                Cell Gaps
+              </div>
+              <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>
+                    Col Gap (×0.5w)
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={colGap}
+                    onChange={(e) =>
+                      setColGap(
+                        Math.max(0, Math.min(4, parseInt(e.target.value) || 0))
+                      )
+                    }
+                    style={{
+                      width: "100%",
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>
+                    Row Gap (×0.5h)
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={rowGap}
+                    onChange={(e) =>
+                      setRowGap(
+                        Math.max(0, Math.min(4, parseInt(e.target.value) || 0))
+                      )
+                    }
+                    style={{
+                      width: "100%",
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{ fontSize: 9, color: "#555", marginBottom: 8 }}>
+                Gap: {(colGap * 0.5 * cellWidth).toFixed(1)}px ×{" "}
+                {(rowGap * 0.5 * cellHeight).toFixed(1)}px
               </div>
             </div>
           </div>
