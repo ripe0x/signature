@@ -1430,7 +1430,7 @@ function processCreasesWithThreshold(
 }
 
 // Render a token to a canvas and return as data URL
-function renderTokenToCanvas(tokenId, outputWidth = 540, outputHeight = 700) {
+function renderTokenToCanvas(tokenId, outputWidth = 1200, outputHeight = 1556) {
   const folds = tokenId;
   const seed = tokenId;
 
@@ -1918,8 +1918,8 @@ function TokenThumbnail({ tokenId, size = 150, onClick }) {
   const folds = tokenId;
   const seed = tokenId;
 
-  const baseHeight = 700;
-  const baseWidth = 540;
+  const baseHeight = 1556;
+  const baseWidth = 1200;
   const scale = size / baseHeight;
   const width = Math.round(baseWidth * scale);
   const height = size;
@@ -2066,13 +2066,13 @@ export default function FoldedPaper() {
     setDownloadProgress(0);
   };
 
-  // Canvas size (540 and 700 have many divisors for clean grid)
-  const height = 700;
-  const width = 540;
+  // Canvas size (1200 and 1556 have many divisors for clean grid)
+  const height = 1556;
+  const width = 1200;
 
   // Initialize from generative palette and cell dimensions
   const initialPalette = generatePalette(42);
-  const initialCells = generateCellDimensions(540, 700, 0, 42);
+  const initialCells = generateCellDimensions(1200, 1556, 0, 42);
   const initialRenderMode = generateRenderMode(42);
   const initialMultiColor = generateMultiColorEnabled(42);
   const initialFoldStrategy = generateFoldStrategy(42);

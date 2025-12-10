@@ -1798,7 +1798,7 @@ function processCreases(creases, gridCols, gridRows, cellWidth, cellHeight) {
 }
 
 // Render a token to a canvas and return as data URL
-function renderTokenToCanvas(tokenId, outputWidth = 540, outputHeight = 700) {
+function renderTokenToCanvas(tokenId, outputWidth = 1200, outputHeight = 1500) {
   const folds = tokenId;
   const seed = tokenId;
 
@@ -2269,8 +2269,8 @@ function TokenThumbnail({ tokenId, size = 150, onClick }) {
   const folds = tokenId;
   const seed = tokenId;
 
-  const baseHeight = 700;
-  const baseWidth = 540;
+  const baseHeight = 1500;
+  const baseWidth = 1200;
   const scale = size / baseHeight;
   const width = Math.round(baseWidth * scale);
   const height = size;
@@ -2416,13 +2416,13 @@ export default function FoldedPaper() {
     setDownloadProgress(0);
   };
 
-  // Canvas size (540 and 700 have many divisors for clean grid)
-  const height = 700;
-  const width = 540;
+  // Canvas size (1200 and 1500 have many divisors for clean grid)
+  const height = 1500;
+  const width = 1200;
 
   // Initialize from generative palette and cell dimensions
   const initialPalette = generatePalette(42);
-  const initialCells = generateCellDimensions(540, 700, 0, 42);
+  const initialCells = generateCellDimensions(1200, 1500, 0, 42);
   const initialRenderMode = generateRenderMode(42);
   const initialMultiColor = generateMultiColorEnabled(42);
   const initialFoldStrategy = generateFoldStrategy(42);
@@ -2506,12 +2506,6 @@ export default function FoldedPaper() {
     }
   }, [seed, colorScheme, width, height, padding, strategyOverride]);
 
-  // UI colors (always on white background)
-  const uiColor = "#666";
-  const uiColorDim = "#999";
-  const inputBg = "#f5f5f5";
-  const inputBorder = "#ddd";
-  const inputColor = "#444";
 
   // Calculate stats using inner dimensions
   const innerWidth = width - padding * 2;
@@ -2534,69 +2528,80 @@ export default function FoldedPaper() {
   const currentStrategy =
     colorScheme === "generative" ? generatePalette(seed).strategy : null;
 
+  // Calculate display scale to fit canvas in viewport
+  const aspectRatio = width / height;
+  const maxDisplayHeight = typeof window !== 'undefined' ? window.innerHeight - 40 : 800;
+  const displayHeight = Math.min(height, maxDisplayHeight);
+  const displayWidth = Math.round(displayHeight * aspectRatio);
+
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "#ffffff",
+        background: "#1a1a1a",
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: gridView ? "flex-start" : "center",
-        padding: 20,
         fontFamily: 'ui-monospace, "Courier New", monospace',
-        color: "#666",
+        color: "#888",
       }}
     >
-      {gridView ? (
-        <>
-          <div style={{ marginBottom: 16, textAlign: "center" }}>
+      {/* Main Canvas Area */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          minHeight: "100vh",
+        }}
+      >
+        {gridView ? (
+          <div style={{ maxWidth: 900, width: "100%" }}>
+            <div style={{ marginBottom: 16, textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.3em",
+                  textTransform: "uppercase",
+                  color: "#666",
+                }}
+              >
+                Collection Preview
+              </div>
+              <div style={{ fontSize: 9, color: "#555", marginTop: 4 }}>
+                tokens #{gridStart} – #{gridStart + gridCount - 1}
+              </div>
+            </div>
+
             <div
               style={{
-                fontSize: 11,
-                letterSpacing: "0.3em",
-                textTransform: "uppercase",
-                color: "#666",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                gap: 16,
+                width: "100%",
               }}
             >
-              Collection Preview
-            </div>
-            <div style={{ fontSize: 9, color: "#999", marginTop: 4 }}>
-              tokens #{gridStart} – #{gridStart + gridCount - 1}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-              gap: 16,
-              maxWidth: 900,
-              width: "100%",
-            }}
-          >
-            {Array.from({ length: gridCount }, (_, i) => (
-              <TokenThumbnail
-                key={gridStart + i}
-                tokenId={gridStart + i}
-                size={150}
-                onClick={() => {
-                  setFolds(gridStart + i);
-                  setSeed(gridStart + i);
-                  setGridView(false);
-                  // Update colors from generative
-                  const palette = generatePalette(gridStart + i);
-                  setBgColor(palette.bg);
-                  setTextColor(palette.text);
-                  setAccentColor(palette.accent);
-                  const cells = generateCellDimensions(
-                    width,
-                    height,
-                    padding,
-                    gridStart + i
-                  );
-                  setCellWidth(cells.cellW);
-                  setCellHeight(cells.cellH);
+              {Array.from({ length: gridCount }, (_, i) => (
+                <TokenThumbnail
+                  key={gridStart + i}
+                  tokenId={gridStart + i}
+                  size={150}
+                  onClick={() => {
+                    setFolds(gridStart + i);
+                    setSeed(gridStart + i);
+                    setGridView(false);
+                    const palette = generatePalette(gridStart + i);
+                    setBgColor(palette.bg);
+                    setTextColor(palette.text);
+                    setAccentColor(palette.accent);
+                    const cells = generateCellDimensions(
+                      width,
+                      height,
+                      padding,
+                      gridStart + i
+                    );
+                    setCellWidth(cells.cellW);
+                    setCellHeight(cells.cellH);
                   setRenderMode(generateRenderMode(gridStart + i));
                   const newMultiColor = generateMultiColorEnabled(
                     gridStart + i
@@ -2604,11 +2609,7 @@ export default function FoldedPaper() {
                   setMultiColor(newMultiColor);
                   setLevelColors(
                     newMultiColor
-                      ? generateMultiColorPalette(
-                          gridStart + i,
-                          palette.bg,
-                          palette.text
-                        )
+                      ? generateMultiColorPalette(gridStart + i, palette.bg, palette.text)
                       : null
                   );
                 }}
@@ -2616,870 +2617,765 @@ export default function FoldedPaper() {
             ))}
           </div>
 
-          <button
-            onClick={downloadAllTokens}
-            disabled={downloading}
-            style={{
-              marginTop: 24,
-              background: downloading ? "#999" : "#333",
-              border: "none",
-              padding: "12px 24px",
-              color: "#fff",
-              fontFamily: "inherit",
-              fontSize: 11,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              cursor: downloading ? "wait" : "pointer",
-            }}
-          >
-            {downloading
-              ? `Generating... ${downloadProgress}%`
-              : `Download All ${gridCount} Images (ZIP)`}
-          </button>
-        </>
-      ) : (
-        <>
-          <div style={{ marginBottom: 16, textAlign: "center" }}>
+            <div style={{ textAlign: "center", marginTop: 24 }}>
+              <button
+                onClick={downloadAllTokens}
+                disabled={downloading}
+                style={{
+                  background: downloading ? "#555" : "#333",
+                  border: "1px solid #444",
+                  padding: "12px 24px",
+                  color: "#ccc",
+                  fontFamily: "inherit",
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  cursor: downloading ? "wait" : "pointer",
+                }}
+              >
+                {downloading
+                  ? `Generating... ${downloadProgress}%`
+                  : `Download All ${gridCount} Images (ZIP)`}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div
               style={{
-                fontSize: 11,
-                letterSpacing: "0.3em",
+                transform: `scale(${displayHeight / height})`,
+                transformOrigin: "top center",
+              }}
+            >
+              <ASCIICanvas
+                key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
+                width={width}
+                height={height}
+                folds={folds}
+                seed={seed}
+                bgColor={bgColor}
+                textColor={textColor}
+                accentColor={accentColor}
+                cellWidth={cellWidth}
+                cellHeight={cellHeight}
+                padding={padding}
+                renderMode={renderMode}
+                multiColor={multiColor}
+                levelColors={levelColors}
+                foldStrategy={foldStrategy}
+                showCreases={showCreases}
+                showPaperShape={showPaperShape}
+                showHitCounts={showHitCounts}
+                onStatsUpdate={(stats) => {
+                  setIntersectionCount(stats.intersections);
+                  setCreaseCount(stats.creases);
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sidebar */}
+      <div
+        style={{
+          width: showUI ? 320 : 0,
+          minWidth: showUI ? 320 : 0,
+          background: "#111",
+          borderLeft: showUI ? "1px solid #333" : "none",
+          overflow: "hidden",
+          transition: "width 0.2s, min-width 0.2s",
+        }}
+      >
+        <div
+          style={{
+            width: 320,
+            height: "100vh",
+            overflowY: "auto",
+            padding: showUI ? 20 : 0,
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid #333" }}>
+            <div
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.2em",
                 textTransform: "uppercase",
-                color: "#666",
+                color: "#aaa",
+                marginBottom: 8,
               }}
             >
               Fold #{folds}
             </div>
-            <div style={{ fontSize: 9, color: "#999", marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "#666", lineHeight: 1.6 }}>
               seed {seed} · {foldStrategy?.type || "random"} · {renderMode}
               {multiColor ? " · multi" : ""}
+              <br />
+              {creaseCount} creases · {intersectionCount} intersections
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                color: "#666",
-                marginTop: 6,
-                display: "flex",
-                gap: 16,
-                justifyContent: "center",
-                fontFamily: "ui-monospace, monospace",
-              }}
-            >
-              <span>
-                <span style={{ color: "#999" }}>creases:</span> {creaseCount}
-              </span>
-              <span>
-                <span style={{ color: "#999" }}>intersections:</span>{" "}
-                {intersectionCount}
-              </span>
-            </div>
-          </div>
-
-          <ASCIICanvas
-            key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
-            width={width}
-            height={height}
-            folds={folds}
-            seed={seed}
-            bgColor={bgColor}
-            textColor={textColor}
-            accentColor={accentColor}
-            cellWidth={cellWidth}
-            cellHeight={cellHeight}
-            padding={padding}
-            renderMode={renderMode}
-            multiColor={multiColor}
-            levelColors={levelColors}
-            foldStrategy={foldStrategy}
-            showCreases={showCreases}
-            showPaperShape={showPaperShape}
-            showHitCounts={showHitCounts}
-            onStatsUpdate={(stats) => {
-              setIntersectionCount(stats.intersections);
-              setCreaseCount(stats.creases);
-            }}
-          />
-
-          <button
-            onClick={downloadSingleToken}
-            style={{
-              marginTop: 16,
-              background: "none",
-              border: "1px solid #ccc",
-              padding: "8px 16px",
-              color: "#666",
-              fontFamily: "inherit",
-              fontSize: 9,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              cursor: "pointer",
-            }}
-          >
-            Download PNG
-          </button>
-        </>
-      )}
-
-      {showUI && (
-        <div
-          style={{
-            marginTop: 24,
-            width: width,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                marginBottom: 4,
-              }}
-            >
-              <span>Folds</span>
-              <input
-                type="number"
-                min={0}
-                value={folds}
-                onChange={(e) =>
-                  setFolds(Math.max(0, parseInt(e.target.value) || 0))
-                }
-                style={{
-                  width: 60,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 6px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                  textAlign: "right",
-                }}
-              />
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={500}
-              value={Math.min(folds, 500)}
-              onChange={(e) => setFolds(parseInt(e.target.value))}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span
-              style={{
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              Seed
-            </span>
-            <input
-              type="number"
-              value={seed}
-              onChange={(e) => setSeed(parseInt(e.target.value) || 1)}
-              style={{
-                flex: 1,
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "4px 8px",
-                color: inputColor,
-                fontFamily: "inherit",
-                fontSize: 10,
-              }}
-            />
             <button
-              onClick={() => {
-                setSeed(Math.floor(Math.random() * 99999) + 1);
-                if (randomizeFolds) {
-                  setFolds(Math.floor(Math.random() * 199) + 1);
-                }
-              }}
+              onClick={downloadSingleToken}
               style={{
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "4px 12px",
-                color: uiColor,
+                marginTop: 12,
+                background: "#222",
+                border: "1px solid #444",
+                padding: "8px 16px",
+                color: "#aaa",
                 fontFamily: "inherit",
-                fontSize: 9,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              Random
-            </button>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 9,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={randomizeFolds}
-                onChange={(e) => setRandomizeFolds(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              + folds
-            </label>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span
-              style={{
                 fontSize: 9,
                 textTransform: "uppercase",
                 letterSpacing: "0.1em",
-              }}
-            >
-              Palette
-            </span>
-            <select
-              value={colorScheme}
-              onChange={(e) => handlePaletteChange(e.target.value)}
-              style={{
-                flex: 1,
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "4px 8px",
-                color: inputColor,
-                fontFamily: "inherit",
-                fontSize: 10,
                 cursor: "pointer",
+                width: "100%",
               }}
             >
-              <option value="generative">Generative (by seed)</option>
-              {presetPalettes.map(([name]) => (
-                <option key={name} value={name}>
-                  {name.charAt(0).toUpperCase() + name.slice(1)}
-                </option>
-              ))}
-            </select>
+              Download PNG
+            </button>
           </div>
 
-          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
+          {/* Controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Folds */}
+            <div>
+              <div
                 style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   fontSize: 9,
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
+                  marginBottom: 6,
+                  color: "#777",
                 }}
               >
-                BG
-              </span>
-              <input
-                type="color"
-                value={bgColor}
-                onChange={(e) => setBgColor(e.target.value)}
-                style={{
-                  width: 32,
-                  height: 24,
-                  padding: 0,
-                  border: `1px solid ${inputBorder}`,
-                  cursor: "pointer",
-                }}
-              />
-              <input
-                type="text"
-                value={bgColor}
-                onChange={(e) => setBgColor(e.target.value)}
-                style={{
-                  width: 70,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 6px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Text
-              </span>
-              <input
-                type="color"
-                value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-                style={{
-                  width: 32,
-                  height: 24,
-                  padding: 0,
-                  border: `1px solid ${inputBorder}`,
-                  cursor: "pointer",
-                }}
-              />
-              <input
-                type="text"
-                value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-                style={{
-                  width: 70,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 6px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Accent
-              </span>
-              <input
-                type="color"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                style={{
-                  width: 32,
-                  height: 24,
-                  padding: 0,
-                  border: `1px solid ${inputBorder}`,
-                  cursor: "pointer",
-                }}
-              />
-              <input
-                type="text"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                style={{
-                  width: 70,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 6px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                }}
-              />
-            </div>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 9,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={multiColor}
-                onChange={(e) => {
-                  const enabled = e.target.checked;
-                  setMultiColor(enabled);
-                  if (enabled) {
-                    setLevelColors(
-                      generateMultiColorPalette(seed, bgColor, textColor)
-                    );
-                  } else {
-                    setLevelColors(null);
+                <span>Folds</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={folds}
+                  onChange={(e) =>
+                    setFolds(Math.max(0, parseInt(e.target.value) || 0))
                   }
-                }}
-                style={{ cursor: "pointer" }}
-              />
-              Multi-color
-            </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
+                  style={{
+                    width: 60,
+                    background: "#222",
+                    border: "1px solid #444",
+                    padding: "4px 8px",
+                    color: "#ccc",
+                    fontFamily: "inherit",
+                    fontSize: 10,
+                    textAlign: "right",
+                  }}
+                />
+              </div>
               <input
-                type="checkbox"
-                checked={showCreases}
-                onChange={(e) => setShowCreases(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              Show creases
-            </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={showPaperShape}
-                onChange={(e) => setShowPaperShape(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              Show paper shape
-            </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={showHitCounts}
-                onChange={(e) => setShowHitCounts(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              Show hit counts
-            </label>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span
-              style={{
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              Fold Strategy
-            </span>
-            <select
-              value={strategyOverride}
-              onChange={(e) => {
-                const value = e.target.value;
-                setStrategyOverride(value);
-                if (value === "auto") {
-                  setFoldStrategy(generateFoldStrategy(seed));
-                } else {
-                  // Create a strategy of the selected type with seed-based params
-                  const rng = seededRandom(seed + 6666);
-                  rng(); // skip first roll (used for type selection)
-                  let newStrategy;
-                  switch (value) {
-                    case "horizontal":
-                      newStrategy = {
-                        type: "horizontal",
-                        jitter: 3 + rng() * 12,
-                      };
-                      break;
-                    case "vertical":
-                      newStrategy = {
-                        type: "vertical",
-                        jitter: 3 + rng() * 12,
-                      };
-                      break;
-                    case "diagonal":
-                      newStrategy = {
-                        type: "diagonal",
-                        angle: rng() < 0.5 ? 45 : 135,
-                        jitter: 5 + rng() * 15,
-                      };
-                      break;
-                    case "radial":
-                      newStrategy = {
-                        type: "radial",
-                        focalX: 0.2 + rng() * 0.6,
-                        focalY: 0.2 + rng() * 0.6,
-                      };
-                      break;
-                    case "grid":
-                      newStrategy = { type: "grid", jitter: 3 + rng() * 10 };
-                      break;
-                    case "clustered":
-                      newStrategy = {
-                        type: "clustered",
-                        clusterX: 0.15 + rng() * 0.7,
-                        clusterY: 0.15 + rng() * 0.7,
-                        spread: 0.2 + rng() * 0.4,
-                      };
-                      break;
-                    default:
-                      newStrategy = { type: "random" };
-                  }
-                  setFoldStrategy(newStrategy);
-                }
-              }}
-              style={{
-                flex: 1,
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "4px 8px",
-                color: inputColor,
-                fontFamily: "inherit",
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
-              <option value="auto">Auto (by seed)</option>
-              <option value="horizontal">Horizontal</option>
-              <option value="vertical">Vertical</option>
-              <option value="diagonal">Diagonal</option>
-              <option value="radial">Radial</option>
-              <option value="grid">Grid</option>
-              <option value="clustered">Clustered</option>
-              <option value="random">Random (chaotic)</option>
-            </select>
-            <span style={{ fontSize: 9, color: uiColorDim }}>
-              {foldStrategy?.type}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Cell W
-              </span>
-              <input
-                type="number"
-                min={CELL_MIN}
-                max={CELL_MAX}
-                value={cellWidth}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 8;
-                  const snapped = snapToDivisor(
-                    val,
-                    innerWidth,
-                    CELL_MIN,
-                    CELL_MAX
-                  );
-                  setCellWidth(snapped);
-                }}
-                style={{
-                  width: 40,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 4px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                  textAlign: "center",
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Cell H
-              </span>
-              <input
-                type="number"
-                min={CELL_MIN}
-                max={CELL_MAX}
-                value={cellHeight}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 12;
-                  const snapped = snapToDivisor(
-                    val,
-                    innerHeight,
-                    CELL_MIN,
-                    CELL_MAX
-                  );
-                  setCellHeight(snapped);
-                }}
-                style={{
-                  width: 40,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 4px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                  textAlign: "center",
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                Pad
-              </span>
-              <input
-                type="number"
+                type="range"
                 min={0}
-                max={100}
-                value={padding}
-                onChange={(e) =>
-                  setPadding(
-                    Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
-                  )
-                }
-                style={{
-                  width: 40,
-                  background: inputBg,
-                  border: `1px solid ${inputBorder}`,
-                  padding: "2px 4px",
-                  color: inputColor,
-                  fontFamily: "inherit",
-                  fontSize: 10,
-                  textAlign: "center",
-                }}
+                max={500}
+                value={Math.min(folds, 500)}
+                onChange={(e) => setFolds(parseInt(e.target.value))}
+                style={{ width: "100%", accentColor: "#666" }}
               />
             </div>
-          </div>
 
-          <div style={{ fontSize: 9, color: uiColorDim }}>
-            Grid: {cols} × {rows} = {totalCells} cells
-          </div>
+            {/* Seed */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 6,
+                  color: "#777",
+                }}
+              >
+                Seed
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="number"
+                  value={seed}
+                  onChange={(e) => setSeed(parseInt(e.target.value) || 1)}
+                  style={{
+                    flex: 1,
+                    background: "#222",
+                    border: "1px solid #444",
+                    padding: "6px 8px",
+                    color: "#ccc",
+                    fontFamily: "inherit",
+                    fontSize: 10,
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    setSeed(Math.floor(Math.random() * 99999) + 1);
+                    if (randomizeFolds) {
+                      setFolds(Math.floor(Math.random() * 199) + 1);
+                    }
+                  }}
+                  style={{
+                    background: "#333",
+                    border: "1px solid #444",
+                    padding: "6px 12px",
+                    color: "#aaa",
+                    fontFamily: "inherit",
+                    fontSize: 9,
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                  }}
+                >
+                  Random
+                </button>
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 9,
+                  cursor: "pointer",
+                  marginTop: 6,
+                  color: "#666",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={randomizeFolds}
+                  onChange={(e) => setRandomizeFolds(e.target.checked)}
+                  style={{ cursor: "pointer", accentColor: "#666" }}
+                />
+                Randomize folds too
+              </label>
+            </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              onClick={() => {
-                setCellWidth(snapToDivisor(10, innerWidth, CELL_MIN, CELL_MAX));
-                setCellHeight(
-                  snapToDivisor(10, innerHeight, CELL_MIN, CELL_MAX)
-                );
-              }}
-              style={{
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "3px 8px",
-                color: uiColor,
-                fontFamily: "inherit",
-                fontSize: 8,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              1:1
-            </button>
-            <button
-              onClick={() => {
-                setCellWidth(snapToDivisor(9, innerWidth, CELL_MIN, CELL_MAX));
-                setCellHeight(
-                  snapToDivisor(14, innerHeight, CELL_MIN, CELL_MAX)
-                );
-              }}
-              style={{
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "3px 8px",
-                color: uiColor,
-                fontFamily: "inherit",
-                fontSize: 8,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              Text
-            </button>
-            <button
-              onClick={() => {
-                setCellWidth(snapToDivisor(9, innerWidth, CELL_MIN, CELL_MAX));
-                setCellHeight(
-                  snapToDivisor(14, innerHeight, CELL_MIN, CELL_MAX)
-                );
-              }}
-              style={{
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "3px 8px",
-                color: uiColor,
-                fontFamily: "inherit",
-                fontSize: 8,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              Golden
-            </button>
-            <button
-              onClick={() => {
-                setCellWidth(snapToDivisor(18, innerWidth, CELL_MIN, CELL_MAX));
-                setCellHeight(
-                  snapToDivisor(25, innerHeight, CELL_MIN, CELL_MAX)
-                );
-              }}
-              style={{
-                background: inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "3px 8px",
-                color: uiColor,
-                fontFamily: "inherit",
-                fontSize: 8,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              Paper
-            </button>
-          </div>
+            {/* Palette */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 6,
+                  color: "#777",
+                }}
+              >
+                Palette
+              </div>
+              <select
+                value={colorScheme}
+                onChange={(e) => handlePaletteChange(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "#222",
+                  border: "1px solid #444",
+                  padding: "6px 8px",
+                  color: "#ccc",
+                  fontFamily: "inherit",
+                  fontSize: 10,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="generative">Generative (by seed)</option>
+                {presetPalettes.map(([name]) => (
+                  <option key={name} value={name}>
+                    {name.charAt(0).toUpperCase() + name.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div
-            style={{
-              marginTop: 8,
-              paddingTop: 12,
-              borderTop: `1px solid ${inputBorder}`,
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={() => setGridView(!gridView)}
-              style={{
-                background: gridView ? uiColor : inputBg,
-                border: `1px solid ${inputBorder}`,
-                padding: "4px 12px",
-                color: gridView ? "#fff" : uiColor,
-                fontFamily: "inherit",
-                fontSize: 9,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              {gridView ? "Single View" : "Grid View"}
-            </button>
-
-            {gridView && (
-              <>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span
+            {/* Colors */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 8,
+                  color: "#777",
+                }}
+              >
+                Colors
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>BG</span>
+                  <input
+                    type="color"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
                     style={{
-                      fontSize: 9,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
+                      width: 28,
+                      height: 22,
+                      padding: 0,
+                      border: "1px solid #444",
+                      cursor: "pointer",
+                      background: "none",
                     }}
-                  >
-                    Start
-                  </span>
+                  />
+                  <input
+                    type="text"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>Text</span>
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    style={{
+                      width: 28,
+                      height: 22,
+                      padding: 0,
+                      border: "1px solid #444",
+                      cursor: "pointer",
+                      background: "none",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>Accent</span>
+                  <input
+                    type="color"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    style={{
+                      width: 28,
+                      height: 22,
+                      padding: 0,
+                      border: "1px solid #444",
+                      cursor: "pointer",
+                      background: "none",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                    }}
+                  />
+                </div>
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 9,
+                  cursor: "pointer",
+                  marginTop: 8,
+                  color: "#666",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={multiColor}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setMultiColor(enabled);
+                    if (enabled) {
+                      setLevelColors(
+                        generateMultiColorPalette(seed, bgColor, textColor)
+                      );
+                    } else {
+                      setLevelColors(null);
+                    }
+                  }}
+                  style={{ cursor: "pointer", accentColor: "#666" }}
+                />
+                Multi-color mode
+              </label>
+            </div>
+
+            {/* Debug Options */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 8,
+                  color: "#777",
+                }}
+              >
+                Debug
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 9,
+                    cursor: "pointer",
+                    color: "#666",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showCreases}
+                    onChange={(e) => setShowCreases(e.target.checked)}
+                    style={{ cursor: "pointer", accentColor: "#666" }}
+                  />
+                  Show creases
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 9,
+                    cursor: "pointer",
+                    color: "#666",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showPaperShape}
+                    onChange={(e) => setShowPaperShape(e.target.checked)}
+                    style={{ cursor: "pointer", accentColor: "#666" }}
+                  />
+                  Show paper shape
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 9,
+                    cursor: "pointer",
+                    color: "#666",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showHitCounts}
+                    onChange={(e) => setShowHitCounts(e.target.checked)}
+                    style={{ cursor: "pointer", accentColor: "#666" }}
+                  />
+                  Show hit counts
+                </label>
+              </div>
+            </div>
+
+            {/* Fold Strategy */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 6,
+                  color: "#777",
+                }}
+              >
+                Fold Strategy
+              </div>
+              <select
+                value={strategyOverride}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setStrategyOverride(value);
+                  if (value === "auto") {
+                    setFoldStrategy(generateFoldStrategy(seed));
+                  } else {
+                    const rng = seededRandom(seed + 6666);
+                    rng();
+                    let newStrategy;
+                    switch (value) {
+                      case "horizontal":
+                        newStrategy = { type: "horizontal", jitter: 3 + rng() * 12 };
+                        break;
+                      case "vertical":
+                        newStrategy = { type: "vertical", jitter: 3 + rng() * 12 };
+                        break;
+                      case "diagonal":
+                        newStrategy = { type: "diagonal", angle: rng() < 0.5 ? 45 : 135, jitter: 5 + rng() * 15 };
+                        break;
+                      case "radial":
+                        newStrategy = { type: "radial", focalX: 0.2 + rng() * 0.6, focalY: 0.2 + rng() * 0.6 };
+                        break;
+                      case "grid":
+                        newStrategy = { type: "grid", jitter: 3 + rng() * 10 };
+                        break;
+                      case "clustered":
+                        newStrategy = { type: "clustered", clusterX: 0.15 + rng() * 0.7, clusterY: 0.15 + rng() * 0.7, spread: 0.2 + rng() * 0.4 };
+                        break;
+                      default:
+                        newStrategy = { type: "random" };
+                    }
+                    setFoldStrategy(newStrategy);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  background: "#222",
+                  border: "1px solid #444",
+                  padding: "6px 8px",
+                  color: "#ccc",
+                  fontFamily: "inherit",
+                  fontSize: 10,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="auto">Auto (by seed)</option>
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+                <option value="diagonal">Diagonal</option>
+                <option value="radial">Radial</option>
+                <option value="grid">Grid</option>
+                <option value="clustered">Clustered</option>
+                <option value="random">Random (chaotic)</option>
+              </select>
+            </div>
+
+            {/* Cell Dimensions */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 8,
+                  color: "#777",
+                }}
+              >
+                Cell Size
+              </div>
+              <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Width</div>
+                  <input
+                    type="number"
+                    min={CELL_MIN}
+                    max={CELL_MAX}
+                    value={cellWidth}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 8;
+                      const snapped = snapToDivisor(val, innerWidth, CELL_MIN, CELL_MAX);
+                      setCellWidth(snapped);
+                    }}
+                    style={{
+                      width: "100%",
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Height</div>
+                  <input
+                    type="number"
+                    min={CELL_MIN}
+                    max={CELL_MAX}
+                    value={cellHeight}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 12;
+                      const snapped = snapToDivisor(val, innerHeight, CELL_MIN, CELL_MAX);
+                      setCellHeight(snapped);
+                    }}
+                    style={{
+                      width: "100%",
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Padding</div>
                   <input
                     type="number"
                     min={0}
-                    value={gridStart}
+                    max={100}
+                    value={padding}
                     onChange={(e) =>
-                      setGridStart(Math.max(0, parseInt(e.target.value) || 0))
+                      setPadding(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))
                     }
                     style={{
-                      width: 50,
-                      background: inputBg,
-                      border: `1px solid ${inputBorder}`,
-                      padding: "2px 6px",
-                      color: inputColor,
+                      width: "100%",
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: "#ccc",
                       fontFamily: "inherit",
                       fontSize: 10,
                       textAlign: "center",
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span
+              </div>
+              <div style={{ fontSize: 9, color: "#555", marginBottom: 8 }}>
+                Grid: {cols} × {rows} = {totalCells} cells
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[
+                  { label: "1:1", w: 10, h: 10 },
+                  { label: "Text", w: 9, h: 14 },
+                  { label: "Golden", w: 9, h: 14 },
+                  { label: "Paper", w: 18, h: 25 },
+                ].map(({ label, w, h }) => (
+                  <button
+                    key={label}
+                    onClick={() => {
+                      setCellWidth(snapToDivisor(w, innerWidth, CELL_MIN, CELL_MAX));
+                      setCellHeight(snapToDivisor(h, innerHeight, CELL_MIN, CELL_MAX));
+                    }}
                     style={{
-                      fontSize: 9,
+                      background: "#222",
+                      border: "1px solid #444",
+                      padding: "4px 10px",
+                      color: "#888",
+                      fontFamily: "inherit",
+                      fontSize: 8,
                       textTransform: "uppercase",
-                      letterSpacing: "0.1em",
+                      cursor: "pointer",
                     }}
                   >
-                    Count
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={gridCount}
-                    onChange={(e) =>
-                      setGridCount(
-                        Math.max(
-                          1,
-                          Math.min(100, parseInt(e.target.value) || 20)
-                        )
-                      )
-                    }
-                    style={{
-                      width: 50,
-                      background: inputBg,
-                      border: `1px solid ${inputBorder}`,
-                      padding: "2px 6px",
-                      color: inputColor,
-                      fontFamily: "inherit",
-                      fontSize: 10,
-                      textAlign: "center",
-                    }}
-                  />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grid View */}
+            <div style={{ paddingTop: 16, borderTop: "1px solid #333" }}>
+              <button
+                onClick={() => setGridView(!gridView)}
+                style={{
+                  width: "100%",
+                  background: gridView ? "#444" : "#222",
+                  border: "1px solid #444",
+                  padding: "8px 12px",
+                  color: gridView ? "#fff" : "#888",
+                  fontFamily: "inherit",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  marginBottom: gridView ? 12 : 0,
+                }}
+              >
+                {gridView ? "← Single View" : "Grid View →"}
+              </button>
+
+              {gridView && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Start</div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={gridStart}
+                      onChange={(e) =>
+                        setGridStart(Math.max(0, parseInt(e.target.value) || 0))
+                      }
+                      style={{
+                        width: "100%",
+                        background: "#222",
+                        border: "1px solid #444",
+                        padding: "4px 6px",
+                        color: "#ccc",
+                        fontFamily: "inherit",
+                        fontSize: 10,
+                        textAlign: "center",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Count</div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={gridCount}
+                      onChange={(e) =>
+                        setGridCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 20)))
+                      }
+                      style={{
+                        width: "100%",
+                        background: "#222",
+                        border: "1px solid #444",
+                        padding: "4px 6px",
+                        color: "#ccc",
+                        fontFamily: "inherit",
+                        fontSize: 10,
+                        textAlign: "center",
+                      }}
+                    />
+                  </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
+      {/* Toggle Sidebar Button */}
       <button
         onClick={() => setShowUI(!showUI)}
         style={{
-          marginTop: 16,
-          background: "none",
-          border: "none",
-          color: uiColorDim,
-          fontSize: 8,
+          position: "fixed",
+          top: 20,
+          right: 20,
+          background: "#222",
+          border: "1px solid #444",
+          padding: "8px 12px",
+          color: "#888",
+          fontFamily: 'ui-monospace, "Courier New", monospace',
+          fontSize: 9,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
           cursor: "pointer",
+          zIndex: 100,
         }}
       >
-        {showUI ? "Hide" : "Show"} controls
+        {showUI ? "Hide" : "Show"}
       </button>
-
-      <p
-        style={{
-          marginTop: 24,
-          fontSize: 9,
-          color: uiColorDim,
-          fontStyle: "italic",
-          textAlign: "center",
-        }}
-      >
-        Density accumulates at intersections.
-      </p>
     </div>
   );
 }
