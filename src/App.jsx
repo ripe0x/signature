@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 const CELL_MIN = 4;
 const CELL_MAX = 600;
 const CELL_ASPECT_MAX = 3; // Max ratio between cell width and height (e.g., 3:1 or 1:3)
+const DRAWING_MARGIN = 50; // Consistent margin around the drawing area (pixels) - centers the bounding box
 
 // ============ VGA 256-COLOR PALETTE SYSTEM ============
 
@@ -1852,34 +1853,45 @@ function renderToCanvas({
   canvas.height = outputHeight * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Background
+  // Background - fill entire canvas
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-  // Grid calculations
-  const cols = Math.floor(outputWidth / cellWidth);
-  const rows = Math.floor(outputHeight / cellHeight);
+  // Calculate drawing area with consistent margins (centers the bounding box)
+  const drawWidth = outputWidth - DRAWING_MARGIN * 2;
+  const drawHeight = outputHeight - DRAWING_MARGIN * 2;
+  const offsetX = DRAWING_MARGIN; // Centers horizontally
+  const offsetY = DRAWING_MARGIN; // Centers vertically
+
+  // Grid calculations based on drawing area
+  const cols = Math.max(1, Math.floor(drawWidth / cellWidth));
+  const rows = Math.max(1, Math.floor(drawHeight / cellHeight));
+
+  // Calculate actual cell dimensions to fill the drawing area completely
+  // This ensures the grid starts at offsetX and ends exactly at offsetX + drawWidth
+  const actualCellWidth = drawWidth / cols;
+  const actualCellHeight = drawHeight / rows;
 
   // Generate weight range for this output
   const weightRange = generateWeightRange(seed);
 
-  // Generate fold structure with weights
+  // Generate fold structure with weights (in drawing area)
   const { creases, finalShape } = simulateFolds(
-    outputWidth,
-    outputHeight,
+    drawWidth,
+    drawHeight,
     folds,
     seed,
     weightRange,
     foldStrategy
   );
 
-  // Process creases - find all intersections
+  // Process creases - find all intersections (use actual cell dimensions)
   const {
     activeCreases,
     intersections: activeIntersections,
     cellWeights: intersectionWeight,
     cellMaxGap,
-  } = processCreases(creases, cols, rows, cellWidth, cellHeight);
+  } = processCreases(creases, cols, rows, actualCellWidth, actualCellHeight);
 
   // Find accent cells
   const accentCells = new Set();
@@ -1910,11 +1922,12 @@ function renderToCanvas({
     return textColor;
   };
 
-  // Draw character grid
+  // Draw character grid (centered with margin)
+  // Ensure exact pixel alignment to avoid floating point issues
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const x = col * cellWidth;
-      const y = row * cellHeight;
+      const x = Math.round(offsetX + col * actualCellWidth);
+      const y = Math.round(offsetY + row * actualCellHeight);
       const key = `${col},${row}`;
       const weight = intersectionWeight[key] || 0;
 
@@ -1982,33 +1995,39 @@ function renderToCanvas({
         ctx.fillStyle =
           accentCells.has(key) && weight > 0 ? accentColor : finalColor;
 
-        // Draw first character
-        ctx.fillText(char, x, y);
-
-        // Check if there's room for additional characters
+        // Fill the entire cell width with characters - use aggressive overlap to eliminate gaps
         const measuredCharWidth = ctx.measureText(char).width;
-        let currentX = x + measuredCharWidth;
-        const remainingWidth = cellWidth - measuredCharWidth;
+        // Calculate exact cell boundary (next cell's start position)
+        const cellEndX = Math.round(offsetX + (col + 1) * actualCellWidth);
 
-        // If there's enough room for another character, add it
-        if (remainingWidth >= measuredCharWidth * 0.8 && level >= 0) {
-          // Try to fit another character - use same or lighter
-          let secondChar = char;
-          if (level >= 2 && remainingWidth >= measuredCharWidth * 1.5) {
-            // If there's room and we're at a darker level, use a lighter one for contrast
-            secondChar = shadeChars[Math.max(0, level - 1)];
+        // Draw characters with tight overlap (95% of width) to ensure no gaps
+        let currentX = x;
+        let charIndex = 0;
+        const overlapFactor = 0.95; // Use 95% of width = 5% overlap to eliminate gaps
+
+        while (currentX < cellEndX && level >= 0) {
+          let nextChar = char;
+          if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
+            nextChar = shadeChars[Math.max(0, level - 1)];
           }
 
-          const secondCharWidth = ctx.measureText(secondChar).width;
-          if (currentX + secondCharWidth <= x + cellWidth) {
-            ctx.fillText(secondChar, currentX, y);
-            currentX += secondCharWidth;
+          const nextCharWidth = ctx.measureText(nextChar).width;
+          const remainingWidth = cellEndX - currentX;
 
-            // Check for a third character if there's still room
-            if (currentX + measuredCharWidth <= x + cellWidth) {
-              ctx.fillText(char, currentX, y);
-            }
+          if (remainingWidth <= 0) break;
+
+          // Always draw character, ensuring it reaches or extends past boundary if last
+          if (remainingWidth < nextCharWidth * 1.1) {
+            // Close to end - ensure character extends to boundary
+            ctx.fillText(nextChar, cellEndX - nextCharWidth, y);
+            break;
+          } else {
+            // Draw with overlap to ensure no gaps
+            ctx.fillText(nextChar, currentX, y);
+            currentX += nextCharWidth * overlapFactor;
           }
+
+          charIndex++;
         }
       }
     }
@@ -2044,10 +2063,13 @@ function ASCIICanvas({
   // Character grid settings from props
   const charWidth = cellWidth;
   const charHeight = cellHeight;
-  const innerWidth = width - padding * 2;
-  const innerHeight = height - padding * 2;
-  const cols = Math.floor(innerWidth / charWidth);
-  const rows = Math.floor(innerHeight / charHeight);
+  // Calculate drawing area: account for padding and consistent margin (centers the bounding box)
+  const innerWidth = width - padding * 2 - DRAWING_MARGIN * 2;
+  const innerHeight = height - padding * 2 - DRAWING_MARGIN * 2;
+  const offsetX = padding + DRAWING_MARGIN; // Centers horizontally
+  const offsetY = padding + DRAWING_MARGIN; // Centers vertically
+  const cols = Math.max(1, Math.floor(innerWidth / charWidth));
+  const rows = Math.max(1, Math.floor(innerHeight / charHeight));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2071,6 +2093,10 @@ function ASCIICanvas({
     // Generate weight range for this output
     const weightRange = generateWeightRange(seed);
 
+    // Calculate actual cell dimensions to fill the drawing area completely
+    const actualCharWidth = innerWidth / cols;
+    const actualCharHeight = innerHeight / rows;
+
     // Generate fold structure with weights (in inner area)
     const { creases, finalShape } = simulateFolds(
       innerWidth,
@@ -2081,13 +2107,13 @@ function ASCIICanvas({
       foldStrategy
     );
 
-    // Process creases - find all intersections
+    // Process creases - find all intersections (use actual cell dimensions)
     const {
       activeCreases,
       intersections: activeIntersections,
       cellWeights: intersectionWeight,
       cellMaxGap,
-    } = processCreases(creases, cols, rows, charWidth, charHeight);
+    } = processCreases(creases, cols, rows, actualCharWidth, actualCharHeight);
 
     // For rendering
     const creasesForRender = activeCreases;
@@ -2131,7 +2157,9 @@ function ASCIICanvas({
       ctx.fillRect(0, 0, width, height);
 
       // Size text to fit 2 digits comfortably (use ~40% of cell width)
-      const fontSize = Math.floor(Math.min(charWidth * 0.45, charHeight * 0.7));
+      const fontSize = Math.floor(
+        Math.min(actualCharWidth * 0.45, actualCharHeight * 0.7)
+      );
       ctx.font = `bold ${fontSize}px monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -2139,8 +2167,12 @@ function ASCIICanvas({
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const x = padding + col * charWidth + charWidth / 2;
-          const y = padding + row * charHeight + charHeight / 2;
+          const x = Math.round(
+            offsetX + col * actualCharWidth + actualCharWidth / 2
+          );
+          const y = Math.round(
+            offsetY + row * actualCharHeight + actualCharHeight / 2
+          );
           const key = `${col},${row}`;
           const weight = intersectionWeight[key] || 0;
 
@@ -2157,8 +2189,8 @@ function ASCIICanvas({
       // Normal rendering
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const x = padding + col * charWidth;
-          const y = padding + row * charHeight;
+          const x = Math.round(offsetX + col * actualCharWidth);
+          const y = Math.round(offsetY + row * actualCharHeight);
           const key = `${col},${row}`;
           const weight = intersectionWeight[key] || 0;
 
@@ -2235,33 +2267,39 @@ function ASCIICanvas({
             ctx.fillStyle =
               accentCells.has(key) && weight > 0 ? accentColor : finalColor;
 
-            // Draw first character
-            ctx.fillText(char, x, y);
-
-            // Check if there's room for additional characters
+            // Fill the entire cell width with characters - use aggressive overlap to eliminate gaps
             const measuredCharWidth = ctx.measureText(char).width;
-            let currentX = x + measuredCharWidth;
-            const remainingWidth = charWidth - measuredCharWidth;
+            // Calculate exact cell boundary (next cell's start position)
+            const cellEndX = Math.round(offsetX + (col + 1) * actualCharWidth);
 
-            // If there's enough room for another character, add it
-            if (remainingWidth >= measuredCharWidth * 0.8 && level >= 0) {
-              // Try to fit another character - use same or lighter
-              let secondChar = char;
-              if (level >= 2 && remainingWidth >= measuredCharWidth * 1.5) {
-                // If there's room and we're at a darker level, use a lighter one for contrast
-                secondChar = shadeChars[Math.max(0, level - 1)];
+            // Draw characters with tight overlap (95% of width) to ensure no gaps
+            let currentX = x;
+            let charIndex = 0;
+            const overlapFactor = 0.95; // Use 95% of width = 5% overlap to eliminate gaps
+
+            while (currentX < cellEndX && level >= 0) {
+              let nextChar = char;
+              if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
+                nextChar = shadeChars[Math.max(0, level - 1)];
               }
 
-              const secondCharWidth = ctx.measureText(secondChar).width;
-              if (currentX + secondCharWidth <= x + charWidth) {
-                ctx.fillText(secondChar, currentX, y);
-                currentX += secondCharWidth;
+              const nextCharWidth = ctx.measureText(nextChar).width;
+              const remainingWidth = cellEndX - currentX;
 
-                // Check for a third character if there's still room
-                if (currentX + measuredCharWidth <= x + charWidth) {
-                  ctx.fillText(char, currentX, y);
-                }
+              if (remainingWidth <= 0) break;
+
+              // Always draw character, ensuring it reaches or extends past boundary if last
+              if (remainingWidth < nextCharWidth * 1.1) {
+                // Close to end - ensure character extends to boundary
+                ctx.fillText(nextChar, cellEndX - nextCharWidth, y);
+                break;
+              } else {
+                // Draw with overlap to ensure no gaps
+                ctx.fillText(nextChar, currentX, y);
+                currentX += nextCharWidth * overlapFactor;
               }
+
+              charIndex++;
             }
           }
         }
@@ -2275,8 +2313,8 @@ function ASCIICanvas({
       ctx.globalAlpha = 0.7;
       for (const crease of creasesForRender) {
         ctx.beginPath();
-        ctx.moveTo(padding + crease.p1.x, padding + crease.p1.y);
-        ctx.lineTo(padding + crease.p2.x, padding + crease.p2.y);
+        ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
+        ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -2289,9 +2327,9 @@ function ASCIICanvas({
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.moveTo(padding + finalShape[0].x, padding + finalShape[0].y);
+        ctx.moveTo(offsetX + finalShape[0].x, offsetY + finalShape[0].y);
         for (let i = 1; i < finalShape.length; i++) {
-          ctx.lineTo(padding + finalShape[i].x, padding + finalShape[i].y);
+          ctx.lineTo(offsetX + finalShape[i].x, offsetY + finalShape[i].y);
         }
         ctx.closePath();
         ctx.stroke();
