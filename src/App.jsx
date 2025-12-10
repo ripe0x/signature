@@ -1881,13 +1881,6 @@ function renderToCanvas({
     cellMaxGap,
   } = processCreases(creases, cols, rows, cellWidth, cellHeight);
 
-  // Font setup
-  ctx.font = `${cellHeight - 2}px "Courier New", Courier, monospace`;
-  ctx.textBaseline = "top";
-
-  // Block shade characters - graduated density, no solid blocks
-  const shadeChars = [" ", "░", "▒", "▓"];
-
   // Find accent cells
   const accentCells = new Set();
   if (Object.keys(cellMaxGap).length > 0) {
@@ -1898,6 +1891,13 @@ function renderToCanvas({
       }
     }
   }
+
+  // Font setup
+  ctx.font = `${cellHeight - 2}px "Courier New", Courier, monospace`;
+  ctx.textBaseline = "top";
+
+  // Block shade characters - graduated density, no solid blocks
+  const shadeChars = [" ", "░", "▒", "▓"];
 
   // Calculate adaptive thresholds based on this output's weight distribution
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
@@ -1920,9 +1920,11 @@ function renderToCanvas({
 
       let char = null;
       let color = textColor;
+      let level = -1;
 
       if (accentCells.has(key) && weight > 0) {
         char = shadeChars[2];
+        level = 2;
         color = accentColor;
       } else if (weight >= 10) {
         // EXTREME: 10+ intersections - extra hue shift based on weight only
@@ -1933,36 +1935,40 @@ function renderToCanvas({
         const newSat = Math.min(100, baseHsl.s + 20);
         const newLight = Math.min(85, baseHsl.l + 10);
         char = shadeChars[3];
+        level = 3;
         color = hslToHex(newHue, newSat, newLight);
       } else if (renderMode === "normal") {
-        const level = countToLevelAdaptive(weight, thresholds);
+        level = countToLevelAdaptive(weight, thresholds);
         char = shadeChars[level];
         color = getColorForLevel(level, key);
       } else if (renderMode === "binary") {
         if (weight === 0) {
           char = shadeChars[0];
+          level = 0;
           color = getColorForLevel(0, key);
         } else {
           char = shadeChars[3];
+          level = 3;
           color = getColorForLevel(3, key);
         }
       } else if (renderMode === "inverted") {
-        const level = 3 - countToLevelAdaptive(weight, thresholds);
+        level = 3 - countToLevelAdaptive(weight, thresholds);
         char = shadeChars[level];
         color = getColorForLevel(level, key);
       } else if (renderMode === "sparse") {
-        const level = countToLevelAdaptive(weight, thresholds);
+        level = countToLevelAdaptive(weight, thresholds);
         if (level === 1) {
           char = shadeChars[1];
           color = getColorForLevel(1, key);
         }
       } else if (renderMode === "dense") {
-        const level = countToLevelAdaptive(weight, thresholds);
+        level = countToLevelAdaptive(weight, thresholds);
         if (level >= 2) {
           char = shadeChars[level];
           color = getColorForLevel(level, key);
         } else if (weight === 0) {
           char = shadeChars[0];
+          level = 0;
           color = getColorForLevel(0, key);
         }
       }
@@ -1975,7 +1981,35 @@ function renderToCanvas({
         );
         ctx.fillStyle =
           accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+
+        // Draw first character
         ctx.fillText(char, x, y);
+
+        // Check if there's room for additional characters
+        const measuredCharWidth = ctx.measureText(char).width;
+        let currentX = x + measuredCharWidth;
+        const remainingWidth = cellWidth - measuredCharWidth;
+
+        // If there's enough room for another character, add it
+        if (remainingWidth >= measuredCharWidth * 0.8 && level >= 0) {
+          // Try to fit another character - use same or lighter
+          let secondChar = char;
+          if (level >= 2 && remainingWidth >= measuredCharWidth * 1.5) {
+            // If there's room and we're at a darker level, use a lighter one for contrast
+            secondChar = shadeChars[Math.max(0, level - 1)];
+          }
+
+          const secondCharWidth = ctx.measureText(secondChar).width;
+          if (currentX + secondCharWidth <= x + cellWidth) {
+            ctx.fillText(secondChar, currentX, y);
+            currentX += secondCharWidth;
+
+            // Check for a third character if there's still room
+            if (currentX + measuredCharWidth <= x + cellWidth) {
+              ctx.fillText(char, currentX, y);
+            }
+          }
+        }
       }
     }
   }
@@ -2131,17 +2165,19 @@ function ASCIICanvas({
           // Determine what to draw based on render mode
           let char = null;
           let color = textColor;
+          let level = -1;
 
           // Helper to get color based on level (for multiColor mode) - no breathing
-          const getColorForLevel = (level, cellKey) => {
+          const getColorForLevel = (lvl, cellKey) => {
             if (multiColor && levelColors) {
-              return levelColors[Math.min(level, 3)];
+              return levelColors[Math.min(lvl, 3)];
             }
             return textColor;
           };
 
           if (accentCells.has(key) && weight > 0) {
             char = shadeChars[2];
+            level = 2;
             color = accentColor;
           } else if (weight >= 10) {
             // EXTREME: 10+ intersections - extra hue shift based on weight only
@@ -2152,36 +2188,40 @@ function ASCIICanvas({
             const newSat = Math.min(100, baseHsl.s + 20);
             const newLight = Math.min(85, baseHsl.l + 10);
             char = shadeChars[3];
+            level = 3;
             color = hslToHex(newHue, newSat, newLight);
           } else if (renderMode === "normal") {
-            const level = countToLevelAdaptive(weight, thresholds);
+            level = countToLevelAdaptive(weight, thresholds);
             char = shadeChars[level];
             color = getColorForLevel(level, key);
           } else if (renderMode === "binary") {
             if (weight === 0) {
               char = shadeChars[0];
+              level = 0;
               color = getColorForLevel(0, key);
             } else {
               char = shadeChars[3];
+              level = 3;
               color = getColorForLevel(3, key);
             }
           } else if (renderMode === "inverted") {
-            const level = 3 - countToLevelAdaptive(weight, thresholds);
+            level = 3 - countToLevelAdaptive(weight, thresholds);
             char = shadeChars[level];
             color = getColorForLevel(level, key);
           } else if (renderMode === "sparse") {
-            const level = countToLevelAdaptive(weight, thresholds);
+            level = countToLevelAdaptive(weight, thresholds);
             if (level === 1) {
               char = shadeChars[1];
               color = getColorForLevel(1, key);
             }
           } else if (renderMode === "dense") {
-            const level = countToLevelAdaptive(weight, thresholds);
+            level = countToLevelAdaptive(weight, thresholds);
             if (level >= 2) {
               char = shadeChars[level];
               color = getColorForLevel(level, key);
             } else if (weight === 0) {
               char = shadeChars[0];
+              level = 0;
               color = getColorForLevel(0, key);
             }
           }
@@ -2194,7 +2234,35 @@ function ASCIICanvas({
             );
             ctx.fillStyle =
               accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+
+            // Draw first character
             ctx.fillText(char, x, y);
+
+            // Check if there's room for additional characters
+            const measuredCharWidth = ctx.measureText(char).width;
+            let currentX = x + measuredCharWidth;
+            const remainingWidth = charWidth - measuredCharWidth;
+
+            // If there's enough room for another character, add it
+            if (remainingWidth >= measuredCharWidth * 0.8 && level >= 0) {
+              // Try to fit another character - use same or lighter
+              let secondChar = char;
+              if (level >= 2 && remainingWidth >= measuredCharWidth * 1.5) {
+                // If there's room and we're at a darker level, use a lighter one for contrast
+                secondChar = shadeChars[Math.max(0, level - 1)];
+              }
+
+              const secondCharWidth = ctx.measureText(secondChar).width;
+              if (currentX + secondCharWidth <= x + charWidth) {
+                ctx.fillText(secondChar, currentX, y);
+                currentX += secondCharWidth;
+
+                // Check for a third character if there's still room
+                if (currentX + measuredCharWidth <= x + charWidth) {
+                  ctx.fillText(char, currentX, y);
+                }
+              }
+            }
           }
         }
       }
@@ -2506,7 +2574,6 @@ export default function FoldedPaper() {
     }
   }, [seed, colorScheme, width, height, padding, strategyOverride]);
 
-
   // Calculate stats using inner dimensions
   const innerWidth = width - padding * 2;
   const innerHeight = height - padding * 2;
@@ -2530,7 +2597,8 @@ export default function FoldedPaper() {
 
   // Calculate display scale to fit canvas in viewport
   const aspectRatio = width / height;
-  const maxDisplayHeight = typeof window !== 'undefined' ? window.innerHeight - 40 : 800;
+  const maxDisplayHeight =
+    typeof window !== "undefined" ? window.innerHeight - 40 : 800;
   const displayHeight = Math.min(height, maxDisplayHeight);
   const displayWidth = Math.round(displayHeight * aspectRatio);
 
@@ -2602,20 +2670,24 @@ export default function FoldedPaper() {
                     );
                     setCellWidth(cells.cellW);
                     setCellHeight(cells.cellH);
-                  setRenderMode(generateRenderMode(gridStart + i));
-                  const newMultiColor = generateMultiColorEnabled(
-                    gridStart + i
-                  );
-                  setMultiColor(newMultiColor);
-                  setLevelColors(
-                    newMultiColor
-                      ? generateMultiColorPalette(gridStart + i, palette.bg, palette.text)
-                      : null
-                  );
-                }}
-              />
-            ))}
-          </div>
+                    setRenderMode(generateRenderMode(gridStart + i));
+                    const newMultiColor = generateMultiColorEnabled(
+                      gridStart + i
+                    );
+                    setMultiColor(newMultiColor);
+                    setLevelColors(
+                      newMultiColor
+                        ? generateMultiColorPalette(
+                            gridStart + i,
+                            palette.bg,
+                            palette.text
+                          )
+                        : null
+                    );
+                  }}
+                />
+              ))}
+            </div>
 
             <div style={{ textAlign: "center", marginTop: 24 }}>
               <button
@@ -2640,7 +2712,13 @@ export default function FoldedPaper() {
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
             <div
               style={{
                 transform: `scale(${displayHeight / height})`,
@@ -2697,7 +2775,13 @@ export default function FoldedPaper() {
           }}
         >
           {/* Header */}
-          <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid #333" }}>
+          <div
+            style={{
+              marginBottom: 20,
+              paddingBottom: 16,
+              borderBottom: "1px solid #333",
+            }}
+          >
             <div
               style={{
                 fontSize: 13,
@@ -2902,7 +2986,9 @@ export default function FoldedPaper() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>BG</span>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>
+                    BG
+                  </span>
                   <input
                     type="color"
                     value={bgColor}
@@ -2932,7 +3018,9 @@ export default function FoldedPaper() {
                   />
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>Text</span>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>
+                    Text
+                  </span>
                   <input
                     type="color"
                     value={textColor}
@@ -2962,7 +3050,9 @@ export default function FoldedPaper() {
                   />
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>Accent</span>
+                  <span style={{ fontSize: 9, color: "#666", width: 40 }}>
+                    Accent
+                  </span>
                   <input
                     type="color"
                     value={accentColor}
@@ -3120,22 +3210,41 @@ export default function FoldedPaper() {
                     let newStrategy;
                     switch (value) {
                       case "horizontal":
-                        newStrategy = { type: "horizontal", jitter: 3 + rng() * 12 };
+                        newStrategy = {
+                          type: "horizontal",
+                          jitter: 3 + rng() * 12,
+                        };
                         break;
                       case "vertical":
-                        newStrategy = { type: "vertical", jitter: 3 + rng() * 12 };
+                        newStrategy = {
+                          type: "vertical",
+                          jitter: 3 + rng() * 12,
+                        };
                         break;
                       case "diagonal":
-                        newStrategy = { type: "diagonal", angle: rng() < 0.5 ? 45 : 135, jitter: 5 + rng() * 15 };
+                        newStrategy = {
+                          type: "diagonal",
+                          angle: rng() < 0.5 ? 45 : 135,
+                          jitter: 5 + rng() * 15,
+                        };
                         break;
                       case "radial":
-                        newStrategy = { type: "radial", focalX: 0.2 + rng() * 0.6, focalY: 0.2 + rng() * 0.6 };
+                        newStrategy = {
+                          type: "radial",
+                          focalX: 0.2 + rng() * 0.6,
+                          focalY: 0.2 + rng() * 0.6,
+                        };
                         break;
                       case "grid":
                         newStrategy = { type: "grid", jitter: 3 + rng() * 10 };
                         break;
                       case "clustered":
-                        newStrategy = { type: "clustered", clusterX: 0.15 + rng() * 0.7, clusterY: 0.15 + rng() * 0.7, spread: 0.2 + rng() * 0.4 };
+                        newStrategy = {
+                          type: "clustered",
+                          clusterX: 0.15 + rng() * 0.7,
+                          clusterY: 0.15 + rng() * 0.7,
+                          spread: 0.2 + rng() * 0.4,
+                        };
                         break;
                       default:
                         newStrategy = { type: "random" };
@@ -3180,7 +3289,9 @@ export default function FoldedPaper() {
               </div>
               <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Width</div>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>
+                    Width
+                  </div>
                   <input
                     type="number"
                     min={CELL_MIN}
@@ -3188,7 +3299,12 @@ export default function FoldedPaper() {
                     value={cellWidth}
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 8;
-                      const snapped = snapToDivisor(val, innerWidth, CELL_MIN, CELL_MAX);
+                      const snapped = snapToDivisor(
+                        val,
+                        innerWidth,
+                        CELL_MIN,
+                        CELL_MAX
+                      );
                       setCellWidth(snapped);
                     }}
                     style={{
@@ -3204,7 +3320,9 @@ export default function FoldedPaper() {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Height</div>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>
+                    Height
+                  </div>
                   <input
                     type="number"
                     min={CELL_MIN}
@@ -3212,7 +3330,12 @@ export default function FoldedPaper() {
                     value={cellHeight}
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 12;
-                      const snapped = snapToDivisor(val, innerHeight, CELL_MIN, CELL_MAX);
+                      const snapped = snapToDivisor(
+                        val,
+                        innerHeight,
+                        CELL_MIN,
+                        CELL_MAX
+                      );
                       setCellHeight(snapped);
                     }}
                     style={{
@@ -3228,14 +3351,21 @@ export default function FoldedPaper() {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Padding</div>
+                  <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>
+                    Padding
+                  </div>
                   <input
                     type="number"
                     min={0}
                     max={100}
                     value={padding}
                     onChange={(e) =>
-                      setPadding(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))
+                      setPadding(
+                        Math.max(
+                          0,
+                          Math.min(100, parseInt(e.target.value) || 0)
+                        )
+                      )
                     }
                     style={{
                       width: "100%",
@@ -3263,8 +3393,12 @@ export default function FoldedPaper() {
                   <button
                     key={label}
                     onClick={() => {
-                      setCellWidth(snapToDivisor(w, innerWidth, CELL_MIN, CELL_MAX));
-                      setCellHeight(snapToDivisor(h, innerHeight, CELL_MIN, CELL_MAX));
+                      setCellWidth(
+                        snapToDivisor(w, innerWidth, CELL_MIN, CELL_MAX)
+                      );
+                      setCellHeight(
+                        snapToDivisor(h, innerHeight, CELL_MIN, CELL_MAX)
+                      );
                     }}
                     style={{
                       background: "#222",
@@ -3306,7 +3440,11 @@ export default function FoldedPaper() {
               {gridView && (
                 <div style={{ display: "flex", gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Start</div>
+                    <div
+                      style={{ fontSize: 8, color: "#555", marginBottom: 4 }}
+                    >
+                      Start
+                    </div>
                     <input
                       type="number"
                       min={0}
@@ -3327,14 +3465,23 @@ export default function FoldedPaper() {
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 8, color: "#555", marginBottom: 4 }}>Count</div>
+                    <div
+                      style={{ fontSize: 8, color: "#555", marginBottom: 4 }}
+                    >
+                      Count
+                    </div>
                     <input
                       type="number"
                       min={1}
                       max={100}
                       value={gridCount}
                       onChange={(e) =>
-                        setGridCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 20)))
+                        setGridCount(
+                          Math.max(
+                            1,
+                            Math.min(100, parseInt(e.target.value) || 20)
+                          )
+                        )
                       }
                       style={{
                         width: "100%",
