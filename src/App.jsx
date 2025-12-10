@@ -323,6 +323,14 @@ function pickBiased(rng, arr, bias) {
 // ============ HSL UTILITIES (for color manipulation, not palette generation) ============
 
 // HSL to Hex conversion (used for extreme color effects)
+// Convert hex color to rgba string with opacity
+function hexToRgba(hex, opacity) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 function hslToHex(h, s, l) {
   s /= 100;
   l /= 100;
@@ -653,7 +661,7 @@ function generateRenderMode(seed) {
   return "dense"; // 20% - show only heavy hits
 }
 
-// Generate weight range for creases
+// Generate weight range for creases (normalized to 0-1)
 // Different outputs have different "pressure" characteristics
 function generateWeightRange(seed) {
   const rng = seededRandom(seed + 7777);
@@ -661,19 +669,25 @@ function generateWeightRange(seed) {
 
   if (style < 0.25) {
     // Light touch - all creases gentle
-    const base = 0.2 + rng() * 0.3; // 0.2-0.5
-    return { min: base, max: base + 0.2 + rng() * 0.3 };
+    const base = 0.2 + rng() * 0.2; // 0.2-0.4
+    return { min: base, max: base + 0.1 + rng() * 0.2 }; // max up to ~0.7
   } else if (style < 0.5) {
     // Heavy hand - all creases deep
-    const base = 1.2 + rng() * 0.5; // 1.2-1.7
-    return { min: base, max: base + 0.3 + rng() * 0.5 };
+    const base = 0.6 + rng() * 0.2; // 0.6-0.8
+    return { min: base, max: base + 0.1 + rng() * 0.1 }; // max up to ~1.0
   } else if (style < 0.75) {
     // High contrast - mix of light and heavy
-    return { min: 0.2 + rng() * 0.2, max: 1.5 + rng() * 0.8 };
+    return { min: 0.1 + rng() * 0.2, max: 0.7 + rng() * 0.3 }; // 0.1-1.0
   } else {
     // Balanced - moderate range
-    return { min: 0.5 + rng() * 0.3, max: 1.0 + rng() * 0.5 };
+    return { min: 0.3 + rng() * 0.2, max: 0.5 + rng() * 0.5 }; // 0.3-1.0
   }
+}
+
+// Generate maxFolds - determines "lung capacity" for breathing cycles (4-69)
+function generateMaxFolds(seed) {
+  const rng = seededRandom(seed + 2222);
+  return Math.floor(4 + rng() * 66); // 4 to 69 inclusive
 }
 
 // Generate fold strategy - determines spatial distribution of creases
@@ -1398,7 +1412,7 @@ function simulateFolds(
   height,
   numFolds,
   seed,
-  weightRange = { min: 0.5, max: 1.5 },
+  weightRange = { min: 0.0, max: 1.0 },
   strategyOverride = null
 ) {
   // Defensive: ensure valid dimensions
@@ -1407,6 +1421,9 @@ function simulateFolds(
   }
 
   const strategy = strategyOverride || generateFoldStrategy(seed);
+
+  // Calculate maxFolds for breathing cycles
+  const maxFolds = generateMaxFolds(seed);
 
   // Start with rectangle
   let shape = ensureCCW([
@@ -1420,7 +1437,7 @@ function simulateFolds(
 
   // If no folds requested, return initial state
   if (!numFolds || numFolds <= 0) {
-    return { creases: [], finalShape: shape };
+    return { creases: [], finalShape: shape, maxFolds };
   }
 
   let currentSeed = seed;
@@ -1435,7 +1452,48 @@ function simulateFolds(
   const phaseX = freqRng() * Math.PI * 2; // Starting phase
   const phaseY = freqRng() * Math.PI * 2;
 
+  // Pre-generate reduction multipliers for each cycle position (deterministic)
+  // Each crease created at a given cycle position gets the multiplier for that position
+  const reductionMultipliers = [];
+  const reductionRng = seededRandom(seed + 1111);
+  for (let i = 0; i < maxFolds; i++) {
+    // Each crease gets a reduction multiplier between 0.1 and 0.9
+    // This determines how much weight remains after exhale (10% to 90%)
+    reductionMultipliers[i] = 0.001 + reductionRng() * 0.25;
+  }
+
   for (let f = 0; f < numFolds; f++) {
+    // Calculate cycle position (0 to maxFolds-1)
+    const cyclePosition = f % maxFolds;
+    const currentCycle = Math.floor(f / maxFolds);
+
+    // EXHALE: At the start of each new cycle (except the first), reduce ALL existing crease weights
+    // Each crease gets reduced by its own multiplier (stored when it was created)
+    // This simulates the paper being flattened - all creases become less pronounced
+    if (cyclePosition === 0 && currentCycle > 0) {
+      let totalWeightBefore = 0;
+      let totalWeightAfter = 0;
+      for (const crease of creases) {
+        if (crease.reductionMultiplier !== undefined) {
+          totalWeightBefore += crease.weight;
+          crease.weight = Math.max(
+            0.01,
+            crease.weight * crease.reductionMultiplier
+          );
+          totalWeightAfter += crease.weight;
+        }
+      }
+      // Debug: Log exhale events
+      console.log(
+        `[EXHALE at fold ${f}] Reduced ${
+          creases.length
+        } creases: ${totalWeightBefore.toFixed(2)} → ${totalWeightAfter.toFixed(
+          2
+        )} (${((1 - totalWeightAfter / totalWeightBefore) * 100).toFixed(
+          1
+        )}% reduction)`
+      );
+    }
     if (!shape || shape.length < 3) break;
 
     const rng = seededRandom(currentSeed);
@@ -1550,13 +1608,19 @@ function simulateFolds(
     );
 
     if (canvasCrease) {
-      const weight =
+      // Generate new weight for this fold
+      const newWeight =
         weightRange.min + weightRng() * (weightRange.max - weightRange.min);
+
+      // INHALE: Create a new crease with this weight
+      // Store its reduction multiplier so it can be reduced at future exhales
       creases.push({
         p1: V.copy(canvasCrease.p1),
         p2: V.copy(canvasCrease.p2),
         depth: creases.length,
-        weight: weight,
+        weight: newWeight, // Start with just this fold's weight
+        cyclePosition: cyclePosition,
+        reductionMultiplier: reductionMultipliers[cyclePosition], // Store multiplier for future exhales
       });
     }
 
@@ -1568,7 +1632,7 @@ function simulateFolds(
   shape = normalizePolygon(shape, width, height, 0);
   shape = ensureCCW(shape);
 
-  return { creases, finalShape: shape };
+  return { creases, finalShape: shape, maxFolds };
 }
 
 // Pick source vertex from shape vertices
@@ -1772,12 +1836,22 @@ function findIntersections(creases) {
 }
 
 // Simple crease processing - just find intersections and build cell weights
-function processCreases(creases, gridCols, gridRows, cellWidth, cellHeight) {
+function processCreases(
+  creases,
+  gridCols,
+  gridRows,
+  cellWidth,
+  cellHeight,
+  maxFolds = null
+) {
   const intersections = findIntersections(creases);
 
   // Build cell weights and gaps
   const cellWeights = {};
   const cellMaxGap = {};
+
+  // Also track intersection counts per cell for debugging
+  const cellIntersectionCounts = {};
 
   for (const inter of intersections) {
     const col = Math.floor(inter.x / cellWidth);
@@ -1786,6 +1860,20 @@ function processCreases(creases, gridCols, gridRows, cellWidth, cellHeight) {
       const key = `${col},${row}`;
       cellWeights[key] = (cellWeights[key] || 0) + inter.weight;
       cellMaxGap[key] = Math.max(cellMaxGap[key] || 0, inter.gap);
+      // Track count of intersections in this cell
+      cellIntersectionCounts[key] = (cellIntersectionCounts[key] || 0) + 1;
+    }
+  }
+
+  // Debug: Log cells with multiple intersections
+  for (const [key, count] of Object.entries(cellIntersectionCounts)) {
+    if (count > 1) {
+      const [col, row] = key.split(",").map(Number);
+      console.log(
+        `Cell [${col},${row}] has ${count} intersections, total weight: ${cellWeights[
+          key
+        ].toFixed(2)}`
+      );
     }
   }
 
@@ -1794,7 +1882,9 @@ function processCreases(creases, gridCols, gridRows, cellWidth, cellHeight) {
     intersections,
     cellWeights,
     cellMaxGap,
+    cellIntersectionCounts, // Return counts for hit count display
     destroyed: 0,
+    maxFolds,
   };
 }
 
@@ -1876,7 +1966,7 @@ function renderToCanvas({
   const weightRange = generateWeightRange(seed);
 
   // Generate fold structure with weights (in drawing area)
-  const { creases, finalShape } = simulateFolds(
+  const { creases, finalShape, maxFolds } = simulateFolds(
     drawWidth,
     drawHeight,
     folds,
@@ -1891,7 +1981,14 @@ function renderToCanvas({
     intersections: activeIntersections,
     cellWeights: intersectionWeight,
     cellMaxGap,
-  } = processCreases(creases, cols, rows, actualCellWidth, actualCellHeight);
+  } = processCreases(
+    creases,
+    cols,
+    rows,
+    actualCellWidth,
+    actualCellHeight,
+    maxFolds
+  );
 
   // Find accent cells
   const accentCells = new Set();
@@ -1939,10 +2036,11 @@ function renderToCanvas({
         char = shadeChars[2];
         level = 2;
         color = accentColor;
-      } else if (weight >= 10) {
-        // EXTREME: 10+ intersections - extra hue shift based on weight only
-        const extremeAmount = weight - 10;
-        const baseShift = 30 + Math.min(extremeAmount * 15, 150);
+      } else if (weight >= 1.5) {
+        // EXTREME: 1.5+ intersection weight (dense intersections) - extra hue shift
+        const extremeAmount = weight - 1.5;
+        // Scale extreme amount for 0-2 range (two creases max = 2.0)
+        const baseShift = 30 + Math.min(extremeAmount * 300, 150);
         const baseHsl = hexToHsl(textColor);
         const newHue = (baseHsl.h + baseShift + 360) % 360;
         const newSat = Math.min(100, baseHsl.s + 20);
@@ -2098,7 +2196,7 @@ function ASCIICanvas({
     const actualCharHeight = innerHeight / rows;
 
     // Generate fold structure with weights (in inner area)
-    const { creases, finalShape } = simulateFolds(
+    const { creases, finalShape, maxFolds } = simulateFolds(
       innerWidth,
       innerHeight,
       folds,
@@ -2113,7 +2211,15 @@ function ASCIICanvas({
       intersections: activeIntersections,
       cellWeights: intersectionWeight,
       cellMaxGap,
-    } = processCreases(creases, cols, rows, actualCharWidth, actualCharHeight);
+      cellIntersectionCounts,
+    } = processCreases(
+      creases,
+      cols,
+      rows,
+      actualCharWidth,
+      actualCharHeight,
+      maxFolds
+    );
 
     // For rendering
     const creasesForRender = activeCreases;
@@ -2124,6 +2230,7 @@ function ASCIICanvas({
         intersections: activeIntersections.length,
         creases: activeCreases.length,
         destroyed: 0,
+        maxFolds: maxFolds,
       });
     }
 
@@ -2211,10 +2318,11 @@ function ASCIICanvas({
             char = shadeChars[2];
             level = 2;
             color = accentColor;
-          } else if (weight >= 10) {
-            // EXTREME: 10+ intersections - extra hue shift based on weight only
-            const extremeAmount = weight - 10;
-            const baseShift = 30 + Math.min(extremeAmount * 15, 150);
+          } else if (weight >= 1.5) {
+            // EXTREME: 1.5+ intersection weight (dense intersections) - extra hue shift
+            const extremeAmount = weight - 1.5;
+            // Scale extreme amount for 0-2 range (two creases max = 2.0)
+            const baseShift = 30 + Math.min(extremeAmount * 300, 150);
             const baseHsl = hexToHsl(textColor);
             const newHue = (baseHsl.h + baseShift + 360) % 360;
             const newSat = Math.min(100, baseHsl.s + 20);
@@ -2551,6 +2659,7 @@ export default function FoldedPaper() {
   const [showHitCounts, setShowHitCounts] = useState(false); // Debug: show intersection counts per cell
   const [intersectionCount, setIntersectionCount] = useState(0); // Track intersection count from canvas
   const [creaseCount, setCreaseCount] = useState(0); // Track crease count from canvas
+  const [maxFoldsValue, setMaxFoldsValue] = useState(0); // Track maxFolds from canvas
 
   // Preset palettes for reference/quick access: [name, background, text, accent]
   // All colors are from the VGA 256-color palette (web-safe + CGA)
@@ -2619,7 +2728,7 @@ export default function FoldedPaper() {
   const rows = Math.floor(innerHeight / cellHeight);
   const totalCells = cols * rows;
   const weightRange = generateWeightRange(seed);
-  const { creases, finalShape } = simulateFolds(
+  const { creases, finalShape, maxFolds } = simulateFolds(
     innerWidth,
     innerHeight,
     folds,
@@ -2785,6 +2894,7 @@ export default function FoldedPaper() {
                 onStatsUpdate={(stats) => {
                   setIntersectionCount(stats.intersections);
                   setCreaseCount(stats.creases);
+                  setMaxFoldsValue(stats.maxFolds || 0);
                 }}
               />
             </div>
@@ -2835,7 +2945,8 @@ export default function FoldedPaper() {
               seed {seed} · {foldStrategy?.type || "random"} · {renderMode}
               {multiColor ? " · multi" : ""}
               <br />
-              {creaseCount} creases · {intersectionCount} intersections
+              {creaseCount} creases · {intersectionCount} intersections ·
+              maxFolds: {maxFoldsValue}
             </div>
             <button
               onClick={downloadSingleToken}
