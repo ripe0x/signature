@@ -23,5 +23,10 @@ npm-debug.log*
 # Cache
 .cache/
 
+# Foundry
+cache/
+out/
+broadcast/
 
+# Tools
 /tools/font-subset/CourierPrime-master/fonts
