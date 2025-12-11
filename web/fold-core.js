@@ -13,8 +13,9 @@ export const REFERENCE_HEIGHT = 1500;
 
 // On-chain font configuration
 // Courier New subset (904 bytes) - contains only: space, ░, ▒, ▓
-export const ONCHAIN_FONT_NAME = 'FoldMono';
-export const ONCHAIN_FONT_DATA_URI = 'data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==';
+export const ONCHAIN_FONT_NAME = "FoldMono";
+export const ONCHAIN_FONT_DATA_URI =
+  "data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==";
 // Fallback for local development when font isn't loaded
 export const FALLBACK_FONT = '"Courier New", Courier, monospace';
 // Use on-chain font if available, otherwise fallback
@@ -1279,7 +1280,12 @@ export function polygonBounds(polygon) {
   return { minX, minY, maxX, maxY };
 }
 
-export function normalizePolygon(polygon, targetWidth, targetHeight, padding = 0) {
+export function normalizePolygon(
+  polygon,
+  targetWidth,
+  targetHeight,
+  padding = 0
+) {
   if (polygon.length < 3) return polygon;
 
   const bounds = polygonBounds(polygon);
@@ -1476,10 +1482,17 @@ export function simulateFolds(
   ]);
 
   const creases = [];
+  let firstFoldTarget = null;
   let lastFoldTarget = null;
 
   if (!numFolds || numFolds <= 0) {
-    return { creases: [], finalShape: shape, maxFolds, lastFoldTarget: null };
+    return {
+      creases: [],
+      finalShape: shape,
+      maxFolds,
+      firstFoldTarget: null,
+      lastFoldTarget: null,
+    };
   }
 
   let currentSeed = seed;
@@ -1515,6 +1528,7 @@ export function simulateFolds(
 
     const rng = seededRandom(currentSeed);
 
+    // Periodically re-center the paper shape to prevent drift
     if (f > 0 && f % 5 === 0) {
       shape = normalizePolygon(shape, width, height, 0);
       shape = ensureCCW(shape);
@@ -1546,12 +1560,8 @@ export function simulateFolds(
 
     let target = targetOptions[Math.floor(rng() * targetOptions.length)];
 
-    if (f === 0) {
-      target = {
-        x: Math.max(0, Math.min(width * 0.95, target.x)),
-        y: Math.max(0, Math.min(height * 0.95, target.y)),
-      };
-    }
+    // Margin to ensure fold targets land in valid cell areas (not on edges)
+    const cellMargin = Math.max(width, height) * 0.05;
 
     const dist = V.dist(fromVertex, target);
     const minDist = Math.min(currentW, currentH) * 0.05;
@@ -1603,12 +1613,13 @@ export function simulateFolds(
       continue;
     }
 
+    // Add sinusoidal offset to spread creases across the canvas
     const amplitude = 0.3 + Math.min(f * 0.002, 0.2);
-    const offsetX = Math.sin(f * freqX + phaseX) * width * amplitude;
-    const offsetY = Math.sin(f * freqY + phaseY) * height * amplitude;
+    const spreadOffsetX = Math.sin(f * freqX + phaseX) * width * amplitude;
+    const spreadOffsetY = Math.sin(f * freqY + phaseY) * height * amplitude;
 
     const canvasCrease = clipToRect(
-      { x: mid.x + offsetX, y: mid.y + offsetY },
+      { x: mid.x + spreadOffsetX, y: mid.y + spreadOffsetY },
       creaseDir,
       width,
       height
@@ -1627,10 +1638,25 @@ export function simulateFolds(
         reductionMultiplier: reductionMultipliers[cyclePosition],
       });
 
-      lastFoldTarget = {
-        x: Math.max(0, Math.min(width - 1, target.x)),
-        y: Math.max(0, Math.min(height - 1, target.y)),
+      // Track the actual reflected position of the source vertex
+      const reflectedSource = reflectPoint(fromVertex, lineP1, lineP2);
+      const foldTarget = {
+        x: Math.max(
+          cellMargin,
+          Math.min(width - cellMargin, reflectedSource.x)
+        ),
+        y: Math.max(
+          cellMargin,
+          Math.min(height - cellMargin, reflectedSource.y)
+        ),
       };
+
+      // Track first fold target
+      if (f === 0 && firstFoldTarget === null) {
+        firstFoldTarget = foldTarget;
+      }
+
+      lastFoldTarget = foldTarget;
     }
 
     shape = ensureCCW(newShape);
@@ -1640,7 +1666,13 @@ export function simulateFolds(
   shape = normalizePolygon(shape, width, height, 0);
   shape = ensureCCW(shape);
 
-  return { creases, finalShape: shape, maxFolds, lastFoldTarget };
+  return {
+    creases,
+    finalShape: shape,
+    maxFolds,
+    firstFoldTarget,
+    lastFoldTarget,
+  };
 }
 
 // ============ INTERSECTIONS ============
@@ -1729,6 +1761,9 @@ export function renderToCanvas({
   foldStrategy = null,
   showCreases = false,
   showPaperShape = false,
+  showFoldTargets = false,
+  showIntersections = false,
+  showGrid = false,
   fontFamily = FONT_STACK,
 }) {
   const canvas = document.createElement("canvas");
@@ -1765,14 +1800,15 @@ export function renderToCanvas({
 
   const weightRange = generateWeightRange(seed);
 
-  const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
-    refDrawWidth,
-    refDrawHeight,
-    folds,
-    seed,
-    weightRange,
-    foldStrategy
-  );
+  const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
+    simulateFolds(
+      refDrawWidth,
+      refDrawHeight,
+      folds,
+      seed,
+      weightRange,
+      foldStrategy
+    );
 
   const scaledCreases = creases.map((crease) => ({
     ...crease,
@@ -1786,17 +1822,41 @@ export function renderToCanvas({
     },
   }));
 
-  let lastFoldTargetCell = null;
-  if (lastFoldTarget) {
-    const scaledTargetX = lastFoldTarget.x * scaleX;
-    const scaledTargetY = lastFoldTarget.y * scaleY;
-    const targetCol = Math.floor(scaledTargetX / actualCellWidth);
-    const targetRow = Math.floor(scaledTargetY / actualCellHeight);
+  let firstFoldTargetCell = null;
+  if (firstFoldTarget) {
+    // Fold target is in reference space (0 to refDrawWidth/Height)
+    // Convert to cell coordinates - cells fill the drawing area exactly
+    const targetCol = Math.floor(firstFoldTarget.x / refCellWidth);
+    const targetRow = Math.floor(firstFoldTarget.y / refCellHeight);
     if (
       targetCol >= 0 &&
       targetCol < cols &&
       targetRow >= 0 &&
-      targetRow < rows
+      targetRow < rows &&
+      firstFoldTarget.x >= 0 &&
+      firstFoldTarget.x <= refDrawWidth &&
+      firstFoldTarget.y >= 0 &&
+      firstFoldTarget.y <= refDrawHeight
+    ) {
+      firstFoldTargetCell = `${targetCol},${targetRow}`;
+    }
+  }
+
+  let lastFoldTargetCell = null;
+  if (lastFoldTarget) {
+    // Fold target is in reference space (0 to refDrawWidth/Height)
+    // Convert to cell coordinates - cells fill the drawing area exactly
+    const targetCol = Math.floor(lastFoldTarget.x / refCellWidth);
+    const targetRow = Math.floor(lastFoldTarget.y / refCellHeight);
+    if (
+      targetCol >= 0 &&
+      targetCol < cols &&
+      targetRow >= 0 &&
+      targetRow < rows &&
+      lastFoldTarget.x >= 0 &&
+      lastFoldTarget.x <= refDrawWidth &&
+      lastFoldTarget.y >= 0 &&
+      lastFoldTarget.y <= refDrawHeight
     ) {
       lastFoldTargetCell = `${targetCol},${targetRow}`;
     }
@@ -1826,9 +1886,7 @@ export function renderToCanvas({
     }
   }
 
-  ctx.font = `${
-    actualCellHeight - 2 * scaleY
-  }px ${fontFamily}`;
+  ctx.font = `${actualCellHeight - 2 * scaleY}px ${fontFamily}`;
   ctx.textBaseline = "top";
 
   const shadeChars = [" ", "░", "▒", "▓"];
@@ -1853,10 +1911,16 @@ export function renderToCanvas({
       let color = textColor;
       let level = -1;
 
-      if (lastFoldTargetCell === key) {
-        char = shadeChars[3];
-        level = 3;
-        color = accentColor || textColor;
+      if (firstFoldTargetCell === key) {
+        // First fold target: always show a visible character with accent color
+        level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+        char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
+        color = accentColor;
+      } else if (lastFoldTargetCell === key) {
+        // Last fold target: always show a visible character
+        level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+        char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
+        color = textColor;
       } else if (accentCells.has(key) && weight > 0) {
         char = shadeChars[2];
         level = 2;
@@ -1908,16 +1972,18 @@ export function renderToCanvas({
       }
 
       if (char) {
-        const finalColor = getColorForLevel(
-          countToLevelAdaptive(weight, thresholds),
-          key
-        );
-        ctx.fillStyle =
-          lastFoldTargetCell === key
-            ? accentColor || textColor
-            : accentCells.has(key) && weight > 0
-            ? accentColor
-            : finalColor;
+        // Use the color we determined earlier (accentColor for fold targets)
+        // Don't override it with finalColor for fold target cells
+        if (firstFoldTargetCell === key || lastFoldTargetCell === key) {
+          ctx.fillStyle = color; // Already set to accentColor || textColor
+        } else {
+          const finalColor = getColorForLevel(
+            countToLevelAdaptive(weight, thresholds),
+            key
+          );
+          ctx.fillStyle =
+            accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+        }
 
         const measuredCharWidth = ctx.measureText(char).width;
         const cellEndX = Math.round(offsetX + (col + 1) * actualCellWidth);
@@ -1995,6 +2061,80 @@ export function renderToCanvas({
     }
   }
 
+  // Draw grid overlay
+  if (showGrid) {
+    ctx.strokeStyle = textColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.3;
+    // Vertical lines
+    for (let col = 0; col <= cols; col++) {
+      const x = offsetX + col * actualCellWidth;
+      ctx.beginPath();
+      ctx.moveTo(x, offsetY);
+      ctx.lineTo(x, offsetY + drawHeight);
+      ctx.stroke();
+    }
+    // Horizontal lines
+    for (let row = 0; row <= rows; row++) {
+      const y = offsetY + row * actualCellHeight;
+      ctx.beginPath();
+      ctx.moveTo(offsetX, y);
+      ctx.lineTo(offsetX + drawWidth, y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw fold target markers
+  if (showFoldTargets) {
+    const radius = 8 * scaleX;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 1;
+
+    if (firstFoldTarget) {
+      const targetX = offsetX + firstFoldTarget.x * scaleX;
+      const targetY = offsetY + firstFoldTarget.y * scaleY;
+      ctx.strokeStyle = "#00ff00";
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (lastFoldTarget) {
+      const targetX = offsetX + lastFoldTarget.x * scaleX;
+      const targetY = offsetY + lastFoldTarget.y * scaleY;
+      ctx.strokeStyle = "#00ff00";
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Draw intersection points
+  if (
+    showIntersections &&
+    activeIntersections &&
+    activeIntersections.length > 0
+  ) {
+    ctx.strokeStyle = "#ff0000";
+    ctx.fillStyle = "rgba(255, 0, 0, 0)";
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 1;
+    const radius = 3;
+    for (const intersection of activeIntersections) {
+      ctx.beginPath();
+      ctx.arc(
+        offsetX + intersection.x,
+        offsetY + intersection.y,
+        radius,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
   return canvas.toDataURL("image/png");
 }
 
@@ -2064,7 +2204,10 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
       { trait_type: "Fold Strategy", value: params.foldStrategy.type },
       { trait_type: "Render Mode", value: params.renderMode },
       { trait_type: "Multi-Color", value: params.multiColor ? "Yes" : "No" },
-      { trait_type: "Cell Size", value: `${params.cells.cellW}x${params.cells.cellH}` },
+      {
+        trait_type: "Cell Size",
+        value: `${params.cells.cellW}x${params.cells.cellH}`,
+      },
       { trait_type: "Fold Count", value: foldCount },
       { trait_type: "Max Folds", value: params.maxFolds },
       { trait_type: "Crease Count", value: creases.length },
@@ -2088,7 +2231,7 @@ export async function loadFont() {
 async function loadOnChainFont(fontDataUri) {
   if (!fontDataUri) return false;
 
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = `
     @font-face {
       font-family: '${ONCHAIN_FONT_NAME}';
@@ -2102,20 +2245,23 @@ async function loadOnChainFont(fontDataUri) {
     await document.fonts.load(`12px ${ONCHAIN_FONT_NAME}`);
     return true;
   } catch (err) {
-    console.warn('Failed to load on-chain font:', err);
+    console.warn("Failed to load on-chain font:", err);
     return false;
   }
 }
 
 // Auto-render if global variables are set (for on-chain use)
 export async function initOnChain() {
-  const seed = typeof window !== 'undefined' && window.SEED;
-  const foldCount = typeof window !== 'undefined' && window.FOLD_COUNT;
+  const seed = typeof window !== "undefined" && window.SEED;
+  const foldCount = typeof window !== "undefined" && window.FOLD_COUNT;
   // Use embedded font data URI, or allow override via window.FONT_DATA_URI
-  const fontDataUri = (typeof window !== 'undefined' && window.FONT_DATA_URI) || ONCHAIN_FONT_DATA_URI;
+  const fontDataUri =
+    (typeof window !== "undefined" && window.FONT_DATA_URI) ||
+    ONCHAIN_FONT_DATA_URI;
 
   if (seed && foldCount !== undefined) {
-    const canvas = document.getElementById('c') || document.querySelector('canvas');
+    const canvas =
+      document.getElementById("c") || document.querySelector("canvas");
     if (canvas) {
       // Load font (embedded or provided)
       await loadOnChainFont(fontDataUri);
@@ -2142,10 +2288,14 @@ export async function initOnChain() {
       // Load into canvas
       const img = new Image();
       img.onload = () => {
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         canvas.width = 1200;
         canvas.height = 1500;
         ctx.drawImage(img, 0, 0);
+        // Trigger scaling after canvas is ready
+        if (typeof window.scaleCanvas === "function") {
+          window.scaleCanvas();
+        }
       };
       img.src = dataUrl;
     }
@@ -2153,9 +2303,12 @@ export async function initOnChain() {
 }
 
 // Auto-init when DOM is ready (for on-chain use)
-if (typeof window !== 'undefined' && (window.SEED || window.FOLD_COUNT !== undefined)) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initOnChain());
+if (
+  typeof window !== "undefined" &&
+  (window.SEED || window.FOLD_COUNT !== undefined)
+) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => initOnChain());
   } else {
     initOnChain();
   }

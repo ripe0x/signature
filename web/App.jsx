@@ -638,9 +638,6 @@ function DetailModal({
       const dpr = window.devicePixelRatio || 1;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      canvas.style.width = "100%";
-      canvas.style.maxWidth = width + "px";
-      canvas.style.height = "auto";
       const ctx = canvas.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.drawImage(img, 0, 0, width, height);
@@ -675,13 +672,21 @@ function DetailModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ flex: "0 0 auto" }}>
+        <div
+          style={{
+            flex: "0 0 auto",
+            maxHeight: "85vh",
+            maxWidth: "calc(95vw - 330px)",
+          }}
+        >
           <canvas
             ref={canvasRef}
             style={{
               display: "block",
+              maxWidth: "100%",
               maxHeight: "85vh",
               width: "auto",
+              height: "auto",
               borderRadius: 4,
             }}
           />
@@ -1358,9 +1363,19 @@ function ASCIICanvas({
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
   // Calculate optimal cell sizes and gaps to fill the drawing space
-  // Gaps must be one of the allowed ratios (powers of 2 from 1/64 to 2x)
+  // Gaps must be one of the allowed ratios (powers of 2 from -1x to 2x)
   // Smaller gaps are more common, gaps > 1/4 are rare
+  // Negative gaps allow overlapping cells, increasing cell count
   const ALLOWED_GAP_RATIOS = [
+    // Negative gaps (overlapping cells) - from -1x to -1/64
+    -1.0, // -1x (cells overlap by their full size)
+    -1 / 2, // -0.5x
+    -1 / 4, // -0.25x
+    -1 / 8, // -0.125
+    -1 / 16, // -0.0625
+    -1 / 32, // -0.03125
+    -1 / 64, // -0.015625
+    // Positive gaps (spacing between cells) - from 1/64 to 2x
     1 / 64, // 0.015625
     1 / 32, // 0.03125
     1 / 16, // 0.0625
@@ -1395,20 +1410,45 @@ function ASCIICanvas({
   }
 
   // Weight gap ratios: smaller gaps are more likely, gaps > 1/4 are rare
+  // Negative gaps (overlapping) are less common than positive gaps
   // Create weighted list where gaps <= 1/4 get higher weight
   const getWeightedGapRatios = () => {
     const ratios = [];
-    // Small gaps (<= 1/4): always included
-    for (let i = 0; i < 5; i++) {
-      ratios.push(ALLOWED_GAP_RATIOS[i]);
+
+    // Small negative gaps (overlapping): -1/64 to -1/8, 50% chance of including
+    if (gapRng() < 0.5) {
+      ratios.push(ALLOWED_GAP_RATIOS[6]); // -1/64
+      ratios.push(ALLOWED_GAP_RATIOS[5]); // -1/32
+      ratios.push(ALLOWED_GAP_RATIOS[4]); // -1/16
+      ratios.push(ALLOWED_GAP_RATIOS[3]); // -1/8
     }
-    // Medium gaps (1/2, 1x): always included
-    ratios.push(ALLOWED_GAP_RATIOS[5]); // 1/2
-    ratios.push(ALLOWED_GAP_RATIOS[6]); // 1x
-    // Large gaps (2x): only 25% chance (very rare)
+
+    // Medium negative gaps: -1/4, -1/2, -1x, 30% chance
+    if (gapRng() < 0.3) {
+      ratios.push(ALLOWED_GAP_RATIOS[2]); // -1/4
+      ratios.push(ALLOWED_GAP_RATIOS[1]); // -1/2
+      // -1x is very rare (10% chance when negative gaps are used)
+      if (gapRng() < 0.1) {
+        ratios.push(ALLOWED_GAP_RATIOS[0]); // -1x
+      }
+    }
+
+    // Small positive gaps (<= 1/4): always included
+    ratios.push(ALLOWED_GAP_RATIOS[7]); // 1/64
+    ratios.push(ALLOWED_GAP_RATIOS[8]); // 1/32
+    ratios.push(ALLOWED_GAP_RATIOS[9]); // 1/16
+    ratios.push(ALLOWED_GAP_RATIOS[10]); // 1/8
+    ratios.push(ALLOWED_GAP_RATIOS[11]); // 1/4
+
+    // Medium positive gaps (1/2, 1x): always included
+    ratios.push(ALLOWED_GAP_RATIOS[12]); // 1/2
+    ratios.push(ALLOWED_GAP_RATIOS[13]); // 1x
+
+    // Large positive gaps (2x): only 25% chance (very rare)
     if (gapRng() < 0.25) {
-      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x
+      ratios.push(ALLOWED_GAP_RATIOS[14]); // 2x
     }
+
     return ratios;
   };
 
@@ -1425,13 +1465,24 @@ function ASCIICanvas({
 
   for (const gapRatio of colGapRatios) {
     const gap = refCellWidth * gapRatio;
+
+    // Ensure gap doesn't cause cells to overlap more than 90% of their size
+    // (gap can't be more negative than -0.9 * cellWidth)
+    if (gap < -0.9 * refCellWidth) {
+      continue;
+    }
+
     // Solve: cols * cellWidth + (cols - 1) * gap = refInnerWidth
     // cols = (refInnerWidth + gap) / (cellWidth + gap)
+    // For negative gaps, the stride (cellWidth + gap) is smaller, allowing more cells
     // Use Math.floor to ensure we never exceed the space
-    const cols = Math.max(
-      1,
-      Math.floor((refInnerWidth + gap) / (refCellWidth + gap))
-    );
+    const stride = refCellWidth + gap;
+    // Ensure stride is positive (gap can't be more negative than -cellWidth)
+    if (stride <= 0) {
+      continue;
+    }
+
+    const cols = Math.max(1, Math.floor((refInnerWidth + gap) / stride));
 
     if (cols === 1) {
       // Single column - no gap needed, but don't exceed width
@@ -1476,13 +1527,24 @@ function ASCIICanvas({
 
   for (const gapRatio of rowGapRatios) {
     const gap = refCellHeight * gapRatio;
+
+    // Ensure gap doesn't cause cells to overlap more than 90% of their size
+    // (gap can't be more negative than -0.9 * cellHeight)
+    if (gap < -0.9 * refCellHeight) {
+      continue;
+    }
+
     // Solve: rows * cellHeight + (rows - 1) * gap = refInnerHeight
     // rows = (refInnerHeight + gap) / (cellHeight + gap)
+    // For negative gaps, the stride (cellHeight + gap) is smaller, allowing more cells
     // Use Math.floor to ensure we never exceed the space
-    const rows = Math.max(
-      1,
-      Math.floor((refInnerHeight + gap) / (refCellHeight + gap))
-    );
+    const stride = refCellHeight + gap;
+    // Ensure stride is positive (gap can't be more negative than -cellHeight)
+    if (stride <= 0) {
+      continue;
+    }
+
+    const rows = Math.max(1, Math.floor((refInnerHeight + gap) / stride));
 
     if (rows === 1) {
       // Single row - no gap needed, but don't exceed height
@@ -1533,16 +1595,9 @@ function ASCIICanvas({
   const refCellStrideX = refCellWidth + actualColGap;
   const refCellStrideY = refCellHeight + actualRowGap;
 
-  // Center the grid if there's leftover space (variation <= 10%)
-  // If variation is larger, still center it but it means the grid couldn't fill perfectly
-  let gridOffsetX = 0;
-  let gridOffsetY = 0;
-  if (widthDiff > 0) {
-    gridOffsetX = widthDiff / 2;
-  }
-  if (heightDiff > 0) {
-    gridOffsetY = heightDiff / 2;
-  }
+  // Calculate grid offset (for centering) - used for fold target mapping
+  const gridOffsetX = widthDiff > 0 ? widthDiff / 2 : 0;
+  const gridOffsetY = heightDiff > 0 ? heightDiff / 2 : 0;
 
   // Use the calculated cell dimensions
   const charWidth = refCellWidth;
@@ -1615,14 +1670,15 @@ function ASCIICanvas({
       }),
     }).catch(() => {});
     // #endregion
-    const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
-      refInnerWidth,
-      refInnerHeight,
-      folds,
-      seed,
-      weightRange,
-      foldStrategy
-    );
+    const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
+      simulateFolds(
+        actualGridWidth,
+        actualGridHeight,
+        folds,
+        seed,
+        weightRange,
+        foldStrategy
+      );
     // #region agent log
     fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
       method: "POST",
@@ -1655,20 +1711,34 @@ function ASCIICanvas({
       },
     }));
 
+    let firstFoldTargetCell = null;
+    if (firstFoldTarget) {
+      // Fold target is now in grid space (0 to actualGridWidth/Height)
+      // Convert directly to cell coordinates
+      const targetCol = Math.max(
+        0,
+        Math.min(cols - 1, Math.floor(firstFoldTarget.x / refCellStrideX))
+      );
+      const targetRow = Math.max(
+        0,
+        Math.min(rows - 1, Math.floor(firstFoldTarget.y / refCellStrideY))
+      );
+      firstFoldTargetCell = `${targetCol},${targetRow}`;
+    }
+
     let lastFoldTargetCell = null;
     if (lastFoldTarget) {
-      const scaledTargetX = lastFoldTarget.x * scaleX;
-      const scaledTargetY = lastFoldTarget.y * scaleY;
-      const targetCol = Math.floor(scaledTargetX / actualStrideX);
-      const targetRow = Math.floor(scaledTargetY / actualStrideY);
-      if (
-        targetCol >= 0 &&
-        targetCol < cols &&
-        targetRow >= 0 &&
-        targetRow < rows
-      ) {
-        lastFoldTargetCell = `${targetCol},${targetRow}`;
-      }
+      // Fold target is now in grid space (0 to actualGridWidth/Height)
+      // Convert directly to cell coordinates
+      const targetCol = Math.max(
+        0,
+        Math.min(cols - 1, Math.floor(lastFoldTarget.x / refCellStrideX))
+      );
+      const targetRow = Math.max(
+        0,
+        Math.min(rows - 1, Math.floor(lastFoldTarget.y / refCellStrideY))
+      );
+      lastFoldTargetCell = `${targetCol},${targetRow}`;
     }
 
     const scaledFinalShape = finalShape.map((point) => ({
@@ -1847,10 +1917,16 @@ function ASCIICanvas({
             return textColor;
           };
 
-          if (lastFoldTargetCell === key) {
-            char = shadeChars[3];
-            level = 3;
-            color = accentColor || textColor;
+          if (firstFoldTargetCell === key) {
+            // First fold target: always show a visible character with accent color
+            level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+            char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
+            color = accentColor;
+          } else if (lastFoldTargetCell === key) {
+            // Last fold target: always show a visible character
+            level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+            char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
+            color = textColor;
           } else if (accentCells.has(key) && weight > 0) {
             char = shadeChars[2];
             level = 2;
@@ -1903,15 +1979,17 @@ function ASCIICanvas({
 
           if (char) {
             cellsWithChar++;
-            const finalColor = getColorForLevel(
-              countToLevelAdaptive(weight, thresholds)
-            );
-            ctx.fillStyle =
-              lastFoldTargetCell === key
-                ? accentColor || textColor
-                : accentCells.has(key) && weight > 0
-                ? accentColor
-                : finalColor;
+            // Use the color we determined earlier (accentColor for fold targets)
+            // Don't override it with finalColor for fold target cells
+            if (firstFoldTargetCell === key || lastFoldTargetCell === key) {
+              ctx.fillStyle = color; // Already set to accentColor || textColor
+            } else {
+              const finalColor = getColorForLevel(
+                countToLevelAdaptive(weight, thresholds)
+              );
+              ctx.fillStyle =
+                accentCells.has(key) && weight > 0 ? accentColor : finalColor;
+            }
 
             const cellEndX = x + actualCharWidth;
 
@@ -1983,6 +2061,17 @@ function ASCIICanvas({
         ctx.stroke();
       }
 
+      if (firstFoldTarget) {
+        const targetX = offsetX + firstFoldTarget.x * scaleX;
+        const targetY = offsetY + firstFoldTarget.y * scaleY;
+        const radius = 8;
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       if (lastFoldTarget) {
         const targetX = offsetX + lastFoldTarget.x * scaleX;
         const targetY = offsetY + lastFoldTarget.y * scaleY;
