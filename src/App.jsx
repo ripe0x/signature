@@ -1374,7 +1374,32 @@ function ASCIICanvas({
   const safeStrideY = Math.max(0.1, strideY);
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1371',message:'Grid calculation inputs',data:{colGap,rowGap,actualColGap,actualRowGap,strideX,strideY,safeStrideX,safeStrideY,refInnerWidth,refInnerHeight,charWidth,charHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "App.jsx:1371",
+      message: "Grid calculation inputs",
+      data: {
+        colGap,
+        rowGap,
+        actualColGap,
+        actualRowGap,
+        strideX,
+        strideY,
+        safeStrideX,
+        safeStrideY,
+        refInnerWidth,
+        refInnerHeight,
+        charWidth,
+        charHeight,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
   // #endregion
 
   const cols = Math.max(
@@ -1387,7 +1412,19 @@ function ASCIICanvas({
   );
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1381',message:'Grid dimensions calculated',data:{cols,rows,totalCells:cols*rows},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "App.jsx:1381",
+      message: "Grid dimensions calculated",
+      data: { cols, rows, totalCells: cols * rows },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
   // #endregion
 
   const refCellWidth = charWidth;
@@ -1403,7 +1440,19 @@ function ASCIICanvas({
   useEffect(() => {
     const renderStartTime = performance.now();
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1393',message:'Render start',data:{cols,rows,totalCells:cols*rows},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1393",
+        message: "Render start",
+        data: { cols, rows, totalCells: cols * rows },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "C",
+      }),
+    }).catch(() => {});
     // #endregion
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1430,7 +1479,25 @@ function ASCIICanvas({
     const actualStrideY = refCellStrideY * scaleY;
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1430',message:'Before simulateFolds',data:{seed,folds,refInnerWidth,refInnerHeight,foldStrategyType:foldStrategy?.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1430",
+        message: "Before simulateFolds",
+        data: {
+          seed,
+          folds,
+          refInnerWidth,
+          refInnerHeight,
+          foldStrategyType: foldStrategy?.type,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "B",
+      }),
+    }).catch(() => {});
     // #endregion
     const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
       refInnerWidth,
@@ -1441,7 +1508,23 @@ function ASCIICanvas({
       foldStrategy
     );
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1437',message:'After simulateFolds',data:{creaseCount:creases.length,maxFolds,hasLastFoldTarget:!!lastFoldTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1437",
+        message: "After simulateFolds",
+        data: {
+          creaseCount: creases.length,
+          maxFolds,
+          hasLastFoldTarget: !!lastFoldTarget,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "B",
+      }),
+    }).catch(() => {});
     // #endregion
 
     const scaledCreases = creases.map((crease) => ({
@@ -1479,7 +1562,27 @@ function ASCIICanvas({
 
     // #region agent log
     const processCreasesStart = performance.now();
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1476',message:'Before processCreases',data:{seed,cols,rows,totalCells:cols*rows,creaseCount:scaledCreases.length,actualStrideX,actualStrideY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1476",
+        message: "Before processCreases",
+        data: {
+          seed,
+          cols,
+          rows,
+          totalCells: cols * rows,
+          creaseCount: scaledCreases.length,
+          actualStrideX,
+          actualStrideY,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "C",
+      }),
+    }).catch(() => {});
     // #endregion
     const {
       activeCreases,
@@ -1497,9 +1600,33 @@ function ASCIICanvas({
     // #region agent log
     const processCreasesTime = performance.now() - processCreasesStart;
     const cellWeightKeys = Object.keys(intersectionWeight);
-    const cellsWithWeight = cellWeightKeys.filter(k => intersectionWeight[k] > 0);
-    const maxWeight = Math.max(...cellWeightKeys.map(k => intersectionWeight[k]), 0);
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1492',message:'After processCreases',data:{seed,processCreasesTimeMs:processCreasesTime,intersections:activeIntersections.length,totalCells:cellWeightKeys.length,cellsWithWeight:cellsWithWeight.length,maxWeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    const cellsWithWeight = cellWeightKeys.filter(
+      (k) => intersectionWeight[k] > 0
+    );
+    const maxWeight = Math.max(
+      ...cellWeightKeys.map((k) => intersectionWeight[k]),
+      0
+    );
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1492",
+        message: "After processCreases",
+        data: {
+          seed,
+          processCreasesTimeMs: processCreasesTime,
+          intersections: activeIntersections.length,
+          totalCells: cellWeightKeys.length,
+          cellsWithWeight: cellsWithWeight.length,
+          maxWeight,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
     // #endregion
 
     const creasesForRender = activeCreases;
@@ -1568,7 +1695,22 @@ function ASCIICanvas({
       const renderLoopStart = performance.now();
       let cellsRendered = 0;
       let cellsWithChar = 0;
-      fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1551',message:'Before render loop',data:{seed,cols,rows,totalCells:cols*rows},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch(
+        "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "App.jsx:1551",
+            message: "Before render loop",
+            data: { seed, cols, rows, totalCells: cols * rows },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "E",
+          }),
+        }
+      ).catch(() => {});
       // #endregion
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -1687,7 +1829,30 @@ function ASCIICanvas({
       }
       // #region agent log
       const renderLoopTime = performance.now() - renderLoopStart;
-      fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1680',message:'After render loop',data:{seed,renderLoopTimeMs:renderLoopTime,cols,rows,totalCells:cols*rows,cellsRendered,cellsWithChar},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch(
+        "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "App.jsx:1680",
+            message: "After render loop",
+            data: {
+              seed,
+              renderLoopTimeMs: renderLoopTime,
+              cols,
+              rows,
+              totalCells: cols * rows,
+              cellsRendered,
+              cellsWithChar,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "E",
+          }),
+        }
+      ).catch(() => {});
       // #endregion
     }
 
@@ -1744,7 +1909,24 @@ function ASCIICanvas({
     }
     // #region agent log
     const totalRenderTime = performance.now() - renderStartTime;
-    fetch('http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:1729',message:'Render complete',data:{totalRenderTimeMs:totalRenderTime,cols,rows,totalCells:cols*rows},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "App.jsx:1729",
+        message: "Render complete",
+        data: {
+          totalRenderTimeMs: totalRenderTime,
+          cols,
+          rows,
+          totalCells: cols * rows,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "C",
+      }),
+    }).catch(() => {});
     // #endregion
   }, [
     width,
@@ -1824,7 +2006,7 @@ export default function FoldedPaper() {
   useEffect(() => {
     loadFont().then((loaded) => {
       setFontReady(loaded);
-      if (loaded) console.log('FoldMono font loaded');
+      if (loaded) console.log("FoldMono font loaded");
     });
   }, []);
 
