@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Font Comparison - Fold Art</title>
+  <!-- Load web fonts with good block element support -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anonymous+Pro:wght@400;700&family=Courier+Prime:wght@400;700&family=Cutive+Mono&family=Fira+Code:wght@400;500;700&family=Fira+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Mono:wght@400;500;700&family=PT+Mono&family=Share+Tech+Mono&family=Source+Code+Pro:wght@400;500;700&family=Space+Mono:wght@400;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+      margin: 0;
+    }
+    h1 { margin-top: 0; }
+    .controls {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .control-group label {
+      font-size: 12px;
+      color: #888;
+    }
+    select, input, button {
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #333;
+      color: #fff;
+      font-size: 14px;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #00ff88;
+    }
+    button {
+      background: #00ff88;
+      color: #000;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #00cc6a;
+    }
+    button:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+    }
+    .status {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      background: #333;
+    }
+    .status.loading { background: #333; }
+    .status.success { background: #1a4d1a; }
+    .status.error { background: #4d1a1a; }
+    .canvas-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .canvas-box {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .canvas-box h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #00ff88;
+    }
+    .canvas-box canvas {
+      border: 1px solid #444;
+      max-width: 100%;
+      height: auto;
+    }
+    .canvas-box .info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #888;
+    }
+    .single-view canvas {
+      max-width: 600px;
+    }
+    .compare-view {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .compare-view canvas {
+      width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Font Comparison - Fold Art</h1>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>View Mode</label>
+      <select id="viewMode">
+        <option value="single">Single Font</option>
+        <option value="compare">Compare All</option>
+      </select>
+    </div>
+
+    <div class="control-group" id="fontSelectGroup">
+      <label>Font</label>
+      <select id="fontSelect">
+        <optgroup label="On-Chain">
+          <option value="ChaosMono">ChaosMono (DejaVu-based)</option>
+        </optgroup>
+        <optgroup label="Solid Block Style">
+          <option value="Source Code Pro">Source Code Pro</option>
+          <option value="JetBrains Mono">JetBrains Mono</option>
+          <option value="Fira Mono">Fira Mono</option>
+          <option value="Fira Code">Fira Code</option>
+          <option value="Noto Sans Mono">Noto Sans Mono</option>
+          <option value="IBM Plex Mono">IBM Plex Mono</option>
+          <option value="Ubuntu Mono">Ubuntu Mono</option>
+          <option value="Space Mono">Space Mono</option>
+        </optgroup>
+        <optgroup label="Typewriter / Stippled Style">
+          <option value="Courier New">Courier New (System)</option>
+          <option value="Courier Prime">Courier Prime</option>
+          <option value="Anonymous Pro">Anonymous Pro</option>
+          <option value="Cutive Mono">Cutive Mono</option>
+          <option value="PT Mono">PT Mono</option>
+          <option value="Share Tech Mono">Share Tech Mono</option>
+        </optgroup>
+        <optgroup label="Fallback">
+          <option value="monospace">Generic Monospace</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Seed</label>
+      <input type="text" id="seedInput" value="0xabc123" style="width: 120px;">
+    </div>
+
+    <div class="control-group">
+      <label>Fold Count</label>
+      <input type="number" id="foldCount" value="5" min="1" max="20" style="width: 80px;">
+    </div>
+
+    <div class="control-group">
+      <label>&nbsp;</label>
+      <button id="renderBtn">Render</button>
+    </div>
+
+    <div class="control-group">
+      <label>&nbsp;</label>
+      <button id="randomBtn">Random Seed</button>
+    </div>
+  </div>
+
+  <div id="status" class="status">Loading on-chain font...</div>
+
+  <div id="output" class="canvas-container single-view"></div>
+
+  <script type="module">
+    import { ethers } from 'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.min.js';
+
+    const FONT_CONTRACT = '0x723DEe6a7e3951908f20Bf16daBd9283AacBC252';
+    const ABI = [{ inputs: [], name: "getFont", outputs: [{ type: "string" }], stateMutability: "view", type: "function" }];
+
+    // Import from fold-core (we'll load it dynamically since this is a standalone HTML)
+    let foldCore = null;
+
+    const statusEl = document.getElementById('status');
+    const outputEl = document.getElementById('output');
+    const viewModeEl = document.getElementById('viewMode');
+    const fontSelectEl = document.getElementById('fontSelect');
+    const fontSelectGroupEl = document.getElementById('fontSelectGroup');
+    const seedInputEl = document.getElementById('seedInput');
+    const foldCountEl = document.getElementById('foldCount');
+    const renderBtnEl = document.getElementById('renderBtn');
+    const randomBtnEl = document.getElementById('randomBtn');
+
+    const fonts = [
+      // On-chain font
+      { name: 'ChaosMono', label: 'ChaosMono (On-Chain)', loaded: false, style: 'solid' },
+      // Solid block style - modern programming fonts
+      { name: 'Source Code Pro', label: 'Source Code Pro', loaded: true, style: 'solid' },
+      { name: 'JetBrains Mono', label: 'JetBrains Mono', loaded: true, style: 'solid' },
+      { name: 'Fira Mono', label: 'Fira Mono', loaded: true, style: 'solid' },
+      { name: 'Fira Code', label: 'Fira Code', loaded: true, style: 'solid' },
+      { name: 'Noto Sans Mono', label: 'Noto Sans Mono', loaded: true, style: 'solid' },
+      { name: 'IBM Plex Mono', label: 'IBM Plex Mono', loaded: true, style: 'solid' },
+      { name: 'Ubuntu Mono', label: 'Ubuntu Mono', loaded: true, style: 'solid' },
+      { name: 'Space Mono', label: 'Space Mono', loaded: true, style: 'solid' },
+      // Typewriter / stippled style - lighter, more textured
+      { name: 'Courier New', label: 'Courier New (System)', loaded: true, style: 'stippled' },
+      { name: 'Courier Prime', label: 'Courier Prime', loaded: true, style: 'stippled' },
+      { name: 'Anonymous Pro', label: 'Anonymous Pro', loaded: true, style: 'stippled' },
+      { name: 'Cutive Mono', label: 'Cutive Mono', loaded: true, style: 'stippled' },
+      { name: 'PT Mono', label: 'PT Mono', loaded: true, style: 'stippled' },
+      { name: 'Share Tech Mono', label: 'Share Tech Mono', loaded: true, style: 'stippled' },
+      // Fallback
+      { name: 'monospace', label: 'Generic Monospace', loaded: true, style: 'unknown' },
+    ];
+
+    async function loadOnChainFont() {
+      const providers = [
+        'https://eth.llamarpc.com',
+        'https://rpc.builder0x69.io',
+        'https://eth.drpc.org',
+      ];
+
+      for (const rpcUrl of providers) {
+        try {
+          statusEl.textContent = `Loading font from ${rpcUrl}...`;
+          const provider = new ethers.JsonRpcProvider(rpcUrl);
+          const contract = new ethers.Contract(FONT_CONTRACT, ABI, provider);
+          const fontDataUri = await contract.getFont();
+
+          const style = document.createElement('style');
+          style.textContent = `@font-face { font-family: 'ChaosMono'; src: url('${fontDataUri}'); }`;
+          document.head.appendChild(style);
+
+          await document.fonts.load('12px ChaosMono');
+          fonts[0].loaded = true;
+          return true;
+        } catch (err) {
+          console.warn(`Failed with ${rpcUrl}:`, err.message);
+        }
+      }
+      return false;
+    }
+
+    async function loadFoldCore() {
+      // We need to load fold-core.js - serve via vite or use a bundled version
+      // For this test page, we'll import it directly
+      try {
+        foldCore = await import('../fold-core.js');
+        return true;
+      } catch (err) {
+        console.error('Failed to load fold-core:', err);
+        return false;
+      }
+    }
+
+    function renderWithFont(fontName, seed, foldCount) {
+      if (!foldCore) return null;
+
+      const params = foldCore.generateAllParams(seed, 600, 750, 0, foldCount);
+
+      const dataUrl = foldCore.renderToCanvas({
+        folds: foldCount,
+        seed: seed,
+        outputWidth: 600,
+        outputHeight: 750,
+        bgColor: params.palette.bg,
+        textColor: params.palette.text,
+        accentColor: params.palette.accent,
+        cellWidth: params.cells.cellW,
+        cellHeight: params.cells.cellH,
+        renderMode: params.renderMode,
+        multiColor: params.multiColor,
+        levelColors: params.levelColors,
+        foldStrategy: params.foldStrategy,
+        fontFamily: `"${fontName}", monospace`,
+      });
+
+      return { dataUrl, params };
+    }
+
+    function createCanvasBox(fontName, label, seed, foldCount, style) {
+      const result = renderWithFont(fontName, seed, foldCount);
+      if (!result) return null;
+
+      const box = document.createElement('div');
+      box.className = 'canvas-box';
+
+      const title = document.createElement('h3');
+      title.textContent = label;
+      if (style) {
+        const styleTag = document.createElement('span');
+        styleTag.style.cssText = 'font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 8px; background: ' +
+          (style === 'solid' ? '#333' : style === 'stippled' ? '#2a4a2a' : '#444') + ';';
+        styleTag.textContent = style;
+        title.appendChild(styleTag);
+      }
+      box.appendChild(title);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 750;
+      box.appendChild(canvas);
+
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 600, 750);
+      };
+      img.src = result.dataUrl;
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = `
+        Strategy: ${result.params.foldStrategy.type}<br>
+        Mode: ${result.params.renderMode}<br>
+        Cells: ${result.params.cells.cellW}x${result.params.cells.cellH}
+      `;
+      box.appendChild(info);
+
+      return box;
+    }
+
+    function render() {
+      const seed = seedInputEl.value;
+      const foldCount = parseInt(foldCountEl.value);
+      const viewMode = viewModeEl.value;
+
+      outputEl.innerHTML = '';
+
+      if (viewMode === 'single') {
+        outputEl.className = 'canvas-container single-view';
+        const fontName = fontSelectEl.value;
+        const font = fonts.find(f => f.name === fontName);
+
+        if (!font.loaded) {
+          statusEl.className = 'status error';
+          statusEl.textContent = `Font "${fontName}" is not loaded`;
+          return;
+        }
+
+        const box = createCanvasBox(fontName, font.label, seed, foldCount, font.style);
+        if (box) outputEl.appendChild(box);
+
+        statusEl.className = 'status success';
+        statusEl.textContent = `Rendered with ${font.label} (${font.style} style)`;
+      } else {
+        outputEl.className = 'canvas-container compare-view';
+
+        for (const font of fonts) {
+          if (!font.loaded) continue;
+          const box = createCanvasBox(font.name, font.label, seed, foldCount, font.style);
+          if (box) outputEl.appendChild(box);
+        }
+
+        statusEl.className = 'status success';
+        statusEl.textContent = `Rendered comparison with ${fonts.filter(f => f.loaded).length} fonts`;
+      }
+    }
+
+    function randomSeed() {
+      const hex = '0x' + Array.from({ length: 64 }, () =>
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      seedInputEl.value = hex;
+      render();
+    }
+
+    viewModeEl.addEventListener('change', () => {
+      fontSelectGroupEl.style.display = viewModeEl.value === 'single' ? 'flex' : 'none';
+      render();
+    });
+
+    fontSelectEl.addEventListener('change', render);
+    renderBtnEl.addEventListener('click', render);
+    randomBtnEl.addEventListener('click', randomSeed);
+    seedInputEl.addEventListener('change', render);
+    foldCountEl.addEventListener('change', render);
+
+    async function waitForGoogleFonts() {
+      const googleFonts = [
+        'Source Code Pro',
+        'JetBrains Mono',
+        'Fira Mono',
+        'Fira Code',
+        'Noto Sans Mono',
+        'IBM Plex Mono',
+        'Ubuntu Mono',
+        'Space Mono',
+        'Courier Prime',
+        'Anonymous Pro',
+        'Cutive Mono',
+        'PT Mono',
+        'Share Tech Mono',
+      ];
+
+      for (const fontName of googleFonts) {
+        try {
+          await document.fonts.load(`16px "${fontName}"`);
+        } catch (err) {
+          console.warn(`Failed to load ${fontName}:`, err);
+        }
+      }
+    }
+
+    async function init() {
+      renderBtnEl.disabled = true;
+      randomBtnEl.disabled = true;
+
+      // Load fold-core first
+      statusEl.textContent = 'Loading fold-core.js...';
+      const coreLoaded = await loadFoldCore();
+      if (!coreLoaded) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Failed to load fold-core.js. Make sure to run this through Vite dev server.';
+        return;
+      }
+
+      // Wait for Google Fonts
+      statusEl.textContent = 'Loading Google Fonts...';
+      await waitForGoogleFonts();
+
+      // Load on-chain font
+      statusEl.textContent = 'Loading on-chain font...';
+      const fontLoaded = await loadOnChainFont();
+      if (!fontLoaded) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Warning: On-chain font failed to load. Using other fonts.';
+        fonts[0].loaded = false;
+        // Remove ChaosMono from select
+        fontSelectEl.querySelector('option[value="ChaosMono"]').disabled = true;
+        fontSelectEl.value = 'Source Code Pro';
+      }
+
+      renderBtnEl.disabled = false;
+      randomBtnEl.disabled = false;
+
+      statusEl.className = 'status success';
+      statusEl.textContent = 'Ready! Click Render or Random Seed to generate artwork.';
+
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>

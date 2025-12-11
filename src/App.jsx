@@ -39,6 +39,8 @@ import {
   renderToCanvas,
   // RNG
   seededRandom,
+  // Font loading
+  loadFont,
 } from "./fold-core.js";
 
 // ============ BATCH STATS ============
@@ -1816,6 +1818,15 @@ export default function FoldedPaper() {
   const [showBatchMode, setShowBatchMode] = useState(false);
   const [generatingGif, setGeneratingGif] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
+  const [fontReady, setFontReady] = useState(false);
+
+  // Load the embedded font on mount
+  useEffect(() => {
+    loadFont().then((loaded) => {
+      setFontReady(loaded);
+      if (loaded) console.log('FoldMono font loaded');
+    });
+  }, []);
 
   const presetPalettes = [
     ["cream", "#FFFFCC", "#333333", "#AA0000"],

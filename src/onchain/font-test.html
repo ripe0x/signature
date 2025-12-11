@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>On-Chain Font Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .loading { background: #333; }
+    .success { background: #1a4d1a; }
+    .error { background: #4d1a1a; }
+    canvas {
+      border: 1px solid #444;
+      margin: 10px 0;
+    }
+    .comparison {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .test-box {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    h3 { margin-top: 0; }
+    pre {
+      background: #111;
+      padding: 10px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>On-Chain Font Test</h1>
+  <p>Testing if the on-chain font at <code>0x723DEe6a7e3951908f20Bf16daBd9283AacBC252</code> includes block characters.</p>
+
+  <div id="status" class="status loading">Loading font from chain...</div>
+
+  <div class="comparison">
+    <div class="test-box">
+      <h3>On-Chain Font (ChaosMono)</h3>
+      <canvas id="canvas-onchain" width="400" height="200"></canvas>
+    </div>
+    <div class="test-box">
+      <h3>System Fallback (Courier New)</h3>
+      <canvas id="canvas-system" width="400" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="test-box" style="margin-top: 20px;">
+    <h3>Characters Being Tested</h3>
+    <pre>
+Space: " " (U+0020)
+Light Shade: "░" (U+2591)
+Medium Shade: "▒" (U+2592)
+Dark Shade: "▓" (U+2593)
+Full Block: "█" (U+2588)
+    </pre>
+  </div>
+
+  <div id="font-info" class="test-box" style="margin-top: 20px; display: none;">
+    <h3>Font Data Info</h3>
+    <pre id="font-details"></pre>
+  </div>
+
+  <script type="module">
+    import { ethers } from 'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.min.js';
+
+    const CONTRACT_ADDRESS = '0x723DEe6a7e3951908f20Bf16daBd9283AacBC252';
+
+    // Minimal ABI for getFont()
+    const ABI = [{
+      "inputs": [],
+      "name": "getFont",
+      "outputs": [{ "type": "string" }],
+      "stateMutability": "view",
+      "type": "function"
+    }];
+
+    const statusEl = document.getElementById('status');
+    const fontInfoEl = document.getElementById('font-info');
+    const fontDetailsEl = document.getElementById('font-details');
+
+    // Test characters
+    const testChars = [' ', '░', '▒', '▓', '█'];
+    const testLabels = ['Space', 'Light', 'Medium', 'Dark', 'Full'];
+
+    function renderTest(canvasId, fontFamily, label) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+
+      // Clear
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw each character
+      const fontSize = 48;
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+
+      testChars.forEach((char, i) => {
+        const x = 20 + i * 70;
+        const y = 20;
+
+        // Label
+        ctx.fillStyle = '#666';
+        ctx.font = '12px system-ui';
+        ctx.fillText(testLabels[i], x, y);
+
+        // Character
+        ctx.fillStyle = '#00ff88';
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.fillText(char, x, y + 20);
+
+        // Hex code
+        ctx.fillStyle = '#666';
+        ctx.font = '10px system-ui';
+        ctx.fillText(`U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`, x, y + 80);
+      });
+
+      // Row of repeated chars to show pattern
+      ctx.fillStyle = '#00ff88';
+      ctx.font = `24px ${fontFamily}`;
+      ctx.fillText('░░▒▒▓▓██ Pattern Test', 20, 130);
+
+      // Check if chars rendered (measure width)
+      const widths = testChars.map(c => {
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        return ctx.measureText(c).width;
+      });
+
+      return widths;
+    }
+
+    async function loadFontFromChain() {
+      // Try multiple RPC providers
+      const providers = [
+        'https://eth.llamarpc.com',
+        'https://rpc.builder0x69.io',
+        'https://virginia.rpc.blxrbdn.com',
+        'https://eth.drpc.org',
+      ];
+
+      let lastError;
+      for (const rpcUrl of providers) {
+        try {
+          statusEl.textContent = `Trying ${rpcUrl}...`;
+          const provider = new ethers.JsonRpcProvider(rpcUrl);
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+          const fontDataUri = await contract.getFont();
+          return fontDataUri;
+        } catch (err) {
+          lastError = err;
+          console.warn(`Failed with ${rpcUrl}:`, err.message);
+        }
+      }
+      throw lastError;
+    }
+
+    async function main() {
+      try {
+        // Load font from chain
+        statusEl.textContent = 'Fetching font from Ethereum mainnet...';
+        const fontDataUri = await loadFontFromChain();
+
+        // Show font info
+        fontInfoEl.style.display = 'block';
+        fontDetailsEl.textContent = `Data URI length: ${fontDataUri.length} chars\nFormat: ${fontDataUri.slice(0, 50)}...`;
+
+        // Create @font-face
+        statusEl.textContent = 'Loading font into browser...';
+        const style = document.createElement('style');
+        style.textContent = `
+          @font-face {
+            font-family: 'ChaosMono';
+            src: url('${fontDataUri}');
+          }
+        `;
+        document.head.appendChild(style);
+
+        // Wait for font to load
+        await document.fonts.load('48px ChaosMono');
+
+        // Small delay to ensure font is ready
+        await new Promise(r => setTimeout(r, 100));
+
+        // Render tests
+        statusEl.textContent = 'Rendering test characters...';
+        const onchainWidths = renderTest('canvas-onchain', 'ChaosMono, monospace', 'On-Chain');
+        const systemWidths = renderTest('canvas-system', '"Courier New", Courier, monospace', 'System');
+
+        // Check results
+        const onchainHasChars = onchainWidths.slice(1).every(w => w > 0);
+        const systemHasChars = systemWidths.slice(1).every(w => w > 0);
+
+        if (onchainHasChars) {
+          statusEl.className = 'status success';
+          statusEl.innerHTML = `
+            <strong>Success!</strong> The on-chain font renders all block characters.<br>
+            Character widths (ChaosMono): ${onchainWidths.map((w, i) => `${testLabels[i]}=${w.toFixed(1)}`).join(', ')}
+          `;
+        } else {
+          statusEl.className = 'status error';
+          statusEl.innerHTML = `
+            <strong>Warning:</strong> Some characters may not be rendering correctly.<br>
+            Character widths (ChaosMono): ${onchainWidths.map((w, i) => `${testLabels[i]}=${w.toFixed(1)}`).join(', ')}
+          `;
+        }
+
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `Error: ${err.message}`;
+        console.error(err);
+
+        // Still render system font for comparison
+        renderTest('canvas-system', '"Courier New", Courier, monospace', 'System');
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

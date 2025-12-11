@@ -11,6 +11,15 @@ export const DRAWING_MARGIN = 50;
 export const REFERENCE_WIDTH = 1200;
 export const REFERENCE_HEIGHT = 1500;
 
+// On-chain font configuration
+// Courier New subset (904 bytes) - contains only: space, ░, ▒, ▓
+export const ONCHAIN_FONT_NAME = 'FoldMono';
+export const ONCHAIN_FONT_DATA_URI = 'data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==';
+// Fallback for local development when font isn't loaded
+export const FALLBACK_FONT = '"Courier New", Courier, monospace';
+// Use on-chain font if available, otherwise fallback
+export const FONT_STACK = `"${ONCHAIN_FONT_NAME}", ${FALLBACK_FONT}`;
+
 // ============ VGA 256-COLOR PALETTE SYSTEM ============
 
 const VGA_LEVELS = [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff];
@@ -1720,6 +1729,7 @@ export function renderToCanvas({
   foldStrategy = null,
   showCreases = false,
   showPaperShape = false,
+  fontFamily = FONT_STACK,
 }) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -1818,7 +1828,7 @@ export function renderToCanvas({
 
   ctx.font = `${
     actualCellHeight - 2 * scaleY
-  }px "Courier New", Courier, monospace`;
+  }px ${fontFamily}`;
   ctx.textBaseline = "top";
 
   const shadeChars = [" ", "░", "▒", "▓"];
@@ -2065,14 +2075,51 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
 
 // ============ ON-CHAIN ENTRY POINT ============
 
+// Load the embedded font - call this before rendering
+let fontLoaded = false;
+export async function loadFont() {
+  if (fontLoaded) return true;
+  const result = await loadOnChainFont(ONCHAIN_FONT_DATA_URI);
+  fontLoaded = result;
+  return result;
+}
+
+// Load font from data URI and wait for it to be ready
+async function loadOnChainFont(fontDataUri) {
+  if (!fontDataUri) return false;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @font-face {
+      font-family: '${ONCHAIN_FONT_NAME}';
+      src: url('${fontDataUri}');
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Wait for font to load
+  try {
+    await document.fonts.load(`12px ${ONCHAIN_FONT_NAME}`);
+    return true;
+  } catch (err) {
+    console.warn('Failed to load on-chain font:', err);
+    return false;
+  }
+}
+
 // Auto-render if global variables are set (for on-chain use)
-export function initOnChain() {
+export async function initOnChain() {
   const seed = typeof window !== 'undefined' && window.SEED;
   const foldCount = typeof window !== 'undefined' && window.FOLD_COUNT;
+  // Use embedded font data URI, or allow override via window.FONT_DATA_URI
+  const fontDataUri = (typeof window !== 'undefined' && window.FONT_DATA_URI) || ONCHAIN_FONT_DATA_URI;
 
   if (seed && foldCount !== undefined) {
     const canvas = document.getElementById('c') || document.querySelector('canvas');
     if (canvas) {
+      // Load font (embedded or provided)
+      await loadOnChainFont(fontDataUri);
+
       const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
 
       // Render directly to existing canvas
@@ -2108,7 +2155,7 @@ export function initOnChain() {
 // Auto-init when DOM is ready (for on-chain use)
 if (typeof window !== 'undefined' && (window.SEED || window.FOLD_COUNT !== undefined)) {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initOnChain);
+    document.addEventListener('DOMContentLoaded', () => initOnChain());
   } else {
     initOnChain();
   }

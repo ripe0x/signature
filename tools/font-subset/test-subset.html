@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Courier New Subset Test</title>
+  <style>
+    @font-face {
+      font-family: 'CourierNewSubset';
+      src: url('data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==');
+    }
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      font-family: system-ui;
+      padding: 40px;
+    }
+    .test {
+      background: #000;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .test h3 {
+      color: #00ff88;
+      margin-top: 0;
+    }
+    .chars {
+      font-family: 'CourierNewSubset', monospace;
+      font-size: 48px;
+      color: #00ff88;
+      letter-spacing: 10px;
+    }
+    .chars-system {
+      font-family: 'Courier New', monospace;
+      font-size: 48px;
+      color: #ffaa00;
+      letter-spacing: 10px;
+    }
+    .info {
+      font-size: 14px;
+      color: #888;
+      margin-top: 10px;
+    }
+    canvas {
+      border: 1px solid #333;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Courier New Subset Test</h1>
+  <p>Testing the 472-byte WOFF2 subset with only: space + ░▒▓</p>
+
+  <div class="test">
+    <h3>Subset Font (CourierNewSubset)</h3>
+    <div class="chars"> ░▒▓</div>
+    <div class="info">U+0020 (space), U+2591 (░), U+2592 (▒), U+2593 (▓)</div>
+  </div>
+
+  <div class="test">
+    <h3>System Font (Courier New)</h3>
+    <div class="chars-system"> ░▒▓</div>
+    <div class="info">For comparison - should look identical</div>
+  </div>
+
+  <div class="test">
+    <h3>Canvas Rendering Test</h3>
+    <canvas id="canvas" width="400" height="100"></canvas>
+    <div class="info">Rendered to canvas using subset font</div>
+    <div class="info" id="font-info"></div>
+  </div>
+
+  <div class="test">
+    <h3>Pattern Test</h3>
+    <div class="chars">░░▒▒▓▓░░▒▒▓▓</div>
+  </div>
+
+  <script>
+    // Wait for font to load then render to canvas
+    async function renderCanvas() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Try to load the font
+      try {
+        await document.fonts.load('48px "CourierNewSubset"');
+        console.log('Font loaded via document.fonts.load');
+      } catch (e) {
+        console.log('Font load error:', e);
+      }
+
+      // Wait a bit for font to be ready
+      await new Promise(r => setTimeout(r, 100));
+
+      // Check if font is available
+      console.log('Fonts ready:', document.fonts.check('48px "CourierNewSubset"'));
+
+      ctx.font = '48px "CourierNewSubset"';
+      ctx.fillStyle = '#00ff88';
+      ctx.textBaseline = 'top';
+      ctx.fillText(' ░▒▓', 20, 20);
+
+      // Also show what font is actually being used
+      document.getElementById('font-info').textContent =
+        'ctx.font = ' + ctx.font + ' | fonts.check = ' + document.fonts.check('48px "CourierNewSubset"');
+    }
+
+    // Run after page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderCanvas);
+    } else {
+      renderCanvas();
+    }
+  </script>
+</body>
+</html>
