@@ -1750,32 +1750,56 @@ function simulateFolds(
     const currentW = currentBounds.maxX - currentBounds.minX;
     const currentH = currentBounds.maxY - currentBounds.minY;
 
-    // Pick source vertex from current shape
-    const fromIdx = Math.floor(rng() * shape.length);
+    // Pick source vertex from current shape using strategy
+    const fromIdx = pickSourceVertexFromShape(
+      shape,
+      strategy,
+      width,
+      height,
+      rng
+    );
     const fromVertex = shape[fromIdx];
 
-    // Pick target - another vertex or point on edge
-    const targetOptions = [];
+    // Pick target using strategy-based weighting
+    let target = pickTargetFromShape(
+      shape,
+      fromIdx,
+      strategy,
+      width,
+      height,
+      rng,
+      f
+    );
 
-    // Other vertices
-    for (let i = 0; i < shape.length; i++) {
-      if (i === fromIdx) continue;
-      targetOptions.push(shape[i]);
+    // Fallback to random if strategy returns null
+    if (!target) {
+      const targetOptions = [];
+      // Other vertices
+      for (let i = 0; i < shape.length; i++) {
+        if (i === fromIdx) continue;
+        targetOptions.push(shape[i]);
+      }
+      // Points on edges
+      for (let i = 0; i < shape.length; i++) {
+        const p1 = shape[i];
+        const p2 = shape[(i + 1) % shape.length];
+        const t = 0.2 + rng() * 0.6;
+        targetOptions.push({
+          x: p1.x + (p2.x - p1.x) * t,
+          y: p1.y + (p2.y - p1.y) * t,
+        });
+      }
+      target = targetOptions[Math.floor(rng() * targetOptions.length)];
     }
 
-    // Points on edges
-    for (let i = 0; i < shape.length; i++) {
-      const p1 = shape[i];
-      const p2 = shape[(i + 1) % shape.length];
-      const t = 0.2 + rng() * 0.6;
-      targetOptions.push({
-        x: p1.x + (p2.x - p1.x) * t,
-        y: p1.y + (p2.y - p1.y) * t,
-      });
+    // For the first fold, ensure target is within canvas bounds
+    // This guarantees early outputs always have a visible marked cell
+    if (f === 0) {
+      target = {
+        x: Math.max(0, Math.min(width * 0.95, target.x)),
+        y: Math.max(0, Math.min(height * 0.95, target.y)),
+      };
     }
-
-    // Pick random target
-    const target = targetOptions[Math.floor(rng() * targetOptions.length)];
 
     // Skip if too close
     const dist = V.dist(fromVertex, target);
@@ -1864,10 +1888,11 @@ function simulateFolds(
         reductionMultiplier: reductionMultipliers[cyclePosition], // Store multiplier for future exhales
       });
 
-      // Store the target of this fold (with same offset as crease)
+      // Store the target of this fold (clamped to canvas bounds, exclusive upper bound)
+      // Use width-1 and height-1 to ensure we stay within valid cell indices
       lastFoldTarget = {
-        x: target.x + offsetX,
-        y: target.y + offsetY,
+        x: Math.max(0, Math.min(width - 1, target.x)),
+        y: Math.max(0, Math.min(height - 1, target.y)),
       };
     }
 
@@ -2180,23 +2205,35 @@ function renderToCanvas({
   multiColor,
   levelColors,
   foldStrategy = null,
+  showCreases = false,
+  showPaperShape = false,
 }) {
-  // Create canvas
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const dpr = 2; // High res output
+  // Always render at reference size for consistent output
+  // Then scale the final canvas if different output size is requested
+  const renderWidth = REFERENCE_WIDTH;
+  const renderHeight = REFERENCE_HEIGHT;
+  const scaleX = outputWidth / renderWidth;
+  const scaleY = outputHeight / renderHeight;
+  const needsScaling = scaleX !== 1 || scaleY !== 1;
+  const maxScale = Math.max(scaleX, scaleY);
 
-  canvas.width = outputWidth * dpr;
-  canvas.height = outputHeight * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // For high-quality output at larger sizes, increase DPR when upscaling
+  // Base DPR of 2, but increase proportionally for upscaling to maintain quality
+  const baseDpr = 2;
+  const renderDpr =
+    maxScale > 1 ? Math.max(baseDpr, Math.ceil(baseDpr * maxScale)) : baseDpr;
+
+  // Create canvas for rendering at reference size (with appropriate DPR for quality)
+  const renderCanvas = document.createElement("canvas");
+  const renderCtx = renderCanvas.getContext("2d");
+
+  renderCanvas.width = renderWidth * renderDpr;
+  renderCanvas.height = renderHeight * renderDpr;
+  renderCtx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
 
   // Background - fill entire canvas
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, outputWidth, outputHeight);
-
-  // Calculate scale factors to maintain consistent grid structure
-  const scaleX = outputWidth / REFERENCE_WIDTH;
-  const scaleY = outputHeight / REFERENCE_HEIGHT;
+  renderCtx.fillStyle = bgColor;
+  renderCtx.fillRect(0, 0, renderWidth, renderHeight);
 
   // Calculate reference drawing area (always based on reference dimensions)
   const refDrawWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
@@ -2208,22 +2245,22 @@ function renderToCanvas({
   const cols = Math.max(1, Math.floor(refDrawWidth / cellWidth));
   const rows = Math.max(1, Math.floor(refDrawHeight / cellHeight));
 
-  // Calculate reference cell dimensions (always consistent)
+  // Calculate reference cell dimensions (always consistent - no scaling)
   const refCellWidth = refDrawWidth / cols;
   const refCellHeight = refDrawHeight / rows;
 
-  // Scale to actual output dimensions
-  const drawWidth = refDrawWidth * scaleX;
-  const drawHeight = refDrawHeight * scaleY;
-  const offsetX = refOffsetX * scaleX;
-  const offsetY = refOffsetY * scaleY;
-  const actualCellWidth = refCellWidth * scaleX;
-  const actualCellHeight = refCellHeight * scaleY;
+  // Use reference dimensions for rendering (no scaling)
+  const drawWidth = refDrawWidth;
+  const drawHeight = refDrawHeight;
+  const offsetX = refOffsetX;
+  const offsetY = refOffsetY;
+  const actualCellWidth = refCellWidth;
+  const actualCellHeight = refCellHeight;
 
   // Generate weight range for this output
   const weightRange = generateWeightRange(seed);
 
-  // Generate fold structure with weights (in reference space, then scale)
+  // Generate fold structure with weights (always in reference space - no scaling)
   const { creases, finalShape, maxFolds, lastFoldTarget } = simulateFolds(
     refDrawWidth,
     refDrawHeight,
@@ -2233,26 +2270,12 @@ function renderToCanvas({
     foldStrategy
   );
 
-  // Scale creases from reference space to actual output space
-  const scaledCreases = creases.map((crease) => ({
-    ...crease,
-    p1: {
-      x: crease.p1.x * scaleX,
-      y: crease.p1.y * scaleY,
-    },
-    p2: {
-      x: crease.p2.x * scaleX,
-      y: crease.p2.y * scaleY,
-    },
-  }));
-
-  // Scale last fold target to actual output space and determine cell
+  // Use creases directly - no scaling during rendering
+  // Determine last fold target cell using reference dimensions
   let lastFoldTargetCell = null;
   if (lastFoldTarget) {
-    const scaledTargetX = lastFoldTarget.x * scaleX;
-    const scaledTargetY = lastFoldTarget.y * scaleY;
-    const targetCol = Math.floor(scaledTargetX / actualCellWidth);
-    const targetRow = Math.floor(scaledTargetY / actualCellHeight);
+    const targetCol = Math.floor(lastFoldTarget.x / actualCellWidth);
+    const targetRow = Math.floor(lastFoldTarget.y / actualCellHeight);
     if (
       targetCol >= 0 &&
       targetCol < cols &&
@@ -2263,14 +2286,14 @@ function renderToCanvas({
     }
   }
 
-  // Process creases - find all intersections (use actual cell dimensions)
+  // Process creases - find all intersections (use reference cell dimensions)
   const {
     activeCreases,
     intersections: activeIntersections,
     cellWeights: intersectionWeight,
     cellMaxGap,
   } = processCreases(
-    scaledCreases,
+    creases,
     cols,
     rows,
     actualCellWidth,
@@ -2289,11 +2312,11 @@ function renderToCanvas({
     }
   }
 
-  // Font setup (scaled to actual output size)
-  ctx.font = `${
-    actualCellHeight - 2 * scaleY
+  // Font setup (always at reference size - no scaling)
+  renderCtx.font = `${
+    actualCellHeight - 2
   }px "Courier New", Courier, monospace`;
-  ctx.textBaseline = "top";
+  renderCtx.textBaseline = "top";
 
   // Block shade characters - graduated density, no solid blocks
   const shadeChars = [" ", "░", "▒", "▓"];
@@ -2386,7 +2409,7 @@ function renderToCanvas({
           key
         );
         // Last fold target gets accent color, then accent cells, then normal color
-        ctx.fillStyle =
+        renderCtx.fillStyle =
           lastFoldTargetCell === key
             ? accentColor || textColor
             : accentCells.has(key) && weight > 0
@@ -2394,7 +2417,7 @@ function renderToCanvas({
             : finalColor;
 
         // Fill the entire cell width with characters - use aggressive overlap to eliminate gaps
-        const measuredCharWidth = ctx.measureText(char).width;
+        const measuredCharWidth = renderCtx.measureText(char).width;
         // Calculate exact cell boundary (next cell's start position)
         const cellEndX = Math.round(offsetX + (col + 1) * actualCellWidth);
 
@@ -2409,7 +2432,7 @@ function renderToCanvas({
             nextChar = shadeChars[Math.max(0, level - 1)];
           }
 
-          const nextCharWidth = ctx.measureText(nextChar).width;
+          const nextCharWidth = renderCtx.measureText(nextChar).width;
           const remainingWidth = cellEndX - currentX;
 
           if (remainingWidth <= 0) break;
@@ -2417,11 +2440,11 @@ function renderToCanvas({
           // Always draw character, ensuring it reaches or extends past boundary if last
           if (remainingWidth < nextCharWidth * 1.1) {
             // Close to end - ensure character extends to boundary
-            ctx.fillText(nextChar, cellEndX - nextCharWidth, y);
+            renderCtx.fillText(nextChar, cellEndX - nextCharWidth, y);
             break;
           } else {
             // Draw with overlap to ensure no gaps
-            ctx.fillText(nextChar, currentX, y);
+            renderCtx.fillText(nextChar, currentX, y);
             currentX += nextCharWidth * overlapFactor;
           }
 
@@ -2431,7 +2454,76 @@ function renderToCanvas({
     }
   }
 
-  return canvas.toDataURL("image/png");
+  // Draw crease lines if enabled (debug visualization)
+  if (showCreases) {
+    renderCtx.strokeStyle = "#ff00ff";
+    renderCtx.lineWidth = 1;
+    renderCtx.globalAlpha = 0.7;
+    for (const crease of activeCreases) {
+      renderCtx.beginPath();
+      renderCtx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
+      renderCtx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
+      renderCtx.stroke();
+    }
+    renderCtx.globalAlpha = 1;
+  }
+
+  // Draw paper shape if enabled (use finalShape directly - no scaling)
+  if (showPaperShape) {
+    if (finalShape.length >= 3) {
+      renderCtx.strokeStyle = "#00ffff";
+      renderCtx.lineWidth = 2;
+      renderCtx.globalAlpha = 0.9;
+      renderCtx.beginPath();
+      renderCtx.moveTo(offsetX + finalShape[0].x, offsetY + finalShape[0].y);
+      for (let i = 1; i < finalShape.length; i++) {
+        renderCtx.lineTo(offsetX + finalShape[i].x, offsetY + finalShape[i].y);
+      }
+      renderCtx.closePath();
+      renderCtx.stroke();
+
+      // Also fill with low opacity
+      renderCtx.fillStyle = "#00ffff";
+      renderCtx.globalAlpha = 0.15;
+      renderCtx.fill();
+      renderCtx.globalAlpha = 1;
+    }
+  }
+
+  // If output size differs from reference size, scale the final canvas
+  if (needsScaling) {
+    const outputCanvas = document.createElement("canvas");
+    const outputCtx = outputCanvas.getContext("2d");
+    // Use high DPR for output to maintain quality
+    const outputDpr = Math.max(2, Math.ceil(maxScale * 2));
+
+    outputCanvas.width = outputWidth * outputDpr;
+    outputCanvas.height = outputHeight * outputDpr;
+    outputCtx.setTransform(outputDpr, 0, 0, outputDpr, 0, 0);
+
+    // Use high-quality scaling for upscaling, crisp scaling for downscaling
+    outputCtx.imageSmoothingEnabled = maxScale > 1;
+    outputCtx.imageSmoothingQuality = maxScale > 1 ? "high" : "medium";
+
+    // Draw the rendered canvas scaled to output size
+    // Use the full resolution of the render canvas for best quality
+    // Source: full render canvas (in pixels), Destination: output size (in logical pixels, will be scaled by DPR)
+    outputCtx.drawImage(
+      renderCanvas,
+      0,
+      0,
+      renderCanvas.width, // Full pixel width of render canvas
+      renderCanvas.height, // Full pixel height of render canvas
+      0,
+      0,
+      outputWidth, // Logical width (will be scaled by outputDpr)
+      outputHeight // Logical height (will be scaled by outputDpr)
+    );
+
+    return outputCanvas.toDataURL("image/png");
+  }
+
+  return renderCanvas.toDataURL("image/png");
 }
 
 // ============ BATCH GENERATION HELPERS ============
@@ -3920,6 +4012,15 @@ function ASCIICanvas({
       const scaledTargetY = lastFoldTarget.y * scaleY;
       const targetCol = Math.floor(scaledTargetX / actualStrideX);
       const targetRow = Math.floor(scaledTargetY / actualStrideY);
+      console.log(
+        `[Last fold target] raw: (${lastFoldTarget.x.toFixed(
+          1
+        )}, ${lastFoldTarget.y.toFixed(1)}) scaled: (${scaledTargetX.toFixed(
+          1
+        )}, ${scaledTargetY.toFixed(
+          1
+        )}) col/row: (${targetCol}, ${targetRow}) grid: ${cols}x${rows} refInner: ${refInnerWidth}x${refInnerHeight}`
+      );
       if (
         targetCol >= 0 &&
         targetCol < cols &&
@@ -3927,12 +4028,13 @@ function ASCIICanvas({
         targetRow < rows
       ) {
         lastFoldTargetCell = `${targetCol},${targetRow}`;
+      } else {
+        console.log(
+          `[Last fold target] OUT OF BOUNDS - col valid: ${
+            targetCol >= 0 && targetCol < cols
+          }, row valid: ${targetRow >= 0 && targetRow < rows}`
+        );
       }
-      console.log(
-        `[Last fold target] raw: (${lastFoldTarget.x.toFixed(
-          1
-        )}, ${lastFoldTarget.y.toFixed(1)}) → cell: ${lastFoldTargetCell}`
-      );
     } else {
       console.log(`[Last fold target] none`);
     }
@@ -4176,7 +4278,7 @@ function ASCIICanvas({
         ctx.stroke();
       }
 
-      // Draw circle at last fold target
+      // Draw circle at last fold target (matches cell marking position)
       if (lastFoldTarget) {
         const targetX = offsetX + lastFoldTarget.x * scaleX;
         const targetY = offsetY + lastFoldTarget.y * scaleY;
@@ -4244,7 +4346,15 @@ function ASCIICanvas({
     onStatsUpdate,
   ]);
 
-  return <canvas ref={canvasRef} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        imageRendering: "auto",
+        display: "block",
+      }}
+    />
+  );
 }
 
 export default function FoldedPaper() {
@@ -4271,6 +4381,8 @@ export default function FoldedPaper() {
       multiColor,
       levelColors,
       foldStrategy,
+      showCreases,
+      showPaperShape,
     });
     const a = document.createElement("a");
     a.href = dataUrl;
@@ -4280,9 +4392,167 @@ export default function FoldedPaper() {
     document.body.removeChild(a);
   };
 
-  // Canvas size (1200 and 1500 have many divisors for clean grid)
-  const height = 1500;
-  const width = 1200;
+  // Generate animated GIF with increasing fold counts
+  const generateAnimatedGif = async () => {
+    setGeneratingGif(true);
+    setGifProgress(0);
+
+    try {
+      // Load gif.js from CDN (check if already loaded)
+      if (!window.GIF) {
+        // Load the library
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js";
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      const GIF = window.GIF;
+
+      // Calculate scaled dimensions (max height 1000px, maintain aspect ratio)
+      const maxHeight = 1000;
+      const scale = maxHeight / height;
+      const gifWidth = Math.round(width * scale);
+      const gifHeight = Math.round(height * scale);
+
+      // Fetch worker script and create blob URL to avoid CORS issues
+      // Fall back to main thread if worker loading fails
+      let gifOptions = {
+        workers: 2,
+        quality: 30, // Lower quality for smaller file size (1-30, higher = more compression)
+        width: gifWidth,
+        height: gifHeight,
+        repeat: 0, // Loop forever
+      };
+
+      try {
+        if (!window._gifWorkerBlobUrl) {
+          const workerResponse = await fetch(
+            "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
+          );
+          const workerText = await workerResponse.text();
+          const blob = new Blob([workerText], {
+            type: "application/javascript",
+          });
+          window._gifWorkerBlobUrl = URL.createObjectURL(blob);
+        }
+        gifOptions.workerScript = window._gifWorkerBlobUrl;
+      } catch (workerError) {
+        // If worker loading fails, use main thread only (slower but works)
+        console.warn("Worker loading failed, using main thread:", workerError);
+        gifOptions.workers = 0;
+      }
+
+      // Create GIF encoder
+      const gif = new GIF(gifOptions);
+
+      // Generate frames: every 2 folds from 0 to 500
+      const frameFolds = [];
+      for (let f = 0; f <= 500; f += 2) {
+        frameFolds.push(f);
+      }
+
+      const totalFrames = frameFolds.length;
+
+      // Render each frame
+      for (let i = 0; i < frameFolds.length; i++) {
+        const foldCount = frameFolds[i];
+
+        // Render canvas with current settings but different fold count
+        const dataUrl = renderToCanvas({
+          folds: foldCount,
+          seed,
+          outputWidth: width,
+          outputHeight: height,
+          bgColor,
+          textColor,
+          accentColor,
+          cellWidth,
+          cellHeight,
+          renderMode,
+          multiColor,
+          levelColors,
+          foldStrategy,
+          showCreases,
+          showPaperShape,
+        });
+
+        // Convert data URL to image
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            // Get actual image dimensions (may differ from requested due to DPR scaling)
+            const sourceWidth = img.naturalWidth || img.width || width;
+            const sourceHeight = img.naturalHeight || img.height || height;
+
+            // Create a canvas at scaled dimensions for GIF
+            const frameCanvas = document.createElement("canvas");
+            frameCanvas.width = gifWidth;
+            frameCanvas.height = gifHeight;
+            const frameCtx = frameCanvas.getContext("2d");
+
+            // Use high-quality scaling
+            frameCtx.imageSmoothingEnabled = true;
+            frameCtx.imageSmoothingQuality = "high";
+
+            // Draw and scale the full source image to fit the GIF dimensions
+            // This scales the entire image proportionally to fit within gifWidth x gifHeight
+            frameCtx.drawImage(
+              img,
+              0,
+              0,
+              sourceWidth,
+              sourceHeight,
+              0,
+              0,
+              gifWidth,
+              gifHeight
+            );
+
+            // Add frame to GIF (100ms delay per frame = ~10 fps)
+            gif.addFrame(frameCanvas, { delay: 100 });
+
+            setGifProgress(Math.round(((i + 1) / totalFrames) * 100));
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+
+        // Small delay to keep UI responsive
+        await new Promise((r) => setTimeout(r, 10));
+      }
+
+      // Render GIF
+      gif.on("finished", (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `fold-animation-seed-${seed}-folds-0-to-500.gif`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setGeneratingGif(false);
+        setGifProgress(0);
+      });
+
+      gif.render();
+    } catch (err) {
+      console.error("GIF generation failed:", err);
+      alert("GIF generation failed: " + err.message);
+      setGeneratingGif(false);
+      setGifProgress(0);
+    }
+  };
+
+  // Canvas size - always use reference dimensions for consistent rendering
+  // The canvas will always render at this size, then be scaled for display
+  const height = REFERENCE_HEIGHT;
+  const width = REFERENCE_WIDTH;
 
   // Initialize from generative palette and cell dimensions
   const initialPalette = generatePalette(42);
@@ -4313,6 +4583,8 @@ export default function FoldedPaper() {
   const [creaseCount, setCreaseCount] = useState(0); // Track crease count from canvas
   const [maxFoldsValue, setMaxFoldsValue] = useState(0); // Track maxFolds from canvas
   const [showBatchMode, setShowBatchMode] = useState(false); // Batch explorer mode
+  const [generatingGif, setGeneratingGif] = useState(false); // GIF generation in progress
+  const [gifProgress, setGifProgress] = useState(0); // GIF generation progress percentage
 
   // Preset palettes for reference/quick access: [name, background, text, accent]
   // All colors are from the VGA 256-color palette (web-safe + CGA)
@@ -4405,17 +4677,28 @@ export default function FoldedPaper() {
   const aspectRatio = width / height;
   const maxDisplayHeight =
     typeof window !== "undefined" ? window.innerHeight - 40 : 800;
-  const displayHeight = Math.min(height, maxDisplayHeight);
+  const maxDisplayWidth =
+    typeof window !== "undefined"
+      ? window.innerWidth - (showUI ? 320 : 0) - 40
+      : 800;
+  const displayHeight = Math.max(
+    100,
+    Math.min(height, maxDisplayHeight, maxDisplayWidth / aspectRatio)
+  );
   const displayWidth = Math.round(displayHeight * aspectRatio);
+  const scale = Math.max(0.1, displayHeight / height);
 
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100vh",
+        width: "100vw",
         background: "#1a1a1a",
         display: "flex",
         fontFamily: 'ui-monospace, "Courier New", monospace',
         color: "#888",
+        overflow: "hidden",
+        position: "relative",
       }}
     >
       {/* Main Canvas Area */}
@@ -4426,7 +4709,9 @@ export default function FoldedPaper() {
           alignItems: "center",
           justifyContent: "center",
           padding: 20,
-          minHeight: "100vh",
+          overflow: "auto",
+          minWidth: 0,
+          minHeight: 0,
         }}
       >
         <div
@@ -4434,12 +4719,16 @@ export default function FoldedPaper() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            height: "100%",
           }}
         >
           <div
             style={{
-              transform: `scale(${displayHeight / height})`,
-              transformOrigin: "top center",
+              transform: `scale(${scale})`,
+              transformOrigin: "center center",
+              imageRendering: "auto",
             }}
           >
             <ASCIICanvas
@@ -4482,12 +4771,13 @@ export default function FoldedPaper() {
           borderLeft: showUI ? "1px solid #333" : "none",
           overflow: "hidden",
           transition: "width 0.2s, min-width 0.2s",
+          flexShrink: 0,
         }}
       >
         <div
           style={{
             width: 320,
-            height: "100vh",
+            height: "100%",
             overflowY: "auto",
             padding: showUI ? 20 : 0,
             boxSizing: "border-box",
@@ -4536,6 +4826,28 @@ export default function FoldedPaper() {
               }}
             >
               Download PNG
+            </button>
+            <button
+              onClick={generateAnimatedGif}
+              disabled={generatingGif}
+              style={{
+                marginTop: 8,
+                background: generatingGif ? "#333" : "#222",
+                border: "1px solid #444",
+                padding: "8px 16px",
+                color: generatingGif ? "#666" : "#aaa",
+                fontFamily: "inherit",
+                fontSize: 9,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                cursor: generatingGif ? "wait" : "pointer",
+                width: "100%",
+                opacity: generatingGif ? 0.6 : 1,
+              }}
+            >
+              {generatingGif
+                ? `Generating GIF... ${gifProgress}%`
+                : "Generate Animated GIF (0-500 folds)"}
             </button>
           </div>
 
