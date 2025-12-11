@@ -1359,6 +1359,7 @@ function ASCIICanvas({
 
   // Calculate optimal cell sizes and gaps to fill the drawing space
   // Gaps must be one of the allowed ratios (powers of 2 from 1/64 to 2x)
+  // Smaller gaps are more common, gaps > 1/4 are rare
   const ALLOWED_GAP_RATIOS = [
     1 / 64, // 0.015625
     1 / 32, // 0.03125
@@ -1370,6 +1371,47 @@ function ASCIICanvas({
     2.0, // 2x
   ];
 
+  // Use seed to deterministically determine gap usage
+  const gapRng = seededRandom(seed + 12345);
+
+  // 40% chance of having any gaps at all
+  const useGaps = gapRng() < 0.4;
+
+  // If using gaps, determine which dimensions get gaps
+  // 33% cols only, 33% rows only, 34% both
+  let useColGaps = false;
+  let useRowGaps = false;
+
+  if (useGaps) {
+    const gapTypeRoll = gapRng();
+    if (gapTypeRoll < 0.33) {
+      useColGaps = true;
+    } else if (gapTypeRoll < 0.66) {
+      useRowGaps = true;
+    } else {
+      useColGaps = true;
+      useRowGaps = true;
+    }
+  }
+
+  // Weight gap ratios: smaller gaps are more likely, gaps > 1/4 are rare
+  // Create weighted list where gaps <= 1/4 get higher weight
+  const getWeightedGapRatios = () => {
+    const ratios = [];
+    // Small gaps (<= 1/4): always included
+    for (let i = 0; i < 5; i++) {
+      ratios.push(ALLOWED_GAP_RATIOS[i]);
+    }
+    // Medium gaps (1/2, 1x): always included
+    ratios.push(ALLOWED_GAP_RATIOS[5]); // 1/2
+    ratios.push(ALLOWED_GAP_RATIOS[6]); // 1x
+    // Large gaps (2x): only 25% chance (very rare)
+    if (gapRng() < 0.25) {
+      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x
+    }
+    return ratios;
+  };
+
   let refCellWidth = cellWidth;
   let refCellHeight = cellHeight;
 
@@ -1379,7 +1421,9 @@ function ASCIICanvas({
   let bestColGap = 0;
   let bestColFit = Infinity;
 
-  for (const gapRatio of ALLOWED_GAP_RATIOS) {
+  const colGapRatios = useColGaps ? getWeightedGapRatios() : [0];
+
+  for (const gapRatio of colGapRatios) {
     const gap = refCellWidth * gapRatio;
     // Solve: cols * cellWidth + (cols - 1) * gap = refInnerWidth
     // cols = (refInnerWidth + gap) / (cellWidth + gap)
@@ -1428,7 +1472,9 @@ function ASCIICanvas({
   let bestRowGap = 0;
   let bestRowFit = Infinity;
 
-  for (const gapRatio of ALLOWED_GAP_RATIOS) {
+  const rowGapRatios = useRowGaps ? getWeightedGapRatios() : [0];
+
+  for (const gapRatio of rowGapRatios) {
     const gap = refCellHeight * gapRatio;
     // Solve: rows * cellHeight + (rows - 1) * gap = refInnerHeight
     // rows = (refInnerHeight + gap) / (cellHeight + gap)
