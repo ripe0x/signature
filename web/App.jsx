@@ -1346,12 +1346,10 @@ function ASCIICanvas({
   showCreases = false,
   showPaperShape = false,
   showHitCounts = false,
+  showCellOutlines = false,
   onStatsUpdate = null,
 }) {
   const canvasRef = useRef(null);
-
-  const charWidth = cellWidth;
-  const charHeight = cellHeight;
 
   const scaleX = width / REFERENCE_WIDTH;
   const scaleY = height / REFERENCE_HEIGHT;
@@ -1359,83 +1357,155 @@ function ASCIICanvas({
   const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
-  const actualColGap = colGap * 0.5 * charWidth;
-  const actualRowGap = rowGap * 0.5 * charHeight;
+  // Calculate optimal cell sizes and gaps to fill the drawing space
+  // Gaps must be one of the allowed ratios (powers of 2 from 1/64 to 2x)
+  const ALLOWED_GAP_RATIOS = [
+    1 / 64, // 0.015625
+    1 / 32, // 0.03125
+    1 / 16, // 0.0625
+    1 / 8, // 0.125
+    1 / 4, // 0.25
+    1 / 2, // 0.5
+    1.0, // 1x
+    2.0, // 2x
+  ];
 
-  // Calculate columns/rows to fill canvas, handling negative gaps (overlapping cells)
-  // Formula ensures: cols * charWidth + (cols - 1) * actualColGap = refInnerWidth
-  // Solving: cols = (refInnerWidth + actualColGap) / (charWidth + actualColGap)
-  // This works for both positive and negative gaps
-  const strideX = charWidth + actualColGap;
-  const strideY = charHeight + actualRowGap;
+  let refCellWidth = cellWidth;
+  let refCellHeight = cellHeight;
 
-  // Ensure stride is positive (gap can't be more negative than -cellSize)
-  const safeStrideX = Math.max(0.1, strideX);
-  const safeStrideY = Math.max(0.1, strideY);
+  // For columns: try each gap ratio and find the one that best fills the space
+  // Important: use Math.floor to ensure we never exceed the available space
+  let bestCols = 1;
+  let bestColGap = 0;
+  let bestColFit = Infinity;
 
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "App.jsx:1371",
-      message: "Grid calculation inputs",
-      data: {
-        colGap,
-        rowGap,
-        actualColGap,
-        actualRowGap,
-        strideX,
-        strideY,
-        safeStrideX,
-        safeStrideY,
-        refInnerWidth,
-        refInnerHeight,
-        charWidth,
-        charHeight,
-      },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "A",
-    }),
-  }).catch(() => {});
-  // #endregion
+  for (const gapRatio of ALLOWED_GAP_RATIOS) {
+    const gap = refCellWidth * gapRatio;
+    // Solve: cols * cellWidth + (cols - 1) * gap = refInnerWidth
+    // cols = (refInnerWidth + gap) / (cellWidth + gap)
+    // Use Math.floor to ensure we never exceed the space
+    const cols = Math.max(
+      1,
+      Math.floor((refInnerWidth + gap) / (refCellWidth + gap))
+    );
 
-  const cols = Math.max(
-    1,
-    Math.floor((refInnerWidth + actualColGap) / safeStrideX)
-  );
-  const rows = Math.max(
-    1,
-    Math.floor((refInnerHeight + actualRowGap) / safeStrideY)
-  );
+    if (cols === 1) {
+      // Single column - no gap needed, but don't exceed width
+      const cellW = Math.min(refCellWidth, refInnerWidth);
+      const fit = Math.abs(refInnerWidth - cellW);
+      if (fit < bestColFit) {
+        bestColFit = fit;
+        bestCols = 1;
+        bestColGap = 0;
+        refCellWidth = cellW;
+      }
+    } else {
+      const actualWidth = cols * refCellWidth + (cols - 1) * gap;
+      // Only consider this configuration if it doesn't exceed the space
+      if (actualWidth <= refInnerWidth) {
+        const fit = Math.abs(refInnerWidth - actualWidth);
+        if (fit < bestColFit) {
+          bestColFit = fit;
+          bestCols = cols;
+          bestColGap = gap;
+        }
+      }
+    }
+  }
 
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "App.jsx:1381",
-      message: "Grid dimensions calculated",
-      data: { cols, rows, totalCells: cols * rows },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "A",
-    }),
-  }).catch(() => {});
-  // #endregion
+  // Handle single column case - expand cell to fill space (if not already set)
+  if (bestCols === 1 && refCellWidth < refInnerWidth) {
+    refCellWidth = refInnerWidth;
+    bestColGap = 0;
+  }
 
-  const refCellWidth = charWidth;
-  const refCellHeight = charHeight;
-  const refCellStrideX = safeStrideX;
-  const refCellStrideY = safeStrideY;
+  const cols = bestCols;
+  const actualColGap = bestColGap;
+
+  // For rows: try each gap ratio and find the one that best fills the space
+  // Important: use Math.floor to ensure we never exceed the available space
+  let bestRows = 1;
+  let bestRowGap = 0;
+  let bestRowFit = Infinity;
+
+  for (const gapRatio of ALLOWED_GAP_RATIOS) {
+    const gap = refCellHeight * gapRatio;
+    // Solve: rows * cellHeight + (rows - 1) * gap = refInnerHeight
+    // rows = (refInnerHeight + gap) / (cellHeight + gap)
+    // Use Math.floor to ensure we never exceed the space
+    const rows = Math.max(
+      1,
+      Math.floor((refInnerHeight + gap) / (refCellHeight + gap))
+    );
+
+    if (rows === 1) {
+      // Single row - no gap needed, but don't exceed height
+      const cellH = Math.min(refCellHeight, refInnerHeight);
+      const fit = Math.abs(refInnerHeight - cellH);
+      if (fit < bestRowFit) {
+        bestRowFit = fit;
+        bestRows = 1;
+        bestRowGap = 0;
+        refCellHeight = cellH;
+      }
+    } else {
+      const actualHeight = rows * refCellHeight + (rows - 1) * gap;
+      // Only consider this configuration if it doesn't exceed the space
+      if (actualHeight <= refInnerHeight) {
+        const fit = Math.abs(refInnerHeight - actualHeight);
+        if (fit < bestRowFit) {
+          bestRowFit = fit;
+          bestRows = rows;
+          bestRowGap = gap;
+        }
+      }
+    }
+  }
+
+  // Handle single row case - expand cell to fill space (if not already set)
+  if (bestRows === 1 && refCellHeight < refInnerHeight) {
+    refCellHeight = refInnerHeight;
+    bestRowGap = 0;
+  }
+
+  const rows = bestRows;
+  const actualRowGap = bestRowGap;
+
+  // Calculate actual grid dimensions with the determined cell sizes and gaps
+  const actualGridWidth =
+    cols * refCellWidth + (cols > 1 ? (cols - 1) * actualColGap : 0);
+  const actualGridHeight =
+    rows * refCellHeight + (rows > 1 ? (rows - 1) * actualRowGap : 0);
+
+  // Check variation from target
+  const widthDiff = refInnerWidth - actualGridWidth;
+  const heightDiff = refInnerHeight - actualGridHeight;
+  const widthVariation = Math.abs(widthDiff) / refInnerWidth;
+  const heightVariation = Math.abs(heightDiff) / refInnerHeight;
+
+  // Calculate stride (distance between cell centers)
+  const refCellStrideX = refCellWidth + actualColGap;
+  const refCellStrideY = refCellHeight + actualRowGap;
+
+  // Center the grid if there's leftover space (variation <= 10%)
+  // If variation is larger, still center it but it means the grid couldn't fill perfectly
+  let gridOffsetX = 0;
+  let gridOffsetY = 0;
+  if (widthDiff > 0) {
+    gridOffsetX = widthDiff / 2;
+  }
+  if (heightDiff > 0) {
+    gridOffsetY = heightDiff / 2;
+  }
+
+  // Use the calculated cell dimensions
+  const charWidth = refCellWidth;
+  const charHeight = refCellHeight;
 
   const innerWidth = refInnerWidth * scaleX;
   const innerHeight = refInnerHeight * scaleY;
-  const offsetX = (padding + DRAWING_MARGIN) * scaleX;
-  const offsetY = (padding + DRAWING_MARGIN) * scaleY;
+  const offsetX = (padding + DRAWING_MARGIN + gridOffsetX) * scaleX;
+  const offsetY = (padding + DRAWING_MARGIN + gridOffsetY) * scaleY;
 
   useEffect(() => {
     const renderStartTime = performance.now();
@@ -1879,6 +1949,27 @@ function ASCIICanvas({
         ctx.stroke();
       }
 
+      // Draw intersection points as red circles with transparent fill
+      if (activeIntersections && activeIntersections.length > 0) {
+        ctx.strokeStyle = "#ff0000";
+        ctx.fillStyle = "rgba(255, 0, 0, 0)";
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 1;
+        const radius = 3;
+        for (const intersection of activeIntersections) {
+          ctx.beginPath();
+          ctx.arc(
+            offsetX + intersection.x,
+            offsetY + intersection.y,
+            radius,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+
       ctx.globalAlpha = 1;
     }
 
@@ -1905,6 +1996,19 @@ function ASCIICanvas({
         ctx.globalAlpha = 0.15;
         ctx.fill();
         ctx.globalAlpha = 1;
+      }
+    }
+
+    if (showCellOutlines) {
+      ctx.strokeStyle = "#ff0000";
+      ctx.lineWidth = 0.5;
+      ctx.globalAlpha = 1;
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = Math.round(offsetX + col * actualStrideX);
+          const y = Math.round(offsetY + row * actualStrideY);
+          ctx.strokeRect(x, y, actualCharWidth, actualCharHeight);
+        }
       }
     }
     // #region agent log
@@ -1950,6 +2054,7 @@ function ASCIICanvas({
     showCreases,
     showPaperShape,
     showHitCounts,
+    showCellOutlines,
     onStatsUpdate,
   ]);
 
@@ -1994,12 +2099,15 @@ export default function FoldedPaper() {
   const [showCreases, setShowCreases] = useState(false);
   const [showPaperShape, setShowPaperShape] = useState(false);
   const [showHitCounts, setShowHitCounts] = useState(false);
+  const [showCellOutlines, setShowCellOutlines] = useState(false);
   const [intersectionCount, setIntersectionCount] = useState(0);
   const [creaseCount, setCreaseCount] = useState(0);
   const [maxFoldsValue, setMaxFoldsValue] = useState(0);
   const [showBatchMode, setShowBatchMode] = useState(false);
   const [generatingGif, setGeneratingGif] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
+  const [gifStartFolds, setGifStartFolds] = useState(0);
+  const [gifEndFolds, setGifEndFolds] = useState(500);
   const [fontReady, setFontReady] = useState(false);
 
   // Load the embedded font on mount
@@ -2095,8 +2203,11 @@ export default function FoldedPaper() {
 
       const gif = new GIF(gifOptions);
 
+      const startFolds = Math.max(0, Math.min(gifStartFolds, gifEndFolds));
+      const endFolds = Math.max(startFolds, gifEndFolds);
+
       const frameFolds = [];
-      for (let f = 0; f <= 500; f += 2) {
+      for (let f = startFolds; f <= endFolds; f += 2) {
         frameFolds.push(f);
       }
 
@@ -2162,7 +2273,7 @@ export default function FoldedPaper() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `fold-animation-seed-${seed}-folds-0-to-500.gif`;
+        a.download = `fold-animation-seed-${seed}-folds-${startFolds}-to-${endFolds}.gif`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -2296,7 +2407,7 @@ export default function FoldedPaper() {
             }}
           >
             <ASCIICanvas
-              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}`}
+              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}-${showCellOutlines}`}
               width={width}
               height={height}
               folds={folds}
@@ -2316,6 +2427,7 @@ export default function FoldedPaper() {
               showCreases={showCreases}
               showPaperShape={showPaperShape}
               showHitCounts={showHitCounts}
+              showCellOutlines={showCellOutlines}
               onStatsUpdate={(stats) => {
                 setIntersectionCount(stats.intersections);
                 setCreaseCount(stats.creases);
@@ -2388,6 +2500,85 @@ export default function FoldedPaper() {
             >
               Download PNG
             </button>
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 6,
+                  color: "#777",
+                }}
+              >
+                GIF Range
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 8,
+                      color: "#666",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Start
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000}
+                    value={gifStartFolds}
+                    onChange={(e) =>
+                      setGifStartFolds(
+                        Math.max(0, parseInt(e.target.value) || 0)
+                      )
+                    }
+                    disabled={generatingGif}
+                    style={{
+                      width: "100%",
+                      background: generatingGif ? "#1a1a1a" : "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: generatingGif ? "#444" : "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 9,
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 8,
+                      color: "#666",
+                      marginBottom: 4,
+                    }}
+                  >
+                    End
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000}
+                    value={gifEndFolds}
+                    onChange={(e) =>
+                      setGifEndFolds(
+                        Math.max(0, parseInt(e.target.value) || 500)
+                      )
+                    }
+                    disabled={generatingGif}
+                    style={{
+                      width: "100%",
+                      background: generatingGif ? "#1a1a1a" : "#222",
+                      border: "1px solid #444",
+                      padding: "4px 6px",
+                      color: generatingGif ? "#444" : "#ccc",
+                      fontFamily: "inherit",
+                      fontSize: 9,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
             <button
               onClick={generateAnimatedGif}
               disabled={generatingGif}
@@ -2408,7 +2599,7 @@ export default function FoldedPaper() {
             >
               {generatingGif
                 ? `Generating GIF... ${gifProgress}%`
-                : "Generate Animated GIF (0-500 folds)"}
+                : `Generate Animated GIF (${gifStartFolds}-${gifEndFolds} folds)`}
             </button>
           </div>
 
@@ -2740,6 +2931,24 @@ export default function FoldedPaper() {
                     style={{ cursor: "pointer", accentColor: "#666" }}
                   />
                   Show hit counts
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 9,
+                    cursor: "pointer",
+                    color: "#666",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showCellOutlines}
+                    onChange={(e) => setShowCellOutlines(e.target.checked)}
+                    style={{ cursor: "pointer", accentColor: "#666" }}
+                  />
+                  Show cell outlines
                 </label>
               </div>
             </div>
