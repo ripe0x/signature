@@ -1092,6 +1092,149 @@ export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
   // return { ...paperProps, absorbency: scaledAbsorbency };
 }
 
+// ============ GAP CALCULATION ============
+
+const ALLOWED_GAP_RATIOS = [
+  1 / 64, 1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1.0, 2.0,
+];
+
+export function calculateGridWithGaps(seed, cellWidth, cellHeight, innerWidth, innerHeight) {
+  const gapRng = seededRandom(seed + 12345);
+
+  // 40% chance of having any gaps at all
+  const useGaps = gapRng() < 0.4;
+
+  let useColGaps = false;
+  let useRowGaps = false;
+
+  if (useGaps) {
+    const gapTypeRoll = gapRng();
+    if (gapTypeRoll < 0.33) {
+      useColGaps = true;
+    } else if (gapTypeRoll < 0.66) {
+      useRowGaps = true;
+    } else {
+      useColGaps = true;
+      useRowGaps = true;
+    }
+  }
+
+  const getWeightedGapRatios = () => {
+    const ratios = ALLOWED_GAP_RATIOS.slice(0, 7); // Always include up to 1x
+    if (gapRng() < 0.25) {
+      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x - rare
+    }
+    return ratios;
+  };
+
+  let refCellWidth = cellWidth;
+  let refCellHeight = cellHeight;
+
+  // Calculate best column configuration
+  let bestCols = 1;
+  let bestColGap = 0;
+  let bestColFit = Infinity;
+
+  const colGapRatios = useColGaps ? getWeightedGapRatios() : [0];
+
+  for (const gapRatio of colGapRatios) {
+    const gap = refCellWidth * gapRatio;
+    const stride = refCellWidth + gap;
+    const cols = Math.max(1, Math.floor((innerWidth + gap) / stride));
+
+    if (cols === 1) {
+      const cellW = Math.min(refCellWidth, innerWidth);
+      const fit = Math.abs(innerWidth - cellW);
+      if (fit < bestColFit) {
+        bestColFit = fit;
+        bestCols = 1;
+        bestColGap = 0;
+        refCellWidth = cellW;
+      }
+    } else {
+      const actualWidth = cols * refCellWidth + (cols - 1) * gap;
+      if (actualWidth <= innerWidth) {
+        const fit = Math.abs(innerWidth - actualWidth);
+        if (fit < bestColFit) {
+          bestColFit = fit;
+          bestCols = cols;
+          bestColGap = gap;
+        }
+      }
+    }
+  }
+
+  if (bestCols === 1 && refCellWidth < innerWidth) {
+    refCellWidth = innerWidth;
+    bestColGap = 0;
+  }
+
+  // Calculate best row configuration
+  let bestRows = 1;
+  let bestRowGap = 0;
+  let bestRowFit = Infinity;
+
+  const rowGapRatios = useRowGaps ? getWeightedGapRatios() : [0];
+
+  for (const gapRatio of rowGapRatios) {
+    const gap = refCellHeight * gapRatio;
+    const stride = refCellHeight + gap;
+    const rows = Math.max(1, Math.floor((innerHeight + gap) / stride));
+
+    if (rows === 1) {
+      const cellH = Math.min(refCellHeight, innerHeight);
+      const fit = Math.abs(innerHeight - cellH);
+      if (fit < bestRowFit) {
+        bestRowFit = fit;
+        bestRows = 1;
+        bestRowGap = 0;
+        refCellHeight = cellH;
+      }
+    } else {
+      const actualHeight = rows * refCellHeight + (rows - 1) * gap;
+      if (actualHeight <= innerHeight) {
+        const fit = Math.abs(innerHeight - actualHeight);
+        if (fit < bestRowFit) {
+          bestRowFit = fit;
+          bestRows = rows;
+          bestRowGap = gap;
+        }
+      }
+    }
+  }
+
+  if (bestRows === 1 && refCellHeight < innerHeight) {
+    refCellHeight = innerHeight;
+    bestRowGap = 0;
+  }
+
+  const cols = bestCols;
+  const rows = bestRows;
+  const colGap = bestColGap;
+  const rowGap = bestRowGap;
+
+  const actualGridWidth = cols * refCellWidth + (cols > 1 ? (cols - 1) * colGap : 0);
+  const actualGridHeight = rows * refCellHeight + (rows > 1 ? (rows - 1) * rowGap : 0);
+
+  const widthDiff = innerWidth - actualGridWidth;
+  const heightDiff = innerHeight - actualGridHeight;
+
+  return {
+    cols,
+    rows,
+    cellWidth: refCellWidth,
+    cellHeight: refCellHeight,
+    colGap,
+    rowGap,
+    strideX: refCellWidth + colGap,
+    strideY: refCellHeight + rowGap,
+    gridOffsetX: widthDiff > 0 ? widthDiff / 2 : 0,
+    gridOffsetY: heightDiff > 0 ? heightDiff / 2 : 0,
+    actualGridWidth,
+    actualGridHeight,
+  };
+}
+
 // ============ ADAPTIVE THRESHOLDS ============
 
 export function calculateAdaptiveThresholds(cellWeights) {
@@ -2188,11 +2331,14 @@ export function renderToCanvas({
   levelColors,
   foldStrategy = null,
   paperProperties = null,
+  padding = 0,
   showCreases = false,
   showPaperShape = false,
   showFoldTargets = false,
   showIntersections = false,
   showGrid = false,
+  showHitCounts = false,
+  showCellOutlines = false,
   fontFamily = FONT_STACK,
 }) {
   const canvas = document.createElement("canvas");
@@ -2209,33 +2355,38 @@ export function renderToCanvas({
   const scaleX = outputWidth / REFERENCE_WIDTH;
   const scaleY = outputHeight / REFERENCE_HEIGHT;
 
-  const refDrawWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
-  const refDrawHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
-  const refOffsetX = DRAWING_MARGIN;
-  const refOffsetY = DRAWING_MARGIN;
+  // Calculate inner dimensions accounting for padding and drawing margin
+  const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
+  const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
-  const cols = Math.max(1, Math.floor(refDrawWidth / cellWidth));
-  const rows = Math.max(1, Math.floor(refDrawHeight / cellHeight));
+  // Use gap calculation for grid layout
+  const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, refInnerWidth, refInnerHeight);
+  const { cols, rows, strideX, strideY, gridOffsetX, gridOffsetY } = grid;
+  const refCellWidth = grid.cellWidth;
+  const refCellHeight = grid.cellHeight;
 
-  const refCellWidth = refDrawWidth / cols;
-  const refCellHeight = refDrawHeight / rows;
-
-  const drawWidth = refDrawWidth * scaleX;
-  const drawHeight = refDrawHeight * scaleY;
-  const offsetX = refOffsetX * scaleX;
-  const offsetY = refOffsetY * scaleY;
+  const drawWidth = refInnerWidth * scaleX;
+  const drawHeight = refInnerHeight * scaleY;
+  const offsetX = (padding + DRAWING_MARGIN + gridOffsetX) * scaleX;
+  const offsetY = (padding + DRAWING_MARGIN + gridOffsetY) * scaleY;
   const actualCellWidth = refCellWidth * scaleX;
   const actualCellHeight = refCellHeight * scaleY;
+  const actualStrideX = strideX * scaleX;
+  const actualStrideY = strideY * scaleY;
 
   const weightRange = generateWeightRange(seed);
 
   // Scale absorbency based on grid density
   const scaledPaperProps = scaleAbsorbencyForGrid(paperProperties, cols, rows);
 
+  // Use actual grid dimensions for fold simulation
+  const actualGridWidth = grid.actualGridWidth;
+  const actualGridHeight = grid.actualGridHeight;
+
   const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
     simulateFolds(
-      refDrawWidth,
-      refDrawHeight,
+      actualGridWidth,
+      actualGridHeight,
       folds,
       seed,
       weightRange,
@@ -2257,42 +2408,18 @@ export function renderToCanvas({
 
   let firstFoldTargetCell = null;
   if (firstFoldTarget) {
-    // Fold target is in reference space (0 to refDrawWidth/Height)
-    // Convert to cell coordinates - cells fill the drawing area exactly
-    const targetCol = Math.floor(firstFoldTarget.x / refCellWidth);
-    const targetRow = Math.floor(firstFoldTarget.y / refCellHeight);
-    if (
-      targetCol >= 0 &&
-      targetCol < cols &&
-      targetRow >= 0 &&
-      targetRow < rows &&
-      firstFoldTarget.x >= 0 &&
-      firstFoldTarget.x <= refDrawWidth &&
-      firstFoldTarget.y >= 0 &&
-      firstFoldTarget.y <= refDrawHeight
-    ) {
-      firstFoldTargetCell = `${targetCol},${targetRow}`;
-    }
+    // Fold target is in grid space - convert to cell coordinates using stride
+    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX)));
+    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY)));
+    firstFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
   let lastFoldTargetCell = null;
   if (lastFoldTarget) {
-    // Fold target is in reference space (0 to refDrawWidth/Height)
-    // Convert to cell coordinates - cells fill the drawing area exactly
-    const targetCol = Math.floor(lastFoldTarget.x / refCellWidth);
-    const targetRow = Math.floor(lastFoldTarget.y / refCellHeight);
-    if (
-      targetCol >= 0 &&
-      targetCol < cols &&
-      targetRow >= 0 &&
-      targetRow < rows &&
-      lastFoldTarget.x >= 0 &&
-      lastFoldTarget.x <= refDrawWidth &&
-      lastFoldTarget.y >= 0 &&
-      lastFoldTarget.y <= refDrawHeight
-    ) {
-      lastFoldTargetCell = `${targetCol},${targetRow}`;
-    }
+    // Fold target is in grid space - convert to cell coordinates using stride
+    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX)));
+    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY)));
+    lastFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
   const {
@@ -2304,8 +2431,8 @@ export function renderToCanvas({
     scaledCreases,
     cols,
     rows,
-    actualCellWidth,
-    actualCellHeight,
+    actualStrideX,
+    actualStrideY,
     maxFolds,
     paperProperties
   );
@@ -2326,6 +2453,15 @@ export function renderToCanvas({
   ctx.textBaseline = "top";
 
   const shadeChars = [" ", "░", "▒", "▓"];
+
+  // Pre-measure character widths
+  const charMetrics = {};
+  for (const char of shadeChars) {
+    const metrics = ctx.measureText(char);
+    charMetrics[char] = {
+      width: metrics.width,
+    };
+  }
 
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
 
@@ -2366,10 +2502,39 @@ export function renderToCanvas({
     return textColor;
   };
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = Math.round(offsetX + col * actualCellWidth);
-      const y = Math.round(offsetY + row * actualCellHeight);
+  // Use actual grid width for the right boundary, not the full draw width
+  const scaledActualGridWidth = actualGridWidth * scaleX;
+  const drawAreaRight = offsetX + scaledActualGridWidth;
+
+  // showHitCounts mode: draw numeric weight values instead of shade characters
+  if (showHitCounts) {
+    const hitFontSize = Math.floor(Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7));
+    ctx.font = `bold ${hitFontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = textColor;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = Math.round(offsetX + col * actualStrideX + actualCellWidth / 2);
+        const y = Math.round(offsetY + row * actualStrideY + actualCellHeight / 2);
+        const key = `${col},${row}`;
+        const weight = intersectionWeight[key] || 0;
+
+        if (weight > 0) {
+          ctx.fillText(Math.round(weight).toString(), x, y);
+        }
+      }
+    }
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+  } else {
+    // Normal rendering: shade characters
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = Math.round(offsetX + col * actualStrideX);
+        const y = Math.round(offsetY + row * actualStrideY);
       const key = `${col},${row}`;
       const weight = intersectionWeight[key] || 0;
 
@@ -2452,7 +2617,7 @@ export function renderToCanvas({
         }
 
         const measuredCharWidth = ctx.measureText(char).width;
-        const cellEndX = Math.round(offsetX + (col + 1) * actualCellWidth);
+        const cellEndX = x + actualCellWidth;
 
         let currentX = x;
         let charIndex = 0;
@@ -2465,21 +2630,34 @@ export function renderToCanvas({
             nextChar = shadeChars[Math.max(0, level - 1)];
           }
 
-          const nextCharWidth = ctx.measureText(nextChar).width;
+          const nextCharWidth = charMetrics[nextChar]?.width || ctx.measureText(nextChar).width;
           const remainingWidth = cellEndX - currentX;
 
           if (remainingWidth <= 0) break;
 
-          if (remainingWidth < nextCharWidth * 1.1) {
-            ctx.fillText(nextChar, cellEndX - nextCharWidth, y);
-            break;
-          } else {
-            ctx.fillText(nextChar, currentX, y);
-            currentX += nextCharWidth * overlapFactor;
-          }
+          // Don't draw if character would extend past drawing area
+          if (currentX + nextCharWidth > drawAreaRight) break;
+
+          ctx.fillText(nextChar, currentX, y);
+          currentX += nextCharWidth * overlapFactor;
 
           charIndex++;
         }
+      }
+    }
+  }
+  } // end else (normal rendering)
+
+  // Draw cell outlines if enabled
+  if (showCellOutlines) {
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 1;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = Math.round(offsetX + col * actualStrideX);
+        const y = Math.round(offsetY + row * actualStrideY);
+        ctx.strokeRect(x, y, actualCellWidth, actualCellHeight);
       }
     }
   }
@@ -2535,7 +2713,7 @@ export function renderToCanvas({
     ctx.globalAlpha = 0.3;
     // Vertical lines
     for (let col = 0; col <= cols; col++) {
-      const x = offsetX + col * actualCellWidth;
+      const x = offsetX + col * actualStrideX;
       ctx.beginPath();
       ctx.moveTo(x, offsetY);
       ctx.lineTo(x, offsetY + drawHeight);
@@ -2543,7 +2721,7 @@ export function renderToCanvas({
     }
     // Horizontal lines
     for (let row = 0; row <= rows; row++) {
-      const y = offsetY + row * actualCellHeight;
+      const y = offsetY + row * actualStrideY;
       ctx.beginPath();
       ctx.moveTo(offsetX, y);
       ctx.lineTo(offsetX + drawWidth, y);
@@ -2729,63 +2907,101 @@ async function loadOnChainFont(fontDataUri) {
   }
 }
 
+// Convert hex string seed to numeric seed
+function hexSeedToNumber(hexSeed) {
+  if (typeof hexSeed === "number") return hexSeed;
+  if (typeof hexSeed !== "string") return 0;
+  // Take first 8 bytes of hex (16 chars after 0x) and convert to number
+  const hex = hexSeed.replace(/^0x/, "").slice(0, 16);
+  // Use BigInt for large numbers, then convert to safe integer range
+  const bigNum = BigInt("0x" + hex);
+  return Number(bigNum % BigInt(2147483647));
+}
+
 // Auto-render if global variables are set (for on-chain use)
 export async function initOnChain() {
-  const seed = typeof window !== "undefined" && window.SEED;
-  const foldCount = typeof window !== "undefined" && window.FOLD_COUNT;
+  // Support both old (SEED/FOLD_COUNT) and new (LESS_SEED/LESS_TOKEN_ID) variable names
+  let seed = typeof window !== "undefined" && window.SEED;
+  let foldCount = typeof window !== "undefined" && window.FOLD_COUNT;
+
+  // New format from LessRenderer contract
+  const lessSeed = typeof window !== "undefined" && window.LESS_SEED;
+
+  // Convert LESS_SEED hex string to numeric seed if present
+  if (lessSeed && !seed) {
+    seed = hexSeedToNumber(lessSeed);
+  }
+
+  // Derive fold count from seed if not provided
+  // Use same RNG as generateAllParams to get consistent fold count
+  if (seed && foldCount === undefined) {
+    const rng = seededRandom(seed + 9999);
+    foldCount = Math.floor(1 + rng() * 500);
+  }
+
   // Use embedded font data URI, or allow override via window.FONT_DATA_URI
   const fontDataUri =
     (typeof window !== "undefined" && window.FONT_DATA_URI) ||
     ONCHAIN_FONT_DATA_URI;
 
   if (seed && foldCount !== undefined) {
-    const canvas =
+    // Find or create canvas element
+    let canvas =
       document.getElementById("c") || document.querySelector("canvas");
-    if (canvas) {
-      // Load font (embedded or provided)
-      await loadOnChainFont(fontDataUri);
 
-      const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
-
-      // Render directly to existing canvas
-      const dataUrl = renderToCanvas({
-        folds: foldCount,
-        seed: seed,
-        outputWidth: 1200,
-        outputHeight: 1500,
-        bgColor: params.palette.bg,
-        textColor: params.palette.text,
-        accentColor: params.palette.accent,
-        cellWidth: params.cells.cellW,
-        cellHeight: params.cells.cellH,
-        renderMode: params.renderMode,
-        multiColor: params.multiColor,
-        levelColors: params.levelColors,
-        foldStrategy: params.foldStrategy,
-        paperProperties: params.paperProperties,
-      });
-
-      // Load into canvas
-      const img = new Image();
-      img.onload = () => {
-        const ctx = canvas.getContext("2d");
-        canvas.width = 1200;
-        canvas.height = 1500;
-        ctx.drawImage(img, 0, 0);
-        // Trigger scaling after canvas is ready
-        if (typeof window.scaleCanvas === "function") {
-          window.scaleCanvas();
-        }
-      };
-      img.src = dataUrl;
+    if (!canvas) {
+      // Create canvas if it doesn't exist
+      canvas = document.createElement("canvas");
+      canvas.id = "c";
+      canvas.style.cssText = "display:block;margin:0 auto;max-width:100%;max-height:100vh;";
+      document.body.appendChild(canvas);
+      // Style body for full-screen canvas
+      document.body.style.cssText = "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;";
     }
+
+    // Load font (embedded or provided)
+    await loadOnChainFont(fontDataUri);
+
+    const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
+
+    // Render directly to existing canvas
+    const dataUrl = renderToCanvas({
+      folds: foldCount,
+      seed: seed,
+      outputWidth: 1200,
+      outputHeight: 1500,
+      bgColor: params.palette.bg,
+      textColor: params.palette.text,
+      accentColor: params.palette.accent,
+      cellWidth: params.cells.cellW,
+      cellHeight: params.cells.cellH,
+      renderMode: params.renderMode,
+      multiColor: params.multiColor,
+      levelColors: params.levelColors,
+      foldStrategy: params.foldStrategy,
+      paperProperties: params.paperProperties,
+    });
+
+    // Load into canvas
+    const img = new Image();
+    img.onload = () => {
+      const ctx = canvas.getContext("2d");
+      canvas.width = 1200;
+      canvas.height = 1500;
+      ctx.drawImage(img, 0, 0);
+      // Trigger scaling after canvas is ready
+      if (typeof window.scaleCanvas === "function") {
+        window.scaleCanvas();
+      }
+    };
+    img.src = dataUrl;
   }
 }
 
 // Auto-init when DOM is ready (for on-chain use)
 if (
   typeof window !== "undefined" &&
-  (window.SEED || window.FOLD_COUNT !== undefined)
+  (window.SEED || window.FOLD_COUNT !== undefined || window.LESS_SEED)
 ) {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => initOnChain());

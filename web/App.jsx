@@ -32,6 +32,7 @@ import {
   generatePaperProperties,
   getPaperDescription,
   scaleAbsorbencyForGrid,
+  calculateGridWithGaps,
   generateAllParams,
   // Simulation
   simulateFolds,
@@ -1364,828 +1365,76 @@ function ASCIICanvas({
 }) {
   const canvasRef = useRef(null);
 
-  const scaleX = width / REFERENCE_WIDTH;
-  const scaleY = height / REFERENCE_HEIGHT;
-
-  const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
-  const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
-
-  // Calculate optimal cell sizes and gaps to fill the drawing space
-  // Gaps must be one of the allowed ratios (powers of 2 from 1/64 to 2x)
-  // Smaller gaps are more common, gaps > 1/4 are rare
-  const ALLOWED_GAP_RATIOS = [
-    // Positive gaps (spacing between cells) - from 1/64 to 2x
-    1 / 64, // 0.015625
-    1 / 32, // 0.03125
-    1 / 16, // 0.0625
-    1 / 8, // 0.125
-    1 / 4, // 0.25
-    1 / 2, // 0.5
-    1.0, // 1x
-    2.0, // 2x
-  ];
-
-  // Use seed to deterministically determine gap usage
-  const gapRng = seededRandom(seed + 12345);
-
-  // 40% chance of having any gaps at all
-  const useGaps = gapRng() < 0.4;
-
-  // If using gaps, determine which dimensions get gaps
-  // 33% cols only, 33% rows only, 34% both
-  let useColGaps = false;
-  let useRowGaps = false;
-
-  if (useGaps) {
-    const gapTypeRoll = gapRng();
-    if (gapTypeRoll < 0.33) {
-      useColGaps = true;
-    } else if (gapTypeRoll < 0.66) {
-      useRowGaps = true;
-    } else {
-      useColGaps = true;
-      useRowGaps = true;
-    }
-  }
-
-  // Weight gap ratios: smaller gaps are more likely, gaps > 1/4 are rare
-  // Create weighted list where gaps <= 1/4 get higher weight
-  const getWeightedGapRatios = () => {
-    const ratios = [];
-
-    // Small positive gaps (<= 1/4): always included
-    ratios.push(ALLOWED_GAP_RATIOS[0]); // 1/64
-    ratios.push(ALLOWED_GAP_RATIOS[1]); // 1/32
-    ratios.push(ALLOWED_GAP_RATIOS[2]); // 1/16
-    ratios.push(ALLOWED_GAP_RATIOS[3]); // 1/8
-    ratios.push(ALLOWED_GAP_RATIOS[4]); // 1/4
-
-    // Medium positive gaps (1/2, 1x): always included
-    ratios.push(ALLOWED_GAP_RATIOS[5]); // 1/2
-    ratios.push(ALLOWED_GAP_RATIOS[6]); // 1x
-
-    // Large positive gaps (2x): only 25% chance (very rare)
-    if (gapRng() < 0.25) {
-      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x
-    }
-
-    return ratios;
-  };
-
-  let refCellWidth = cellWidth;
-  let refCellHeight = cellHeight;
-
-  // For columns: try each gap ratio and find the one that best fills the space
-  // Important: use Math.floor to ensure we never exceed the available space
-  let bestCols = 1;
-  let bestColGap = 0;
-  let bestColFit = Infinity;
-
-  const colGapRatios = useColGaps ? getWeightedGapRatios() : [0];
-
-  for (const gapRatio of colGapRatios) {
-    const gap = refCellWidth * gapRatio;
-
-    // Solve: cols * cellWidth + (cols - 1) * gap = refInnerWidth
-    // cols = (refInnerWidth + gap) / (cellWidth + gap)
-    // Use Math.floor to ensure we never exceed the space
-    const stride = refCellWidth + gap;
-
-    const cols = Math.max(1, Math.floor((refInnerWidth + gap) / stride));
-
-    if (cols === 1) {
-      // Single column - no gap needed, but don't exceed width
-      const cellW = Math.min(refCellWidth, refInnerWidth);
-      const fit = Math.abs(refInnerWidth - cellW);
-      if (fit < bestColFit) {
-        bestColFit = fit;
-        bestCols = 1;
-        bestColGap = 0;
-        refCellWidth = cellW;
-      }
-    } else {
-      const actualWidth = cols * refCellWidth + (cols - 1) * gap;
-      // Only consider this configuration if it doesn't exceed the space
-      if (actualWidth <= refInnerWidth) {
-        const fit = Math.abs(refInnerWidth - actualWidth);
-        if (fit < bestColFit) {
-          bestColFit = fit;
-          bestCols = cols;
-          bestColGap = gap;
-        }
-      }
-    }
-  }
-
-  // Handle single column case - expand cell to fill space (if not already set)
-  if (bestCols === 1 && refCellWidth < refInnerWidth) {
-    refCellWidth = refInnerWidth;
-    bestColGap = 0;
-  }
-
-  const cols = bestCols;
-  const actualColGap = bestColGap;
-
-  // For rows: try each gap ratio and find the one that best fills the space
-  // Important: use Math.floor to ensure we never exceed the available space
-  let bestRows = 1;
-  let bestRowGap = 0;
-  let bestRowFit = Infinity;
-
-  const rowGapRatios = useRowGaps ? getWeightedGapRatios() : [0];
-
-  for (const gapRatio of rowGapRatios) {
-    const gap = refCellHeight * gapRatio;
-
-    // Solve: rows * cellHeight + (rows - 1) * gap = refInnerHeight
-    // rows = (refInnerHeight + gap) / (cellHeight + gap)
-    // Use Math.floor to ensure we never exceed the space
-    const stride = refCellHeight + gap;
-
-    const rows = Math.max(1, Math.floor((refInnerHeight + gap) / stride));
-
-    if (rows === 1) {
-      // Single row - no gap needed, but don't exceed height
-      const cellH = Math.min(refCellHeight, refInnerHeight);
-      const fit = Math.abs(refInnerHeight - cellH);
-      if (fit < bestRowFit) {
-        bestRowFit = fit;
-        bestRows = 1;
-        bestRowGap = 0;
-        refCellHeight = cellH;
-      }
-    } else {
-      const actualHeight = rows * refCellHeight + (rows - 1) * gap;
-      // Only consider this configuration if it doesn't exceed the space
-      if (actualHeight <= refInnerHeight) {
-        const fit = Math.abs(refInnerHeight - actualHeight);
-        if (fit < bestRowFit) {
-          bestRowFit = fit;
-          bestRows = rows;
-          bestRowGap = gap;
-        }
-      }
-    }
-  }
-
-  // Handle single row case - expand cell to fill space (if not already set)
-  if (bestRows === 1 && refCellHeight < refInnerHeight) {
-    refCellHeight = refInnerHeight;
-    bestRowGap = 0;
-  }
-
-  const rows = bestRows;
-  const actualRowGap = bestRowGap;
-
-  // Calculate actual grid dimensions with the determined cell sizes and gaps
-  const actualGridWidth =
-    cols * refCellWidth + (cols > 1 ? (cols - 1) * actualColGap : 0);
-  const actualGridHeight =
-    rows * refCellHeight + (rows > 1 ? (rows - 1) * actualRowGap : 0);
-
-  // Check variation from target
-  const widthDiff = refInnerWidth - actualGridWidth;
-  const heightDiff = refInnerHeight - actualGridHeight;
-  const widthVariation = Math.abs(widthDiff) / refInnerWidth;
-  const heightVariation = Math.abs(heightDiff) / refInnerHeight;
-
-  // Calculate stride (distance between cell centers)
-  const refCellStrideX = refCellWidth + actualColGap;
-  const refCellStrideY = refCellHeight + actualRowGap;
-
-  // Calculate grid offset (for centering) - used for fold target mapping
-  const gridOffsetX = widthDiff > 0 ? widthDiff / 2 : 0;
-  const gridOffsetY = heightDiff > 0 ? heightDiff / 2 : 0;
-
-  // Use the calculated cell dimensions
-  const charWidth = refCellWidth;
-  const charHeight = refCellHeight;
-
-  const innerWidth = refInnerWidth * scaleX;
-  const innerHeight = refInnerHeight * scaleY;
-  const offsetX = (padding + DRAWING_MARGIN + gridOffsetX) * scaleX;
-  const offsetY = (padding + DRAWING_MARGIN + gridOffsetY) * scaleY;
-
   useEffect(() => {
-    const renderStartTime = performance.now();
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1393",
-        message: "Render start",
-        data: { cols, rows, totalCells: cols * rows },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "C",
-      }),
-    }).catch(() => {});
-    // #endregion
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    // Use unified renderToCanvas function
+    const dataUrl = renderToCanvas({
+      folds,
+      seed,
+      outputWidth: width,
+      outputHeight: height,
+      bgColor,
+      textColor,
+      accentColor,
+      cellWidth,
+      cellHeight,
+      renderMode,
+      multiColor,
+      levelColors,
+      foldStrategy,
+      paperProperties,
+      padding,
+      showCreases,
+      showPaperShape,
+      showHitCounts,
+      showCellOutlines,
+    });
 
-    const dpr = window.devicePixelRatio || 1;
+    const img = new Image();
+    img.onload = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.drawImage(img, 0, 0, width, height);
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
-
-    const weightRange = generateWeightRange(seed);
-
-    const actualCharWidth = refCellWidth * scaleX;
-    const actualCharHeight = refCellHeight * scaleY;
-    const actualStrideX = refCellStrideX * scaleX;
-    const actualStrideY = refCellStrideY * scaleY;
-
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1430",
-        message: "Before simulateFolds",
-        data: {
-          seed,
-          folds,
-          refInnerWidth,
-          refInnerHeight,
-          foldStrategyType: foldStrategy?.type,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "B",
-      }),
-    }).catch(() => {});
-    // #endregion
-    // Scale absorbency based on grid density
-    const scaledPaperProps = scaleAbsorbencyForGrid(paperProperties, cols, rows);
-
-    const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
-      simulateFolds(
-        actualGridWidth,
-        actualGridHeight,
-        folds,
-        seed,
-        weightRange,
-        foldStrategy,
-        scaledPaperProps
-      );
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1437",
-        message: "After simulateFolds",
-        data: {
-          creaseCount: creases.length,
-          maxFolds,
-          hasLastFoldTarget: !!lastFoldTarget,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "B",
-      }),
-    }).catch(() => {});
-    // #endregion
-
-    const scaledCreases = creases.map((crease) => ({
-      ...crease,
-      p1: {
-        x: crease.p1.x * scaleX,
-        y: crease.p1.y * scaleY,
-      },
-      p2: {
-        x: crease.p2.x * scaleX,
-        y: crease.p2.y * scaleY,
-      },
-    }));
-
-    let firstFoldTargetCell = null;
-    if (firstFoldTarget) {
-      // Fold target is now in grid space (0 to actualGridWidth/Height)
-      // Convert directly to cell coordinates
-      const targetCol = Math.max(
-        0,
-        Math.min(cols - 1, Math.floor(firstFoldTarget.x / refCellStrideX))
-      );
-      const targetRow = Math.max(
-        0,
-        Math.min(rows - 1, Math.floor(firstFoldTarget.y / refCellStrideY))
-      );
-      firstFoldTargetCell = `${targetCol},${targetRow}`;
-    }
-
-    let lastFoldTargetCell = null;
-    if (lastFoldTarget) {
-      // Fold target is now in grid space (0 to actualGridWidth/Height)
-      // Convert directly to cell coordinates
-      const targetCol = Math.max(
-        0,
-        Math.min(cols - 1, Math.floor(lastFoldTarget.x / refCellStrideX))
-      );
-      const targetRow = Math.max(
-        0,
-        Math.min(rows - 1, Math.floor(lastFoldTarget.y / refCellStrideY))
-      );
-      lastFoldTargetCell = `${targetCol},${targetRow}`;
-    }
-
-    const scaledFinalShape = finalShape.map((point) => ({
-      x: point.x * scaleX,
-      y: point.y * scaleY,
-    }));
-
-    // #region agent log
-    const processCreasesStart = performance.now();
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1476",
-        message: "Before processCreases",
-        data: {
-          seed,
-          cols,
-          rows,
-          totalCells: cols * rows,
-          creaseCount: scaledCreases.length,
-          actualStrideX,
-          actualStrideY,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "C",
-      }),
-    }).catch(() => {});
-    // #endregion
-    const {
-      activeCreases,
-      intersections: activeIntersections,
-      cellWeights: intersectionWeight,
-      cellMaxGap,
-    } = processCreases(
-      scaledCreases,
-      cols,
-      rows,
-      actualStrideX,
-      actualStrideY,
-      maxFolds,
-      paperProperties
-    );
-    // #region agent log
-    const processCreasesTime = performance.now() - processCreasesStart;
-    const cellWeightKeys = Object.keys(intersectionWeight);
-    const cellsWithWeight = cellWeightKeys.filter(
-      (k) => intersectionWeight[k] > 0
-    );
-    const maxWeight = Math.max(
-      ...cellWeightKeys.map((k) => intersectionWeight[k]),
-      0
-    );
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1492",
-        message: "After processCreases",
-        data: {
-          seed,
-          processCreasesTimeMs: processCreasesTime,
-          intersections: activeIntersections.length,
-          totalCells: cellWeightKeys.length,
-          cellsWithWeight: cellsWithWeight.length,
-          maxWeight,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "D",
-      }),
-    }).catch(() => {});
-    // #endregion
-
-    const creasesForRender = activeCreases;
-
-    const fontSize = actualCharHeight - 2 * scaleY;
-    const sizeCategory = fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
-
-    // Determine overlap pattern based on seed
-    // Pattern types: 0 = uniform, 1 = row-based, 2 = col-based, 3 = checkerboard, 4 = diagonal
-    const overlapRng = seededRandom(seed + 11111);
-    const overlapPatternType = Math.floor(overlapRng() * 5);
-    const overlapIntervals = [0.95, 0.75, 0.50, 0.25, 0.05]; // 5%, 25%, 50%, 75%, 95% overlap
-    const baseOverlapIndex = Math.floor(overlapRng() * overlapIntervals.length);
-    const overlapVariation = Math.floor(overlapRng() * 3) + 1; // 1-3 steps of variation
-
-    const patternNames = ["uniform", "row-bands", "col-bands", "checker", "diagonal"];
-    const overlapInfo = `${sizeCategory} · overlap: ${patternNames[overlapPatternType]} (${Math.round((1 - overlapIntervals[baseOverlapIndex]) * 100)}%${overlapPatternType > 0 ? " ±" + (overlapVariation * 25) + "%" : ""})`;
-
-    // Function to get overlap factor for a cell based on pattern
-    const getOverlapFactor = (row, col) => {
-      let idx = baseOverlapIndex;
-      switch (overlapPatternType) {
-        case 1: // row-based bands
-          idx = (baseOverlapIndex + Math.floor(row / 2) * overlapVariation) % overlapIntervals.length;
-          break;
-        case 2: // col-based bands
-          idx = (baseOverlapIndex + Math.floor(col / 2) * overlapVariation) % overlapIntervals.length;
-          break;
-        case 3: // checkerboard
-          idx = (baseOverlapIndex + ((row + col) % 2) * overlapVariation) % overlapIntervals.length;
-          break;
-        case 4: // diagonal stripes
-          idx = (baseOverlapIndex + Math.floor((row + col) / 2) * overlapVariation) % overlapIntervals.length;
-          break;
-        default: // uniform
-          break;
+      // Call onStatsUpdate if provided (stats from grid calculation)
+      if (onStatsUpdate) {
+        const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
+        const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
+        const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, refInnerWidth, refInnerHeight);
+        onStatsUpdate({
+          intersections: 0,
+          creases: 0,
+          destroyed: 0,
+          maxFolds: 0,
+          fontSize: 0,
+          overlapInfo: `${grid.cols}x${grid.rows} cells`,
+        });
       }
-      return overlapIntervals[idx];
     };
-
-    if (onStatsUpdate) {
-      onStatsUpdate({
-        intersections: activeIntersections.length,
-        creases: activeCreases.length,
-        destroyed: 0,
-        maxFolds: maxFolds,
-        fontSize: fontSize,
-        overlapInfo: overlapInfo,
-      });
-    }
-
-    ctx.font = `${fontSize}px "Courier New", Courier, monospace`;
-    ctx.textBaseline = "top";
-
-    const shadeChars = [" ", "░", "▒", "▓"];
-
-    const thresholds = calculateAdaptiveThresholds(intersectionWeight);
-
-    const accentCells = new Set();
-    if (Object.keys(cellMaxGap).length > 0) {
-      const maxGap = Math.max(...Object.values(cellMaxGap));
-      for (const [key, gap] of Object.entries(cellMaxGap)) {
-        if (gap === maxGap) {
-          accentCells.add(key);
-        }
-      }
-    }
-
-    if (showHitCounts) {
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, width, height);
-
-      const fontSize = Math.floor(
-        Math.min(actualCharWidth * 0.45, actualCharHeight * 0.7)
-      );
-      ctx.font = `bold ${fontSize}px monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = textColor;
-
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const x = Math.round(
-            offsetX + col * actualStrideX + actualCharWidth / 2
-          );
-          const y = Math.round(
-            offsetY + row * actualStrideY + actualCharHeight / 2
-          );
-          const key = `${col},${row}`;
-          const weight = intersectionWeight[key] || 0;
-
-          if (weight > 0) {
-            ctx.fillText(Math.round(weight).toString(), x, y);
-          }
-        }
-      }
-
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-    } else {
-      // #region agent log
-      const renderLoopStart = performance.now();
-      let cellsRendered = 0;
-      let cellsWithChar = 0;
-      fetch(
-        "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "App.jsx:1551",
-            message: "Before render loop",
-            data: { seed, cols, rows, totalCells: cols * rows },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "E",
-          }),
-        }
-      ).catch(() => {});
-      // #endregion
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          cellsRendered++;
-          const x = Math.round(offsetX + col * actualStrideX);
-          const y = Math.round(offsetY + row * actualStrideY);
-          const key = `${col},${row}`;
-          const weight = intersectionWeight[key] || 0;
-
-          let char = null;
-          let color = textColor;
-          let level = -1;
-
-          const getColorForLevel = (lvl) => {
-            if (multiColor && levelColors) {
-              return levelColors[Math.min(lvl, 3)];
-            }
-            return textColor;
-          };
-
-          if (firstFoldTargetCell === key) {
-            // First fold target: always show a visible character with accent color
-            level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
-            char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
-            color = accentColor;
-          } else if (lastFoldTargetCell === key) {
-            // Last fold target: always show a visible character
-            level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
-            char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
-            color = textColor;
-          } else if (accentCells.has(key) && weight > 0) {
-            char = shadeChars[2];
-            level = 2;
-            color = accentColor;
-          } else if (weight >= 1.5) {
-            const extremeAmount = weight - 1.5;
-            const baseShift = 30 + Math.min(extremeAmount * 300, 150);
-            const baseHsl = hexToHsl(textColor);
-            const newHue = (baseHsl.h + baseShift + 360) % 360;
-            const newSat = Math.min(100, baseHsl.s + 20);
-            const newLight = Math.min(85, baseHsl.l + 10);
-            char = shadeChars[3];
-            level = 3;
-            color = hslToHex(newHue, newSat, newLight);
-          } else if (renderMode === "normal") {
-            level = countToLevelAdaptive(weight, thresholds);
-            char = shadeChars[level];
-            color = getColorForLevel(level);
-          } else if (renderMode === "binary") {
-            if (weight === 0) {
-              char = shadeChars[0];
-              level = 0;
-              color = getColorForLevel(0);
-            } else {
-              char = shadeChars[3];
-              level = 3;
-              color = getColorForLevel(3);
-            }
-          } else if (renderMode === "inverted") {
-            level = 3 - countToLevelAdaptive(weight, thresholds);
-            char = shadeChars[level];
-            color = getColorForLevel(level);
-          } else if (renderMode === "sparse") {
-            level = countToLevelAdaptive(weight, thresholds);
-            if (level === 1) {
-              char = shadeChars[1];
-              color = getColorForLevel(1);
-            }
-          } else if (renderMode === "dense") {
-            level = countToLevelAdaptive(weight, thresholds);
-            if (level >= 2) {
-              char = shadeChars[level];
-              color = getColorForLevel(level);
-            } else if (weight === 0) {
-              char = shadeChars[0];
-              level = 0;
-              color = getColorForLevel(0);
-            }
-          }
-
-          if (char) {
-            cellsWithChar++;
-            // Use the color we determined earlier (accentColor for fold targets)
-            // Don't override it with finalColor for fold target cells
-            if (firstFoldTargetCell === key || lastFoldTargetCell === key) {
-              ctx.fillStyle = color; // Already set to accentColor || textColor
-            } else {
-              const finalColor = getColorForLevel(
-                countToLevelAdaptive(weight, thresholds)
-              );
-              ctx.fillStyle =
-                accentCells.has(key) && weight > 0 ? accentColor : finalColor;
-            }
-
-            const cellEndX = x + actualCharWidth;
-
-            let currentX = x;
-            let charIndex = 0;
-            // Get overlap factor based on seed-determined pattern
-            const overlapFactor = getOverlapFactor(row, col);
-
-            while (currentX < cellEndX && level >= 0) {
-              let nextChar = char;
-              if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
-                nextChar = shadeChars[Math.max(0, level - 1)];
-              }
-
-              const nextCharWidth = ctx.measureText(nextChar).width;
-              const remainingWidth = cellEndX - currentX;
-
-              if (remainingWidth <= 0) break;
-
-              if (remainingWidth < nextCharWidth * 1.1) {
-                ctx.fillText(nextChar, cellEndX - nextCharWidth, y);
-                break;
-              } else {
-                ctx.fillText(nextChar, currentX, y);
-                currentX += nextCharWidth * overlapFactor;
-              }
-
-              charIndex++;
-            }
-          }
-        }
-      }
-      // #region agent log
-      const renderLoopTime = performance.now() - renderLoopStart;
-      fetch(
-        "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "App.jsx:1680",
-            message: "After render loop",
-            data: {
-              seed,
-              renderLoopTimeMs: renderLoopTime,
-              cols,
-              rows,
-              totalCells: cols * rows,
-              cellsRendered,
-              cellsWithChar,
-            },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "E",
-          }),
-        }
-      ).catch(() => {});
-      // #endregion
-    }
-
-    if (showCreases) {
-      ctx.strokeStyle = "#ff00ff";
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.7;
-      for (const crease of creasesForRender) {
-        ctx.beginPath();
-        ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
-        ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
-        ctx.stroke();
-      }
-
-      if (firstFoldTarget) {
-        const targetX = offsetX + firstFoldTarget.x * scaleX;
-        const targetY = offsetY + firstFoldTarget.y * scaleY;
-        const radius = 8;
-        ctx.strokeStyle = "#00ff00";
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 1;
-        ctx.beginPath();
-        ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      if (lastFoldTarget) {
-        const targetX = offsetX + lastFoldTarget.x * scaleX;
-        const targetY = offsetY + lastFoldTarget.y * scaleY;
-        const radius = 8;
-        ctx.strokeStyle = "#00ff00";
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 1;
-        ctx.beginPath();
-        ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Draw intersection points as red circles with transparent fill
-      if (activeIntersections && activeIntersections.length > 0) {
-        ctx.strokeStyle = "#ff0000";
-        ctx.fillStyle = "rgba(255, 0, 0, 0)";
-        ctx.lineWidth = 1.5;
-        ctx.globalAlpha = 1;
-        const radius = 3;
-        for (const intersection of activeIntersections) {
-          ctx.beginPath();
-          ctx.arc(
-            offsetX + intersection.x,
-            offsetY + intersection.y,
-            radius,
-            0,
-            Math.PI * 2
-          );
-          ctx.fill();
-          ctx.stroke();
-        }
-      }
-
-      ctx.globalAlpha = 1;
-    }
-
-    if (showPaperShape) {
-      if (scaledFinalShape.length >= 3) {
-        ctx.strokeStyle = "#00ffff";
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.moveTo(
-          offsetX + scaledFinalShape[0].x,
-          offsetY + scaledFinalShape[0].y
-        );
-        for (let i = 1; i < scaledFinalShape.length; i++) {
-          ctx.lineTo(
-            offsetX + scaledFinalShape[i].x,
-            offsetY + scaledFinalShape[i].y
-          );
-        }
-        ctx.closePath();
-        ctx.stroke();
-
-        ctx.fillStyle = "#00ffff";
-        ctx.globalAlpha = 0.15;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-    }
-
-    if (showCellOutlines) {
-      ctx.strokeStyle = accentColor;
-      ctx.lineWidth = 0.5;
-      ctx.globalAlpha = 1;
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const x = Math.round(offsetX + col * actualStrideX);
-          const y = Math.round(offsetY + row * actualStrideY);
-          ctx.strokeRect(x, y, actualCharWidth, actualCharHeight);
-        }
-      }
-    }
-    // #region agent log
-    const totalRenderTime = performance.now() - renderStartTime;
-    fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "App.jsx:1729",
-        message: "Render complete",
-        data: {
-          totalRenderTimeMs: totalRenderTime,
-          cols,
-          rows,
-          totalCells: cols * rows,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "C",
-      }),
-    }).catch(() => {});
-    // #endregion
+    img.src = dataUrl;
   }, [
     width,
     height,
     folds,
     seed,
-    cols,
-    rows,
-    charWidth,
-    charHeight,
     bgColor,
     textColor,
     accentColor,
-    innerWidth,
-    innerHeight,
+    cellWidth,
+    cellHeight,
     padding,
     renderMode,
     multiColor,
     levelColors,
     foldStrategy,
+    paperProperties,
     showCreases,
     showPaperShape,
     showHitCounts,
@@ -2195,6 +1444,7 @@ function ASCIICanvas({
 
   return <canvas ref={canvasRef} />;
 }
+
 
 // ============ MAIN COMPONENT ============
 
