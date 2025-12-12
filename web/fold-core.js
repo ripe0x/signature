@@ -4,7 +4,7 @@
 
 // ============ GLOBAL CONSTANTS ============
 
-export const CELL_MIN = 4;
+export const CELL_MIN = 20;
 export const CELL_MAX = 600;
 export const CELL_ASPECT_MAX = 3;
 export const DRAWING_MARGIN = 50;
@@ -1013,6 +1013,85 @@ export function generateRareHitCounts(seed) {
   return rng() < 0.008;
 }
 
+// ============ PAPER PROPERTIES ============
+// These properties control how folds register on the paper,
+// breaking the 1:1 relationship between fold count and visual density.
+
+export function generatePaperProperties(seed) {
+  const rng = seededRandom(seed + 5555);
+
+  // Absorbency: probability a crease "takes" and leaves a visible mark
+  // Low = resistant paper (few marks), High = soft paper (most folds show)
+  // Range: 0.1 to 0.9
+  const absorbency = 0.1 + rng() * 0.8;
+
+  // Intersection threshold: minimum combined weight for an intersection to register
+  // Low = everything shows, High = only strong crossings appear
+  // Range: 0.0 to 0.5
+  // DISABLED for now - always 0
+  const intersectionThreshold = 0; // rng() * 0.5;
+
+  // Angle affinity: preferred crease angle (null = no preference)
+  // Creases aligned with affinity are stronger
+  const hasAngleAffinity = rng() < 0.4; // 40% of pieces have angle affinity
+  const angleAffinity = hasAngleAffinity ? rng() * 180 : null; // 0-180 degrees
+
+  // Affinity strength: how strongly biased toward the affinity angle
+  // 0 = no effect, 0.8 = strong bias
+  const affinityStrength = hasAngleAffinity ? 0.2 + rng() * 0.6 : 0;
+
+  // Saturation ceiling: maximum total weight the canvas can hold
+  // Based on canvas area, with variation per piece
+  // Lower ceiling = more "worn" look, earlier saturation
+  const ceilingMultiplier = 0.3 + rng() * 1.4; // 0.3x to 1.7x base ceiling
+
+  return {
+    absorbency,
+    intersectionThreshold,
+    angleAffinity,
+    affinityStrength,
+    ceilingMultiplier,
+  };
+}
+
+// Helper to get descriptive name for paper properties
+export function getPaperDescription(props) {
+  const absDesc =
+    props.absorbency < 0.35
+      ? "Resistant"
+      : props.absorbency < 0.65
+      ? "Standard"
+      : "Absorbent";
+
+  const threshDesc =
+    props.intersectionThreshold < 0.15
+      ? "Fine"
+      : props.intersectionThreshold < 0.35
+      ? "Medium"
+      : "Coarse";
+
+  const affinityDesc = props.angleAffinity !== null ? "Grain" : "Uniform";
+
+  return `${absDesc}/${threshDesc}/${affinityDesc}`;
+}
+
+// Scale absorbency based on grid density
+// Small cells = many cells = sparse intersections per cell, so increase absorbency
+// Large cells = few cells = dense intersections per cell, so keep absorbency as-is or lower
+const REFERENCE_CELL_COUNT = 2500; // Tuned for typical large-cell outputs
+
+export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
+  // Scaling disabled for now - return unmodified props
+  return paperProps;
+
+  // Original scaling logic (disabled):
+  // if (!paperProps) return paperProps;
+  // const cellCount = cols * rows;
+  // const cellScaleFactor = Math.sqrt(cellCount / REFERENCE_CELL_COUNT);
+  // const scaledAbsorbency = Math.min(0.95, paperProps.absorbency * cellScaleFactor);
+  // return { ...paperProps, absorbency: scaledAbsorbency };
+}
+
 // ============ ADAPTIVE THRESHOLDS ============
 
 export function calculateAdaptiveThresholds(cellWeights) {
@@ -1475,6 +1554,327 @@ export function weightedRandomIndex(weights, rng) {
   return weights.length - 1;
 }
 
+// ============ EDGE-TO-EDGE FOLD SYSTEM ============
+
+// Edge constants
+const EDGE_TOP = 0;
+const EDGE_RIGHT = 1;
+const EDGE_BOTTOM = 2;
+const EDGE_LEFT = 3;
+
+// Get point on canvas edge
+function getEdgePoint(edge, t, w, h) {
+  switch (edge) {
+    case EDGE_TOP:
+      return { x: t * w, y: 0 };
+    case EDGE_RIGHT:
+      return { x: w, y: t * h };
+    case EDGE_BOTTOM:
+      return { x: (1 - t) * w, y: h }; // Reverse direction for visual consistency
+    case EDGE_LEFT:
+      return { x: 0, y: (1 - t) * h };
+    default:
+      return { x: t * w, y: 0 };
+  }
+}
+
+// Get corner point
+function getCornerPoint(corner, w, h) {
+  switch (corner) {
+    case 0:
+      return { x: 0, y: 0 }; // top-left
+    case 1:
+      return { x: w, y: 0 }; // top-right
+    case 2:
+      return { x: w, y: h }; // bottom-right
+    case 3:
+      return { x: 0, y: h }; // bottom-left
+    default:
+      return { x: 0, y: 0 };
+  }
+}
+
+// Get point on existing crease
+function getCreasePoint(crease, t) {
+  return {
+    x: crease.p1.x + (crease.p2.x - crease.p1.x) * t,
+    y: crease.p1.y + (crease.p2.y - crease.p1.y) * t,
+  };
+}
+
+// Calculate angle of a line segment (0-180 degrees)
+function getCreaseAngle(p1, p2) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angle < 0) angle += 180;
+  if (angle >= 180) angle -= 180;
+  return angle;
+}
+
+// Check if two edges are opposite
+function areOppositeEdges(e1, e2) {
+  return Math.abs(e1 - e2) === 2;
+}
+
+// Check if two edges are adjacent
+function areAdjacentEdges(e1, e2) {
+  return Math.abs(e1 - e2) === 1 || Math.abs(e1 - e2) === 3;
+}
+
+// Pick anchor point for a crease
+function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng) {
+  // Early folds: strongly prefer canvas edges
+  // Later folds: increasingly prefer existing creases/intersections
+  const edgeProbability = Math.max(0.2, 1.0 - foldIndex * 0.015);
+
+  const useEdge =
+    rng() < edgeProbability ||
+    (existingCreases.length === 0 && intersections.length === 0);
+
+  if (useEdge) {
+    // Pick from canvas boundary (edges or corners)
+    const useCorner = rng() < 0.15; // 15% chance of corner
+
+    if (useCorner) {
+      const corner = Math.floor(rng() * 4);
+      return {
+        point: getCornerPoint(corner, w, h),
+        type: "corner",
+        corner,
+      };
+    } else {
+      const edge = Math.floor(rng() * 4);
+      // Avoid extreme edges (keep t between 0.05 and 0.95)
+      const t = 0.05 + rng() * 0.9;
+      return {
+        point: getEdgePoint(edge, t, w, h),
+        type: "edge",
+        edge,
+        t,
+      };
+    }
+  } else {
+    // Pick from existing structure
+    const useIntersection = intersections.length > 0 && rng() < 0.35; // 35% chance if available
+
+    if (useIntersection) {
+      const inter = intersections[Math.floor(rng() * intersections.length)];
+      return {
+        point: { x: inter.x, y: inter.y },
+        type: "intersection",
+        intersectionIndex: intersections.indexOf(inter),
+      };
+    } else if (existingCreases.length > 0) {
+      // Pick point on existing crease
+      const crease =
+        existingCreases[Math.floor(rng() * existingCreases.length)];
+      // Avoid endpoints, stay in middle 80%
+      const t = 0.1 + rng() * 0.8;
+      return {
+        point: getCreasePoint(crease, t),
+        type: "crease",
+        creaseIndex: existingCreases.indexOf(crease),
+        t,
+      };
+    } else {
+      // Fallback to edge
+      const edge = Math.floor(rng() * 4);
+      const t = 0.05 + rng() * 0.9;
+      return {
+        point: getEdgePoint(edge, t, w, h),
+        type: "edge",
+        edge,
+        t,
+      };
+    }
+  }
+}
+
+// Pick terminus point for a crease (must create valid line from anchor)
+function pickTerminus(
+  anchor,
+  foldIndex,
+  existingCreases,
+  intersections,
+  w,
+  h,
+  rng,
+  relationshipBias
+) {
+  const minCreaseLength = Math.min(w, h) * 0.15; // Minimum crease length
+
+  // Determine valid terminus options based on anchor type
+  const candidates = [];
+
+  // Always consider opposite/adjacent edges for strong compositions
+  if (anchor.type === "edge") {
+    // Prefer opposite edge for primary folds
+    const oppositeEdge = (anchor.edge + 2) % 4;
+    const adjacentEdge1 = (anchor.edge + 1) % 4;
+    const adjacentEdge2 = (anchor.edge + 3) % 4;
+
+    // Opposite edge - high weight for early folds
+    const oppositeWeight = foldIndex < 3 ? 3.0 : 1.5;
+    for (let i = 0; i < 3; i++) {
+      const t = 0.1 + rng() * 0.8;
+      candidates.push({
+        point: getEdgePoint(oppositeEdge, t, w, h),
+        type: "edge",
+        edge: oppositeEdge,
+        weight: oppositeWeight,
+      });
+    }
+
+    // Adjacent edges - create diagonals
+    const adjacentWeight = 1.0;
+    for (let i = 0; i < 2; i++) {
+      const t = 0.1 + rng() * 0.8;
+      candidates.push({
+        point: getEdgePoint(adjacentEdge1, t, w, h),
+        type: "edge",
+        edge: adjacentEdge1,
+        weight: adjacentWeight,
+      });
+      candidates.push({
+        point: getEdgePoint(adjacentEdge2, t, w, h),
+        type: "edge",
+        edge: adjacentEdge2,
+        weight: adjacentWeight,
+      });
+    }
+  } else if (anchor.type === "corner") {
+    // From corner: go to opposite corner or adjacent edges
+    const oppositeCorner = (anchor.corner + 2) % 4;
+    candidates.push({
+      point: getCornerPoint(oppositeCorner, w, h),
+      type: "corner",
+      weight: 2.0,
+    });
+
+    // Adjacent edges
+    for (let edge = 0; edge < 4; edge++) {
+      // Skip edges that touch this corner
+      const touchesCorner =
+        edge === anchor.corner || edge === (anchor.corner + 3) % 4;
+      if (!touchesCorner) {
+        const t = 0.2 + rng() * 0.6;
+        candidates.push({
+          point: getEdgePoint(edge, t, w, h),
+          type: "edge",
+          edge,
+          weight: 1.5,
+        });
+      }
+    }
+  } else {
+    // Anchor is on crease or intersection - can go to any edge
+    for (let edge = 0; edge < 4; edge++) {
+      const t = 0.1 + rng() * 0.8;
+      candidates.push({
+        point: getEdgePoint(edge, t, w, h),
+        type: "edge",
+        edge,
+        weight: 1.0,
+      });
+    }
+
+    // Can also terminate on another crease (for subdivision)
+    if (existingCreases.length > 1 && foldIndex > 3) {
+      for (let i = 0; i < Math.min(3, existingCreases.length); i++) {
+        const creaseIdx = Math.floor(rng() * existingCreases.length);
+        const crease = existingCreases[creaseIdx];
+        // Don't terminate on the same crease we anchored from
+        if (anchor.type === "crease" && anchor.creaseIndex === creaseIdx)
+          continue;
+        const t = 0.15 + rng() * 0.7;
+        candidates.push({
+          point: getCreasePoint(crease, t),
+          type: "crease",
+          creaseIndex: creaseIdx,
+          weight: 0.6,
+        });
+      }
+    }
+  }
+
+  // Apply relationship bias to candidate weights
+  if (existingCreases.length > 0 && relationshipBias) {
+    for (const cand of candidates) {
+      const proposedAngle = getCreaseAngle(anchor.point, cand.point);
+
+      for (const existing of existingCreases) {
+        const existingAngle = getCreaseAngle(existing.p1, existing.p2);
+        let angleDiff = Math.abs(proposedAngle - existingAngle);
+        if (angleDiff > 90) angleDiff = 180 - angleDiff;
+
+        // Parallel bias: boost weight if angles are similar
+        if (relationshipBias.parallel > 0 && angleDiff < 15) {
+          cand.weight *= 1 + relationshipBias.parallel;
+        }
+
+        // Perpendicular bias: boost weight if angles are ~90° apart
+        if (relationshipBias.perpendicular > 0 && angleDiff > 75) {
+          cand.weight *= 1 + relationshipBias.perpendicular;
+        }
+      }
+    }
+  }
+
+  // Filter candidates by minimum length
+  const validCandidates = candidates.filter((cand) => {
+    const dist = V.dist(anchor.point, cand.point);
+    return dist >= minCreaseLength;
+  });
+
+  if (validCandidates.length === 0) {
+    // Fallback: pick any edge point far enough away
+    for (let edge = 0; edge < 4; edge++) {
+      const t = 0.5;
+      const point = getEdgePoint(edge, t, w, h);
+      if (V.dist(anchor.point, point) >= minCreaseLength) {
+        return { point, type: "edge", edge };
+      }
+    }
+    // Last resort: opposite edge center
+    const edge = anchor.type === "edge" ? (anchor.edge + 2) % 4 : 0;
+    return {
+      point: getEdgePoint(edge, 0.5, w, h),
+      type: "edge",
+      edge,
+    };
+  }
+
+  // Weighted random selection
+  const weights = validCandidates.map((c) => c.weight);
+  const idx = weightedRandomIndex(weights, rng);
+  return validCandidates[idx];
+}
+
+// Find intersections between creases (for anchor picking)
+function findCreaseIntersections(creases) {
+  const intersections = [];
+  for (let i = 0; i < creases.length; i++) {
+    for (let j = i + 1; j < creases.length; j++) {
+      const hit = segmentIntersect(
+        creases[i].p1,
+        creases[i].p2,
+        creases[j].p1,
+        creases[j].p2
+      );
+      if (hit) {
+        intersections.push({
+          x: hit.point.x,
+          y: hit.point.y,
+          crease1: i,
+          crease2: j,
+        });
+      }
+    }
+  }
+  return intersections;
+}
+
 // ============ FOLD SIMULATION ============
 
 export function simulateFolds(
@@ -1483,7 +1883,8 @@ export function simulateFolds(
   numFolds,
   seed,
   weightRange = { min: 0.0, max: 1.0 },
-  strategyOverride = null
+  strategyOverride = null,
+  paperProperties = null
 ) {
   if (!width || !height || width <= 0 || height <= 0) {
     return { creases: [], finalShape: [] };
@@ -1492,12 +1893,13 @@ export function simulateFolds(
   const strategy = strategyOverride || generateFoldStrategy(seed);
   const maxFolds = generateMaxFolds(seed);
 
-  let shape = ensureCCW([
+  // Canvas shape (for compatibility, though we're not using paper folding simulation)
+  const shape = [
     { x: 0, y: 0 },
     { x: width, y: 0 },
     { x: width, y: height },
     { x: 0, y: height },
-  ]);
+  ];
 
   const creases = [];
   let firstFoldTarget = null;
@@ -1513,25 +1915,45 @@ export function simulateFolds(
     };
   }
 
-  let currentSeed = seed;
+  // RNGs for different purposes
+  const mainRng = seededRandom(seed);
   const weightRng = seededRandom(seed + 8888);
+  const absorbencyRng = seededRandom(seed + 6666);
 
-  const freqRng = seededRandom(seed + 3333);
-  const freqX = 0.05 + freqRng() * 0.15;
-  const freqY = 0.05 + freqRng() * 0.15;
-  const phaseX = freqRng() * Math.PI * 2;
-  const phaseY = freqRng() * Math.PI * 2;
+  // Paper properties
+  const paper = paperProperties || {
+    absorbency: 1.0,
+    intersectionThreshold: 0,
+    angleAffinity: null,
+    affinityStrength: 0,
+    ceilingMultiplier: 1.0,
+  };
 
+  // Breathing cycle: reduction multipliers
   const reductionMultipliers = [];
   const reductionRng = seededRandom(seed + 1111);
   for (let i = 0; i < maxFolds; i++) {
     reductionMultipliers[i] = 0.001 + reductionRng() * 0.25;
   }
 
+  // Relationship bias: seeded per piece
+  const biasRng = seededRandom(seed + 2222);
+  const relationshipBias = {
+    parallel: biasRng() * 0.8, // 0 to 0.8 boost for parallel
+    perpendicular: biasRng() * 0.8, // 0 to 0.8 boost for perpendicular
+  };
+
+  // Margin for fold targets
+  const cellMargin = Math.max(width, height) * 0.05;
+
+  // Track intersections for anchor picking (updated as we add creases)
+  let knownIntersections = [];
+
   for (let f = 0; f < numFolds; f++) {
     const cyclePosition = f % maxFolds;
     const currentCycle = Math.floor(f / maxFolds);
 
+    // Breathing: reduce old crease weights at cycle boundaries
     if (cyclePosition === 0 && currentCycle > 0) {
       for (const crease of creases) {
         if (crease.reductionMultiplier !== undefined) {
@@ -1542,147 +1964,105 @@ export function simulateFolds(
         }
       }
     }
-    if (!shape || shape.length < 3) break;
 
-    const rng = seededRandom(currentSeed);
-
-    // Periodically re-center the paper shape to prevent drift
-    if (f > 0 && f % 5 === 0) {
-      shape = normalizePolygon(shape, width, height, 0);
-      shape = ensureCCW(shape);
+    // Periodically update intersection list (not every fold for performance)
+    if (f % 5 === 0 && creases.length > 1) {
+      knownIntersections = findCreaseIntersections(creases);
     }
 
-    const currentBounds = polygonBounds(shape);
-    const currentW = currentBounds.maxX - currentBounds.minX;
-    const currentH = currentBounds.maxY - currentBounds.minY;
-
-    const fromIdx = Math.floor(rng() * shape.length);
-    const fromVertex = shape[fromIdx];
-
-    const targetOptions = [];
-
-    for (let i = 0; i < shape.length; i++) {
-      if (i === fromIdx) continue;
-      targetOptions.push(shape[i]);
-    }
-
-    for (let i = 0; i < shape.length; i++) {
-      const p1 = shape[i];
-      const p2 = shape[(i + 1) % shape.length];
-      const t = 0.2 + rng() * 0.6;
-      targetOptions.push({
-        x: p1.x + (p2.x - p1.x) * t,
-        y: p1.y + (p2.y - p1.y) * t,
-      });
-    }
-
-    let target = targetOptions[Math.floor(rng() * targetOptions.length)];
-
-    // Margin to ensure fold targets land in valid cell areas (not on edges)
-    const cellMargin = Math.max(width, height) * 0.05;
-
-    const dist = V.dist(fromVertex, target);
-    const minDist = Math.min(currentW, currentH) * 0.05;
-    if (dist < minDist) {
-      currentSeed = hashSeed(currentSeed, "skip" + f);
-      continue;
-    }
-
-    const mid = V.mid(fromVertex, target);
-    const toTarget = V.norm(V.sub(target, fromVertex));
-    const creaseDir = V.perp(toTarget);
-
-    const extent = Math.max(currentW, currentH) * 3;
-    const lineP1 = {
-      x: mid.x - creaseDir.x * extent,
-      y: mid.y - creaseDir.y * extent,
-    };
-    const lineP2 = {
-      x: mid.x + creaseDir.x * extent,
-      y: mid.y + creaseDir.y * extent,
-    };
-
-    const { left, right } = splitPolygon(shape, lineP1, lineP2);
-
-    if (left.length < 3 || right.length < 3) {
-      currentSeed = hashSeed(currentSeed, "badsplit" + f);
-      continue;
-    }
-
-    const leftHasSource = left.some((p) => V.dist(p, fromVertex) < 1);
-
-    const foldingSide = leftHasSource ? left : right;
-    const stayingSide = leftHasSource ? right : left;
-
-    const reflected = reflectPolygon(foldingSide, lineP1, lineP2);
-
-    const stayingCCW = ensureCCW(stayingSide);
-    const reflectedCCW = ensureCCW(reflected);
-
-    let newShape = polygonUnionAlongCrease(
-      stayingCCW,
-      reflectedCCW,
-      lineP1,
-      lineP2
-    );
-
-    if (newShape.length < 3) {
-      currentSeed = hashSeed(currentSeed, "badunion" + f);
-      continue;
-    }
-
-    // Add sinusoidal offset to spread creases across the canvas
-    const amplitude = 0.3 + Math.min(f * 0.002, 0.2);
-    const spreadOffsetX = Math.sin(f * freqX + phaseX) * width * amplitude;
-    const spreadOffsetY = Math.sin(f * freqY + phaseY) * height * amplitude;
-
-    const canvasCrease = clipToRect(
-      { x: mid.x + spreadOffsetX, y: mid.y + spreadOffsetY },
-      creaseDir,
+    // Pick anchor and terminus
+    const anchor = pickAnchor(
+      f,
+      creases,
+      knownIntersections,
       width,
-      height
+      height,
+      mainRng
+    );
+    const terminus = pickTerminus(
+      anchor,
+      f,
+      creases,
+      knownIntersections,
+      width,
+      height,
+      mainRng,
+      relationshipBias
     );
 
-    if (canvasCrease) {
-      const newWeight =
-        weightRange.min + weightRng() * (weightRange.max - weightRange.min);
+    // Create the crease line
+    const p1 = anchor.point;
+    const p2 = terminus.point;
 
+    // Skip if too short
+    if (V.dist(p1, p2) < Math.min(width, height) * 0.1) {
+      continue;
+    }
+
+    // Absorbency check: does this crease register on the paper?
+    const absorbencyRoll = absorbencyRng();
+    const creaseRegisters = absorbencyRoll < paper.absorbency;
+
+    // Calculate base weight
+    let newWeight =
+      weightRange.min + weightRng() * (weightRange.max - weightRange.min);
+
+    // Apply angle affinity
+    if (paper.angleAffinity !== null && paper.affinityStrength > 0) {
+      const creaseAngle = getCreaseAngle(p1, p2);
+      let angleDiff = Math.abs(creaseAngle - paper.angleAffinity);
+      if (angleDiff > 90) angleDiff = 180 - angleDiff;
+      const angleModifier = 1.0 - (angleDiff / 90) * paper.affinityStrength;
+      newWeight *= angleModifier;
+    }
+
+    // Only add if it registers and has meaningful weight
+    if (creaseRegisters && newWeight > 0.01) {
       creases.push({
-        p1: V.copy(canvasCrease.p1),
-        p2: V.copy(canvasCrease.p2),
+        p1: V.copy(p1),
+        p2: V.copy(p2),
         depth: creases.length,
         weight: newWeight,
         cyclePosition: cyclePosition,
         reductionMultiplier: reductionMultipliers[cyclePosition],
+        anchorType: anchor.type,
+        terminusType: terminus.type,
       });
 
-      // Track the actual reflected position of the source vertex
-      const reflectedSource = reflectPoint(fromVertex, lineP1, lineP2);
-      const foldTarget = {
-        x: Math.max(
-          cellMargin,
-          Math.min(width - cellMargin, reflectedSource.x)
-        ),
-        y: Math.max(
-          cellMargin,
-          Math.min(height - cellMargin, reflectedSource.y)
-        ),
-      };
-
-      // Track first fold target
-      if (f === 0 && firstFoldTarget === null) {
-        firstFoldTarget = foldTarget;
+      // Update intersections after adding new crease
+      if (creases.length > 1) {
+        const newCrease = creases[creases.length - 1];
+        for (let i = 0; i < creases.length - 1; i++) {
+          const hit = segmentIntersect(
+            newCrease.p1,
+            newCrease.p2,
+            creases[i].p1,
+            creases[i].p2
+          );
+          if (hit) {
+            knownIntersections.push({
+              x: hit.point.x,
+              y: hit.point.y,
+              crease1: i,
+              crease2: creases.length - 1,
+            });
+          }
+        }
       }
-
-      lastFoldTarget = foldTarget;
     }
 
-    shape = ensureCCW(newShape);
-    currentSeed = hashSeed(currentSeed, "fold" + f);
-  }
+    // Track fold targets (midpoint of crease, clamped to margin)
+    const midpoint = V.mid(p1, p2);
+    const foldTarget = {
+      x: Math.max(cellMargin, Math.min(width - cellMargin, midpoint.x)),
+      y: Math.max(cellMargin, Math.min(height - cellMargin, midpoint.y)),
+    };
 
-  shape = normalizePolygon(shape, width, height, 0);
-  shape = ensureCCW(shape);
+    if (f === 0 && firstFoldTarget === null) {
+      firstFoldTarget = foldTarget;
+    }
+    lastFoldTarget = foldTarget;
+  }
 
   return {
     creases,
@@ -1731,9 +2111,21 @@ export function processCreases(
   gridRows,
   cellWidth,
   cellHeight,
-  maxFolds = null
+  maxFolds = null,
+  paperProperties = null
 ) {
-  const intersections = findIntersections(creases);
+  const allIntersections = findIntersections(creases);
+
+  // Paper properties for filtering
+  const paper = paperProperties || {
+    intersectionThreshold: 0,
+    ceilingMultiplier: 1.0,
+  };
+
+  // Filter intersections below threshold
+  const intersections = allIntersections.filter(
+    (inter) => inter.weight >= paper.intersectionThreshold
+  );
 
   const cellWeights = {};
   const cellMaxGap = {};
@@ -1747,6 +2139,24 @@ export function processCreases(
       cellWeights[key] = (cellWeights[key] || 0) + inter.weight;
       cellMaxGap[key] = Math.max(cellMaxGap[key] || 0, inter.gap);
       cellIntersectionCounts[key] = (cellIntersectionCounts[key] || 0) + 1;
+    }
+  }
+
+  // Apply saturation ceiling: normalize if total weight exceeds ceiling
+  // Base ceiling scales with grid size
+  const baseCeiling = gridCols * gridRows * 0.5; // ~0.5 weight per cell on average
+  const ceiling = baseCeiling * paper.ceilingMultiplier;
+
+  const totalWeight = Object.values(cellWeights).reduce((a, b) => a + b, 0);
+
+  if (totalWeight > ceiling && totalWeight > 0) {
+    // Apply soft cap: diminishing returns above ceiling
+    // Uses logarithmic scaling to compress excess weight
+    const ratio = ceiling / totalWeight;
+    const softRatio = ratio + (1 - ratio) * 0.3; // Allow some overflow, but compressed
+
+    for (const key of Object.keys(cellWeights)) {
+      cellWeights[key] *= softRatio;
     }
   }
 
@@ -1777,6 +2187,7 @@ export function renderToCanvas({
   multiColor,
   levelColors,
   foldStrategy = null,
+  paperProperties = null,
   showCreases = false,
   showPaperShape = false,
   showFoldTargets = false,
@@ -1818,6 +2229,9 @@ export function renderToCanvas({
 
   const weightRange = generateWeightRange(seed);
 
+  // Scale absorbency based on grid density
+  const scaledPaperProps = scaleAbsorbencyForGrid(paperProperties, cols, rows);
+
   const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
     simulateFolds(
       refDrawWidth,
@@ -1825,7 +2239,8 @@ export function renderToCanvas({
       folds,
       seed,
       weightRange,
-      foldStrategy
+      foldStrategy,
+      scaledPaperProps
     );
 
   const scaledCreases = creases.map((crease) => ({
@@ -1891,7 +2306,8 @@ export function renderToCanvas({
     rows,
     actualCellWidth,
     actualCellHeight,
-    maxFolds
+    maxFolds,
+    paperProperties
   );
 
   const accentCells = new Set();
@@ -1904,12 +2320,44 @@ export function renderToCanvas({
     }
   }
 
-  ctx.font = `${actualCellHeight - 2 * scaleY}px ${fontFamily}`;
+  const fontSize = actualCellHeight - 2 * scaleY;
+  const sizeCategory = fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
+  ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textBaseline = "top";
 
   const shadeChars = [" ", "░", "▒", "▓"];
 
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
+
+  // Determine overlap pattern based on seed
+  // Pattern types: 0 = uniform, 1 = row-based, 2 = col-based, 3 = checkerboard, 4 = diagonal
+  const overlapRng = seededRandom(seed + 11111);
+  const overlapPatternType = Math.floor(overlapRng() * 5);
+  const overlapIntervals = [0.95, 0.75, 0.50, 0.25, 0.05]; // 5%, 25%, 50%, 75%, 95% overlap
+  const baseOverlapIndex = Math.floor(overlapRng() * overlapIntervals.length);
+  const overlapVariation = Math.floor(overlapRng() * 3) + 1; // 1-3 steps of variation
+
+  // Function to get overlap factor for a cell based on pattern
+  const getOverlapFactor = (row, col) => {
+    let idx = baseOverlapIndex;
+    switch (overlapPatternType) {
+      case 1: // row-based bands
+        idx = (baseOverlapIndex + Math.floor(row / 2) * overlapVariation) % overlapIntervals.length;
+        break;
+      case 2: // col-based bands
+        idx = (baseOverlapIndex + Math.floor(col / 2) * overlapVariation) % overlapIntervals.length;
+        break;
+      case 3: // checkerboard
+        idx = (baseOverlapIndex + ((row + col) % 2) * overlapVariation) % overlapIntervals.length;
+        break;
+      case 4: // diagonal stripes
+        idx = (baseOverlapIndex + Math.floor((row + col) / 2) * overlapVariation) % overlapIntervals.length;
+        break;
+      default: // uniform
+        break;
+    }
+    return overlapIntervals[idx];
+  };
 
   const getColorForLevel = (level, cellKey) => {
     if (multiColor && levelColors) {
@@ -2008,7 +2456,8 @@ export function renderToCanvas({
 
         let currentX = x;
         let charIndex = 0;
-        const overlapFactor = 0.95;
+        // Get overlap factor based on seed-determined pattern
+        const overlapFactor = getOverlapFactor(row, col);
 
         while (currentX < cellEndX && level >= 0) {
           let nextChar = char;
@@ -2175,6 +2624,7 @@ export function generateAllParams(
     ? generateMultiColorPalette(seed, palette.bg, palette.text)
     : null;
   const maxFolds = generateMaxFolds(seed);
+  const paperProperties = generatePaperProperties(seed);
 
   let foldCount = folds;
   if (foldCount === null) {
@@ -2192,6 +2642,7 @@ export function generateAllParams(
     multiColor,
     levelColors,
     maxFolds,
+    paperProperties,
     folds: foldCount,
   };
 }
@@ -2201,7 +2652,7 @@ export function generateAllParams(
 export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
   const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
 
-  // Calculate crease count by running simulation
+  // Calculate crease count by running simulation (with paper properties)
   const weightRange = generateWeightRange(seed);
   const refDrawWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
   const refDrawHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
@@ -2211,8 +2662,12 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
     foldCount,
     seed,
     weightRange,
-    params.foldStrategy
+    params.foldStrategy,
+    params.paperProperties
   );
+
+  // Get paper description for traits
+  const paperDesc = getPaperDescription(params.paperProperties);
 
   return {
     name: `Fold #${tokenId}`,
@@ -2230,6 +2685,12 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
       { trait_type: "Max Folds", value: params.maxFolds },
       { trait_type: "Crease Count", value: creases.length },
       { trait_type: "Palette Strategy", value: params.palette.strategy },
+      { trait_type: "Paper Type", value: paperDesc },
+      {
+        trait_type: "Paper Grain",
+        value:
+          params.paperProperties.angleAffinity !== null ? "Grain" : "Uniform",
+      },
     ],
   };
 }
@@ -2301,6 +2762,7 @@ export async function initOnChain() {
         multiColor: params.multiColor,
         levelColors: params.levelColors,
         foldStrategy: params.foldStrategy,
+        paperProperties: params.paperProperties,
       });
 
       // Load into canvas

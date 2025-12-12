@@ -29,6 +29,9 @@ import {
   generateMultiColorEnabled,
   generateRareCellOutlines,
   generateRareHitCounts,
+  generatePaperProperties,
+  getPaperDescription,
+  scaleAbsorbencyForGrid,
   generateAllParams,
   // Simulation
   simulateFolds,
@@ -154,7 +157,8 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
       folds,
       params.seed,
       params.weightRange,
-      params.foldStrategy
+      params.foldStrategy,
+      params.paperProperties
     );
 
     ctx.strokeStyle = params.palette.text;
@@ -633,6 +637,7 @@ function DetailModal({
       multiColor: item.params.multiColor,
       levelColors: item.params.levelColors,
       foldStrategy: item.params.foldStrategy,
+      paperProperties: item.params.paperProperties,
     });
 
     const img = new Image();
@@ -1350,6 +1355,7 @@ function ASCIICanvas({
   multiColor = false,
   levelColors = null,
   foldStrategy = null,
+  paperProperties = null,
   showCreases = false,
   showPaperShape = false,
   showHitCounts = false,
@@ -1622,6 +1628,9 @@ function ASCIICanvas({
       }),
     }).catch(() => {});
     // #endregion
+    // Scale absorbency based on grid density
+    const scaledPaperProps = scaleAbsorbencyForGrid(paperProperties, cols, rows);
+
     const { creases, finalShape, maxFolds, firstFoldTarget, lastFoldTarget } =
       simulateFolds(
         actualGridWidth,
@@ -1629,7 +1638,8 @@ function ASCIICanvas({
         folds,
         seed,
         weightRange,
-        foldStrategy
+        foldStrategy,
+        scaledPaperProps
       );
     // #region agent log
     fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
@@ -1733,7 +1743,8 @@ function ASCIICanvas({
       rows,
       actualStrideX,
       actualStrideY,
-      maxFolds
+      maxFolds,
+      paperProperties
     );
     // #region agent log
     const processCreasesTime = performance.now() - processCreasesStart;
@@ -1769,18 +1780,54 @@ function ASCIICanvas({
 
     const creasesForRender = activeCreases;
 
+    const fontSize = actualCharHeight - 2 * scaleY;
+    const sizeCategory = fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
+
+    // Determine overlap pattern based on seed
+    // Pattern types: 0 = uniform, 1 = row-based, 2 = col-based, 3 = checkerboard, 4 = diagonal
+    const overlapRng = seededRandom(seed + 11111);
+    const overlapPatternType = Math.floor(overlapRng() * 5);
+    const overlapIntervals = [0.95, 0.75, 0.50, 0.25, 0.05]; // 5%, 25%, 50%, 75%, 95% overlap
+    const baseOverlapIndex = Math.floor(overlapRng() * overlapIntervals.length);
+    const overlapVariation = Math.floor(overlapRng() * 3) + 1; // 1-3 steps of variation
+
+    const patternNames = ["uniform", "row-bands", "col-bands", "checker", "diagonal"];
+    const overlapInfo = `${sizeCategory} · overlap: ${patternNames[overlapPatternType]} (${Math.round((1 - overlapIntervals[baseOverlapIndex]) * 100)}%${overlapPatternType > 0 ? " ±" + (overlapVariation * 25) + "%" : ""})`;
+
+    // Function to get overlap factor for a cell based on pattern
+    const getOverlapFactor = (row, col) => {
+      let idx = baseOverlapIndex;
+      switch (overlapPatternType) {
+        case 1: // row-based bands
+          idx = (baseOverlapIndex + Math.floor(row / 2) * overlapVariation) % overlapIntervals.length;
+          break;
+        case 2: // col-based bands
+          idx = (baseOverlapIndex + Math.floor(col / 2) * overlapVariation) % overlapIntervals.length;
+          break;
+        case 3: // checkerboard
+          idx = (baseOverlapIndex + ((row + col) % 2) * overlapVariation) % overlapIntervals.length;
+          break;
+        case 4: // diagonal stripes
+          idx = (baseOverlapIndex + Math.floor((row + col) / 2) * overlapVariation) % overlapIntervals.length;
+          break;
+        default: // uniform
+          break;
+      }
+      return overlapIntervals[idx];
+    };
+
     if (onStatsUpdate) {
       onStatsUpdate({
         intersections: activeIntersections.length,
         creases: activeCreases.length,
         destroyed: 0,
         maxFolds: maxFolds,
+        fontSize: fontSize,
+        overlapInfo: overlapInfo,
       });
     }
 
-    ctx.font = `${
-      actualCharHeight - 2 * scaleY
-    }px "Courier New", Courier, monospace`;
+    ctx.font = `${fontSize}px "Courier New", Courier, monospace`;
     ctx.textBaseline = "top";
 
     const shadeChars = [" ", "░", "▒", "▓"];
@@ -1947,7 +1994,8 @@ function ASCIICanvas({
 
             let currentX = x;
             let charIndex = 0;
-            const overlapFactor = 0.95;
+            // Get overlap factor based on seed-determined pattern
+            const overlapFactor = getOverlapFactor(row, col);
 
             while (currentX < cellEndX && level >= 0) {
               let nextChar = char;
@@ -2168,6 +2216,7 @@ export default function FoldedPaper() {
   const initialFoldStrategy = generateFoldStrategy(42);
   const initialRareCellOutlines = generateRareCellOutlines(42);
   const initialRareHitCounts = generateRareHitCounts(42);
+  const initialPaperProperties = generatePaperProperties(42);
 
   const [bgColor, setBgColor] = useState(initialPalette.bg);
   const [textColor, setTextColor] = useState(initialPalette.text);
@@ -2184,6 +2233,7 @@ export default function FoldedPaper() {
       : null
   );
   const [foldStrategy, setFoldStrategy] = useState(initialFoldStrategy);
+  const [paperProperties, setPaperProperties] = useState(initialPaperProperties);
   const [strategyOverride, setStrategyOverride] = useState("auto");
   const [showCreases, setShowCreases] = useState(false);
   const [showPaperShape, setShowPaperShape] = useState(false);
@@ -2194,6 +2244,8 @@ export default function FoldedPaper() {
   const [intersectionCount, setIntersectionCount] = useState(0);
   const [creaseCount, setCreaseCount] = useState(0);
   const [maxFoldsValue, setMaxFoldsValue] = useState(0);
+  const [fontSizeValue, setFontSizeValue] = useState(0);
+  const [overlapInfo, setOverlapInfo] = useState("");
   const [showBatchMode, setShowBatchMode] = useState(false);
   const [generatingGif, setGeneratingGif] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
@@ -2235,6 +2287,7 @@ export default function FoldedPaper() {
       multiColor,
       levelColors,
       foldStrategy,
+      paperProperties,
       showCreases,
       showPaperShape,
     });
@@ -2321,6 +2374,7 @@ export default function FoldedPaper() {
           multiColor,
           levelColors,
           foldStrategy,
+          paperProperties,
           showCreases,
           showPaperShape,
         });
@@ -2423,6 +2477,9 @@ export default function FoldedPaper() {
         setFoldStrategy(generateFoldStrategy(seed));
       }
 
+      // Paper properties are always regenerated per seed (no override)
+      setPaperProperties(generatePaperProperties(seed));
+
       setShowCellOutlines(generateRareCellOutlines(seed));
       setShowHitCounts(generateRareHitCounts(seed));
     }
@@ -2448,13 +2505,16 @@ export default function FoldedPaper() {
     Math.floor((innerHeight + effectiveRowGap) / safeStrideY)
   );
   const weightRange = generateWeightRange(seed);
+  // Scale absorbency based on grid density for stats calculation
+  const scaledPaperPropsForStats = scaleAbsorbencyForGrid(paperProperties, cols, rows);
   const { creases, maxFolds } = simulateFolds(
     innerWidth,
     innerHeight,
     folds,
     seed,
     weightRange,
-    foldStrategy
+    foldStrategy,
+    scaledPaperPropsForStats
   );
   const intersections = findIntersections(creases);
 
@@ -2501,7 +2561,7 @@ export default function FoldedPaper() {
             }}
           >
             <ASCIICanvas
-              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${showCreases}-${showPaperShape}-${showHitCounts}-${showCellOutlines}`}
+              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${paperProperties?.absorbency}-${showCreases}-${showPaperShape}-${showHitCounts}-${showCellOutlines}`}
               width={width}
               height={height}
               folds={folds}
@@ -2518,6 +2578,7 @@ export default function FoldedPaper() {
               multiColor={multiColor}
               levelColors={levelColors}
               foldStrategy={foldStrategy}
+              paperProperties={paperProperties}
               showCreases={showCreases}
               showPaperShape={showPaperShape}
               showHitCounts={showHitCounts}
@@ -2526,6 +2587,8 @@ export default function FoldedPaper() {
                 setIntersectionCount(stats.intersections);
                 setCreaseCount(stats.creases);
                 setMaxFoldsValue(stats.maxFolds || 0);
+                setFontSizeValue(stats.fontSize || 0);
+                setOverlapInfo(stats.overlapInfo || "");
               }}
             />
           </div>
@@ -2575,6 +2638,8 @@ export default function FoldedPaper() {
               <br />
               {creaseCount} creases · {intersectionCount} intersections ·
               maxFolds: {maxFoldsValue}
+              <br />
+              fontSize: {fontSizeValue.toFixed(1)}px · {overlapInfo}
             </div>
             <button
               onClick={downloadSingleToken}
