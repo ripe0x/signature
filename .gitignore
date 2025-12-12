@@ -33,3 +33,5 @@ previews/
 
 # Tools
 /tools/font-subset/CourierPrime-master/fonts
+cache/solidity-files-cache.json
+/outputs

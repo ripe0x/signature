@@ -1013,6 +1013,11 @@ export function generateRareHitCounts(seed) {
   return rng() < 0.008;
 }
 
+export function generateRareCreaseLines(seed) {
+  const rng = seededRandom(seed + 9191);
+  return rng() < 0.008;
+}
+
 // ============ PAPER PROPERTIES ============
 // These properties control how folds register on the paper,
 // breaking the 1:1 relationship between fold count and visual density.
@@ -2339,6 +2344,7 @@ export function renderToCanvas({
   showGrid = false,
   showHitCounts = false,
   showCellOutlines = false,
+  showCreaseLines = false,
   fontFamily = FONT_STACK,
 }) {
   const canvas = document.createElement("canvas");
@@ -2662,6 +2668,23 @@ export function renderToCanvas({
     }
   }
 
+  // Rare variant: draw crease lines on bg using accent/text color
+  if (showCreaseLines && activeCreases.length > 0) {
+    const creaseRng = seededRandom(seed + 9292);
+    const useAccent = creaseRng() < 0.6; // 60% accent, 40% text
+    ctx.strokeStyle = useAccent ? accentColor : textColor;
+    ctx.lineWidth = 1.5 * scaleX;
+    ctx.globalAlpha = 0.85;
+    ctx.lineCap = "round";
+    for (const crease of activeCreases) {
+      ctx.beginPath();
+      ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
+      ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   if (showCreases) {
     ctx.strokeStyle = "#ff00ff";
     ctx.lineWidth = 1;
@@ -2803,6 +2826,7 @@ export function generateAllParams(
     : null;
   const maxFolds = generateMaxFolds(seed);
   const paperProperties = generatePaperProperties(seed);
+  const showCreaseLines = generateRareCreaseLines(seed);
 
   let foldCount = folds;
   if (foldCount === null) {
@@ -2821,6 +2845,7 @@ export function generateAllParams(
     levelColors,
     maxFolds,
     paperProperties,
+    showCreaseLines,
     folds: foldCount,
   };
 }
@@ -2869,6 +2894,9 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
         value:
           params.paperProperties.angleAffinity !== null ? "Grain" : "Uniform",
       },
+      ...(params.showCreaseLines
+        ? [{ trait_type: "Crease Lines", value: "Visible" }]
+        : []),
     ],
   };
 }
@@ -2980,6 +3008,7 @@ export async function initOnChain() {
       levelColors: params.levelColors,
       foldStrategy: params.foldStrategy,
       paperProperties: params.paperProperties,
+      showCreaseLines: params.showCreaseLines,
     });
 
     // Load into canvas

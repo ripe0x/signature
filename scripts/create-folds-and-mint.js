@@ -14,7 +14,7 @@
  */
 
 import { execSync } from "child_process";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -32,13 +32,11 @@ const numFolds =
   ) || 5;
 const mintsPerFold =
   parseInt(
-    args.find((arg) => arg.startsWith("--mints-per-fold"))?.split("=")[1] ||
-      "3"
+    args.find((arg) => arg.startsWith("--mints-per-fold"))?.split("=")[1] || "3"
   ) || 3;
 const ethPerFold =
   parseFloat(
-    args.find((arg) => arg.startsWith("--eth-per-fold"))?.split("=")[1] ||
-      "1"
+    args.find((arg) => arg.startsWith("--eth-per-fold"))?.split("=")[1] || "1"
   ) || 1.0;
 
 // Color logging
@@ -86,7 +84,13 @@ function getStrategyAddress(lessAddress, rpcUrl) {
       `cast call ${lessAddress} "strategy()" --rpc-url ${rpcUrl}`,
       { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
     );
-    return output.trim();
+    // Remove padding and ensure proper address format
+    let addr = output.trim();
+    // If it's a padded address, extract the last 40 hex chars
+    if (addr.length > 42) {
+      addr = "0x" + addr.slice(-40);
+    }
+    return addr.toLowerCase();
   } catch (error) {
     log(`Error getting strategy address: ${error.message}`, "red");
     process.exit(1);
@@ -98,13 +102,23 @@ function fundStrategy(strategyAddress, hookAddress, ethAmount, rpcUrl) {
   log(`Funding strategy with ${ethAmount} ETH via addFees()...`, "gray");
 
   if (!hookAddress) {
-    log(`  ⚠ Hook address not found. Strategy may already have ETH from fees.`, "yellow");
+    log(
+      `  ⚠ Hook address not found. Strategy may already have ETH from fees.`,
+      "yellow"
+    );
     return true; // Continue anyway - strategy might already have ETH
   }
 
   try {
+    // Fund the hook address first (for gas + value)
+    // Need enough for gas fees plus the ETH being sent
+    const totalNeeded = ethAmount + 0.1; // ETH amount + gas buffer
+    execSync(
+      `cast send ${hookAddress} --value ${totalNeeded}ether --rpc-url ${rpcUrl} --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`,
+      { cwd: rootDir, stdio: "pipe" }
+    );
+
     // Impersonate the hook address to call addFees()
-    // First, impersonate the hook
     execSync(
       `cast rpc anvil_impersonateAccount ${hookAddress} --rpc-url ${rpcUrl}`,
       { cwd: rootDir, stdio: "pipe" }
@@ -123,7 +137,10 @@ function fundStrategy(strategyAddress, hookAddress, ethAmount, rpcUrl) {
     log(`  ✓ Strategy funded via addFees()`, "green");
     return true;
   } catch (error) {
-    log(`  ⚠ Could not fund strategy via addFees(): ${error.message}`, "yellow");
+    log(
+      `  ⚠ Could not fund strategy via addFees(): ${error.message}`,
+      "yellow"
+    );
     log(`  Strategy may already have ETH from fees, continuing...`, "gray");
     // Stop impersonating if it was started
     try {
@@ -145,7 +162,15 @@ function getHookAddress(strategyAddress, rpcUrl) {
       `cast call ${strategyAddress} "hookAddress()" --rpc-url ${rpcUrl}`,
       { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
     );
-    return output.trim();
+    let addr = output.trim();
+    // Remove padding if present
+    if (addr.length > 42) {
+      addr = "0x" + addr.slice(-40);
+    }
+    if (addr === "0x0000000000000000000000000000000000000000") {
+      return null;
+    }
+    return addr.toLowerCase();
   } catch (error) {
     // Try alternative method name
     try {
@@ -153,7 +178,14 @@ function getHookAddress(strategyAddress, rpcUrl) {
         `cast call ${strategyAddress} "hook()" --rpc-url ${rpcUrl}`,
         { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
       );
-      return output.trim();
+      let addr = output.trim();
+      if (addr.length > 42) {
+        addr = "0x" + addr.slice(-40);
+      }
+      if (addr === "0x0000000000000000000000000000000000000000") {
+        return null;
+      }
+      return addr.toLowerCase();
     } catch (error2) {
       log(`Could not get hook address: ${error2.message}`, "yellow");
       return null;
@@ -161,8 +193,30 @@ function getHookAddress(strategyAddress, rpcUrl) {
   }
 }
 
+// Check if window is active
+function isWindowActive(lessAddress, rpcUrl) {
+  try {
+    const output = execSync(
+      `cast call ${lessAddress} "isWindowActive()" --rpc-url ${rpcUrl}`,
+      { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
+    );
+    return (
+      output.trim() ===
+      "0x0000000000000000000000000000000000000000000000000000000000000001"
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
 // Create a fold (triggers buy and burn)
 function createFold(lessAddress, rpcUrl) {
+  // Check if window is already active (addFees might have triggered a burn)
+  if (isWindowActive(lessAddress, rpcUrl)) {
+    log(`  Window already active (fold may have been auto-created)`, "gray");
+    return true;
+  }
+
   log(`Creating fold...`, "blue");
 
   // Advance block for unique blockhash
@@ -182,6 +236,11 @@ function createFold(lessAddress, rpcUrl) {
     log(`  ✓ Fold created successfully`, "green");
     return true;
   } catch (error) {
+    // Check if error is because window is already active
+    if (error.message.includes("MintWindowActive")) {
+      log(`  Window already active (fold may have been auto-created)`, "gray");
+      return true;
+    }
     log(`  ✗ Failed to create fold: ${error.message}`, "red");
     if (error.stdout) log(`  ${error.stdout}`, "gray");
     return false;
@@ -215,71 +274,101 @@ function mintToken(lessAddress, minterAddress, mintPrice, rpcUrl) {
   }
 }
 
-// Mint tokens using forge script (more reliable)
+// Mint tokens using cast send with impersonation
 function mintTokensViaScript(lessAddress, numMints, mintPrice, rpcUrl) {
   log(`Minting ${numMints} tokens...`, "blue");
 
-  // Use the GenerateOutputs script's minting function
-  // We'll create a simpler dedicated script for this
-  const scriptContent = `
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+  let successCount = 0;
 
-import {Script, console} from "forge-std/Script.sol";
-import {Less} from "../contracts/Less.sol";
+  for (let i = 0; i < numMints; i++) {
+    const minterAddress = `0x${(1000 + i).toString(16).padStart(40, "0")}`;
 
-contract MintTokensScript is Script {
-    function run() external {
-        address lessAddress = vm.envAddress("LESS_ADDRESS");
-        uint256 numMints = vm.envOr("NUM_MINTS", uint256(3));
-        
-        Less less = Less(lessAddress);
-        uint256 mintPrice = less.mintPrice();
-        
-        vm.startBroadcast();
-        
-        uint256 userCounter = 1000;
-        for (uint256 i = 0; i < numMints; i++) {
-            address minter = address(uint160(userCounter++));
-            vm.deal(minter, mintPrice * 2);
-            
-            vm.prank(minter);
-            less.mint{value: mintPrice}();
-            
-            console.log("Minted token", less.totalSupply());
-        }
-        
-        vm.stopBroadcast();
+    try {
+      // Fund minter
+      execSync(
+        `cast send ${minterAddress} --value 0.05ether --rpc-url ${rpcUrl} --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`,
+        { cwd: rootDir, stdio: "pipe" }
+      );
+
+      // Impersonate and mint
+      execSync(
+        `cast rpc anvil_impersonateAccount ${minterAddress} --rpc-url ${rpcUrl}`,
+        { cwd: rootDir, stdio: "pipe" }
+      );
+
+      execSync(
+        `cast send ${lessAddress} "mint()" --value ${mintPrice}ether --rpc-url ${rpcUrl} --unlocked --from ${minterAddress}`,
+        { cwd: rootDir, stdio: "pipe" }
+      );
+
+      execSync(
+        `cast rpc anvil_stopImpersonatingAccount ${minterAddress} --rpc-url ${rpcUrl}`,
+        { cwd: rootDir, stdio: "pipe" }
+      );
+
+      successCount++;
+    } catch (error) {
+      // Stop impersonating if it was started
+      try {
+        execSync(
+          `cast rpc anvil_stopImpersonatingAccount ${minterAddress} --rpc-url ${rpcUrl}`,
+          { cwd: rootDir, stdio: "pipe" }
+        );
+      } catch (e) {
+        // Ignore
+      }
+      log(`  ⚠ Failed to mint token ${i + 1}: ${error.message}`, "yellow");
     }
-}
-`;
+  }
 
-  // Write temporary script
-  const scriptPath = join(rootDir, "script", "MintTokens.s.sol");
-  const { writeFileSync } = await import("fs");
-  writeFileSync(scriptPath, scriptContent);
-
+  // Check total supply
   try {
-    const cmd = `forge script script/MintTokens.s.sol --tc MintTokensScript --rpc-url ${rpcUrl} --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -vvv`;
-    const env = {
-      ...process.env,
-      LESS_ADDRESS: lessAddress,
-      NUM_MINTS: numMints.toString(),
-    };
+    const totalSupplyOutput = execSync(
+      `cast call ${lessAddress} "totalSupply()" --rpc-url ${rpcUrl}`,
+      { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
+    );
+    // Parse hex output (cast returns hex with 0x prefix)
+    const totalSupplyHex = totalSupplyOutput.trim();
+    // Handle empty response (contract doesn't exist)
+    if (!totalSupplyHex || totalSupplyHex === "0x" || totalSupplyHex === "") {
+      if (successCount > 0) {
+        log(
+          `  ✓ Minted ${successCount} tokens (could not verify totalSupply)`,
+          "green"
+        );
+        return true;
+      }
+      log(
+        `  ⚠ Could not verify totalSupply - contract may not exist on fork`,
+        "yellow"
+      );
+      return successCount > 0;
+    }
+    const totalSupply = parseInt(totalSupplyHex, 16);
+    if (isNaN(totalSupply)) {
+      log(`Warning: Could not parse totalSupply: ${totalSupplyHex}`, "yellow");
+      if (successCount > 0) {
+        log(`  ✓ Minted ${successCount} tokens`, "green");
+        return true;
+      }
+      return false;
+    }
 
-    const output = execSync(cmd, {
-      cwd: rootDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      env: env,
-    });
-
-    console.log(output);
-    log(`  ✓ Minted ${numMints} tokens`, "green");
-    return true;
+    if (successCount > 0 || totalSupply > 0) {
+      log(
+        `  ✓ Minted ${successCount} tokens (total supply: ${totalSupply})`,
+        "green"
+      );
+      return true;
+    } else {
+      log(`  ✗ No tokens minted`, "red");
+      return false;
+    }
   } catch (error) {
-    log(`  ✗ Minting failed: ${error.message}`, "red");
-    if (error.stdout) log(`  ${error.stdout}`, "gray");
+    if (successCount > 0) {
+      log(`  ✓ Minted ${successCount} tokens`, "green");
+      return true;
+    }
     return false;
   }
 }
@@ -291,15 +380,40 @@ function getWindowDuration(lessAddress, rpcUrl) {
       `cast call ${lessAddress} "windowDuration()" --rpc-url ${rpcUrl}`,
       { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
     );
-    return parseInt(output.trim(), 16);
+    // Parse hex output (cast returns hex with 0x prefix)
+    const durationHex = output.trim();
+    // Handle empty response (contract doesn't exist)
+    if (!durationHex || durationHex === "0x" || durationHex === "") {
+      log(
+        `Warning: Could not get windowDuration - contract may not exist on fork, using default`,
+        "yellow"
+      );
+      return 30 * 60; // Default 30 minutes
+    }
+    const duration = parseInt(durationHex, 16);
+    if (isNaN(duration)) {
+      log(
+        `Warning: Could not parse windowDuration: ${durationHex}, using default`,
+        "yellow"
+      );
+      return 30 * 60; // Default 30 minutes
+    }
+    return duration;
   } catch (error) {
+    log(
+      `Error getting window duration: ${error.message}, using default`,
+      "yellow"
+    );
     return 30 * 60; // Default 30 minutes
   }
 }
 
 // Wait for window to close
 function waitForWindowClose(rpcUrl, windowDuration) {
-  log(`Waiting for window to close (${windowDuration / 60} minutes)...`, "gray");
+  log(
+    `Waiting for window to close (${windowDuration / 60} minutes)...`,
+    "gray"
+  );
   execSync(
     `cast rpc evm_increaseTime ${windowDuration + 60} --rpc-url ${rpcUrl}`,
     { cwd: rootDir, stdio: "pipe" }
@@ -343,6 +457,25 @@ async function main() {
   // Get contract addresses
   const addresses = getContractAddresses();
   const lessAddress = addresses.less;
+
+  // Verify contract exists on fork
+  try {
+    const contractCode = execSync(
+      `cast code ${lessAddress} --rpc-url ${rpcUrl}`,
+      { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
+    ).trim();
+    if (!contractCode || contractCode === "0x") {
+      log(`Contract does not exist at ${lessAddress} on fork`, "red");
+      log("The fork state may have been lost. Please redeploy:", "yellow");
+      log("  npm run deploy:fork", "yellow");
+      process.exit(1);
+    }
+  } catch (error) {
+    log(
+      `Warning: Could not verify contract existence: ${error.message}`,
+      "yellow"
+    );
+  }
   log(`Less Contract: ${lessAddress}`, "gray");
 
   // Get strategy address
@@ -351,7 +484,10 @@ async function main() {
 
   // Get hook address for funding
   const hookAddress = getHookAddress(strategyAddress, rpcUrl);
-  if (hookAddress && hookAddress !== "0x0000000000000000000000000000000000000000") {
+  if (
+    hookAddress &&
+    hookAddress !== "0x0000000000000000000000000000000000000000"
+  ) {
     log(`Hook: ${hookAddress}`, "gray");
   } else {
     log(`Hook: Not found (strategy may already have ETH)`, "gray");
@@ -402,10 +538,7 @@ async function main() {
   log(`Successfully created ${successfulFolds} folds`, "green");
   log(`Total tokens minted: ${totalMinted}`, "green");
   log(`\nYou can now generate outputs:`, "gray");
-  log(
-    `  node scripts/generate-outputs.js --network=${network}`,
-    "gray"
-  );
+  log(`  node scripts/generate-outputs.js --network=${network}`, "gray");
 }
 
 main().catch((error) => {

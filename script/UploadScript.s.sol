@@ -6,27 +6,27 @@ import {Script, console} from "forge-std/Script.sol";
 /// @title IScriptyStorage
 /// @notice Interface for ScriptyStorageV2 contract
 interface IScriptyStorage {
-    /// @notice Creates a new script entry
-    /// @param name The name/identifier for the script
+    /// @notice Creates a new content entry
+    /// @param name The name/identifier for the content
     /// @param details Additional metadata (usually empty bytes)
-    function createScript(
+    function createContent(
         string calldata name,
         bytes calldata details
     ) external;
 
-    /// @notice Adds a chunk of code to an existing script
-    /// @param name The name/identifier of the script
+    /// @notice Adds a chunk of code to existing content
+    /// @param name The name/identifier of the content
     /// @param chunk The code chunk to append
-    function addChunkToScript(
+    function addChunkToContent(
         string calldata name,
         bytes calldata chunk
     ) external;
 
-    /// @notice Retrieves a script from storage
-    /// @param name The name/identifier of the script
+    /// @notice Retrieves content from storage
+    /// @param name The name/identifier of the content
     /// @param data Additional data (usually empty)
-    /// @return The script content as bytes
-    function getScript(
+    /// @return The content as bytes
+    function getContent(
         string memory name,
         bytes memory data
     ) external view returns (bytes memory);
@@ -45,7 +45,7 @@ contract UploadScript is Script {
         // Load configuration from environment
         address scriptyStorage = vm.envOr(
             "SCRIPTY_STORAGE",
-            address(0x096451F43800f207FC32B4FF86F286EdaF736eE3) // ScriptyStorageV2 mainnet
+            address(0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699) // ScriptyStorageV2 mainnet (updated)
         );
         string memory scriptName = vm.envOr("SCRIPT_NAME", string("less"));
 
@@ -76,10 +76,10 @@ contract UploadScript is Script {
 
         IScriptyStorage storageContract = IScriptyStorage(scriptyStorage);
 
-        // Create the script entry
-        console.log("Creating script entry...");
-        storageContract.createScript(scriptName, "");
-        console.log("Script entry created");
+        // Create the content entry
+        console.log("Creating content entry...");
+        storageContract.createContent(scriptName, "");
+        console.log("Content entry created");
 
         // Upload the script in chunks (ScriptyStorageV2 requires chunked uploads)
         // Maximum chunk size is typically 24576 bytes (24KB) per chunk
@@ -100,7 +100,7 @@ contract UploadScript is Script {
                 chunk[j] = scriptBytes[start + j];
             }
 
-            storageContract.addChunkToScript(scriptName, chunk);
+            storageContract.addChunkToContent(scriptName, chunk);
             console.log("  Chunk uploaded:");
             console.log("    Chunk number:", i + 1);
             console.log("    Total chunks:", totalChunks);
@@ -112,7 +112,7 @@ contract UploadScript is Script {
 
         // Verify the upload by reading it back
         console.log("Verifying upload...");
-        try storageContract.getScript(scriptName, "") returns (
+        try storageContract.getContent(scriptName, "") returns (
             bytes memory retrieved
         ) {
             if (keccak256(retrieved) == keccak256(scriptBytes)) {

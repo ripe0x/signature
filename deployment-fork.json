@@ -1,11 +1,11 @@
 {
   "network": "fork",
-  "timestamp": "2025-12-12T01:33:26.624Z",
+  "timestamp": "2025-12-12T20:20:49.950Z",
   "addresses": {
-    "less": "0xBb0368cecDcB0759a32aBbc21583af992Fe94dD7",
-    "renderer": "0xc80F9dA34212736BE29fcF9eD26B5951DDcc62Bb"
+    "less": "0x8522874371974bF1dac8dF496d372319DF943A17",
+    "renderer": "0x443729DFF68Dcc675463b0ED918ae57E00A3133b"
   },
   "scriptName": "less",
-  "scriptyStorage": "0x096451F43800f207FC32B4FF86F286EdaF736eE3",
-  "scriptyBuilder": "0x16b727a2Fc9322C724F4Bc562910c99a5edA5084"
+  "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+  "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022"
 }

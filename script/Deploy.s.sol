@@ -14,13 +14,14 @@ contract DeployScript is Script {
         address owner = vm.envAddress("OWNER_ADDRESS");
 
         // Scripty addresses (mainnet)
+        // Updated ScriptyBuilderV2 address: 0xD7587F110E08F4D120A231bA97d3B577A81Df022
         address scriptyBuilder = vm.envOr(
             "SCRIPTY_BUILDER",
-            address(0x16b727a2Fc9322C724F4Bc562910c99a5edA5084) // ScriptyBuilderV2 mainnet
+            address(0xD7587F110E08F4D120A231bA97d3B577A81Df022) // ScriptyBuilderV2 mainnet (updated)
         );
         address scriptyStorage = vm.envOr(
             "SCRIPTY_STORAGE",
-            address(0x096451F43800f207FC32B4FF86F286EdaF736eE3) // ScriptyStorageV2 mainnet
+            address(0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699) // ScriptyStorageV2 mainnet (updated)
         );
         string memory scriptName = vm.envOr("SCRIPT_NAME", string("less"));
         string memory baseImageURL = vm.envOr(
@@ -48,12 +49,14 @@ contract DeployScript is Script {
         vm.stopBroadcast();
 
         // Set renderer on Less contract (must be called by owner)
-        // Use prank to impersonate owner if different from deployer
+        // Always broadcast the setRenderer call, impersonating owner if needed
         if (owner != msg.sender) {
-            vm.startPrank(owner);
+            // Impersonate owner and broadcast
+            vm.startBroadcast(owner);
             less.setRenderer(address(renderer));
-            vm.stopPrank();
+            vm.stopBroadcast();
         } else {
+            // Owner is deployer, broadcast normally
             vm.startBroadcast();
             less.setRenderer(address(renderer));
             vm.stopBroadcast();

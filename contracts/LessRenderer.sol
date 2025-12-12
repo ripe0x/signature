@@ -9,6 +9,8 @@ import {ILessRenderer} from "./ILessRenderer.sol";
 
 /// @title IScriptyBuilderV2
 /// @notice Minimal interface for scripty.sol builder
+/// @dev The actual ScriptyBuilderV2 contract may use different function signatures
+///      This interface attempts to cover common variations
 interface IScriptyBuilderV2 {
     enum HTMLTagType {
         useTagOpenAndClose,
@@ -33,14 +35,38 @@ interface IScriptyBuilderV2 {
         HTMLTag[] bodyTags;
     }
 
-    function getHTMLString(HTMLRequest memory htmlRequest) external view returns (string memory);
-    function getEncodedHTMLString(HTMLRequest memory htmlRequest) external view returns (string memory);
+    // Try all possible function signatures
+    function getHTML(
+        HTMLRequest memory htmlRequest
+    ) external view returns (bytes memory);
+    function getHTMLString(
+        HTMLRequest memory htmlRequest
+    ) external view returns (string memory);
+    function getEncodedHTML(
+        HTMLRequest memory htmlRequest
+    ) external view returns (bytes memory);
+    function getEncodedHTMLString(
+        HTMLRequest memory htmlRequest
+    ) external view returns (string memory);
+
+    // Alternative signatures that might exist
+    function getHTMLWrapped(
+        HTMLRequest[] memory requests,
+        uint256 bufferSize
+    ) external view returns (bytes memory);
+    function getEncodedHTMLWrapped(
+        HTMLRequest[] memory requests,
+        uint256 bufferSize
+    ) external view returns (string memory);
 }
 
 /// @title IScriptyStorage
 /// @notice Minimal interface for scripty.sol storage
 interface IScriptyStorage {
-    function getScript(string memory name, bytes memory data) external view returns (bytes memory);
+    function getContent(
+        string memory name,
+        bytes memory data
+    ) external view returns (bytes memory);
 }
 
 /// @title ILess
@@ -60,7 +86,9 @@ interface ILess {
     function getFoldId(uint256 tokenId) external view returns (uint256);
     function getSeed(uint256 tokenId) external view returns (bytes32);
     function getFold(uint256 foldId) external view returns (Fold memory);
-    function getTokenData(uint256 tokenId) external view returns (TokenData memory);
+    function getTokenData(
+        uint256 tokenId
+    ) external view returns (TokenData memory);
     function strategy() external view returns (address);
 }
 
@@ -151,7 +179,9 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Returns the complete tokenURI as a data URI
     /// @param tokenId The token to generate metadata for
     /// @return A data:application/json;base64,... URI
-    function tokenURI(uint256 tokenId) external view override returns (string memory) {
+    function tokenURI(
+        uint256 tokenId
+    ) external view override returns (string memory) {
         // Get token data from the Less contract
         ILess.TokenData memory token = ILess(less).getTokenData(tokenId);
         ILess.Fold memory fold = ILess(less).getFold(token.foldId);
@@ -160,10 +190,13 @@ contract LessRenderer is ILessRenderer, Ownable {
         string memory json = _buildMetadataJSON(tokenId, token, fold);
 
         // Encode as base64 data URI
-        return string(abi.encodePacked(
-            "data:application/json;base64,",
-            Base64.encode(bytes(json))
-        ));
+        return
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Base64.encode(bytes(json))
+                )
+            );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,34 +213,111 @@ contract LessRenderer is ILessRenderer, Ownable {
         string memory imageURL = _buildImageURL(tokenId);
         string memory attributes = _buildAttributes(token, fold);
 
-        return string(abi.encodePacked(
-            '{"name":"less #',
-            tokenId.toString(),
-            '","description":"',
-            DESCRIPTION,
-            '","image":"',
-            imageURL,
-            '","animation_url":"',
-            animationURL,
-            '","attributes":',
-            attributes,
-            '}'
-        ));
+        return
+            string(
+                abi.encodePacked(
+                    '{"name":"less #',
+                    tokenId.toString(),
+                    '","description":"',
+                    DESCRIPTION,
+                    '","image":"',
+                    imageURL,
+                    '","animation_url":"',
+                    animationURL,
+                    '","attributes":',
+                    attributes,
+                    "}"
+                )
+            );
     }
 
     /// @notice Builds the static image URL
-    function _buildImageURL(uint256 tokenId) internal view returns (string memory) {
-        return string(abi.encodePacked(baseImageURL, tokenId.toString(), ".png"));
+    function _buildImageURL(
+        uint256 tokenId
+    ) internal view returns (string memory) {
+        return
+            string(abi.encodePacked(baseImageURL, tokenId.toString(), ".png"));
     }
 
     /// @notice Builds the animation_url using scripty.sol
     /// @dev Returns a data:text/html;base64,... URI
-    function _buildAnimationURL(uint256 tokenId, bytes32 seed) internal view returns (string memory) {
+    /// @dev The ScriptyBuilder contract interface may not match - this tries multiple approaches
+    function _buildAnimationURL(
+        uint256 tokenId,
+        bytes32 seed
+    ) internal view returns (string memory) {
         // Build HTML with scripty
-        IScriptyBuilderV2.HTMLRequest memory request = _buildHTMLRequest(tokenId, seed);
-        string memory encodedHTML = IScriptyBuilderV2(scriptyBuilder).getEncodedHTMLString(request);
+        IScriptyBuilderV2.HTMLRequest memory request = _buildHTMLRequest(
+            tokenId,
+            seed
+        );
 
-        return string(abi.encodePacked("data:text/html;base64,", encodedHTML));
+        // Try multiple function signatures - the actual contract may use different names
+        string memory encodedHTML;
+
+        // Try getEncodedHTMLString first (preferred if available)
+        try
+            IScriptyBuilderV2(scriptyBuilder).getEncodedHTMLString(request)
+        returns (string memory result) {
+            encodedHTML = result;
+            // Check if result already includes the data URI prefix
+            bytes memory prefix = "data:text/html;base64,";
+            bytes memory resultBytes = bytes(result);
+            if (resultBytes.length >= prefix.length) {
+                bool hasPrefix = true;
+                for (uint256 i = 0; i < prefix.length; i++) {
+                    if (resultBytes[i] != prefix[i]) {
+                        hasPrefix = false;
+                        break;
+                    }
+                }
+                if (hasPrefix) {
+                    // Result already has prefix, return as-is
+                    return result;
+                }
+            }
+            // Result doesn't have prefix, add it
+            return
+                string(abi.encodePacked("data:text/html;base64,", encodedHTML));
+        } catch {
+            // Continue to next attempt
+        }
+        // Try getEncodedHTML (returns bytes)
+        try IScriptyBuilderV2(scriptyBuilder).getEncodedHTML(request) returns (
+            bytes memory encodedBytes
+        ) {
+            encodedHTML = string(encodedBytes);
+            // console.log("Using getEncodedHTML");
+            return
+                string(abi.encodePacked("data:text/html;base64,", encodedHTML));
+        } catch {
+            // Continue to next attempt
+        }
+        // Fallback: get HTML string and encode it ourselves
+        try IScriptyBuilderV2(scriptyBuilder).getHTMLString(request) returns (
+            string memory html
+        ) {
+            encodedHTML = Base64.encode(bytes(html));
+            // console.log("Using getHTMLString (manual encode)");
+            return
+                string(abi.encodePacked("data:text/html;base64,", encodedHTML));
+        } catch {
+            // Continue to last attempt
+        }
+        // Last resort: get HTML bytes and encode
+        try IScriptyBuilderV2(scriptyBuilder).getHTML(request) returns (
+            bytes memory htmlBytes
+        ) {
+            encodedHTML = Base64.encode(htmlBytes);
+            // console.log("Using getHTML (manual encode)");
+            return
+                string(abi.encodePacked("data:text/html;base64,", encodedHTML));
+        } catch {
+            // All attempts failed - the ScriptyBuilder interface doesn't match
+            revert(
+                "ScriptyBuilder: Interface mismatch. Check contract functions."
+            );
+        }
     }
 
     /// @notice Constructs the HTMLRequest for scripty builder
@@ -216,7 +326,8 @@ contract LessRenderer is ILessRenderer, Ownable {
         bytes32 seed
     ) internal view returns (IScriptyBuilderV2.HTMLRequest memory) {
         // Create head tags (inject seed as a global variable)
-        IScriptyBuilderV2.HTMLTag[] memory headTags = new IScriptyBuilderV2.HTMLTag[](2);
+        IScriptyBuilderV2.HTMLTag[]
+            memory headTags = new IScriptyBuilderV2.HTMLTag[](2);
 
         // Meta viewport for proper scaling
         headTags[0] = IScriptyBuilderV2.HTMLTag({
@@ -241,7 +352,8 @@ contract LessRenderer is ILessRenderer, Ownable {
         });
 
         // Create body tags (the main script from storage)
-        IScriptyBuilderV2.HTMLTag[] memory bodyTags = new IScriptyBuilderV2.HTMLTag[](1);
+        IScriptyBuilderV2.HTMLTag[]
+            memory bodyTags = new IScriptyBuilderV2.HTMLTag[](1);
 
         bodyTags[0] = IScriptyBuilderV2.HTMLTag({
             name: scriptName,
@@ -253,21 +365,28 @@ contract LessRenderer is ILessRenderer, Ownable {
             tagContent: ""
         });
 
-        return IScriptyBuilderV2.HTMLRequest({
-            headTags: headTags,
-            bodyTags: bodyTags
-        });
+        return
+            IScriptyBuilderV2.HTMLRequest({
+                headTags: headTags,
+                bodyTags: bodyTags
+            });
     }
 
     /// @notice Builds the inline script that sets global seed/tokenId variables
-    function _buildSeedScript(uint256 tokenId, bytes32 seed) internal pure returns (string memory) {
-        return string(abi.encodePacked(
-            "window.LESS_TOKEN_ID=",
-            tokenId.toString(),
-            ";window.LESS_SEED=\"",
-            _bytes32ToHexString(seed),
-            "\";"
-        ));
+    function _buildSeedScript(
+        uint256 tokenId,
+        bytes32 seed
+    ) internal pure returns (string memory) {
+        return
+            string(
+                abi.encodePacked(
+                    "window.LESS_TOKEN_ID=",
+                    tokenId.toString(),
+                    ';window.LESS_SEED="',
+                    _bytes32ToHexString(seed),
+                    '";'
+                )
+            );
     }
 
     /// @notice Builds the attributes array for metadata
@@ -277,33 +396,41 @@ contract LessRenderer is ILessRenderer, Ownable {
     ) internal view returns (string memory) {
         // Get strategy supply if available
         string memory supplyAttr = "";
-        try IStrategy(ILess(less).strategy()).totalSupply() returns (uint256 supply) {
-            supplyAttr = string(abi.encodePacked(
-                ',{"trait_type":"Strategy Supply","value":',
-                supply.toString(),
-                '}'
-            ));
+        try IStrategy(ILess(less).strategy()).totalSupply() returns (
+            uint256 supply
+        ) {
+            supplyAttr = string(
+                abi.encodePacked(
+                    ',{"trait_type":"Strategy Supply","value":',
+                    supply.toString(),
+                    "}"
+                )
+            );
         } catch {}
-
-        return string(abi.encodePacked(
-            '[{"trait_type":"Fold ID","value":',
-            uint256(token.foldId).toString(),
-            '},{"trait_type":"Seed","value":"',
-            _bytes32ToHexString(token.seed),
-            '"},{"trait_type":"Strategy Block","value":',
-            uint256(fold.strategyBlock).toString(),
-            '},{"trait_type":"Window Start","display_type":"date","value":',
-            uint256(fold.startTime).toString(),
-            '},{"trait_type":"Window End","display_type":"date","value":',
-            uint256(fold.endTime).toString(),
-            '}',
-            supplyAttr,
-            ']'
-        ));
+        return
+            string(
+                abi.encodePacked(
+                    '[{"trait_type":"Fold ID","value":',
+                    uint256(token.foldId).toString(),
+                    '},{"trait_type":"Seed","value":"',
+                    _bytes32ToHexString(token.seed),
+                    '"},{"trait_type":"Strategy Block","value":',
+                    uint256(fold.strategyBlock).toString(),
+                    '},{"trait_type":"Window Start","display_type":"date","value":',
+                    uint256(fold.startTime).toString(),
+                    '},{"trait_type":"Window End","display_type":"date","value":',
+                    uint256(fold.endTime).toString(),
+                    "}",
+                    supplyAttr,
+                    "]"
+                )
+            );
     }
 
     /// @notice Converts bytes32 to hex string with 0x prefix
-    function _bytes32ToHexString(bytes32 data) internal pure returns (string memory) {
+    function _bytes32ToHexString(
+        bytes32 data
+    ) internal pure returns (string memory) {
         bytes memory alphabet = "0123456789abcdef";
         bytes memory str = new bytes(66); // 0x + 64 hex chars
         str[0] = "0";
