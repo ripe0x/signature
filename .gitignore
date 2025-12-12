@@ -28,5 +28,8 @@ cache/
 out/
 broadcast/
 
+# Previews (generated)
+previews/
+
 # Tools
 /tools/font-subset/CourierPrime-master/fonts

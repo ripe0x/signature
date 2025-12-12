@@ -1365,18 +1365,9 @@ function ASCIICanvas({
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
   // Calculate optimal cell sizes and gaps to fill the drawing space
-  // Gaps must be one of the allowed ratios (powers of 2 from -1x to 2x)
+  // Gaps must be one of the allowed ratios (powers of 2 from 1/64 to 2x)
   // Smaller gaps are more common, gaps > 1/4 are rare
-  // Negative gaps allow overlapping cells, increasing cell count
   const ALLOWED_GAP_RATIOS = [
-    // Negative gaps (overlapping cells) - from -1x to -1/64
-    -1.0, // -1x (cells overlap by their full size)
-    -1 / 2, // -0.5x
-    -1 / 4, // -0.25x
-    -1 / 8, // -0.125
-    -1 / 16, // -0.0625
-    -1 / 32, // -0.03125
-    -1 / 64, // -0.015625
     // Positive gaps (spacing between cells) - from 1/64 to 2x
     1 / 64, // 0.015625
     1 / 32, // 0.03125
@@ -1412,43 +1403,24 @@ function ASCIICanvas({
   }
 
   // Weight gap ratios: smaller gaps are more likely, gaps > 1/4 are rare
-  // Negative gaps (overlapping) are less common than positive gaps
   // Create weighted list where gaps <= 1/4 get higher weight
   const getWeightedGapRatios = () => {
     const ratios = [];
 
-    // Small negative gaps (overlapping): -1/64 to -1/8, 50% chance of including
-    if (gapRng() < 0.5) {
-      ratios.push(ALLOWED_GAP_RATIOS[6]); // -1/64
-      ratios.push(ALLOWED_GAP_RATIOS[5]); // -1/32
-      ratios.push(ALLOWED_GAP_RATIOS[4]); // -1/16
-      ratios.push(ALLOWED_GAP_RATIOS[3]); // -1/8
-    }
-
-    // Medium negative gaps: -1/4, -1/2, -1x, 30% chance
-    if (gapRng() < 0.3) {
-      ratios.push(ALLOWED_GAP_RATIOS[2]); // -1/4
-      ratios.push(ALLOWED_GAP_RATIOS[1]); // -1/2
-      // -1x is very rare (10% chance when negative gaps are used)
-      if (gapRng() < 0.1) {
-        ratios.push(ALLOWED_GAP_RATIOS[0]); // -1x
-      }
-    }
-
     // Small positive gaps (<= 1/4): always included
-    ratios.push(ALLOWED_GAP_RATIOS[7]); // 1/64
-    ratios.push(ALLOWED_GAP_RATIOS[8]); // 1/32
-    ratios.push(ALLOWED_GAP_RATIOS[9]); // 1/16
-    ratios.push(ALLOWED_GAP_RATIOS[10]); // 1/8
-    ratios.push(ALLOWED_GAP_RATIOS[11]); // 1/4
+    ratios.push(ALLOWED_GAP_RATIOS[0]); // 1/64
+    ratios.push(ALLOWED_GAP_RATIOS[1]); // 1/32
+    ratios.push(ALLOWED_GAP_RATIOS[2]); // 1/16
+    ratios.push(ALLOWED_GAP_RATIOS[3]); // 1/8
+    ratios.push(ALLOWED_GAP_RATIOS[4]); // 1/4
 
     // Medium positive gaps (1/2, 1x): always included
-    ratios.push(ALLOWED_GAP_RATIOS[12]); // 1/2
-    ratios.push(ALLOWED_GAP_RATIOS[13]); // 1x
+    ratios.push(ALLOWED_GAP_RATIOS[5]); // 1/2
+    ratios.push(ALLOWED_GAP_RATIOS[6]); // 1x
 
     // Large positive gaps (2x): only 25% chance (very rare)
     if (gapRng() < 0.25) {
-      ratios.push(ALLOWED_GAP_RATIOS[14]); // 2x
+      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x
     }
 
     return ratios;
@@ -1468,21 +1440,10 @@ function ASCIICanvas({
   for (const gapRatio of colGapRatios) {
     const gap = refCellWidth * gapRatio;
 
-    // Ensure gap doesn't cause cells to overlap more than 90% of their size
-    // (gap can't be more negative than -0.9 * cellWidth)
-    if (gap < -0.9 * refCellWidth) {
-      continue;
-    }
-
     // Solve: cols * cellWidth + (cols - 1) * gap = refInnerWidth
     // cols = (refInnerWidth + gap) / (cellWidth + gap)
-    // For negative gaps, the stride (cellWidth + gap) is smaller, allowing more cells
     // Use Math.floor to ensure we never exceed the space
     const stride = refCellWidth + gap;
-    // Ensure stride is positive (gap can't be more negative than -cellWidth)
-    if (stride <= 0) {
-      continue;
-    }
 
     const cols = Math.max(1, Math.floor((refInnerWidth + gap) / stride));
 
@@ -1530,21 +1491,10 @@ function ASCIICanvas({
   for (const gapRatio of rowGapRatios) {
     const gap = refCellHeight * gapRatio;
 
-    // Ensure gap doesn't cause cells to overlap more than 90% of their size
-    // (gap can't be more negative than -0.9 * cellHeight)
-    if (gap < -0.9 * refCellHeight) {
-      continue;
-    }
-
     // Solve: rows * cellHeight + (rows - 1) * gap = refInnerHeight
     // rows = (refInnerHeight + gap) / (cellHeight + gap)
-    // For negative gaps, the stride (cellHeight + gap) is smaller, allowing more cells
     // Use Math.floor to ensure we never exceed the space
     const stride = refCellHeight + gap;
-    // Ensure stride is positive (gap can't be more negative than -cellHeight)
-    if (stride <= 0) {
-      continue;
-    }
 
     const rows = Math.max(1, Math.floor((refInnerHeight + gap) / stride));
 

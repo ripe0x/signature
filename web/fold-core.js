@@ -777,15 +777,23 @@ export function generateCellDimensions(width, height, padding, seed) {
   const sizeBias = rng();
   let pair;
 
-  if (sizeBias < 0.25) {
+  // Bias toward larger cells: small cells are rare
+  // 10% small (bottom 25%), 30% medium (middle 50%), 60% large (top 25%)
+  if (sizeBias < 0.1) {
+    // Small cells - rare
     const idx = Math.floor(rng() * Math.ceil(validPairs.length * 0.25));
     pair = validPairs[idx];
-  } else if (sizeBias > 0.75) {
+  } else if (sizeBias < 0.4) {
+    // Medium cells
+    const startIdx = Math.floor(validPairs.length * 0.25);
+    const endIdx = Math.floor(validPairs.length * 0.75);
+    const idx = startIdx + Math.floor(rng() * (endIdx - startIdx));
+    pair = validPairs[Math.min(idx, validPairs.length - 1)];
+  } else {
+    // Large cells - most common
     const startIdx = Math.floor(validPairs.length * 0.75);
     const idx = startIdx + Math.floor(rng() * (validPairs.length - startIdx));
-    pair = validPairs[idx];
-  } else {
-    pair = validPairs[Math.floor(rng() * validPairs.length)];
+    pair = validPairs[Math.min(idx, validPairs.length - 1)];
   }
 
   return { cellW: pair.w, cellH: pair.h };

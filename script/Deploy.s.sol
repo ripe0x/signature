@@ -23,7 +23,10 @@ contract DeployScript is Script {
             address(0x096451F43800f207FC32B4FF86F286EdaF736eE3) // ScriptyStorageV2 mainnet
         );
         string memory scriptName = vm.envOr("SCRIPT_NAME", string("less"));
-        string memory baseImageURL = vm.envOr("BASE_IMAGE_URL", string("https://example.com/less/"));
+        string memory baseImageURL = vm.envOr(
+            "BASE_IMAGE_URL",
+            string("https://example.com/less/")
+        );
 
         vm.startBroadcast();
 
@@ -42,10 +45,20 @@ contract DeployScript is Script {
         );
         console.log("LessRenderer deployed at:", address(renderer));
 
-        // Set renderer on Less contract
-        less.setRenderer(address(renderer));
-        console.log("Renderer set on Less contract");
-
         vm.stopBroadcast();
+
+        // Set renderer on Less contract (must be called by owner)
+        // Use prank to impersonate owner if different from deployer
+        if (owner != msg.sender) {
+            vm.startPrank(owner);
+            less.setRenderer(address(renderer));
+            vm.stopPrank();
+        } else {
+            vm.startBroadcast();
+            less.setRenderer(address(renderer));
+            vm.stopBroadcast();
+        }
+
+        console.log("Renderer set on Less contract");
     }
 }

@@ -66,7 +66,6 @@ Space: " " (U+0020)
 Light Shade: "░" (U+2591)
 Medium Shade: "▒" (U+2592)
 Dark Shade: "▓" (U+2593)
-Full Block: "█" (U+2588)
     </pre>
   </div>
 
@@ -94,8 +93,8 @@ Full Block: "█" (U+2588)
     const fontDetailsEl = document.getElementById('font-details');
 
     // Test characters
-    const testChars = [' ', '░', '▒', '▓', '█'];
-    const testLabels = ['Space', 'Light', 'Medium', 'Dark', 'Full'];
+    const testChars = [' ', '░', '▒', '▓'];
+    const testLabels = ['Space', 'Light', 'Medium', 'Dark'];
 
     function renderTest(canvasId, fontFamily, label) {
       const canvas = document.getElementById(canvasId);
@@ -133,7 +132,7 @@ Full Block: "█" (U+2588)
       // Row of repeated chars to show pattern
       ctx.fillStyle = '#00ff88';
       ctx.font = `24px ${fontFamily}`;
-      ctx.fillText('░░▒▒▓▓██ Pattern Test', 20, 130);
+      ctx.fillText('░░▒▒▓▓ Pattern Test', 20, 130);
 
       // Check if chars rendered (measure width)
       const widths = testChars.map(c => {

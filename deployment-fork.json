@@ -1,0 +1,11 @@
+{
+  "network": "fork",
+  "timestamp": "2025-12-12T01:33:26.624Z",
+  "addresses": {
+    "less": "0xBb0368cecDcB0759a32aBbc21583af992Fe94dD7",
+    "renderer": "0xc80F9dA34212736BE29fcF9eD26B5951DDcc62Bb"
+  },
+  "scriptName": "less",
+  "scriptyStorage": "0x096451F43800f207FC32B4FF86F286EdaF736eE3",
+  "scriptyBuilder": "0x16b727a2Fc9322C724F4Bc562910c99a5edA5084"
+}

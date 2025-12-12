@@ -6,7 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "node scripts/deploy.js",
+    "deploy:mainnet": "node scripts/deploy.js --network=mainnet",
+    "deploy:fork": "node scripts/deploy.js --network=fork",
+    "generate-outputs": "node scripts/generate-outputs.js",
+    "generate-outputs:fork": "node scripts/generate-outputs.js --network=fork",
+    "generate-outputs:mainnet": "node scripts/generate-outputs.js --network=mainnet",
+    "use-historical-burns": "node scripts/use-historical-burns.js --network=fork",
+    "fetch-burns": "node scripts/fetch-burns-from-page.js",
+    "create-folds": "node scripts/create-folds-and-mint.js --network=fork",
+    "create-folds:fork": "node scripts/create-folds-and-mint.js --network=fork --folds=5 --mints-per-fold=3"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -14,6 +24,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "esbuild": "^0.21.5",
+    "puppeteer": "^24.33.0",
     "vite": "^5.0.8"
   }
 }
