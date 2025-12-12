@@ -995,6 +995,16 @@ export function generateMultiColorEnabled(seed) {
   return rng() < 0.25;
 }
 
+export function generateRareCellOutlines(seed) {
+  const rng = seededRandom(seed + 7777);
+  return rng() < 0.08;
+}
+
+export function generateRareHitCounts(seed) {
+  const rng = seededRandom(seed + 8888);
+  return rng() < 0.08;
+}
+
 // ============ ADAPTIVE THRESHOLDS ============
 
 export function calculateAdaptiveThresholds(cellWeights) {

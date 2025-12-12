@@ -27,6 +27,8 @@ import {
   generateFoldStrategy,
   generateMultiColorPalette,
   generateMultiColorEnabled,
+  generateRareCellOutlines,
+  generateRareHitCounts,
   generateAllParams,
   // Simulation
   simulateFolds,
@@ -2135,7 +2137,7 @@ function ASCIICanvas({
     }
 
     if (showCellOutlines) {
-      ctx.strokeStyle = "#ff0000";
+      ctx.strokeStyle = accentColor;
       ctx.lineWidth = 0.5;
       ctx.globalAlpha = 1;
       for (let row = 0; row < rows; row++) {
@@ -2214,6 +2216,8 @@ export default function FoldedPaper() {
   const initialRenderMode = generateRenderMode(42);
   const initialMultiColor = generateMultiColorEnabled(42);
   const initialFoldStrategy = generateFoldStrategy(42);
+  const initialRareCellOutlines = generateRareCellOutlines(42);
+  const initialRareHitCounts = generateRareHitCounts(42);
 
   const [bgColor, setBgColor] = useState(initialPalette.bg);
   const [textColor, setTextColor] = useState(initialPalette.text);
@@ -2233,8 +2237,10 @@ export default function FoldedPaper() {
   const [strategyOverride, setStrategyOverride] = useState("auto");
   const [showCreases, setShowCreases] = useState(false);
   const [showPaperShape, setShowPaperShape] = useState(false);
-  const [showHitCounts, setShowHitCounts] = useState(false);
-  const [showCellOutlines, setShowCellOutlines] = useState(false);
+  const [showHitCounts, setShowHitCounts] = useState(initialRareHitCounts);
+  const [showCellOutlines, setShowCellOutlines] = useState(
+    initialRareCellOutlines
+  );
   const [intersectionCount, setIntersectionCount] = useState(0);
   const [creaseCount, setCreaseCount] = useState(0);
   const [maxFoldsValue, setMaxFoldsValue] = useState(0);
@@ -2466,6 +2472,9 @@ export default function FoldedPaper() {
       if (strategyOverride === "auto") {
         setFoldStrategy(generateFoldStrategy(seed));
       }
+
+      setShowCellOutlines(generateRareCellOutlines(seed));
+      setShowHitCounts(generateRareHitCounts(seed));
     }
   }, [seed, colorScheme, width, height, padding, strategyOverride]);
 
