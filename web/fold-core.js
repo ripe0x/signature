@@ -816,10 +816,11 @@ export function generateRenderMode(seed) {
   const rng = seededRandom(seed + 5555);
   const roll = rng();
 
+  // normal 35%, binary 5%, inverted 25%, sparse 17.5%, dense 17.5%
   if (roll < 0.35) return "normal";
-  if (roll < 0.5) return "binary";
+  if (roll < 0.40) return "binary";
   if (roll < 0.65) return "inverted";
-  if (roll < 0.8) return "sparse";
+  if (roll < 0.825) return "sparse";
   return "dense";
 }
 
@@ -1113,10 +1114,23 @@ export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
 // ============ GAP CALCULATION ============
 
 const ALLOWED_GAP_RATIOS = [
-  1 / 64, 1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1.0, 2.0,
+  1 / 64,
+  1 / 32,
+  1 / 16,
+  1 / 8,
+  1 / 4,
+  1 / 2,
+  1.0,
+  2.0,
 ];
 
-export function calculateGridWithGaps(seed, cellWidth, cellHeight, innerWidth, innerHeight) {
+export function calculateGridWithGaps(
+  seed,
+  cellWidth,
+  cellHeight,
+  innerWidth,
+  innerHeight
+) {
   const gapRng = seededRandom(seed + 12345);
 
   // 40% chance of having any gaps at all
@@ -1231,8 +1245,10 @@ export function calculateGridWithGaps(seed, cellWidth, cellHeight, innerWidth, i
   const colGap = bestColGap;
   const rowGap = bestRowGap;
 
-  const actualGridWidth = cols * refCellWidth + (cols > 1 ? (cols - 1) * colGap : 0);
-  const actualGridHeight = rows * refCellHeight + (rows > 1 ? (rows - 1) * rowGap : 0);
+  const actualGridWidth =
+    cols * refCellWidth + (cols > 1 ? (cols - 1) * colGap : 0);
+  const actualGridHeight =
+    rows * refCellHeight + (rows > 1 ? (rows - 1) * rowGap : 0);
 
   const widthDiff = innerWidth - actualGridWidth;
   const heightDiff = innerHeight - actualGridHeight;
@@ -2379,7 +2395,13 @@ export function renderToCanvas({
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
   // Use gap calculation for grid layout
-  const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, refInnerWidth, refInnerHeight);
+  const grid = calculateGridWithGaps(
+    seed,
+    cellWidth,
+    cellHeight,
+    refInnerWidth,
+    refInnerHeight
+  );
   const { cols, rows, strideX, strideY, gridOffsetX, gridOffsetY } = grid;
   const refCellWidth = grid.cellWidth;
   const refCellHeight = grid.cellHeight;
@@ -2428,16 +2450,28 @@ export function renderToCanvas({
   let firstFoldTargetCell = null;
   if (firstFoldTarget) {
     // Fold target is in grid space - convert to cell coordinates using stride
-    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX)));
-    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY)));
+    const targetCol = Math.max(
+      0,
+      Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX))
+    );
+    const targetRow = Math.max(
+      0,
+      Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY))
+    );
     firstFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
   let lastFoldTargetCell = null;
   if (lastFoldTarget) {
     // Fold target is in grid space - convert to cell coordinates using stride
-    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX)));
-    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY)));
+    const targetCol = Math.max(
+      0,
+      Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX))
+    );
+    const targetRow = Math.max(
+      0,
+      Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY))
+    );
     lastFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
@@ -2467,7 +2501,8 @@ export function renderToCanvas({
   }
 
   const fontSize = actualCellHeight - 2 * scaleY;
-  const sizeCategory = fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
+  const sizeCategory =
+    fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textBaseline = "top";
 
@@ -2485,28 +2520,55 @@ export function renderToCanvas({
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
 
   // Determine overlap pattern based on seed
-  // Pattern types: 0 = uniform, 1 = row-based, 2 = col-based, 3 = checkerboard, 4 = diagonal
+  // 50% no overlap, then for overlaps: 75%/95% are 20% total, rest split remaining 30%
   const overlapRng = seededRandom(seed + 11111);
-  const overlapPatternType = Math.floor(overlapRng() * 5);
-  const overlapIntervals = [0.95, 0.75, 0.50, 0.25, 0.05]; // 5%, 25%, 50%, 75%, 95% overlap
-  const baseOverlapIndex = Math.floor(overlapRng() * overlapIntervals.length);
+  const hasOverlap = overlapRng() >= 0.5; // 50% chance of any overlap
+
+  // Overlap factors and their weights when overlap is enabled
+  // [factor, cumulative probability]: 1.0=none, 0.95=5%, 0.75=25%, 0.5=50%, 0.25=75%, 0.05=95%
+  const getBaseOverlapFactor = () => {
+    if (!hasOverlap) return 1.0;
+    const roll = overlapRng();
+    // 10% each for 5%, 25%, 50% overlap (30% total) -> 60% of the 50% overlap chance
+    // 10% each for 75%, 95% overlap (20% total) -> 40% of the 50% overlap chance
+    if (roll < 0.2) return 0.95;  // 5% overlap
+    if (roll < 0.4) return 0.75;  // 25% overlap
+    if (roll < 0.6) return 0.5;   // 50% overlap
+    if (roll < 0.8) return 0.25;  // 75% overlap
+    return 0.05;                   // 95% overlap
+  };
+  const baseOverlapFactor = getBaseOverlapFactor();
+
+  // Pattern types: 0 = uniform, 1 = row-based, 2 = col-based, 3 = checkerboard, 4 = diagonal
+  const overlapPatternType = hasOverlap ? Math.floor(overlapRng() * 5) : 0;
+  const overlapIntervals = [0.95, 0.75, 0.5, 0.25, 0.05];
+  const baseOverlapIndex = overlapIntervals.indexOf(baseOverlapFactor);
   const overlapVariation = Math.floor(overlapRng() * 3) + 1; // 1-3 steps of variation
 
   // Function to get overlap factor for a cell based on pattern
   const getOverlapFactor = (row, col) => {
-    let idx = baseOverlapIndex;
+    if (!hasOverlap) return 1.0;
+    let idx = baseOverlapIndex === -1 ? 0 : baseOverlapIndex;
     switch (overlapPatternType) {
       case 1: // row-based bands
-        idx = (baseOverlapIndex + Math.floor(row / 2) * overlapVariation) % overlapIntervals.length;
+        idx =
+          (idx + Math.floor(row / 2) * overlapVariation) %
+          overlapIntervals.length;
         break;
       case 2: // col-based bands
-        idx = (baseOverlapIndex + Math.floor(col / 2) * overlapVariation) % overlapIntervals.length;
+        idx =
+          (idx + Math.floor(col / 2) * overlapVariation) %
+          overlapIntervals.length;
         break;
       case 3: // checkerboard
-        idx = (baseOverlapIndex + ((row + col) % 2) * overlapVariation) % overlapIntervals.length;
+        idx =
+          (idx + ((row + col) % 2) * overlapVariation) %
+          overlapIntervals.length;
         break;
       case 4: // diagonal stripes
-        idx = (baseOverlapIndex + Math.floor((row + col) / 2) * overlapVariation) % overlapIntervals.length;
+        idx =
+          (idx + Math.floor((row + col) / 2) * overlapVariation) %
+          overlapIntervals.length;
         break;
       default: // uniform
         break;
@@ -2527,7 +2589,9 @@ export function renderToCanvas({
 
   // showHitCounts mode: draw numeric weight values instead of shade characters
   if (showHitCounts) {
-    const hitFontSize = Math.floor(Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7));
+    const hitFontSize = Math.floor(
+      Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7)
+    );
     ctx.font = `bold ${hitFontSize}px monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -2535,8 +2599,12 @@ export function renderToCanvas({
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        const x = Math.round(offsetX + col * actualStrideX + actualCellWidth / 2);
-        const y = Math.round(offsetY + row * actualStrideY + actualCellHeight / 2);
+        const x = Math.round(
+          offsetX + col * actualStrideX + actualCellWidth / 2
+        );
+        const y = Math.round(
+          offsetY + row * actualStrideY + actualCellHeight / 2
+        );
         const key = `${col},${row}`;
         const weight = intersectionWeight[key] || 0;
 
@@ -2554,117 +2622,144 @@ export function renderToCanvas({
       for (let col = 0; col < cols; col++) {
         const x = Math.round(offsetX + col * actualStrideX);
         const y = Math.round(offsetY + row * actualStrideY);
-      const key = `${col},${row}`;
-      const weight = intersectionWeight[key] || 0;
+        const key = `${col},${row}`;
+        const weight = intersectionWeight[key] || 0;
 
-      let char = null;
-      let color = textColor;
-      let level = -1;
+        let char = null;
+        let color = textColor;
+        let level = -1;
+        let isEmptyCell = false;
 
-      if (firstFoldTargetCell === key) {
-        // First fold target: always show a visible character with accent color
-        level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
-        char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
-        color = accentColor;
-      } else if (lastFoldTargetCell === key) {
-        // Last fold target: always show a visible character
-        level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
-        char = shadeChars[Math.max(level, 2)]; // At least ▒ for visibility
-        color = textColor;
-      } else if (accentCells.has(key) && weight > 0) {
-        char = shadeChars[2];
-        level = 2;
-        color = accentColor;
-      } else if (weight >= 1.5) {
-        const extremeAmount = weight - 1.5;
-        const baseShift = 30 + Math.min(extremeAmount * 300, 150);
-        const baseHsl = hexToHsl(textColor);
-        const newHue = (baseHsl.h + baseShift + 360) % 360;
-        const newSat = Math.min(100, baseHsl.s + 20);
-        const newLight = Math.min(85, baseHsl.l + 10);
-        char = shadeChars[3];
-        level = 3;
-        color = hslToHex(newHue, newSat, newLight);
-      } else if (renderMode === "normal") {
-        level = countToLevelAdaptive(weight, thresholds);
-        char = shadeChars[level];
-        color = getColorForLevel(level, key);
-      } else if (renderMode === "binary") {
-        if (weight === 0) {
-          char = shadeChars[0];
-          level = 0;
-          color = getColorForLevel(0, key);
-        } else {
-          char = shadeChars[3];
-          level = 3;
-          color = getColorForLevel(3, key);
-        }
-      } else if (renderMode === "inverted") {
-        level = 3 - countToLevelAdaptive(weight, thresholds);
-        char = shadeChars[level];
-        color = getColorForLevel(level, key);
-      } else if (renderMode === "sparse") {
-        level = countToLevelAdaptive(weight, thresholds);
-        if (level === 1) {
-          char = shadeChars[1];
-          color = getColorForLevel(1, key);
-        }
-      } else if (renderMode === "dense") {
-        level = countToLevelAdaptive(weight, thresholds);
-        if (level >= 2) {
+        if (firstFoldTargetCell === key) {
+          // First fold target: ONLY exception - always show with accent color
+          level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+          char = shadeChars[Math.max(level, 2)];
+          color = accentColor;
+        } else if (renderMode === "normal") {
+          level = countToLevelAdaptive(weight, thresholds);
+          char = shadeChars[level];
+          if (level === 0) {
+            char = shadeChars[1];
+            isEmptyCell = true;
+          }
+          color = getColorForLevel(level, key);
+          // Apply special styling within mode constraints
+          if (weight >= 1.5) {
+            const extremeAmount = weight - 1.5;
+            const baseShift = 30 + Math.min(extremeAmount * 300, 150);
+            const baseHsl = hexToHsl(textColor);
+            color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+          } else if (accentCells.has(key) && weight > 0) {
+            color = accentColor;
+          } else if (lastFoldTargetCell === key) {
+            color = textColor;
+          }
+        } else if (renderMode === "binary") {
+          if (weight === 0) {
+            char = shadeChars[0];
+            level = 0;
+            color = getColorForLevel(0, key);
+          } else {
+            char = shadeChars[3];
+            level = 3;
+            color = getColorForLevel(3, key);
+            if (accentCells.has(key)) color = accentColor;
+          }
+        } else if (renderMode === "inverted") {
+          level = 3 - countToLevelAdaptive(weight, thresholds);
           char = shadeChars[level];
           color = getColorForLevel(level, key);
-        } else if (weight === 0) {
-          char = shadeChars[0];
-          level = 0;
-          color = getColorForLevel(0, key);
+          if (weight >= 1.5) {
+            const extremeAmount = weight - 1.5;
+            const baseShift = 30 + Math.min(extremeAmount * 300, 150);
+            const baseHsl = hexToHsl(textColor);
+            color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+          } else if (accentCells.has(key) && weight > 0) {
+            color = accentColor;
+          }
+        } else if (renderMode === "sparse") {
+          level = countToLevelAdaptive(weight, thresholds);
+          if (level === 1) {
+            char = shadeChars[1];
+            color = getColorForLevel(1, key);
+            if (accentCells.has(key)) color = accentColor;
+          }
+        } else if (renderMode === "dense") {
+          level = countToLevelAdaptive(weight, thresholds);
+          if (level >= 2) {
+            char = shadeChars[level];
+            color = getColorForLevel(level, key);
+            if (weight >= 1.5) {
+              const extremeAmount = weight - 1.5;
+              const baseShift = 30 + Math.min(extremeAmount * 300, 150);
+              const baseHsl = hexToHsl(textColor);
+              color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+            } else if (accentCells.has(key)) {
+              color = accentColor;
+            }
+          } else if (weight === 0) {
+            char = shadeChars[0];
+            level = 0;
+            color = getColorForLevel(0, key);
+          }
         }
-      }
 
-      if (char) {
-        // Use the color we determined earlier (accentColor for fold targets)
-        // Don't override it with finalColor for fold target cells
-        if (firstFoldTargetCell === key || lastFoldTargetCell === key) {
-          ctx.fillStyle = color; // Already set to accentColor || textColor
-        } else {
-          const finalColor = getColorForLevel(
-            countToLevelAdaptive(weight, thresholds),
-            key
-          );
-          ctx.fillStyle =
-            accentCells.has(key) && weight > 0 ? accentColor : finalColor;
-        }
-
-        const measuredCharWidth = ctx.measureText(char).width;
-        const cellEndX = x + actualCellWidth;
-
-        let currentX = x;
-        let charIndex = 0;
-        // Get overlap factor based on seed-determined pattern
-        const overlapFactor = getOverlapFactor(row, col);
-
-        while (currentX < cellEndX && level >= 0) {
-          let nextChar = char;
-          if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
-            nextChar = shadeChars[Math.max(0, level - 1)];
+        if (char) {
+          // Use the color we determined earlier (accentColor for fold targets)
+          // Don't override it with finalColor for fold target cells
+          if (firstFoldTargetCell === key || lastFoldTargetCell === key) {
+            ctx.fillStyle = color; // Already set to accentColor || textColor
+          } else {
+            const finalColor = getColorForLevel(
+              countToLevelAdaptive(weight, thresholds),
+              key
+            );
+            ctx.fillStyle =
+              accentCells.has(key) && weight > 0 ? accentColor : finalColor;
           }
 
-          const nextCharWidth = charMetrics[nextChar]?.width || ctx.measureText(nextChar).width;
-          const remainingWidth = cellEndX - currentX;
+          // Empty cells: draw lightest character at reduced opacity using text color
+          if (isEmptyCell) {
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = textColor;
+          }
 
-          if (remainingWidth <= 0) break;
+          const measuredCharWidth = ctx.measureText(char).width;
+          const cellEndX = x + actualCellWidth;
 
-          // Don't draw if character would extend past drawing area
-          if (currentX + nextCharWidth > drawAreaRight) break;
+          let currentX = x;
+          let charIndex = 0;
+          // Get overlap factor based on seed-determined pattern
+          const overlapFactor = getOverlapFactor(row, col);
 
-          ctx.fillText(nextChar, currentX, y);
-          currentX += nextCharWidth * overlapFactor;
+          while (currentX < cellEndX && level >= 0) {
+            let nextChar = char;
+            if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
+              nextChar = shadeChars[Math.max(0, level - 1)];
+            }
 
-          charIndex++;
+            const nextCharWidth =
+              charMetrics[nextChar]?.width || ctx.measureText(nextChar).width;
+            const remainingWidth = cellEndX - currentX;
+
+            if (remainingWidth <= 0) break;
+
+            // Don't draw if character would extend past drawing area
+            if (currentX + nextCharWidth > drawAreaRight) break;
+
+            ctx.fillText(nextChar, currentX, y);
+            currentX += nextCharWidth * overlapFactor;
+
+            charIndex++;
+          }
+
+          // Reset alpha after drawing empty cells
+          if (isEmptyCell) {
+            ctx.globalAlpha = 1;
+          }
         }
       }
     }
-  }
   } // end else (normal rendering)
 
   // Draw cell outlines if enabled
@@ -2994,10 +3089,12 @@ export async function initOnChain() {
       // Create canvas if it doesn't exist
       canvas = document.createElement("canvas");
       canvas.id = "c";
-      canvas.style.cssText = "display:block;margin:0 auto;max-width:100%;max-height:100vh;";
+      canvas.style.cssText =
+        "display:block;margin:0 auto;max-width:100%;max-height:100vh;";
       document.body.appendChild(canvas);
       // Style body for full-screen canvas
-      document.body.style.cssText = "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;";
+      document.body.style.cssText =
+        "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;";
     }
 
     // Load font (embedded or provided)
