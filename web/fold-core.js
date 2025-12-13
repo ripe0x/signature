@@ -777,21 +777,34 @@ export function generateCellDimensions(width, height, padding, seed) {
   const sizeBias = rng();
   let pair;
 
-  // Bias toward larger cells: small cells are rare
-  // 10% small (bottom 25%), 30% medium (middle 50%), 60% large (top 25%)
-  if (sizeBias < 0.1) {
-    // Small cells - rare
-    const idx = Math.floor(rng() * Math.ceil(validPairs.length * 0.25));
+  // Size distribution with rare extremes:
+  // 3% very small (bottom 10%), 7% small (10-25%), 35% medium (25-75%), 50% large (75-90%), 5% very large (top 10%)
+  if (sizeBias < 0.03) {
+    // Very small cells - very rare
+    const endIdx = Math.max(1, Math.ceil(validPairs.length * 0.1));
+    const idx = Math.floor(rng() * endIdx);
     pair = validPairs[idx];
-  } else if (sizeBias < 0.4) {
-    // Medium cells
+  } else if (sizeBias < 0.1) {
+    // Small cells - rare
+    const startIdx = Math.floor(validPairs.length * 0.1);
+    const endIdx = Math.floor(validPairs.length * 0.25);
+    const idx = startIdx + Math.floor(rng() * Math.max(1, endIdx - startIdx));
+    pair = validPairs[Math.min(idx, validPairs.length - 1)];
+  } else if (sizeBias < 0.45) {
+    // Medium cells - common
     const startIdx = Math.floor(validPairs.length * 0.25);
     const endIdx = Math.floor(validPairs.length * 0.75);
     const idx = startIdx + Math.floor(rng() * (endIdx - startIdx));
     pair = validPairs[Math.min(idx, validPairs.length - 1)];
-  } else {
+  } else if (sizeBias < 0.95) {
     // Large cells - most common
     const startIdx = Math.floor(validPairs.length * 0.75);
+    const endIdx = Math.floor(validPairs.length * 0.9);
+    const idx = startIdx + Math.floor(rng() * Math.max(1, endIdx - startIdx));
+    pair = validPairs[Math.min(idx, validPairs.length - 1)];
+  } else {
+    // Very large cells - rare
+    const startIdx = Math.floor(validPairs.length * 0.9);
     const idx = startIdx + Math.floor(rng() * (validPairs.length - startIdx));
     pair = validPairs[Math.min(idx, validPairs.length - 1)];
   }
