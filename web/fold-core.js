@@ -23,11 +23,11 @@ export const FONT_STACK = `"${ONCHAIN_FONT_NAME}", ${FALLBACK_FONT}`;
 
 // Character glyph metrics (measured at 100px, expressed as ratios of fontSize)
 // The CSS box is 60x100 at 100px font, but glyphs extend beyond
-export const CHAR_WIDTH_RATIO = 0.6;        // CSS box width / fontSize
-export const CHAR_TOP_OVERFLOW = 0.08;      // All chars extend 8% above CSS box
-export const CHAR_BOTTOM_OVERFLOW_DARK = 0.06;   // ▓ extends 6% below
-export const CHAR_BOTTOM_OVERFLOW_OTHER = 0.03;  // ░▒ extend 3% below
-export const CHAR_LIGHT_LEFT_OFFSET = 0.05;      // ░ is offset 5% to the left
+export const CHAR_WIDTH_RATIO = 0.6; // CSS box width / fontSize
+export const CHAR_TOP_OVERFLOW = 0.08; // All chars extend 8% above CSS box
+export const CHAR_BOTTOM_OVERFLOW_DARK = 0.06; // ▓ extends 6% below
+export const CHAR_BOTTOM_OVERFLOW_OTHER = 0.03; // ░▒ extend 3% below
+export const CHAR_LIGHT_LEFT_OFFSET = 0.05; // ░ is offset 5% to the left
 
 // ============ VGA 256-COLOR PALETTE SYSTEM ============
 
@@ -773,16 +773,10 @@ export function generateCellDimensions(width, height, padding, seed) {
   const rng = seededRandom(seed + 9999);
 
   const validPairs = [];
-  // Calculate the minimum width needed to fit one character given a cell height
-  // fontSize = cellHeight / glyphHeightRatio, charWidth = fontSize * CHAR_WIDTH_RATIO
-  const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK; // 1.14
-
   for (const w of validWidths) {
     for (const h of validHeights) {
       const ratio = Math.max(w / h, h / w);
-      // Cell must fit at least one character width
-      const minWidthForChar = (h / glyphHeightRatio) * CHAR_WIDTH_RATIO;
-      if (ratio <= CELL_ASPECT_MAX && w >= minWidthForChar) {
+      if (ratio <= CELL_ASPECT_MAX) {
         validPairs.push({ w, h });
       }
     }
@@ -2620,16 +2614,37 @@ export function renderToCanvas({
   // For compatibility with existing code that uses charMetrics
   const charMetrics = {
     " ": { width: charWidth },
-    "░": { width: charWidth, leftOffset: charLightLeftOffset, bottomOverflow: charBottomOverflowOther },
+    "░": {
+      width: charWidth,
+      leftOffset: charLightLeftOffset,
+      bottomOverflow: charBottomOverflowOther,
+    },
     "▒": { width: charWidth, bottomOverflow: charBottomOverflowOther },
     "▓": { width: charWidth, bottomOverflow: charBottomOverflowDark },
   };
 
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
 
-  // Determine if characters can overflow cell boundaries (but never past margin)
+  // Determine cell overflow amount (how many cells chars can extend into)
+  // 0 = no overflow, 1-5 = that many cells overflow (capped to prevent solid fills)
   const cellOverflowRng = seededRandom(seed + 22222);
-  const allowCellOverflow = cellOverflowRng() < 0.5; // 50% chance
+  const overflowRoll = cellOverflowRng();
+  let cellOverflowAmount;
+  if (overflowRoll < 0.6) {
+    cellOverflowAmount = 0; // 60% no overflow
+  } else if (overflowRoll < 0.8) {
+    cellOverflowAmount = 1; // 20% one cell overflow
+  } else if (overflowRoll < 0.9) {
+    cellOverflowAmount = 2; // 10% two cells overflow
+  } else if (overflowRoll < 0.97) {
+    cellOverflowAmount = 3; // 7% three cells overflow
+  } else {
+    cellOverflowAmount = 5; // 3% five cells overflow (max)
+  }
+
+  // Determine draw direction (left-to-right or right-to-left)
+  const drawDirectionRng = seededRandom(seed + 33333);
+  const drawRightToLeft = drawDirectionRng() < 0.3; // 30% chance of right-to-left
 
   // Determine overlap pattern based on seed
   // 50% no overlap, then for overlaps: 75%/95% are 20% total, rest split remaining 30%
@@ -2741,10 +2756,10 @@ export function renderToCanvas({
   const marginStartY = (padding + DRAWING_MARGIN) * scaleY;
 
   // Adjusted boundaries: inset by glyph overflow so chars stay within margins
-  const drawAreaLeft = marginStartX + charLightLeftOffset;  // ░ extends left
-  const drawAreaTop = marginStartY + charTopOverflow;       // all chars extend up
+  const drawAreaLeft = marginStartX + charLightLeftOffset; // ░ extends left
+  const drawAreaTop = marginStartY + charTopOverflow; // all chars extend up
   const drawAreaRight = marginStartX + drawWidth;
-  const drawAreaBottom = marginStartY + drawHeight - charBottomOverflowDark;  // ▓ extends down
+  const drawAreaBottom = marginStartY + drawHeight - charBottomOverflowDark; // ▓ extends down
 
   // showHitCounts mode: draw numeric weight values instead of shade characters
   if (showHitCounts) {
@@ -2784,8 +2799,8 @@ export function renderToCanvas({
     for (let row = 0; row < rows; row++) {
       const y = Math.round(adjustedOffsetY + row * actualStrideY);
 
-      // Skip row if it would overflow bottom
-      if (y + fontSize > drawAreaBottom) continue;
+      // Skip row if it starts past the drawing area (allow slight glyph overflow)
+      if (y > marginStartY + drawHeight) continue;
 
       for (let col = 0; col < cols; col++) {
         const x = Math.round(adjustedOffsetX + col * actualStrideX);
@@ -2937,52 +2952,76 @@ export function renderToCanvas({
           }
           // #endregion
 
-          let currentX = x;
-          let charIndex = 0;
-          // Get overlap factor based on seed-determined pattern
-          const overlapFactor = getOverlapFactor(row, col);
-
-          // Use cell boundary, capped at margin (don't extend last column)
+          // Use cell boundary, capped at margin
           const effectiveCellEndX = Math.min(cellEndX, drawAreaRight);
-          // #region agent log
-          if (col === cols - 1 && effectiveCellEndX !== cellEndX) {
-            fetch(
-              "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  location: "fold-core.js:2930",
-                  message: "extending cell boundary for last column",
-                  data: {
-                    col,
-                    cellEndX,
-                    effectiveCellEndX,
-                    drawAreaRight,
-                  },
-                  timestamp: Date.now(),
-                  sessionId: "debug-session",
-                  runId: "run2",
-                  hypothesisId: "F",
-                }),
-              }
-            ).catch(() => {});
-          }
-          // #endregion
+          const effectiveCellWidth = effectiveCellEndX - x;
 
-          while (currentX < effectiveCellEndX && level >= 0) {
+          // Skip cells that are too narrow to meaningfully show a character
+          // (less than 50% of char width would just create visual noise)
+          if (effectiveCellWidth < charWidth * 0.5) continue;
+
+          // Calculate how many chars fit without overlap
+          const charsWithoutOverlap = Math.max(1, Math.floor(effectiveCellWidth / charWidth));
+          const remainingGap = effectiveCellWidth - (charsWithoutOverlap * charWidth);
+          const gapRatio = remainingGap / charWidth;
+
+          // Only add ONE overlap char if gap is significant (>30% of char width)
+          // This prevents solid blocks while still filling cells reasonably
+          const numCharsInCell = (gapRatio > 0.3 && charsWithoutOverlap >= 1)
+            ? charsWithoutOverlap + 1
+            : charsWithoutOverlap;
+
+          // Calculate step to distribute chars across cell
+          // For 1 char: use charWidth. For N chars: distribute evenly
+          const step = numCharsInCell <= 1
+            ? charWidth
+            : (effectiveCellWidth - charWidth) / (numCharsInCell - 1);
+
+          // Calculate max overflow distance based on cellOverflowAmount
+          const overflowDistance = cellOverflowAmount * actualCellWidth;
+
+          // Calculate max chars based on overflow allowance
+          let maxChars;
+          if (drawRightToLeft) {
+            // Right-to-left: overflow extends left from cell start
+            const leftLimit = Math.max(drawAreaLeft, x - overflowDistance);
+            const availableWidth = effectiveCellEndX - leftLimit;
+            maxChars = Math.max(
+              numCharsInCell,
+              Math.ceil(availableWidth / step)
+            );
+          } else {
+            // Left-to-right: overflow extends right from cell end
+            const rightLimit = Math.min(
+              drawAreaRight,
+              effectiveCellEndX + overflowDistance
+            );
+            const availableWidth = rightLimit - x;
+            maxChars = Math.max(
+              numCharsInCell,
+              Math.ceil(availableWidth / step)
+            );
+          }
+
+          for (let i = 0; i < maxChars && level >= 0; i++) {
             let nextChar = char;
-            if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
+            if (level >= 2 && i > 0 && i % 2 === 0) {
               nextChar = shadeChars[Math.max(0, level - 1)];
             }
 
-            const nextCharWidth = charMetrics[nextChar]?.width || charWidth;
-
-            // First char always drawn; subsequent chars check boundary
-            // If allowCellOverflow: can overflow cell but not drawing area margin
-            // If !allowCellOverflow: must stay within cell boundary
-            const rightBoundary = allowCellOverflow ? drawAreaRight : effectiveCellEndX;
-            if (charIndex > 0 && currentX + nextCharWidth > rightBoundary) break;
+            // Calculate draw position based on direction
+            let drawX;
+            if (drawRightToLeft) {
+              // Start from right edge of cell, draw leftward
+              drawX = effectiveCellEndX - charWidth - i * step;
+              // Never draw past left margin
+              if (drawX < drawAreaLeft) break;
+            } else {
+              // Start from left edge of cell, draw rightward
+              drawX = x + i * step;
+              // Never draw past right margin
+              if (drawX + charWidth > drawAreaRight) break;
+            }
 
             // Draw shadow first (behind main character)
             if (hasShadowEffect && !isEmptyCell) {
@@ -2993,17 +3032,14 @@ export function renderToCanvas({
               ctx.fillStyle = shadowColor;
               ctx.fillText(
                 nextChar,
-                currentX + shadowOffsets.x,
+                drawX + shadowOffsets.x,
                 y + shadowOffsets.y
               );
               ctx.globalAlpha = prevAlpha;
               ctx.fillStyle = prevFill;
             }
 
-            ctx.fillText(nextChar, currentX, y);
-            currentX += nextCharWidth * overlapFactor;
-
-            charIndex++;
+            ctx.fillText(nextChar, drawX, y);
           }
 
           // Reset alpha after drawing empty cells
@@ -3335,11 +3371,11 @@ function getOptimalDimensions() {
   const renderHeight = Math.floor(height * dpr);
 
   return {
-    width,           // CSS pixels for display
+    width, // CSS pixels for display
     height,
-    renderWidth,     // Physical pixels for rendering
+    renderWidth, // Physical pixels for rendering
     renderHeight,
-    dpr
+    dpr,
   };
 }
 
@@ -3390,7 +3426,7 @@ function renderOnChain(canvas, state) {
 // Debounce helper to avoid excessive re-renders during resize
 function debounce(fn, ms) {
   let timeout;
-  return function(...args) {
+  return function (...args) {
     clearTimeout(timeout);
     timeout = setTimeout(() => fn.apply(this, args), ms);
   };
@@ -3441,7 +3477,13 @@ export async function initOnChain() {
     await loadOnChainFont(fontDataUri);
 
     // Generate params using reference dimensions (for consistent seed-based generation)
-    const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+    const params = generateAllParams(
+      seed,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+      0,
+      foldCount
+    );
 
     // Store state for resize re-rendering
     _onChainState = { seed, foldCount, params };
@@ -3450,11 +3492,14 @@ export async function initOnChain() {
     renderOnChain(canvas, _onChainState);
 
     // Re-render on window resize (debounced to avoid excessive renders)
-    window.addEventListener("resize", debounce(() => {
-      if (_onChainState) {
-        renderOnChain(canvas, _onChainState);
-      }
-    }, 150));
+    window.addEventListener(
+      "resize",
+      debounce(() => {
+        if (_onChainState) {
+          renderOnChain(canvas, _onChainState);
+        }
+      }, 150)
+    );
   }
 }
 

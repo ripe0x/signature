@@ -6,35 +6,9 @@ import {Less} from "../contracts/Less.sol";
 import {LessRenderer} from "../contracts/LessRenderer.sol";
 import {IRecursiveStrategy} from "../contracts/IRecursiveStrategy.sol";
 
-/// @dev Mock ScriptyBuilder for fork tests
-contract MockScriptyBuilder {
-    struct HTMLTag {
-        string name;
-        address contractAddress;
-        bytes contractData;
-        uint8 tagType;
-        bytes tagOpen;
-        bytes tagClose;
-        bytes tagContent;
-    }
-
-    struct HTMLRequest {
-        HTMLTag[] headTags;
-        HTMLTag[] bodyTags;
-    }
-
-    function getEncodedHTMLString(HTMLRequest memory)
-        external
-        pure
-        returns (string memory)
-    {
-        return "PGh0bWw+PC9odG1sPg==";
-    }
-}
-
 /**
  * @title LessForkTest
- * @notice Fork tests against a real RecursiveStrategy on mainnet
+ * @notice Fork tests against real mainnet contracts (RecursiveStrategy + ScriptyBuilder)
  * @dev Run with: forge test --match-contract LessFork --fork-url $MAINNET_RPC_URL --fork-block-number 23927428 -vvv
  *      Block 23927428 is just before a known TWAP tx (0x35307d04f428ed02f5ccdb65c5873ab8591fb6e88bc5c63b9cf96bea0be7dff2)
  */
@@ -42,12 +16,15 @@ contract LessForkTest is Test {
     // Mainnet RecursiveStrategy contract
     address constant STRATEGY = 0x32F223E5c09878823934a8116f289bAE2b657B8e;
 
+    // Mainnet Scripty V2 contracts
+    address constant SCRIPTY_BUILDER_V2 = 0xD7587F110E08F4D120A231bA97d3B577A81Df022;
+    address constant SCRIPTY_STORAGE_V2 = 0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699;
+
     // Storage slot for ethToTwap in RecursiveStrategy
     uint256 constant ETH_TO_TWAP_SLOT = 6;
 
     Less public less;
     LessRenderer public renderer;
-    MockScriptyBuilder public scriptyBuilder;
 
     address public owner = makeAddr("owner");
     address public payout = makeAddr("payout");
@@ -62,18 +39,17 @@ contract LessForkTest is Test {
         // Verify we're on a fork
         require(block.chainid == 1, "Must run on mainnet fork");
 
-        scriptyBuilder = new MockScriptyBuilder();
-
         vm.startPrank(owner);
 
         // Deploy Less pointing to the real strategy
         less = new Less(STRATEGY, MINT_PRICE, payout, owner);
 
+        // Deploy renderer with real Scripty contracts
         renderer = new LessRenderer(
             address(less),
-            address(scriptyBuilder),
-            address(0),
-            "less",
+            SCRIPTY_BUILDER_V2,      // Real ScriptyBuilder on mainnet
+            SCRIPTY_STORAGE_V2,      // Real ScriptyStorage on mainnet
+            "less",                   // Script name (would need to be uploaded)
             "https://less.art/images/",
             owner
         );
