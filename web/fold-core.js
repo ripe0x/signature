@@ -21,6 +21,14 @@ export const FALLBACK_FONT = '"Courier New", Courier, monospace';
 // Use on-chain font if available, otherwise fallback
 export const FONT_STACK = `"${ONCHAIN_FONT_NAME}", ${FALLBACK_FONT}`;
 
+// Character glyph metrics (measured at 100px, expressed as ratios of fontSize)
+// The CSS box is 60x100 at 100px font, but glyphs extend beyond
+export const CHAR_WIDTH_RATIO = 0.6;        // CSS box width / fontSize
+export const CHAR_TOP_OVERFLOW = 0.08;      // All chars extend 8% above CSS box
+export const CHAR_BOTTOM_OVERFLOW_DARK = 0.06;   // ▓ extends 6% below
+export const CHAR_BOTTOM_OVERFLOW_OTHER = 0.03;  // ░▒ extend 3% below
+export const CHAR_LIGHT_LEFT_OFFSET = 0.05;      // ░ is offset 5% to the left
+
 // ============ VGA 256-COLOR PALETTE SYSTEM ============
 
 const VGA_LEVELS = [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff];
@@ -747,8 +755,14 @@ export function snapToDivisor(value, n, min, max) {
 }
 
 export function generateCellDimensions(width, height, padding, seed) {
-  const innerW = REFERENCE_WIDTH - padding * 2;
-  const innerH = REFERENCE_HEIGHT - padding * 2;
+  // Resolution-independent layout:
+  // Work entirely in reference coordinates so a given seed produces the same
+  // grid at any output resolution (with the same aspect ratio). We define the
+  // inner drawing area exactly the same way that `renderToCanvas` does: by
+  // subtracting both padding and DRAWING_MARGIN from each side of the
+  // REFERENCE canvas.
+  const innerW = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
+  const innerH = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
 
   const validWidths = getDivisors(innerW, CELL_MIN, CELL_MAX);
   const validHeights = getDivisors(innerH, CELL_MIN, CELL_MAX);
@@ -759,10 +773,16 @@ export function generateCellDimensions(width, height, padding, seed) {
   const rng = seededRandom(seed + 9999);
 
   const validPairs = [];
+  // Calculate the minimum width needed to fit one character given a cell height
+  // fontSize = cellHeight / glyphHeightRatio, charWidth = fontSize * CHAR_WIDTH_RATIO
+  const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK; // 1.14
+
   for (const w of validWidths) {
     for (const h of validHeights) {
       const ratio = Math.max(w / h, h / w);
-      if (ratio <= CELL_ASPECT_MAX) {
+      // Cell must fit at least one character width
+      const minWidthForChar = (h / glyphHeightRatio) * CHAR_WIDTH_RATIO;
+      if (ratio <= CELL_ASPECT_MAX && w >= minWidthForChar) {
         validPairs.push({ w, h });
       }
     }
@@ -818,7 +838,7 @@ export function generateRenderMode(seed) {
 
   // normal 35%, binary 5%, inverted 25%, sparse 17.5%, dense 17.5%
   if (roll < 0.35) return "normal";
-  if (roll < 0.40) return "binary";
+  if (roll < 0.4) return "binary";
   if (roll < 0.65) return "inverted";
   if (roll < 0.825) return "sparse";
   return "dense";
@@ -839,6 +859,25 @@ export function generateWeightRange(seed) {
   } else {
     return { min: 0.3 + rng() * 0.2, max: 0.5 + rng() * 0.5 };
   }
+}
+
+export function generateOverlapInfo(seed) {
+  const overlapRng = seededRandom(seed + 11111);
+  const hasOverlap = overlapRng() >= 0.5;
+
+  if (!hasOverlap) {
+    return { hasOverlap: false, amount: "none" };
+  }
+
+  const roll = overlapRng();
+  let amount;
+  if (roll < 0.2) amount = "5%";
+  else if (roll < 0.4) amount = "25%";
+  else if (roll < 0.6) amount = "50%";
+  else if (roll < 0.8) amount = "75%";
+  else amount = "95%";
+
+  return { hasOverlap: true, amount };
 }
 
 export function generateMaxFolds(seed) {
@@ -2376,6 +2415,28 @@ export function renderToCanvas({
   showCreaseLines = false,
   fontFamily = FONT_STACK,
 }) {
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "fold-core.js:2378",
+      message: "renderToCanvas entry",
+      data: {
+        outputWidth,
+        outputHeight,
+        padding,
+        DRAWING_MARGIN,
+        REFERENCE_WIDTH,
+        REFERENCE_HEIGHT,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "A,B,C",
+    }),
+  }).catch(() => {});
+  // #endregion
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const dpr = 2;
@@ -2393,6 +2454,21 @@ export function renderToCanvas({
   // Calculate inner dimensions accounting for padding and drawing margin
   const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "fold-core.js:2420",
+      message: "inner dimensions calculated",
+      data: { refInnerWidth, refInnerHeight, scaleX, scaleY },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "A,B",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   // Use gap calculation for grid layout
   const grid = calculateGridWithGaps(
@@ -2414,6 +2490,30 @@ export function renderToCanvas({
   const actualCellHeight = refCellHeight * scaleY;
   const actualStrideX = strideX * scaleX;
   const actualStrideY = strideY * scaleY;
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "fold-core.js:2434",
+      message: "drawing dimensions calculated",
+      data: {
+        drawWidth,
+        drawHeight,
+        offsetX,
+        offsetY,
+        cols,
+        rows,
+        gridOffsetX,
+        gridOffsetY,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "C,D,E",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const weightRange = generateWeightRange(seed);
 
@@ -2500,7 +2600,9 @@ export function renderToCanvas({
     }
   }
 
-  const fontSize = actualCellHeight - 2 * scaleY;
+  // Size font to fit cell height (with 14% vertical overflow accounted for)
+  const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK; // 1.14
+  const fontSize = actualCellHeight / glyphHeightRatio;
   const sizeCategory =
     fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
   ctx.font = `${fontSize}px ${fontFamily}`;
@@ -2508,16 +2610,26 @@ export function renderToCanvas({
 
   const shadeChars = [" ", "░", "▒", "▓"];
 
-  // Pre-measure character widths
-  const charMetrics = {};
-  for (const char of shadeChars) {
-    const metrics = ctx.measureText(char);
-    charMetrics[char] = {
-      width: metrics.width,
-    };
-  }
+  // Use measured glyph metrics instead of unreliable measureText
+  const charWidth = fontSize * CHAR_WIDTH_RATIO;
+  const charTopOverflow = fontSize * CHAR_TOP_OVERFLOW;
+  const charBottomOverflowDark = fontSize * CHAR_BOTTOM_OVERFLOW_DARK;
+  const charBottomOverflowOther = fontSize * CHAR_BOTTOM_OVERFLOW_OTHER;
+  const charLightLeftOffset = fontSize * CHAR_LIGHT_LEFT_OFFSET;
+
+  // For compatibility with existing code that uses charMetrics
+  const charMetrics = {
+    " ": { width: charWidth },
+    "░": { width: charWidth, leftOffset: charLightLeftOffset, bottomOverflow: charBottomOverflowOther },
+    "▒": { width: charWidth, bottomOverflow: charBottomOverflowOther },
+    "▓": { width: charWidth, bottomOverflow: charBottomOverflowDark },
+  };
 
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
+
+  // Determine if characters can overflow cell boundaries (but never past margin)
+  const cellOverflowRng = seededRandom(seed + 22222);
+  const allowCellOverflow = cellOverflowRng() < 0.5; // 50% chance
 
   // Determine overlap pattern based on seed
   // 50% no overlap, then for overlaps: 75%/95% are 20% total, rest split remaining 30%
@@ -2531,11 +2643,11 @@ export function renderToCanvas({
     const roll = overlapRng();
     // 10% each for 5%, 25%, 50% overlap (30% total) -> 60% of the 50% overlap chance
     // 10% each for 75%, 95% overlap (20% total) -> 40% of the 50% overlap chance
-    if (roll < 0.2) return 0.95;  // 5% overlap
-    if (roll < 0.4) return 0.75;  // 25% overlap
-    if (roll < 0.6) return 0.5;   // 50% overlap
-    if (roll < 0.8) return 0.25;  // 75% overlap
-    return 0.05;                   // 95% overlap
+    if (roll < 0.2) return 0.95; // 5% overlap
+    if (roll < 0.4) return 0.75; // 25% overlap
+    if (roll < 0.6) return 0.5; // 50% overlap
+    if (roll < 0.8) return 0.25; // 75% overlap
+    return 0.05; // 95% overlap
   };
   const baseOverlapFactor = getBaseOverlapFactor();
 
@@ -2583,9 +2695,56 @@ export function renderToCanvas({
     return textColor;
   };
 
-  // Use actual grid width for the right boundary, not the full draw width
-  const scaledActualGridWidth = actualGridWidth * scaleX;
-  const drawAreaRight = offsetX + scaledActualGridWidth;
+  // Shadow/offset effect - rare (10% chance)
+  const shadowRng = seededRandom(seed + 22222);
+  const hasShadowEffect = shadowRng() < 0.1;
+  const baseOffsetX = Math.round(2 + shadowRng() * 2) * scaleX; // 2-4px
+  const baseOffsetY = Math.round(1 + shadowRng() * 2) * scaleY; // 1-3px
+  const shadowAlpha = hasShadowEffect ? 0.4 + shadowRng() * 0.3 : 0; // 40-70% opacity
+  // Direction varies per cell: 0 = horizontal only, 1 = vertical only, 2 = both
+  const getShadowOffsets = (row, col) => {
+    const cellRng = seededRandom(seed + 22222 + row * 1000 + col);
+    const direction = Math.floor(cellRng() * 3);
+    return {
+      x: direction !== 1 ? baseOffsetX : 0,
+      y: direction !== 0 ? baseOffsetY : 0,
+    };
+  };
+  // Derive shadow color: use accent if available, otherwise shift hue from text color
+  // Ensure shadow is always brighter than text
+  const getShadowColor = () => {
+    const textHsl = hexToHsl(textColor);
+    let shadowHsl;
+
+    if (accentColor && accentColor !== textColor) {
+      shadowHsl = hexToHsl(accentColor);
+    } else {
+      // Generate accent from text color by shifting hue
+      shadowHsl = {
+        h: (textHsl.h + 180) % 360,
+        s: Math.min(100, textHsl.s + 20),
+        l: textHsl.l,
+      };
+    }
+
+    // Ensure shadow is brighter than text
+    if (shadowHsl.l <= textHsl.l) {
+      shadowHsl.l = Math.min(95, textHsl.l + 25);
+    }
+
+    return hslToHex(shadowHsl.h, shadowHsl.s, shadowHsl.l);
+  };
+  const shadowColor = hasShadowEffect ? getShadowColor() : null;
+
+  // Margin boundaries (accounting for measured glyph overflow)
+  const marginStartX = (padding + DRAWING_MARGIN) * scaleX;
+  const marginStartY = (padding + DRAWING_MARGIN) * scaleY;
+
+  // Adjusted boundaries: inset by glyph overflow so chars stay within margins
+  const drawAreaLeft = marginStartX + charLightLeftOffset;  // ░ extends left
+  const drawAreaTop = marginStartY + charTopOverflow;       // all chars extend up
+  const drawAreaRight = marginStartX + drawWidth;
+  const drawAreaBottom = marginStartY + drawHeight - charBottomOverflowDark;  // ▓ extends down
 
   // showHitCounts mode: draw numeric weight values instead of shade characters
   if (showHitCounts) {
@@ -2618,10 +2777,19 @@ export function renderToCanvas({
     ctx.textBaseline = "top";
   } else {
     // Normal rendering: shade characters
+    // Adjust offsets to account for glyph overflow (so chars stay within margins)
+    const adjustedOffsetX = Math.max(offsetX, drawAreaLeft);
+    const adjustedOffsetY = Math.max(offsetY, drawAreaTop);
+
     for (let row = 0; row < rows; row++) {
+      const y = Math.round(adjustedOffsetY + row * actualStrideY);
+
+      // Skip row if it would overflow bottom
+      if (y + fontSize > drawAreaBottom) continue;
+
       for (let col = 0; col < cols; col++) {
-        const x = Math.round(offsetX + col * actualStrideX);
-        const y = Math.round(offsetY + row * actualStrideY);
+        const x = Math.round(adjustedOffsetX + col * actualStrideX);
+
         const key = `${col},${row}`;
         const weight = intersectionWeight[key] || 0;
 
@@ -2648,7 +2816,11 @@ export function renderToCanvas({
             const extremeAmount = weight - 1.5;
             const baseShift = 30 + Math.min(extremeAmount * 300, 150);
             const baseHsl = hexToHsl(textColor);
-            color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+            color = hslToHex(
+              (baseHsl.h + baseShift + 360) % 360,
+              Math.min(100, baseHsl.s + 20),
+              Math.min(85, baseHsl.l + 10)
+            );
           } else if (accentCells.has(key) && weight > 0) {
             color = accentColor;
           } else if (lastFoldTargetCell === key) {
@@ -2673,7 +2845,11 @@ export function renderToCanvas({
             const extremeAmount = weight - 1.5;
             const baseShift = 30 + Math.min(extremeAmount * 300, 150);
             const baseHsl = hexToHsl(textColor);
-            color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+            color = hslToHex(
+              (baseHsl.h + baseShift + 360) % 360,
+              Math.min(100, baseHsl.s + 20),
+              Math.min(85, baseHsl.l + 10)
+            );
           } else if (accentCells.has(key) && weight > 0) {
             color = accentColor;
           }
@@ -2693,7 +2869,11 @@ export function renderToCanvas({
               const extremeAmount = weight - 1.5;
               const baseShift = 30 + Math.min(extremeAmount * 300, 150);
               const baseHsl = hexToHsl(textColor);
-              color = hslToHex((baseHsl.h + baseShift + 360) % 360, Math.min(100, baseHsl.s + 20), Math.min(85, baseHsl.l + 10));
+              color = hslToHex(
+                (baseHsl.h + baseShift + 360) % 360,
+                Math.min(100, baseHsl.s + 20),
+                Math.min(85, baseHsl.l + 10)
+              );
             } else if (accentCells.has(key)) {
               color = accentColor;
             }
@@ -2726,26 +2906,99 @@ export function renderToCanvas({
 
           const measuredCharWidth = ctx.measureText(char).width;
           const cellEndX = x + actualCellWidth;
+          // #region agent log
+          if (col === cols - 1) {
+            fetch(
+              "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  location: "fold-core.js:2923",
+                  message: "last column cell boundary",
+                  data: {
+                    col,
+                    row,
+                    x,
+                    actualCellWidth,
+                    cellEndX,
+                    drawAreaRight,
+                    outputWidth,
+                    offsetX,
+                    actualStrideX,
+                  },
+                  timestamp: Date.now(),
+                  sessionId: "debug-session",
+                  runId: "run2",
+                  hypothesisId: "F",
+                }),
+              }
+            ).catch(() => {});
+          }
+          // #endregion
 
           let currentX = x;
           let charIndex = 0;
           // Get overlap factor based on seed-determined pattern
           const overlapFactor = getOverlapFactor(row, col);
 
-          while (currentX < cellEndX && level >= 0) {
+          // Use cell boundary, capped at margin (don't extend last column)
+          const effectiveCellEndX = Math.min(cellEndX, drawAreaRight);
+          // #region agent log
+          if (col === cols - 1 && effectiveCellEndX !== cellEndX) {
+            fetch(
+              "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  location: "fold-core.js:2930",
+                  message: "extending cell boundary for last column",
+                  data: {
+                    col,
+                    cellEndX,
+                    effectiveCellEndX,
+                    drawAreaRight,
+                  },
+                  timestamp: Date.now(),
+                  sessionId: "debug-session",
+                  runId: "run2",
+                  hypothesisId: "F",
+                }),
+              }
+            ).catch(() => {});
+          }
+          // #endregion
+
+          while (currentX < effectiveCellEndX && level >= 0) {
             let nextChar = char;
             if (level >= 2 && charIndex > 0 && charIndex % 2 === 0) {
               nextChar = shadeChars[Math.max(0, level - 1)];
             }
 
-            const nextCharWidth =
-              charMetrics[nextChar]?.width || ctx.measureText(nextChar).width;
-            const remainingWidth = cellEndX - currentX;
+            const nextCharWidth = charMetrics[nextChar]?.width || charWidth;
 
-            if (remainingWidth <= 0) break;
+            // First char always drawn; subsequent chars check boundary
+            // If allowCellOverflow: can overflow cell but not drawing area margin
+            // If !allowCellOverflow: must stay within cell boundary
+            const rightBoundary = allowCellOverflow ? drawAreaRight : effectiveCellEndX;
+            if (charIndex > 0 && currentX + nextCharWidth > rightBoundary) break;
 
-            // Don't draw if character would extend past drawing area
-            if (currentX + nextCharWidth > drawAreaRight) break;
+            // Draw shadow first (behind main character)
+            if (hasShadowEffect && !isEmptyCell) {
+              const shadowOffsets = getShadowOffsets(row, col);
+              const prevAlpha = ctx.globalAlpha;
+              const prevFill = ctx.fillStyle;
+              ctx.globalAlpha = shadowAlpha;
+              ctx.fillStyle = shadowColor;
+              ctx.fillText(
+                nextChar,
+                currentX + shadowOffsets.x,
+                y + shadowOffsets.y
+              );
+              ctx.globalAlpha = prevAlpha;
+              ctx.fillStyle = prevFill;
+            }
 
             ctx.fillText(nextChar, currentX, y);
             currentX += nextCharWidth * overlapFactor;
@@ -2935,6 +3188,7 @@ export function generateAllParams(
   const maxFolds = generateMaxFolds(seed);
   const paperProperties = generatePaperProperties(seed);
   const showCreaseLines = generateRareCreaseLines(seed);
+  const overlapInfo = generateOverlapInfo(seed);
 
   let foldCount = folds;
   if (foldCount === null) {
@@ -2954,6 +3208,7 @@ export function generateAllParams(
     maxFolds,
     paperProperties,
     showCreaseLines,
+    overlapInfo,
     folds: foldCount,
   };
 }
@@ -3054,6 +3309,93 @@ function hexSeedToNumber(hexSeed) {
   return Number(bigNum % BigInt(2147483647));
 }
 
+// Calculate optimal canvas dimensions based on screen size while maintaining 4:5 aspect ratio
+function getOptimalDimensions() {
+  const dpr = window.devicePixelRatio || 1;
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+
+  // Maintain 4:5 aspect ratio (width:height)
+  const aspectRatio = 4 / 5;
+
+  let width, height;
+  if (screenW / screenH > aspectRatio) {
+    // Screen is wider than 4:5, fit to height
+    height = screenH;
+    width = Math.floor(height * aspectRatio);
+  } else {
+    // Screen is taller than 4:5, fit to width
+    width = screenW;
+    height = Math.floor(width / aspectRatio);
+  }
+
+  // Scale up by device pixel ratio for crisp rendering on high-DPI screens
+  // This makes art look sharp on retina displays and future high-res screens
+  const renderWidth = Math.floor(width * dpr);
+  const renderHeight = Math.floor(height * dpr);
+
+  return {
+    width,           // CSS pixels for display
+    height,
+    renderWidth,     // Physical pixels for rendering
+    renderHeight,
+    dpr
+  };
+}
+
+// Store render state for resize re-rendering
+let _onChainState = null;
+
+// Render function that can be called on init and resize
+function renderOnChain(canvas, state) {
+  const dims = getOptimalDimensions();
+
+  const dataUrl = renderToCanvas({
+    folds: state.foldCount,
+    seed: state.seed,
+    outputWidth: dims.renderWidth,
+    outputHeight: dims.renderHeight,
+    bgColor: state.params.palette.bg,
+    textColor: state.params.palette.text,
+    accentColor: state.params.palette.accent,
+    cellWidth: state.params.cells.cellW,
+    cellHeight: state.params.cells.cellH,
+    renderMode: state.params.renderMode,
+    multiColor: state.params.multiColor,
+    levelColors: state.params.levelColors,
+    foldStrategy: state.params.foldStrategy,
+    paperProperties: state.params.paperProperties,
+    showCreaseLines: state.params.showCreaseLines,
+  });
+
+  const img = new Image();
+  img.onload = () => {
+    const ctx = canvas.getContext("2d");
+    // Set canvas internal resolution (includes internal 2x from renderToCanvas)
+    canvas.width = dims.renderWidth * 2;
+    canvas.height = dims.renderHeight * 2;
+    // Set CSS size to fit screen
+    canvas.style.width = dims.width + "px";
+    canvas.style.height = dims.height + "px";
+    // Draw at full resolution
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Trigger scaling callback if defined
+    if (typeof window.scaleCanvas === "function") {
+      window.scaleCanvas();
+    }
+  };
+  img.src = dataUrl;
+}
+
+// Debounce helper to avoid excessive re-renders during resize
+function debounce(fn, ms) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
 // Auto-render if global variables are set (for on-chain use)
 export async function initOnChain() {
   // Support both old (SEED/FOLD_COUNT) and new (LESS_SEED/LESS_TOKEN_ID) variable names
@@ -3089,51 +3431,30 @@ export async function initOnChain() {
       // Create canvas if it doesn't exist
       canvas = document.createElement("canvas");
       canvas.id = "c";
-      canvas.style.cssText =
-        "display:block;margin:0 auto;max-width:100%;max-height:100vh;";
       document.body.appendChild(canvas);
       // Style body for full-screen canvas
       document.body.style.cssText =
-        "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;";
+        "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;";
     }
 
     // Load font (embedded or provided)
     await loadOnChainFont(fontDataUri);
 
-    const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
+    // Generate params using reference dimensions (for consistent seed-based generation)
+    const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
 
-    // Render directly to existing canvas
-    const dataUrl = renderToCanvas({
-      folds: foldCount,
-      seed: seed,
-      outputWidth: 1200,
-      outputHeight: 1500,
-      bgColor: params.palette.bg,
-      textColor: params.palette.text,
-      accentColor: params.palette.accent,
-      cellWidth: params.cells.cellW,
-      cellHeight: params.cells.cellH,
-      renderMode: params.renderMode,
-      multiColor: params.multiColor,
-      levelColors: params.levelColors,
-      foldStrategy: params.foldStrategy,
-      paperProperties: params.paperProperties,
-      showCreaseLines: params.showCreaseLines,
-    });
+    // Store state for resize re-rendering
+    _onChainState = { seed, foldCount, params };
 
-    // Load into canvas
-    const img = new Image();
-    img.onload = () => {
-      const ctx = canvas.getContext("2d");
-      canvas.width = 1200;
-      canvas.height = 1500;
-      ctx.drawImage(img, 0, 0);
-      // Trigger scaling after canvas is ready
-      if (typeof window.scaleCanvas === "function") {
-        window.scaleCanvas();
+    // Initial render
+    renderOnChain(canvas, _onChainState);
+
+    // Re-render on window resize (debounced to avoid excessive renders)
+    window.addEventListener("resize", debounce(() => {
+      if (_onChainState) {
+        renderOnChain(canvas, _onChainState);
       }
-    };
-    img.src = dataUrl;
+    }, 150));
   }
 }
 

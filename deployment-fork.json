@@ -1,9 +1,9 @@
 {
   "network": "fork",
-  "timestamp": "2025-12-12T20:20:49.950Z",
+  "timestamp": "2025-12-15T17:17:06.778Z",
   "addresses": {
-    "less": "0x8522874371974bF1dac8dF496d372319DF943A17",
-    "renderer": "0x443729DFF68Dcc675463b0ED918ae57E00A3133b"
+    "less": "0x370fdbB29da0aA16a64f965055d1aB4BA40B3a52",
+    "renderer": "0x1d05E9C21fe4c538eE74A8Ef315bF6AfC57190C8"
   },
   "scriptName": "less",
   "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",

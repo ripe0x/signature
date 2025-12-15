@@ -207,6 +207,7 @@ contract LessIntegrationTest is Test {
 
         for (uint256 f = 0; f < 10; f++) {
             vm.roll(block.number + 3);
+            vm.deal(address(strategy), 0.5 ether);
             strategy.addETH{value: 0.2 ether}();
             less.createFold();
 
@@ -254,6 +255,7 @@ contract LessIntegrationTest is Test {
      * @notice Test that tokens from same fold have related but different seeds
      */
     function test_SameFoldDifferentSeeds() public {
+        vm.deal(address(strategy), 1 ether);
         strategy.addETH{value: 1 ether}();
         less.createFold();
 
@@ -285,6 +287,7 @@ contract LessIntegrationTest is Test {
      * @notice Output metadata for visual inspection
      */
     function test_OutputSampleMetadata() public {
+        vm.deal(address(strategy), 1 ether);
         strategy.addETH{value: 1 ether}();
 
         // Create a few folds
@@ -311,8 +314,9 @@ contract LessIntegrationTest is Test {
             console.log("--- Token", t, "---");
             console.log("Fold ID:", data.foldId);
             console.log("Seed:");
-            console.logBytes32(data.seed);
-            console.log("Strategy Block:", fold.strategyBlock);
+            console.logBytes32(less.getSeed(t));
+            console.log("Block Hash:");
+            console.logBytes32(fold.blockHash);
             console.log("Window:", fold.startTime, "-", fold.endTime);
 
             string memory uri = less.tokenURI(t);
@@ -324,7 +328,8 @@ contract LessIntegrationTest is Test {
      * @notice Test edge case: fold fails if strategy not ready
      */
     function test_FoldFailsWhenStrategyNotReady() public {
-        // Use up all the ETH
+        // First need ETH to create a fold
+        vm.deal(address(strategy), 0.5 ether);
         less.createFold();
 
         // Strategy now has no ETH

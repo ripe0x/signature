@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Character Measurement</title>
+  <style>
+    @font-face {
+      font-family: 'FoldMono';
+      src: url('data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==') format('woff2');
+    }
+    body {
+      background: #000;
+      margin: 40px;
+      font-family: 'FoldMono', 'Courier New', monospace;
+    }
+    .measurement-box {
+      display: inline-block;
+      background: #222;
+      padding: 20px;
+      margin: 20px;
+      vertical-align: top;
+    }
+    .label {
+      color: #888;
+      font-family: system-ui;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .char-box {
+      display: inline-block;
+      background: #ff0000;
+      line-height: 1;
+      margin-right: 20px;
+    }
+    .char {
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1;
+      display: block;
+      background: #0066ff;
+    }
+    .size-100 { font-size: 100px; }
+    .size-200 { font-size: 200px; }
+  </style>
+</head>
+<body>
+  <div class="measurement-box">
+    <div class="label">100px font-size - Each character in its own box (red=container, blue=glyph)</div>
+    <div class="char-box"><span class="char size-100">░</span></div>
+    <div class="char-box"><span class="char size-100">▒</span></div>
+    <div class="char-box"><span class="char size-100">▓</span></div>
+  </div>
+
+  <br><br>
+
+  <div class="measurement-box">
+    <div class="label">200px font-size - Single character</div>
+    <div class="char-box"><span class="char size-200">▓</span></div>
+  </div>
+
+  <br><br>
+
+  <div class="measurement-box">
+    <div class="label">100px - Measure the BLUE area (the actual glyph bounds)</div>
+    <div class="char-box"><span class="char size-100">▓</span></div>
+  </div>
+
+  <script>
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    [100, 200].forEach(size => {
+      ctx.font = `${size}px "FoldMono", "Courier New", monospace`;
+      const metrics = ctx.measureText('▓');
+      console.log(`${size}px:`, {
+        width: metrics.width,
+        widthRatio: metrics.width / size,
+        actualBoundingBoxAscent: metrics.actualBoundingBoxAscent,
+        actualBoundingBoxDescent: metrics.actualBoundingBoxDescent,
+        actualHeight: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+        heightRatio: (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) / size
+      });
+    });
+  </script>
+</body>
+</html>

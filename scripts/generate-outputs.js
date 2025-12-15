@@ -99,6 +99,8 @@ function getTokenURIs(contractAddress, tokenIds, rpcUrl) {
       encoding: "utf-8",
       stdio: "pipe",
       env: env,
+      // Foundry can emit very large logs; increase buffer to avoid ENOBUFS
+      maxBuffer: 64 * 1024 * 1024,
     });
 
     // Parse tokenURIs from output

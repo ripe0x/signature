@@ -75,12 +75,11 @@ interface ILess {
     struct Fold {
         uint64 startTime;
         uint64 endTime;
-        uint64 strategyBlock;
+        bytes32 blockHash;
     }
 
     struct TokenData {
         uint64 foldId;
-        bytes32 seed;
     }
 
     function getFoldId(uint256 tokenId) external view returns (uint256);
@@ -185,9 +184,10 @@ contract LessRenderer is ILessRenderer, Ownable {
         // Get token data from the Less contract
         ILess.TokenData memory token = ILess(less).getTokenData(tokenId);
         ILess.Fold memory fold = ILess(less).getFold(token.foldId);
+        bytes32 seed = ILess(less).getSeed(tokenId);
 
         // Build the metadata JSON
-        string memory json = _buildMetadataJSON(tokenId, token, fold);
+        string memory json = _buildMetadataJSON(tokenId, token, fold, seed);
 
         // Encode as base64 data URI
         return
@@ -207,11 +207,12 @@ contract LessRenderer is ILessRenderer, Ownable {
     function _buildMetadataJSON(
         uint256 tokenId,
         ILess.TokenData memory token,
-        ILess.Fold memory fold
+        ILess.Fold memory fold,
+        bytes32 seed
     ) internal view returns (string memory) {
-        string memory animationURL = _buildAnimationURL(tokenId, token.seed);
+        string memory animationURL = _buildAnimationURL(tokenId, seed);
         string memory imageURL = _buildImageURL(tokenId);
-        string memory attributes = _buildAttributes(token, fold);
+        string memory attributes = _buildAttributes(token, fold, seed);
 
         return
             string(
@@ -392,7 +393,8 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Builds the attributes array for metadata
     function _buildAttributes(
         ILess.TokenData memory token,
-        ILess.Fold memory fold
+        ILess.Fold memory fold,
+        bytes32 seed
     ) internal view returns (string memory) {
         // Get strategy supply if available
         string memory supplyAttr = "";
@@ -413,10 +415,10 @@ contract LessRenderer is ILessRenderer, Ownable {
                     '[{"trait_type":"Fold ID","value":',
                     uint256(token.foldId).toString(),
                     '},{"trait_type":"Seed","value":"',
-                    _bytes32ToHexString(token.seed),
-                    '"},{"trait_type":"Strategy Block","value":',
-                    uint256(fold.strategyBlock).toString(),
-                    '},{"trait_type":"Window Start","display_type":"date","value":',
+                    _bytes32ToHexString(seed),
+                    '"},{"trait_type":"Block Hash","value":"',
+                    _bytes32ToHexString(fold.blockHash),
+                    '"},{"trait_type":"Window Start","display_type":"date","value":',
                     uint256(fold.startTime).toString(),
                     '},{"trait_type":"Window End","display_type":"date","value":',
                     uint256(fold.endTime).toString(),

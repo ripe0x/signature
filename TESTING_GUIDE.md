@@ -7,6 +7,13 @@ This guide covers how to test and generate onchain outputs (like NFT metadata, t
 
 ## Quick Start - Essential Commands
 
+### Starting Local Fork Server
+
+```bash
+# Start a local Anvil fork node (run in a separate terminal)
+source .env && anvil --fork-url $MAINNET_RPC_URL
+```
+
 ### Running Tests
 
 ```bash

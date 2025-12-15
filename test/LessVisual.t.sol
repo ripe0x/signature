@@ -169,12 +169,13 @@ contract LessVisualTest is Test {
         for (uint256 fold = 1; fold <= numFolds; fold++) {
             // Create a new fold
             vm.roll(block.number + 1);
+            vm.deal(address(strategy), 0.5 ether);
             less.createFold();
 
             emit log_named_uint("=== Fold", fold);
 
             Less.Fold memory foldData = less.getFold(fold);
-            emit log_named_uint("  Strategy Block", foldData.strategyBlock);
+            emit log_named_bytes32("  Block Hash", foldData.blockHash);
             emit log_named_uint("  Window Start", foldData.startTime);
             emit log_named_uint("  Window End", foldData.endTime);
             emit log_named_uint("  Strategy Supply", strategy.totalSupply() / 1e18);
@@ -221,6 +222,7 @@ contract LessVisualTest is Test {
     /// @notice Output a single token's full metadata for inspection
     function test_SingleTokenOutput() public {
         // Create fold and mint
+        vm.deal(address(strategy), 0.5 ether);
         less.createFold();
 
         address minter = address(0x1234);
@@ -236,8 +238,8 @@ contract LessVisualTest is Test {
         emit log("=== Token Data ===");
         emit log_named_uint("Token ID", tokenId);
         emit log_named_uint("Fold ID", tokenData.foldId);
-        emit log_named_bytes32("Seed", tokenData.seed);
-        emit log_named_uint("Strategy Block", fold.strategyBlock);
+        emit log_named_bytes32("Seed", less.getSeed(tokenId));
+        emit log_named_bytes32("Block Hash", fold.blockHash);
         emit log_named_uint("Window Start", fold.startTime);
         emit log_named_uint("Window End", fold.endTime);
 

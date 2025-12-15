@@ -34,6 +34,7 @@ import {
   scaleAbsorbencyForGrid,
   calculateGridWithGaps,
   generateAllParams,
+  generateOverlapInfo,
   // Simulation
   simulateFolds,
   findIntersections,
@@ -968,6 +969,18 @@ function DetailModal({
                 {item.params.weightRange.max.toFixed(2)}
               </div>
             </div>
+            <div>
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: 9,
+                  textTransform: "uppercase",
+                }}
+              >
+                Overlap
+              </div>
+              <div>{item.params.overlapInfo?.amount || "none"}</div>
+            </div>
           </div>
 
           <button
@@ -1408,13 +1421,14 @@ function ASCIICanvas({
         const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
         const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
         const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, refInnerWidth, refInnerHeight);
+        const overlap = generateOverlapInfo(seed);
         onStatsUpdate({
           intersections: 0,
           creases: 0,
           destroyed: 0,
           maxFolds: 0,
           fontSize: 0,
-          overlapInfo: `${grid.cols}x${grid.rows} cells`,
+          overlapInfo: `${grid.cols}x${grid.rows} cells · overlap: ${overlap.amount}`,
         });
       }
     };
