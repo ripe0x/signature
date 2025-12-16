@@ -4,6 +4,11 @@ node_modules/
 # Build output
 dist/
 
+# Next.js (frontend)
+frontend/.next/
+frontend/out/
+frontend/.vercel
+
 # Environment files
 .env
 .env.local
@@ -35,3 +40,5 @@ previews/
 /tools/font-subset/CourierPrime-master/fonts
 cache/solidity-files-cache.json
 /outputs
+/previews-test
+/previews-1fold

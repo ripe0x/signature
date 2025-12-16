@@ -49,24 +49,6 @@ interface IScriptyBuilderV2 {
         HTMLRequest memory htmlRequest
     ) external view returns (string memory);
 
-    // Alternative signatures that might exist
-    function getHTMLWrapped(
-        HTMLRequest[] memory requests,
-        uint256 bufferSize
-    ) external view returns (bytes memory);
-    function getEncodedHTMLWrapped(
-        HTMLRequest[] memory requests,
-        uint256 bufferSize
-    ) external view returns (string memory);
-}
-
-/// @title IScriptyStorage
-/// @notice Minimal interface for scripty.sol storage
-interface IScriptyStorage {
-    function getContent(
-        string memory name,
-        bytes memory data
-    ) external view returns (bytes memory);
 }
 
 /// @title ILess
@@ -111,12 +93,6 @@ contract LessRenderer is ILessRenderer, Ownable {
     event ScriptyStorageUpdated(address newStorage);
     event ScriptNameUpdated(string newName);
     event BaseImageURLUpdated(string newURL);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error TokenDoesNotExist();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
