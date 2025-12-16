@@ -772,11 +772,21 @@ export function generateCellDimensions(width, height, padding, seed) {
 
   const rng = seededRandom(seed + 9999);
 
+  // Grid cell requirements:
+  // 1. Aspect ratio <= CELL_ASPECT_MAX (currently 3)
+  // 2. Cell width must fit at least one character
+  //    - fontSize = cellHeight / glyphHeightRatio (1.14)
+  //    - charWidth = fontSize * CHAR_WIDTH_RATIO (0.6)
+  //    - So: cellWidth >= cellHeight * 0.6 / 1.14 ≈ cellHeight * 0.526
+  const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK;
+  const minWidthRatio = CHAR_WIDTH_RATIO / glyphHeightRatio; // ~0.526
+
   const validPairs = [];
   for (const w of validWidths) {
     for (const h of validHeights) {
       const ratio = Math.max(w / h, h / w);
-      if (ratio <= CELL_ASPECT_MAX) {
+      const minWidthForChar = h * minWidthRatio;
+      if (ratio <= CELL_ASPECT_MAX && w >= minWidthForChar) {
         validPairs.push({ w, h });
       }
     }
@@ -2960,19 +2970,26 @@ export function renderToCanvas({
           // (less than 50% of char width would just create visual noise)
           if (effectiveCellWidth < charWidth * 0.5) continue;
 
-          // Calculate how many chars fit without overlap
-          const charsWithoutOverlap = Math.max(1, Math.floor(effectiveCellWidth / charWidth));
-          const remainingGap = effectiveCellWidth - (charsWithoutOverlap * charWidth);
+          // Get pattern-based overlap factor for this cell
+          const cellOverlapFactor = getOverlapFactor(row, col);
+
+          // Calculate step based on overlap factor (1.0 = no overlap, 0.5 = 50% overlap)
+          const effectiveStep = charWidth * cellOverlapFactor;
+
+          // Calculate how many chars fit with this step
+          const charsWithStep = Math.max(1, Math.floor((effectiveCellWidth - charWidth) / effectiveStep) + 1);
+
+          // Check if we need one more char to fill remaining gap
+          const coveredWidth = (charsWithStep - 1) * effectiveStep + charWidth;
+          const remainingGap = effectiveCellWidth - coveredWidth;
           const gapRatio = remainingGap / charWidth;
 
-          // Only add ONE overlap char if gap is significant (>30% of char width)
-          // This prevents solid blocks while still filling cells reasonably
-          const numCharsInCell = (gapRatio > 0.3 && charsWithoutOverlap >= 1)
-            ? charsWithoutOverlap + 1
-            : charsWithoutOverlap;
+          // Add extra char if gap > 30% of char width
+          const numCharsInCell = (gapRatio > 0.3)
+            ? charsWithStep + 1
+            : charsWithStep;
 
-          // Calculate step to distribute chars across cell
-          // For 1 char: use charWidth. For N chars: distribute evenly
+          // Calculate actual step to fill cell exactly
           const step = numCharsInCell <= 1
             ? charWidth
             : (effectiveCellWidth - charWidth) / (numCharsInCell - 1);
@@ -2980,28 +2997,13 @@ export function renderToCanvas({
           // Calculate max overflow distance based on cellOverflowAmount
           const overflowDistance = cellOverflowAmount * actualCellWidth;
 
-          // Calculate max chars based on overflow allowance
-          let maxChars;
-          if (drawRightToLeft) {
-            // Right-to-left: overflow extends left from cell start
-            const leftLimit = Math.max(drawAreaLeft, x - overflowDistance);
-            const availableWidth = effectiveCellEndX - leftLimit;
-            maxChars = Math.max(
-              numCharsInCell,
-              Math.ceil(availableWidth / step)
-            );
-          } else {
-            // Left-to-right: overflow extends right from cell end
-            const rightLimit = Math.min(
-              drawAreaRight,
-              effectiveCellEndX + overflowDistance
-            );
-            const availableWidth = rightLimit - x;
-            maxChars = Math.max(
-              numCharsInCell,
-              Math.ceil(availableWidth / step)
-            );
+          // Calculate overflow chars based on direction
+          // Base cell is always filled; overflow extends in the specified direction
+          let overflowChars = 0;
+          if (overflowDistance > 0) {
+            overflowChars = Math.ceil(overflowDistance / step);
           }
+          const maxChars = numCharsInCell + overflowChars;
 
           for (let i = 0; i < maxChars && level >= 0; i++) {
             let nextChar = char;
@@ -3009,17 +3011,22 @@ export function renderToCanvas({
               nextChar = shadeChars[Math.max(0, level - 1)];
             }
 
-            // Calculate draw position based on direction
+            // Calculate draw position
+            // Base chars (i < numCharsInCell) fill the cell left-to-right
+            // Overflow chars extend in the specified direction
             let drawX;
-            if (drawRightToLeft) {
-              // Start from right edge of cell, draw leftward
-              drawX = effectiveCellEndX - charWidth - i * step;
-              // Never draw past left margin
+            if (i < numCharsInCell) {
+              // Base cell: always fill from left edge
+              drawX = x + i * step;
+            } else if (drawRightToLeft) {
+              // Overflow extends LEFT from cell start
+              const overflowIndex = i - numCharsInCell;
+              drawX = x - (overflowIndex + 1) * step;
               if (drawX < drawAreaLeft) break;
             } else {
-              // Start from left edge of cell, draw rightward
-              drawX = x + i * step;
-              // Never draw past right margin
+              // Overflow extends RIGHT from cell end
+              const overflowIndex = i - numCharsInCell;
+              drawX = effectiveCellEndX + overflowIndex * step;
               if (drawX + charWidth > drawAreaRight) break;
             }
 

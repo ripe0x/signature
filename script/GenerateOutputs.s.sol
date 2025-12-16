@@ -93,7 +93,7 @@ contract GenerateOutputsScript is Script {
 
             // Get token data
             bytes32 seed = less.getSeed(tokenId);
-            uint256 foldId = less.getFoldId(tokenId);
+            uint256 foldId = less.getTokenData(tokenId).foldId;
 
             // Get tokenURI
             string memory uri = less.tokenURI(tokenId);

@@ -355,7 +355,7 @@ contract LessTest is Test {
 
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
-        assertEq(less.getFoldId(1), 1);
+        assertEq(less.getTokenData(1).foldId, 1);
         assertTrue(less.getSeed(1) != bytes32(0));
         assertEq(payout.balance, MINT_PRICE);
     }
@@ -384,7 +384,7 @@ contract LessTest is Test {
         assertTrue(less.isWindowActive());
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
-        assertEq(less.getFoldId(1), 1);
+        assertEq(less.getTokenData(1).foldId, 1);
     }
 
     function test_Mint_AutoCreatesFoldAfterWindowExpires() public {
@@ -409,7 +409,7 @@ contract LessTest is Test {
         assertEq(less.currentFoldId(), 2);
         assertTrue(less.isWindowActive());
         assertEq(less.totalSupply(), 2);
-        assertEq(less.getFoldId(2), 2);
+        assertEq(less.getTokenData(2).foldId, 2);
     }
 
     function test_Mint_RevertAlreadyMinted() public {
@@ -507,8 +507,8 @@ contract LessTest is Test {
         assertEq(less.totalSupply(), 2);
         assertEq(less.ownerOf(1), user1);
         assertEq(less.ownerOf(2), user2);
-        assertEq(less.getFoldId(1), 1);
-        assertEq(less.getFoldId(2), 1);
+        assertEq(less.getTokenData(1).foldId, 1);
+        assertEq(less.getTokenData(2).foldId, 1);
     }
 
     function test_Mint_SameUserDifferentFolds() public {
@@ -535,8 +535,8 @@ contract LessTest is Test {
         less.mint{value: MINT_PRICE}();
 
         assertEq(less.totalSupply(), 2);
-        assertEq(less.getFoldId(1), 1);
-        assertEq(less.getFoldId(2), 2);
+        assertEq(less.getTokenData(1).foldId, 1);
+        assertEq(less.getTokenData(2).foldId, 2);
     }
 
     function test_TokenURI() public {
@@ -550,6 +550,13 @@ contract LessTest is Test {
         less.mint{value: MINT_PRICE}();
 
         string memory uri = less.tokenURI(1);
+        assertTrue(bytes(uri).length > 0);
+        // Should start with data:application/json;base64,
+        assertEq(_startsWith(uri, "data:application/json;base64,"), true);
+    }
+
+    function test_ContractURI() public {
+        string memory uri = less.contractURI();
         assertTrue(bytes(uri).length > 0);
         // Should start with data:application/json;base64,
         assertEq(_startsWith(uri, "data:application/json;base64,"), true);
@@ -665,14 +672,32 @@ contract LessTest is Test {
         less.getSeed(999);
     }
 
-    function test_GetFoldId_RevertNonExistentToken() public {
-        vm.expectRevert(ERC721.TokenDoesNotExist.selector);
-        less.getFoldId(999);
-    }
-
     function test_GetTokenData_RevertNonExistentToken() public {
         vm.expectRevert(ERC721.TokenDoesNotExist.selector);
         less.getTokenData(999);
+    }
+
+    function test_GetFold_RevertFoldIdZero() public {
+        vm.expectRevert(Less.FoldDoesNotExist.selector);
+        less.getFold(0);
+    }
+
+    function test_GetFold_RevertNonExistentFold() public {
+        // No folds created yet
+        vm.expectRevert(Less.FoldDoesNotExist.selector);
+        less.getFold(1);
+
+        // Create a fold
+        vm.deal(address(strategy), 0.5 ether);
+        less.createFold();
+
+        // Fold 1 exists now
+        Less.Fold memory fold = less.getFold(1);
+        assertTrue(fold.startTime > 0);
+
+        // Fold 2 doesn't exist
+        vm.expectRevert(Less.FoldDoesNotExist.selector);
+        less.getFold(2);
     }
 
     function test_TokenURI_RevertNonExistentToken() public {
@@ -757,7 +782,7 @@ contract LessTest is Test {
         // Verify fold 2 was created
         assertEq(less.currentFoldId(), 2);
         assertTrue(less.isWindowActive());
-        assertEq(less.getFoldId(1), 2); // Token 1 is in fold 2
+        assertEq(less.getTokenData(1).foldId, 2); // Token 1 is in fold 2
     }
 
     function test_Mint_RevertAtWindowEnd_InsufficientBalance() public {

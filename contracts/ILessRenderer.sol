@@ -8,4 +8,8 @@ interface ILessRenderer {
     /// @param tokenId The token ID to generate metadata for
     /// @return A data:application/json;base64,... URI containing the token metadata
     function tokenURI(uint256 tokenId) external view returns (string memory);
+
+    /// @notice Returns the collection-level metadata URI
+    /// @return A data:application/json;base64,... URI containing collection metadata
+    function contractURI() external view returns (string memory);
 }

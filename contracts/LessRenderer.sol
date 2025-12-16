@@ -82,7 +82,6 @@ interface ILess {
         uint64 foldId;
     }
 
-    function getFoldId(uint256 tokenId) external view returns (uint256);
     function getSeed(uint256 tokenId) external view returns (bytes32);
     function getFold(uint256 foldId) external view returns (Fold memory);
     function getTokenData(
@@ -190,6 +189,28 @@ contract LessRenderer is ILessRenderer, Ownable {
         string memory json = _buildMetadataJSON(tokenId, token, fold, seed);
 
         // Encode as base64 data URI
+        return
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Base64.encode(bytes(json))
+                )
+            );
+    }
+
+    /// @notice Returns the collection-level metadata URI
+    /// @return A data:application/json;base64,... URI
+    function contractURI() external view override returns (string memory) {
+        string memory json = string(
+            abi.encodePacked(
+                '{"name":"LESS","description":"',
+                DESCRIPTION,
+                '","image":"',
+                baseImageURL,
+                'collection.png","external_link":"https://less.art"}'
+            )
+        );
+
         return
             string(
                 abi.encodePacked(

@@ -114,6 +114,9 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Thrown when setting renderer to the zero address
     error InvalidRenderer();
 
+    /// @notice Thrown when querying a fold that doesn't exist
+    error FoldDoesNotExist();
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -156,6 +159,8 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Initializes the Less NFT contract
+    /// @dev Sets immutable strategy reference and windowDuration from strategy's timeBetweenBurn
     /// @param _strategy Address of the RecursiveStrategy token
     /// @param _mintPrice Initial mint price in wei
     /// @param _payoutRecipient Initial recipient for mint payments
@@ -206,6 +211,13 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         return ILessRenderer(renderer).tokenURI(tokenId);
     }
 
+    /// @notice Returns the collection-level metadata URI
+    /// @dev Delegates to the renderer contract
+    /// @return A data URI containing base64-encoded JSON collection metadata
+    function contractURI() external view returns (string memory) {
+        return ILessRenderer(renderer).contractURI();
+    }
+
     /*//////////////////////////////////////////////////////////////
                            FOLD MANAGEMENT
     //////////////////////////////////////////////////////////////*/
@@ -226,7 +238,8 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
             revert InsufficientStrategyBalance();
 
         // Capture previous block's hash for seed entropy
-        // (can't get current block's hash, so use block.number - 1)
+        // Note: blockhash(0) returns bytes32(0) if called at block 1 - unlikely on mainnet/Base
+        // but would result in zero entropy for first fold if it somehow occurred
         bytes32 blockHash = blockhash(block.number - 1);
 
         // Trigger the burn on the strategy
@@ -269,8 +282,11 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     }
 
     /// @notice Check if a fold can be created
-    /// @dev Returns true only if: no active window, strategy balance >= minEthForFold, and TWAP delay met
-    /// @return True if createFold() would succeed, false otherwise
+    /// @dev Returns true only if: no active window, strategy balance >= minEthForFold, and TWAP delay met.
+    ///      Note: This view function mirrors the conditions that would cause _createFold() to revert.
+    ///      If the strategy's processTokenTwap() revert conditions ever diverge from timeUntilFundsMoved(),
+    ///      this function could return true when createFold() would actually fail.
+    /// @return True if createFold() would likely succeed, false otherwise
     function canCreateFold() external view returns (bool) {
         if (_isWindowActive()) return false;
         if (address(strategy).balance < minEthForFold) return false;
@@ -329,21 +345,13 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         }
 
         // Compute seed for event emission
-        bytes32 seed = _computeSeed(foldId, tokenId);
+        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
         emit Minted(tokenId, foldId, msg.sender, seed);
     }
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Get the fold ID for a token
-    /// @param tokenId The token ID to query
-    /// @return The fold ID during which this token was minted
-    function getFoldId(uint256 tokenId) external view returns (uint256) {
-        if (!_exists(tokenId)) revert TokenDoesNotExist();
-        return tokenData[tokenId].foldId;
-    }
 
     /// @notice Get the seed for a token
     /// @dev Seed is computed on-demand from the fold's blockHash and tokenId
@@ -352,14 +360,15 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     function getSeed(uint256 tokenId) external view returns (bytes32) {
         if (!_exists(tokenId)) revert TokenDoesNotExist();
         uint256 foldId = tokenData[tokenId].foldId;
-        return _computeSeed(foldId, tokenId);
+        return keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
     }
 
     /// @notice Get full fold data
-    /// @dev Returns an empty struct if the fold ID doesn't exist
+    /// @dev Reverts if the fold ID doesn't exist (foldId must be >= 1 and <= currentFoldId)
     /// @param foldId The fold ID to query
     /// @return The Fold struct containing startTime, endTime, and blockHash
     function getFold(uint256 foldId) external view returns (Fold memory) {
+        if (foldId == 0 || foldId > currentFoldId) revert FoldDoesNotExist();
         return folds[foldId];
     }
 
@@ -413,23 +422,14 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Check if there is an active mint window
     /// @dev Window is active when currentFoldId > 0 and current time is within [startTime, endTime)
+    ///      Note: Uses exclusive end (< endTime). At exactly endTime, window is inactive but a new
+    ///      fold may not be immediately creatable due to TWAP delay - this creates a brief limbo
+    ///      period which is expected behavior.
     /// @return True if minting is currently allowed, false otherwise
     function _isWindowActive() internal view returns (bool) {
         if (currentFoldId == 0) return false;
         Fold storage fold = folds[currentFoldId];
         return
             block.timestamp >= fold.startTime && block.timestamp < fold.endTime;
-    }
-
-    /// @notice Compute a deterministic seed for a token
-    /// @dev Combines the fold's stored blockHash with the tokenId
-    /// @param foldId The fold this token belongs to
-    /// @param tokenId The token ID
-    /// @return A unique bytes32 seed for use in generative art rendering
-    function _computeSeed(
-        uint256 foldId,
-        uint256 tokenId
-    ) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
     }
 }

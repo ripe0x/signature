@@ -1074,6 +1074,59 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
 
   const stats = useMemo(() => calculateBatchStats(batchItems), [batchItems]);
 
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const downloadAllPNGs = useCallback(async () => {
+    if (batchItems.length === 0) return;
+
+    setIsDownloading(true);
+    setDownloadProgress(0);
+
+    // Export at full resolution
+    const exportWidth = width;
+    const exportHeight = height;
+
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      const itemFolds = item.params.folds !== undefined ? item.params.folds : batchFolds;
+
+      // Render to canvas
+      const dataUrl = renderToCanvas({
+        folds: itemFolds,
+        seed: item.params.seed,
+        outputWidth: exportWidth,
+        outputHeight: exportHeight,
+        bgColor: item.params.palette.bg,
+        textColor: item.params.palette.text,
+        accentColor: item.params.palette.accent,
+        cellWidth: item.params.cells.cellW,
+        cellHeight: item.params.cells.cellH,
+        renderMode: item.params.renderMode,
+        multiColor: item.params.multiColor,
+        levelColors: item.params.levelColors,
+        foldStrategy: item.params.foldStrategy,
+        paperProperties: item.params.paperProperties,
+      });
+
+      // Create download link
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `fold-${item.params.seed}-${itemFolds}f.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setDownloadProgress(i + 1);
+
+      // Small delay to prevent browser from blocking downloads
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    setIsDownloading(false);
+    setDownloadProgress(0);
+  }, [batchItems, batchFolds, width, height]);
+
   const handleSelectItem = (item) => {
     onSelectSeed(item.params.seed);
     onClose();
@@ -1315,6 +1368,27 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
           }}
         >
           <BatchStats stats={stats} />
+
+          <button
+            onClick={downloadAllPNGs}
+            disabled={isDownloading || batchItems.length === 0}
+            style={{
+              width: "100%",
+              padding: "10px 16px",
+              marginTop: 16,
+              background: isDownloading ? "#333" : "#2d5a27",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: isDownloading ? "wait" : "pointer",
+              fontSize: 12,
+              fontWeight: 500,
+            }}
+          >
+            {isDownloading
+              ? `Downloading... ${downloadProgress}/${batchItems.length}`
+              : `Download All PNGs (${batchItems.length})`}
+          </button>
 
           <div
             style={{
