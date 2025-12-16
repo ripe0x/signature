@@ -13,7 +13,6 @@ import {
   VGA_PALETTE,
   PALETTE_BY_LUMINANCE,
   PALETTE_BY_TEMPERATURE,
-  PALETTE_BY_SATURATION,
   // Color utilities
   findVGAColor,
   hexToHsl,

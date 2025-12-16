@@ -29,9 +29,9 @@ export const CHAR_BOTTOM_OVERFLOW_DARK = 0.06; // ▓ extends 6% below
 export const CHAR_BOTTOM_OVERFLOW_OTHER = 0.03; // ░▒ extend 3% below
 export const CHAR_LIGHT_LEFT_OFFSET = 0.05; // ░ is offset 5% to the left
 
-// ============ VGA 256-COLOR PALETTE SYSTEM ============
-
-const VGA_LEVELS = [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff];
+// ============ CGA 13-COLOR PALETTE SYSTEM ============
+// Pure CGA with Albers-inspired contrast logic.
+// No brown (muddy), no grays (uncommitted mid-values).
 
 export function rgbToHex(r, g, b) {
   return (
@@ -50,140 +50,73 @@ export function getLuminance(r, g, b) {
   return (0.2126 * rNorm + 0.7152 * gNorm + 0.0722 * bNorm) * 100;
 }
 
-export function getTemperature(r, g, b) {
-  const warmth = r - b;
-  if (Math.abs(warmth) < 30 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
-    return "neutral";
-  }
-  return warmth > 0 ? "warm" : "cool";
-}
+// The 13 CGA colors - brown and grays removed
+export const CGA_PALETTE = [
+  // Darks (valid grounds) - luminance < 30
+  { hex: "#000000", name: "black", luminance: 0, temperature: "neutral", r: 0, g: 0, b: 0 },
+  { hex: "#0000AA", name: "blue", luminance: 10, temperature: "cool", r: 0, g: 0, b: 170 },
+  { hex: "#AA0000", name: "red", luminance: 20, temperature: "warm", r: 170, g: 0, b: 0 },
+  { hex: "#AA00AA", name: "magenta", luminance: 25, temperature: "warm", r: 170, g: 0, b: 170 },
 
-export function getSaturationTier(r, g, b) {
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
+  // Lights (valid grounds) - luminance > 70
+  { hex: "#FFFFFF", name: "white", luminance: 100, temperature: "neutral", r: 255, g: 255, b: 255 },
+  { hex: "#FFFF55", name: "yellow", luminance: 93, temperature: "warm", r: 255, g: 255, b: 85 },
+  { hex: "#55FFFF", name: "lightCyan", luminance: 85, temperature: "cool", r: 85, g: 255, b: 255 },
+  { hex: "#55FF55", name: "lightGreen", luminance: 77, temperature: "cool", r: 85, g: 255, b: 85 },
 
-  if (delta < 20) return "gray";
-  if (delta < 80) return "muted";
-  if (delta < 160) return "chromatic";
-  return "vivid";
-}
-
-function buildWebSafeColors() {
-  const colors = [];
-  for (let ri = 0; ri < 6; ri++) {
-    for (let gi = 0; gi < 6; gi++) {
-      for (let bi = 0; bi < 6; bi++) {
-        const r = VGA_LEVELS[ri];
-        const g = VGA_LEVELS[gi];
-        const b = VGA_LEVELS[bi];
-        colors.push({
-          hex: rgbToHex(r, g, b),
-          r,
-          g,
-          b,
-          cubePos: { ri, gi, bi },
-          luminance: getLuminance(r, g, b),
-          temperature: getTemperature(r, g, b),
-          saturation: getSaturationTier(r, g, b),
-          type: "websafe",
-        });
-      }
-    }
-  }
-  return colors;
-}
-
-const CGA_COLORS = [
-  { hex: "#000000", name: "black" },
-  { hex: "#0000AA", name: "blue" },
-  { hex: "#00AA00", name: "green" },
-  { hex: "#00AAAA", name: "cyan" },
-  { hex: "#AA0000", name: "red" },
-  { hex: "#AA00AA", name: "magenta" },
-  { hex: "#AA5500", name: "brown" },
-  { hex: "#AAAAAA", name: "lightGray" },
-  { hex: "#555555", name: "darkGray" },
-  { hex: "#5555FF", name: "lightBlue" },
-  { hex: "#55FF55", name: "lightGreen" },
-  { hex: "#55FFFF", name: "lightCyan" },
-  { hex: "#FF5555", name: "lightRed" },
-  { hex: "#FF55FF", name: "lightMagenta" },
-  { hex: "#FFFF55", name: "yellow" },
-  { hex: "#FFFFFF", name: "white" },
+  // Mids (marks only, never grounds) - luminance 30-70
+  { hex: "#00AA00", name: "green", luminance: 30, temperature: "cool", r: 0, g: 170, b: 0 },
+  { hex: "#00AAAA", name: "cyan", luminance: 40, temperature: "cool", r: 0, g: 170, b: 170 },
+  { hex: "#5555FF", name: "lightBlue", luminance: 45, temperature: "cool", r: 85, g: 85, b: 255 },
+  { hex: "#FF5555", name: "lightRed", luminance: 45, temperature: "warm", r: 255, g: 85, b: 85 },
+  { hex: "#FF55FF", name: "lightMagenta", luminance: 60, temperature: "warm", r: 255, g: 85, b: 255 },
 ];
 
-function buildCGAColors() {
-  return CGA_COLORS.map((c) => {
-    const r = parseInt(c.hex.slice(1, 3), 16);
-    const g = parseInt(c.hex.slice(3, 5), 16);
-    const b = parseInt(c.hex.slice(5, 7), 16);
-    return {
-      hex: c.hex,
-      r,
-      g,
-      b,
-      cubePos: null,
-      luminance: getLuminance(r, g, b),
-      temperature: getTemperature(r, g, b),
-      saturation: getSaturationTier(r, g, b),
-      type: "cga",
-      name: c.name,
-    };
-  });
-}
-
-function buildGrayscaleColors() {
-  const colors = [];
-  for (let i = 0; i < 24; i++) {
-    const v = Math.round((i / 23) * 255);
-    colors.push({
-      hex: rgbToHex(v, v, v),
-      r: v,
-      g: v,
-      b: v,
-      cubePos: null,
-      luminance: getLuminance(v, v, v),
-      temperature: "neutral",
-      saturation: "gray",
-      type: "grayscale",
-      grayIndex: i,
-    });
-  }
-  return colors;
-}
-
-export const VGA_PALETTE = [
-  ...buildWebSafeColors(),
-  ...buildCGAColors(),
-  ...buildGrayscaleColors(),
-];
-
-export const PALETTE_BY_LUMINANCE = {
-  dark: VGA_PALETTE.filter((c) => c.luminance < 30),
-  midDark: VGA_PALETTE.filter((c) => c.luminance >= 20 && c.luminance < 50),
-  mid: VGA_PALETTE.filter((c) => c.luminance >= 40 && c.luminance < 70),
-  midLight: VGA_PALETTE.filter((c) => c.luminance >= 55 && c.luminance < 85),
-  light: VGA_PALETTE.filter((c) => c.luminance >= 70),
-};
-
-export const PALETTE_BY_TEMPERATURE = {
-  warm: VGA_PALETTE.filter((c) => c.temperature === "warm"),
-  cool: VGA_PALETTE.filter((c) => c.temperature === "cool"),
-  neutral: VGA_PALETTE.filter((c) => c.temperature === "neutral"),
-};
-
-export const PALETTE_BY_SATURATION = {
-  gray: VGA_PALETTE.filter((c) => c.saturation === "gray"),
-  muted: VGA_PALETTE.filter((c) => c.saturation === "muted"),
-  chromatic: VGA_PALETTE.filter((c) => c.saturation === "chromatic"),
-  vivid: VGA_PALETTE.filter((c) => c.saturation === "vivid"),
-};
-
-export const ACCENT_POOL = VGA_PALETTE.filter(
-  (c) =>
-    c.saturation === "vivid" || (c.type === "cga" && c.saturation !== "gray")
+// Role pools
+// Grounds must be value-committed (dark or light, never mid)
+export const GROUND_POOL = CGA_PALETTE.filter(
+  (c) => c.luminance < 30 || c.luminance > 70
 );
+// black, blue, red, magenta, white, yellow, lightCyan, lightGreen
+
+// Ground weights - prevent any single color from dominating
+// Black and white anchor more often. Magenta is spice, not staple.
+const GROUND_WEIGHTS = {
+  black: 0.20,      // strongest ground, increase
+  white: 0.15,      // rare but powerful, increase
+  blue: 0.15,       // classic CGA
+  red: 0.15,        // classic CGA
+  magenta: 0.10,    // decrease - was overrepresented
+  yellow: 0.10,     // complement anchor
+  lightCyan: 0.08,  // light grounds are rarer
+  lightGreen: 0.07, // light grounds are rarer
+};
+
+// Marks can be anything with sufficient contrast to ground
+export const MARK_POOL = CGA_PALETTE;
+
+// Accents must be chromatic (not black or white)
+export const ACCENT_POOL = CGA_PALETTE.filter(
+  (c) => c.temperature !== "neutral"
+);
+
+// Chromatic colors for monochrome "key" selection
+// These are the 11 non-neutral colors that can be the single voice
+const CHROMATIC_POOL = CGA_PALETTE.filter(
+  (c) => c.temperature !== "neutral"
+);
+
+// Legacy exports for compatibility (point to CGA_PALETTE)
+export const VGA_PALETTE = CGA_PALETTE;
+export const PALETTE_BY_LUMINANCE = {
+  dark: CGA_PALETTE.filter((c) => c.luminance < 30),
+  light: CGA_PALETTE.filter((c) => c.luminance > 70),
+};
+export const PALETTE_BY_TEMPERATURE = {
+  warm: CGA_PALETTE.filter((c) => c.temperature === "warm"),
+  cool: CGA_PALETTE.filter((c) => c.temperature === "cool"),
+  neutral: CGA_PALETTE.filter((c) => c.temperature === "neutral"),
+};
 
 // ============ COLOR UTILITIES ============
 
@@ -194,76 +127,7 @@ export function colorDistance(c1, c2) {
   return Math.sqrt(dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11);
 }
 
-export function getCubeNeighbors(color, maxSteps) {
-  if (!color.cubePos) return [];
-  const { ri, gi, bi } = color.cubePos;
-
-  return VGA_PALETTE.filter((c) => {
-    if (!c.cubePos) return false;
-    const dist =
-      Math.abs(c.cubePos.ri - ri) +
-      Math.abs(c.cubePos.gi - gi) +
-      Math.abs(c.cubePos.bi - bi);
-    return dist > 0 && dist <= maxSteps;
-  });
-}
-
-export function getComplementaryRegion(color) {
-  if (!color.cubePos) {
-    const oppTemp =
-      color.temperature === "warm"
-        ? "cool"
-        : color.temperature === "cool"
-        ? "warm"
-        : "neutral";
-    return PALETTE_BY_TEMPERATURE[oppTemp];
-  }
-
-  const { ri, gi, bi } = color.cubePos;
-  const oppRi = ri < 3 ? 4 : 1;
-  const oppGi = gi < 3 ? 4 : 1;
-  const oppBi = bi < 3 ? 4 : 1;
-
-  return VGA_PALETTE.filter((c) => {
-    if (!c.cubePos) return false;
-    return (
-      Math.abs(c.cubePos.ri - oppRi) <= 1 &&
-      Math.abs(c.cubePos.gi - oppGi) <= 1 &&
-      Math.abs(c.cubePos.bi - oppBi) <= 1
-    );
-  });
-}
-
-export function getCubeDiagonalPath(startColor, endColor, steps) {
-  if (!startColor.cubePos || !endColor.cubePos) {
-    return interpolateByLuminance(startColor, endColor, steps);
-  }
-
-  const path = [];
-  for (let i = 0; i < steps; i++) {
-    const t = i / (steps - 1);
-    const targetRi = Math.round(
-      startColor.cubePos.ri + (endColor.cubePos.ri - startColor.cubePos.ri) * t
-    );
-    const targetGi = Math.round(
-      startColor.cubePos.gi + (endColor.cubePos.gi - startColor.cubePos.gi) * t
-    );
-    const targetBi = Math.round(
-      startColor.cubePos.bi + (endColor.cubePos.bi - startColor.cubePos.bi) * t
-    );
-
-    const found = VGA_PALETTE.find(
-      (c) =>
-        c.cubePos &&
-        c.cubePos.ri === targetRi &&
-        c.cubePos.gi === targetGi &&
-        c.cubePos.bi === targetBi
-    );
-    if (found) path.push(found);
-  }
-  return path;
-}
-
+// Interpolate colors by luminance (simplified for CGA)
 export function interpolateByLuminance(startColor, endColor, steps) {
   const startLum = startColor.luminance;
   const endLum = endColor.luminance;
@@ -273,7 +137,7 @@ export function interpolateByLuminance(startColor, endColor, steps) {
     const t = i / (steps - 1);
     const targetLum = startLum + (endLum - startLum) * t;
 
-    const candidates = VGA_PALETTE.filter(
+    const candidates = CGA_PALETTE.filter(
       (c) =>
         c.temperature === startColor.temperature || c.temperature === "neutral"
     );
@@ -313,6 +177,20 @@ export function pickBiased(rng, arr, bias) {
     return arr[arr.length - 1 - Math.floor((arr.length - 1 - idx) * rng())];
   }
   return arr[idx];
+}
+
+// Weighted random selection from pool using weights object
+function pickWeighted(rng, pool, weights) {
+  const roll = rng();
+  let cumulative = 0;
+  for (const color of pool) {
+    cumulative += weights[color.name] || 0;
+    if (roll < cumulative) {
+      return color;
+    }
+  }
+  // Fallback to last item (shouldn't happen if weights sum to 1)
+  return pool[pool.length - 1];
 }
 
 // ============ HSL UTILITIES ============
@@ -369,360 +247,230 @@ export function hexToHsl(hex) {
   return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
-// ============ ALBERS-INSPIRED PALETTE GENERATION ============
+// ============ CGA ALBERS COLOR SYSTEM ============
+// Ground first. Contrast type second. Derive, don't pick.
+// Only 13 CGA colors. Every palette has an argument.
 
-export function findConfusableColors(color, lumTolerance = 10) {
-  return VGA_PALETTE.filter(
-    (c) =>
-      c.hex !== color.hex &&
-      Math.abs(c.luminance - color.luminance) < lumTolerance &&
-      (c.temperature !== color.temperature || c.saturation !== color.saturation)
-  );
-}
+// Complement pairs lookup
+const COMPLEMENT_PAIRS = {
+  red: ["cyan", "lightCyan"],
+  magenta: ["green", "lightGreen"],
+  blue: ["yellow"],
+  lightRed: ["cyan", "lightCyan"],
+  lightMagenta: ["green", "lightGreen"],
+  lightBlue: ["yellow"],
+  cyan: ["red", "lightRed"],
+  lightCyan: ["red", "lightRed"],
+  green: ["magenta", "lightMagenta"],
+  lightGreen: ["magenta", "lightMagenta"],
+  yellow: ["blue", "lightBlue"],
+  black: ["white", "yellow", "lightCyan"],
+  white: ["black", "blue", "magenta"],
+};
 
-export function findVisualMidpoint(c1, c2) {
-  const targetR = Math.round((c1.r + c2.r) / 2);
-  const targetG = Math.round((c1.g + c2.g) / 2);
-  const targetB = Math.round((c1.b + c2.b) / 2);
-  const targetLum = (c1.luminance + c2.luminance) / 2;
-
-  let closest = VGA_PALETTE[0];
-  let closestDist = Infinity;
-
-  for (const c of VGA_PALETTE) {
-    const rgbDist = Math.sqrt(
-      Math.pow(c.r - targetR, 2) +
-        Math.pow(c.g - targetG, 2) +
-        Math.pow(c.b - targetB, 2)
-    );
-    const lumDist = Math.abs(c.luminance - targetLum) * 2;
-    const totalDist = rgbDist + lumDist;
-
-    if (totalDist < closestDist) {
-      closestDist = totalDist;
-      closest = c;
-    }
-  }
-
-  return closest;
-}
-
-export function applyTransformation(mother, transformType, rng) {
+// Derive mark based on contrast type
+function deriveMark(ground, contrastType, rng) {
+  const MIN_LUM_DIFF = 25;
   let candidates = [];
 
-  switch (transformType) {
+  switch (contrastType) {
     case "value": {
-      const lumDiff = mother.luminance > 50 ? -40 : 40;
-      const targetLum = Math.max(5, Math.min(95, mother.luminance + lumDiff));
-
-      candidates = VGA_PALETTE.filter(
-        (c) =>
-          c.hex !== mother.hex &&
-          Math.abs(c.luminance - targetLum) < 20 &&
-          (c.temperature === mother.temperature ||
-            c.temperature === "neutral" ||
-            mother.temperature === "neutral")
+      // Dark ground → light mark, or vice versa
+      const needsLight = ground.luminance < 50;
+      candidates = MARK_POOL.filter((c) =>
+        needsLight ? c.luminance > 60 : c.luminance < 40
       );
-
-      candidates.sort((a, b) => {
-        const aTempMatch = a.temperature === mother.temperature ? 0 : 1;
-        const bTempMatch = b.temperature === mother.temperature ? 0 : 1;
-        if (aTempMatch !== bTempMatch) return aTempMatch - bTempMatch;
-        return (
-          Math.abs(a.luminance - targetLum) - Math.abs(b.luminance - targetLum)
-        );
-      });
       break;
     }
 
     case "temperature": {
-      const targetTemp =
-        mother.temperature === "warm"
-          ? "cool"
-          : mother.temperature === "cool"
-          ? "warm"
-          : rng() < 0.5
-          ? "warm"
-          : "cool";
-
-      candidates = VGA_PALETTE.filter(
-        (c) =>
-          c.hex !== mother.hex &&
-          c.temperature === targetTemp &&
-          Math.abs(c.luminance - mother.luminance) < 25
-      );
-
-      candidates.sort(
-        (a, b) =>
-          Math.abs(a.luminance - mother.luminance) -
-          Math.abs(b.luminance - mother.luminance)
-      );
-      break;
-    }
-
-    case "saturation": {
-      const satOrder = ["gray", "muted", "chromatic", "vivid"];
-      const motherIdx = satOrder.indexOf(mother.saturation);
-      const targetSats =
-        motherIdx <= 1 ? ["chromatic", "vivid"] : ["muted", "gray"];
-
-      candidates = VGA_PALETTE.filter(
-        (c) =>
-          c.hex !== mother.hex &&
-          targetSats.includes(c.saturation) &&
-          Math.abs(c.luminance - mother.luminance) < 30 &&
-          (c.temperature === mother.temperature || c.temperature === "neutral")
-      );
-
-      candidates.sort((a, b) => {
-        const aIdx = satOrder.indexOf(a.saturation);
-        const bIdx = satOrder.indexOf(b.saturation);
-        return Math.abs(bIdx - motherIdx) - Math.abs(aIdx - motherIdx);
-      });
+      // Warm ground → cool mark, or vice versa
+      if (ground.temperature === "neutral") {
+        // Neutral ground: pick any chromatic with contrast
+        candidates = MARK_POOL.filter(
+          (c) =>
+            c.temperature !== "neutral" &&
+            Math.abs(c.luminance - ground.luminance) > MIN_LUM_DIFF
+        );
+      } else {
+        const targetTemp = ground.temperature === "warm" ? "cool" : "warm";
+        candidates = MARK_POOL.filter(
+          (c) =>
+            c.temperature === targetTemp &&
+            Math.abs(c.luminance - ground.luminance) > MIN_LUM_DIFF
+        );
+      }
       break;
     }
 
     case "complement": {
-      candidates = getComplementaryRegion(mother);
-
-      candidates.sort(
-        (a, b) =>
-          Math.abs(b.luminance - mother.luminance) -
-          Math.abs(a.luminance - mother.luminance)
-      );
+      // Opposite hue: red↔cyan, blue↔yellow, magenta↔green
+      const complements = COMPLEMENT_PAIRS[ground.name] || [];
+      candidates = MARK_POOL.filter((c) => complements.includes(c.name));
+      // If no complements found, fall back to value contrast
+      if (candidates.length === 0) {
+        const needsLight = ground.luminance < 50;
+        candidates = MARK_POOL.filter((c) =>
+          needsLight ? c.luminance > 60 : c.luminance < 40
+        );
+      }
       break;
     }
 
-    case "neighbor": {
-      if (mother.cubePos) {
-        candidates = getCubeNeighbors(mother, 1);
-        if (candidates.length < 3) {
-          candidates = getCubeNeighbors(mother, 2);
-        }
-      } else {
-        candidates = VGA_PALETTE.filter(
-          (c) =>
-            c.hex !== mother.hex &&
-            colorDistance(mother, c) < 60 &&
-            colorDistance(mother, c) > 20
-        );
-      }
-
-      candidates.sort(
-        (a, b) => colorDistance(mother, a) - colorDistance(mother, b)
+    case "clash": {
+      // Intentional discord - readable but wrong
+      candidates = MARK_POOL.filter(
+        (c) =>
+          c.name !== ground.name &&
+          Math.abs(c.luminance - ground.luminance) > 20 &&
+          Math.abs(c.luminance - ground.luminance) < 50
       );
       break;
     }
   }
 
-  return candidates;
+  // Sort by contrast strength
+  candidates.sort(
+    (a, b) =>
+      Math.abs(b.luminance - ground.luminance) -
+      Math.abs(a.luminance - ground.luminance)
+  );
+
+  if (candidates.length > 0) {
+    return pickRandom(rng, candidates);
+  }
+
+  // Fallback: black/white based on ground
+  return ground.luminance < 50
+    ? CGA_PALETTE.find((c) => c.name === "white")
+    : CGA_PALETTE.find((c) => c.name === "black");
+}
+
+// Derive accent - optional third color
+function deriveAccent(ground, mark, rng) {
+  // 40% of pieces: no distinct accent (2-color palette)
+  if (rng() < 0.4) return mark;
+
+  // Accent must differ from both ground and mark
+  const candidates = ACCENT_POOL.filter(
+    (c) =>
+      c.name !== ground.name &&
+      c.name !== mark.name &&
+      Math.abs(c.luminance - ground.luminance) > 20
+  );
+
+  if (candidates.length === 0) return mark;
+
+  // Prefer high-energy accents: yellow, lightCyan, lightMagenta, lightGreen
+  const hotAccents = candidates.filter((c) =>
+    ["yellow", "lightCyan", "lightMagenta", "lightGreen"].includes(c.name)
+  );
+
+  if (hotAccents.length > 0 && rng() < 0.6) {
+    return pickRandom(rng, hotAccents);
+  }
+
+  return pickRandom(rng, candidates);
+}
+
+// True monochrome: one chromatic voice on neutral ground
+// The "key" color defines the piece. Shade characters create value through density.
+function generateMonochrome(rng) {
+  // Pick the key color - the single chromatic voice
+  const keyColor = pickRandom(rng, CHROMATIC_POOL);
+
+  // Ground: black or white based on key luminance
+  // Light keys (yellow, lightCyan, etc) → black ground for contrast
+  // Dark keys (blue, red) → prefer black, sometimes white
+  // Mid keys → either works
+  let groundColor;
+  if (keyColor.luminance > 50) {
+    // Light color → always black ground
+    groundColor = CGA_PALETTE.find((c) => c.name === "black");
+  } else if (keyColor.luminance < 30) {
+    // Dark color → mostly black (classic terminal), sometimes white (blueprint)
+    groundColor = rng() < 0.75
+      ? CGA_PALETTE.find((c) => c.name === "black")
+      : CGA_PALETTE.find((c) => c.name === "white");
+  } else {
+    // Mid color → either works
+    groundColor = rng() < 0.6
+      ? CGA_PALETTE.find((c) => c.name === "black")
+      : CGA_PALETTE.find((c) => c.name === "white");
+  }
+
+  return {
+    bg: groundColor.hex,
+    text: keyColor.hex,
+    accent: keyColor.hex, // Same as text - true 2-color
+    strategy: `monochrome/${keyColor.name}`,
+    colorCount: 2,
+  };
 }
 
 export function generatePalette(seed) {
   const rng = seededRandom(seed);
 
-  // GLITCH MODE - ~3% chance
-  const glitchRoll = rng();
-  if (glitchRoll < 0.03) {
-    const glitchType = Math.floor(rng() * 5);
-
-    switch (glitchType) {
-      case 0: {
-        const lumBand =
-          rng() < 0.5
-            ? PALETTE_BY_LUMINANCE.midLight
-            : PALETTE_BY_LUMINANCE.midDark;
-        const colors = [
-          pickRandom(rng, lumBand),
-          pickRandom(rng, lumBand),
-          pickRandom(rng, lumBand),
-        ];
-        return {
-          bg: colors[0].hex,
-          text: colors[1].hex,
-          accent: colors[2].hex,
-          strategy: "glitch/washed",
-        };
-      }
-      case 1: {
-        const warm = PALETTE_BY_SATURATION.vivid.filter(
-          (c) => c.temperature === "warm"
-        );
-        const cool = PALETTE_BY_SATURATION.vivid.filter(
-          (c) => c.temperature === "cool"
-        );
-        return {
-          bg: pickRandom(rng, warm).hex,
-          text: pickRandom(rng, cool).hex,
-          accent: pickRandom(rng, rng() < 0.5 ? warm : cool).hex,
-          strategy: "glitch/acid",
-        };
-      }
-      case 2: {
-        const darks = VGA_PALETTE.filter((c) => c.luminance < 15);
-        const lessdarks = VGA_PALETTE.filter(
-          (c) => c.luminance >= 10 && c.luminance < 25
-        );
-        return {
-          bg: pickRandom(rng, darks).hex,
-          text: pickRandom(rng, lessdarks).hex,
-          accent: pickRandom(rng, lessdarks).hex,
-          strategy: "glitch/void",
-        };
-      }
-      case 3: {
-        const lights = VGA_PALETTE.filter((c) => c.luminance > 85);
-        const lesslights = VGA_PALETTE.filter(
-          (c) => c.luminance >= 70 && c.luminance < 90
-        );
-        return {
-          bg: pickRandom(rng, lights).hex,
-          text: pickRandom(rng, lesslights).hex,
-          accent: pickRandom(rng, lesslights).hex,
-          strategy: "glitch/bleach",
-        };
-      }
-      case 4:
-      default: {
-        const cgaOnly = VGA_PALETTE.filter((c) => c.type === "cga");
-        return {
-          bg: pickRandom(rng, cgaOnly).hex,
-          text: pickRandom(rng, cgaOnly).hex,
-          accent: pickRandom(rng, cgaOnly).hex,
-          strategy: "glitch/corrupt",
-        };
-      }
-    }
+  // ============ MONOCHROME CHECK ============
+  // 12% chance of true monochrome - one chromatic voice on neutral ground
+  // This is its own complete pathway, not a contrast type
+  if (rng() < 0.12) {
+    return generateMonochrome(rng);
   }
 
-  // SELECT MOTHER COLOR
-  const chromaticPool = VGA_PALETTE.filter(
-    (c) => c.saturation !== "gray" && c.type === "websafe"
-  );
-  const motherColor = pickRandom(rng, chromaticPool);
+  // ============ STEP 1: GROUND ============
+  // Ground is the dominant field. Dark or light. Never mid.
+  // Weighted selection prevents any single color from dominating.
+  // Black and white anchor more often. Magenta is spice, not staple.
 
-  // CHOOSE GROUND
-  const groundRoll = rng();
-  let ground;
-  if (groundRoll < 0.4) ground = "light";
-  else if (groundRoll < 0.8) ground = "dark";
-  else ground = "mid";
+  const ground = pickWeighted(rng, GROUND_POOL, GROUND_WEIGHTS);
 
-  // CHOOSE PRIMARY TRANSFORMATION
-  const transformRoll = rng();
-  let primaryTransform;
-  if (transformRoll < 0.3) primaryTransform = "value";
-  else if (transformRoll < 0.5) primaryTransform = "temperature";
-  else if (transformRoll < 0.65) primaryTransform = "saturation";
-  else if (transformRoll < 0.8) primaryTransform = "complement";
-  else primaryTransform = "neighbor";
+  // ============ STEP 2: CONTRAST TYPE ============
+  // Pick ONE contrast relationship. Commit to it.
+  // Weights: value 40%, temperature 28%, complement 22%, clash 10%
 
-  // DERIVE BACKGROUND
-  let bgCandidates;
-  if (ground === "light") {
-    bgCandidates = PALETTE_BY_LUMINANCE.light.filter(
-      (c) =>
-        c.temperature === motherColor.temperature ||
-        c.temperature === "neutral" ||
-        c.saturation === "gray"
-    );
-  } else if (ground === "dark") {
-    bgCandidates = PALETTE_BY_LUMINANCE.dark.filter(
-      (c) =>
-        c.temperature === motherColor.temperature ||
-        c.temperature === "neutral" ||
-        c.saturation === "gray"
-    );
+  const contrastRoll = rng();
+  let contrastType;
+  if (contrastRoll < 0.40) {
+    contrastType = "value";
+  } else if (contrastRoll < 0.68) {
+    contrastType = "temperature";
+  } else if (contrastRoll < 0.90) {
+    contrastType = "complement";
   } else {
-    bgCandidates = VGA_PALETTE.filter(
-      (c) =>
-        c.luminance >= 35 &&
-        c.luminance <= 65 &&
-        (c.saturation === "muted" || c.saturation === "gray") &&
-        (c.temperature === motherColor.temperature ||
-          c.temperature === "neutral")
-    );
+    contrastType = "clash"; // 10% - intentional discord
   }
 
-  if (bgCandidates.length === 0) {
-    bgCandidates =
-      ground === "light"
-        ? PALETTE_BY_LUMINANCE.light
-        : PALETTE_BY_LUMINANCE.dark;
-  }
+  // ============ STEP 3: DERIVE MARK ============
+  // Mark is the ANSWER to the ground + contrast type
 
-  const bgColor = pickRandom(rng, bgCandidates);
+  const mark = deriveMark(ground, contrastType, rng);
 
-  // DERIVE TEXT COLOR
-  let textCandidates = applyTransformation(motherColor, primaryTransform, rng);
-  textCandidates = textCandidates.filter((c) =>
-    hasGoodContrast(bgColor, c, 4.5)
-  );
+  // ============ STEP 4: DERIVE ACCENT ============
+  // 40% get no accent (2-color), 60% get distinct third color
 
-  if (textCandidates.length === 0) {
-    textCandidates = applyTransformation(motherColor, "value", rng).filter(
-      (c) => hasGoodContrast(bgColor, c, 4.5)
-    );
-  }
+  const accent = deriveAccent(ground, mark, rng);
 
-  if (textCandidates.length === 0) {
-    textCandidates = VGA_PALETTE.filter((c) =>
-      hasGoodContrast(bgColor, c, 4.5)
-    );
-  }
+  // ============ STEP 5: VALIDATE ============
+  // Safety check - should always pass with this system
 
-  const textColor =
-    textCandidates.length > 3
-      ? textCandidates[Math.floor(rng() * Math.min(3, textCandidates.length))]
-      : textCandidates[0] || motherColor;
-
-  // ACCENT
-  const useAccent = rng() < 0.2;
-  let accentColor;
-
-  if (useAccent) {
-    const bgConfusable = findConfusableColors(bgColor, 15);
-    const textConfusable = findConfusableColors(textColor, 15);
-
-    let accentCandidates = [...bgConfusable, ...textConfusable].filter(
-      (c) =>
-        hasGoodContrast(bgColor, c, 3.0) &&
-        c.hex !== textColor.hex &&
-        c.saturation !== "gray"
-    );
-
-    const seen = new Set();
-    accentCandidates = accentCandidates.filter((c) => {
-      if (seen.has(c.hex)) return false;
-      seen.add(c.hex);
-      return true;
-    });
-
-    if (accentCandidates.length > 0) {
-      const vividAccents = accentCandidates.filter(
-        (c) => c.saturation === "vivid" || c.saturation === "chromatic"
-      );
-      accentColor = pickRandom(
-        rng,
-        vividAccents.length > 0 ? vividAccents : accentCandidates
-      );
-    } else {
-      const midpoint = findVisualMidpoint(bgColor, textColor);
-      if (hasGoodContrast(bgColor, midpoint, 2.5)) {
-        accentColor = midpoint;
-      } else {
-        accentColor = textColor;
-      }
-    }
-  } else {
-    accentColor = textColor;
+  if (Math.abs(ground.luminance - mark.luminance) < 25) {
+    // Contrast failure - force black/white fallback
+    return {
+      bg: ground.luminance < 50 ? "#000000" : "#FFFFFF",
+      text: ground.luminance < 50 ? "#FFFFFF" : "#000000",
+      accent: "#FFFF55",
+      strategy: "fallback",
+      colorCount: 3,
+    };
   }
 
   return {
-    bg: bgColor.hex,
-    text: textColor.hex,
-    accent: accentColor.hex,
-    strategy: `${ground}/${primaryTransform}${useAccent ? "+accent" : ""}`,
+    bg: ground.hex,
+    text: mark.hex,
+    accent: accent.hex,
+    strategy: contrastType,
+    colorCount: accent.hex === mark.hex ? 2 : 3,
   };
 }
 
