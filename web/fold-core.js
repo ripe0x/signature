@@ -2362,6 +2362,10 @@ export function renderToCanvas({
 
   const shadeChars = [" ", "░", "▒", "▓"];
 
+  // Cap shade level for small cells - ▓ becomes solid at small sizes
+  // Use only ░ and ▒ when fontSize < 30 to maintain visible texture
+  const maxShadeLevel = fontSize < 30 ? 2 : 3;
+
   // Use measured glyph metrics instead of unreliable measureText
   const charWidth = fontSize * CHAR_WIDTH_RATIO;
   const charTopOverflow = fontSize * CHAR_TOP_OVERFLOW;
@@ -2400,9 +2404,33 @@ export function renderToCanvas({
     cellOverflowAmount = 5; // 3% five cells overflow (max)
   }
 
-  // Determine draw direction (left-to-right or right-to-left)
+  // Determine draw direction mode
+  // Controls how characters fill cells and overflow
   const drawDirectionRng = seededRandom(seed + 33333);
-  const drawRightToLeft = drawDirectionRng() < 0.3; // 30% chance of right-to-left
+  const directionRoll = drawDirectionRng();
+  let drawDirectionMode;
+  if (directionRoll < 0.22) {
+    drawDirectionMode = "ltr"; // 22% - overflow extends right
+  } else if (directionRoll < 0.44) {
+    drawDirectionMode = "rtl"; // 22% - overflow extends left
+  } else if (directionRoll < 0.65) {
+    drawDirectionMode = "center"; // 21% - expand from center outward
+  } else if (directionRoll < 0.80) {
+    drawDirectionMode = "alternate"; // 15% - alternate per row
+  } else if (directionRoll < 0.90) {
+    drawDirectionMode = "diagonal"; // 10% - diagonal seam
+  } else if (directionRoll < 0.96) {
+    drawDirectionMode = "randomMid"; // 6% - random switch point per row
+  } else {
+    drawDirectionMode = "checkerboard"; // 4% - alternate by row AND column
+  }
+
+  // For alternate mode: randomize which direction first row starts with
+  const alternateStartsRtl = drawDirectionRng() < 0.5;
+
+  // For diagonal mode: starting column and shift direction
+  const diagonalStartCol = Math.floor(drawDirectionRng() * cols);
+  const diagonalShiftRight = drawDirectionRng() < 0.5; // true = seam moves right each row
 
   // Determine overlap pattern based on seed
   // 50% no overlap, then for overlaps: 75%/95% are 20% total, rest split remaining 30%
@@ -2574,11 +2602,11 @@ export function renderToCanvas({
         if (firstFoldTargetCell === key) {
           // First fold target: ONLY exception - always show with accent color
           level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
-          char = shadeChars[Math.max(level, 2)];
+          char = shadeChars[Math.min(Math.max(level, 2), maxShadeLevel)];
           color = accentColor;
         } else if (renderMode === "normal") {
           level = countToLevelAdaptive(weight, thresholds);
-          char = shadeChars[level];
+          char = shadeChars[Math.min(level, maxShadeLevel)];
           if (level === 0) {
             char = shadeChars[1];
             isEmptyCell = true;
@@ -2605,13 +2633,13 @@ export function renderToCanvas({
             level = 0;
             color = getColorForLevel(0, key);
           } else {
-            char = shadeChars[3];
-            level = 3;
-            color = getColorForLevel(3, key);
+            level = maxShadeLevel;
+            char = shadeChars[level];
+            color = getColorForLevel(level, key);
             if (accentCells.has(key)) color = accentColor;
           }
         } else if (renderMode === "inverted") {
-          level = 3 - countToLevelAdaptive(weight, thresholds);
+          level = Math.min(3 - countToLevelAdaptive(weight, thresholds), maxShadeLevel);
           char = shadeChars[level];
           color = getColorForLevel(level, key);
           if (weight >= 1.5) {
@@ -2636,7 +2664,7 @@ export function renderToCanvas({
         } else if (renderMode === "dense") {
           level = countToLevelAdaptive(weight, thresholds);
           if (level >= 2) {
-            char = shadeChars[level];
+            char = shadeChars[Math.min(level, maxShadeLevel)];
             color = getColorForLevel(level, key);
             if (weight >= 1.5) {
               const extremeAmount = weight - 1.5;
@@ -2753,26 +2781,80 @@ export function renderToCanvas({
           }
           const maxChars = numCharsInCell + overflowChars;
 
+          // Determine effective direction for this cell based on mode
+          let cellDirection; // "ltr", "rtl", or "center"
+          if (drawDirectionMode === "ltr") {
+            cellDirection = "ltr";
+          } else if (drawDirectionMode === "rtl") {
+            cellDirection = "rtl";
+          } else if (drawDirectionMode === "center") {
+            cellDirection = "center";
+          } else if (drawDirectionMode === "alternate") {
+            // Alternate per row, with random start direction
+            const isOddRow = row % 2 === 1;
+            cellDirection = (isOddRow !== alternateStartsRtl) ? "rtl" : "ltr";
+          } else if (drawDirectionMode === "diagonal") {
+            // Seam shifts per row; left of seam is one direction, right is other
+            const seamCol = (diagonalStartCol + (diagonalShiftRight ? row : -row) + cols * 100) % cols;
+            cellDirection = col < seamCol ? "ltr" : "rtl";
+          } else if (drawDirectionMode === "randomMid") {
+            // Random switch point per row (seeded by row)
+            const rowRng = seededRandom(seed + 55555 + row);
+            const switchCol = Math.floor(rowRng() * cols);
+            cellDirection = col < switchCol ? "ltr" : "rtl";
+          } else if (drawDirectionMode === "checkerboard") {
+            // Alternate by both row and column
+            cellDirection = ((row + col) % 2 === 0) ? "ltr" : "rtl";
+          } else {
+            cellDirection = "ltr";
+          }
+
+          // Calculate cell center for center-out mode
+          const cellCenterX = x + effectiveCellWidth / 2;
+
           for (let i = 0; i < maxChars && level >= 0; i++) {
             let nextChar = char;
             if (level >= 2 && i > 0 && i % 2 === 0) {
               nextChar = shadeChars[Math.max(0, level - 1)];
             }
 
-            // Calculate draw position
-            // Base chars (i < numCharsInCell) fill the cell left-to-right
-            // Overflow chars extend in the specified direction
+            // Calculate draw position based on cell direction
             let drawX;
-            if (i < numCharsInCell) {
-              // Base cell: always fill from left edge
+            if (cellDirection === "center") {
+              // Center-out: alternate left and right from center
+              if (i < numCharsInCell) {
+                // Base cell: expand from center
+                const offset = Math.floor((i + 1) / 2) * step;
+                if (i % 2 === 0) {
+                  // Even indices go right of center (or center itself for i=0)
+                  drawX = cellCenterX + (i === 0 ? -charWidth / 2 : offset - charWidth / 2);
+                } else {
+                  // Odd indices go left of center
+                  drawX = cellCenterX - offset - charWidth / 2;
+                }
+              } else {
+                // Overflow: continue alternating outward
+                const overflowIndex = i - numCharsInCell;
+                const baseOffset = Math.floor(numCharsInCell / 2) * step;
+                const extraOffset = Math.floor((overflowIndex + 1) / 2) * step;
+                if (overflowIndex % 2 === 0) {
+                  drawX = cellCenterX + baseOffset + extraOffset;
+                  if (drawX + charWidth > drawAreaRight) break;
+                } else {
+                  drawX = cellCenterX - baseOffset - extraOffset - charWidth;
+                  if (drawX < drawAreaLeft) break;
+                }
+              }
+            } else if (i < numCharsInCell) {
+              // Base cell: fill from left edge (same for ltr and rtl)
               drawX = x + i * step;
-            } else if (drawRightToLeft) {
+            } else if (cellDirection === "rtl") {
               // Overflow extends LEFT from cell start
               const overflowIndex = i - numCharsInCell;
               drawX = x - (overflowIndex + 1) * step;
               if (drawX < drawAreaLeft) break;
             } else {
-              // Overflow extends RIGHT from cell end
+              // Overflow extends RIGHT from cell end (ltr)
               const overflowIndex = i - numCharsInCell;
               drawX = effectiveCellEndX + overflowIndex * step;
               if (drawX + charWidth > drawAreaRight) break;
