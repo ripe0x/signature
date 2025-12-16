@@ -56,6 +56,7 @@ function calculateBatchStats(batchItems) {
     renderModes: {},
     foldStrategies: {},
     multiColorCount: 0,
+    creaseLinesCount: 0,
     paletteArchetypes: {},
     paletteStructures: {},
     bgTemperatures: {},
@@ -70,6 +71,9 @@ function calculateBatchStats(batchItems) {
     bgSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
     textSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
     accentSaturation: { gray: 0, muted: 0, chromatic: 0, vivid: 0 },
+    overlapAmounts: {},
+    paperTypes: {},
+    paperGrain: { grain: 0, uniform: 0 },
   };
 
   for (const item of batchItems) {
@@ -81,6 +85,20 @@ function calculateBatchStats(batchItems) {
       (stats.foldStrategies[stratType] || 0) + 1;
 
     if (item.params.multiColor) stats.multiColorCount++;
+    if (item.params.showCreaseLines) stats.creaseLinesCount++;
+
+    // Overlap info
+    const overlapAmount = item.params.overlapInfo?.amount || "none";
+    stats.overlapAmounts[overlapAmount] =
+      (stats.overlapAmounts[overlapAmount] || 0) + 1;
+
+    // Paper properties
+    const paperDesc = getPaperDescription(item.params.paperProperties);
+    stats.paperTypes[paperDesc] = (stats.paperTypes[paperDesc] || 0) + 1;
+
+    const hasGrain = item.params.paperProperties?.angleAffinity !== null;
+    if (hasGrain) stats.paperGrain.grain++;
+    else stats.paperGrain.uniform++;
 
     const paletteStrategy = item.params.palette.strategy;
     const [structure, archetype] = paletteStrategy.split("/");
@@ -142,43 +160,33 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
 
     const thumbWidth = 120;
     const thumbHeight = 150;
-    const scale = thumbWidth / width;
 
-    canvas.width = thumbWidth;
-    canvas.height = thumbHeight;
+    canvas.width = thumbWidth * 2; // 2x for sharpness
+    canvas.height = thumbHeight * 2;
 
-    ctx.fillStyle = params.palette.bg;
-    ctx.fillRect(0, 0, thumbWidth, thumbHeight);
-
-    const innerWidth = width - DRAWING_MARGIN * 2;
-    const innerHeight = height - DRAWING_MARGIN * 2;
-    const { creases } = simulateFolds(
-      innerWidth,
-      innerHeight,
+    // Render at thumbnail resolution for performance
+    const { dataUrl } = renderToCanvas({
       folds,
-      params.seed,
-      params.weightRange,
-      params.foldStrategy,
-      params.paperProperties
-    );
+      seed: params.seed,
+      outputWidth: thumbWidth,
+      outputHeight: thumbHeight,
+      bgColor: params.palette.bg,
+      textColor: params.palette.text,
+      accentColor: params.palette.accent,
+      cellWidth: params.cells.cellW,
+      cellHeight: params.cells.cellH,
+      renderMode: params.renderMode,
+      multiColor: params.multiColor,
+      levelColors: params.levelColors,
+      foldStrategy: params.foldStrategy,
+      paperProperties: params.paperProperties,
+    });
 
-    ctx.strokeStyle = params.palette.text;
-    ctx.lineWidth = 0.5;
-    ctx.globalAlpha = 0.6;
-
-    for (const crease of creases) {
-      ctx.beginPath();
-      ctx.moveTo(
-        (crease.p1.x + DRAWING_MARGIN) * scale,
-        (crease.p1.y + DRAWING_MARGIN) * scale
-      );
-      ctx.lineTo(
-        (crease.p2.x + DRAWING_MARGIN) * scale,
-        (crease.p2.y + DRAWING_MARGIN) * scale
-      );
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = dataUrl;
   }, [params, folds, width, height]);
 
   return (
@@ -454,11 +462,33 @@ function BatchStats({ stats }) {
         }
       />
 
+      <DistributionBar
+        label="Overlap"
+        data={stats.overlapAmounts}
+        colorFn={(key) =>
+          key === "none" ? "#555" : key === "5%" ? "#6bcb77" : key === "25%" ? "#82c91e" : key === "50%" ? "#ffd93d" : key === "75%" ? "#ff922b" : "#ff6b6b"
+        }
+      />
+
+      <DistributionBar
+        label="Paper Type"
+        data={stats.paperTypes}
+      />
+
+      <DistributionBar
+        label="Paper Grain"
+        data={stats.paperGrain}
+        colorFn={(key) => key === "grain" ? "#c49a6c" : "#888"}
+      />
+
       <div
         style={{ fontSize: 9, color: "#666", marginTop: 8, marginBottom: 12 }}
       >
-        Multi-color enabled: {stats.multiColorCount} / {stats.totalItems} (
+        Multi-color: {stats.multiColorCount} / {stats.totalItems} (
         {Math.round((stats.multiColorCount / stats.totalItems) * 100)}%)
+        {" · "}
+        Crease lines: {stats.creaseLinesCount} / {stats.totalItems} (
+        {Math.round((stats.creaseLinesCount / stats.totalItems) * 100)}%)
       </div>
 
       <div style={{ borderTop: "1px solid #333", paddingTop: 12 }}>
@@ -624,7 +654,7 @@ function DetailModal({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const dataUrl = renderToCanvas({
+    const { dataUrl } = renderToCanvas({
       folds,
       seed: item.params.seed,
       outputWidth: width,
@@ -1030,7 +1060,7 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
   const [batchItems, setBatchItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [randomFolds, setRandomFolds] = useState(false);
+  const [foldMode, setFoldMode] = useState("fixed"); // "fixed", "random", "incremental"
   const [batchFolds, setBatchFolds] = useState(folds);
 
   useEffect(() => {
@@ -1049,6 +1079,16 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
       } while (usedSeeds.has(seed));
       usedSeeds.add(seed);
 
+      let foldCount;
+      if (foldMode === "incremental") {
+        // Different seeds, incrementing fold count starting from 1
+        foldCount = i + 1;
+      } else if (foldMode === "random") {
+        foldCount = null;
+      } else {
+        foldCount = batchFolds;
+      }
+
       items.push({
         id: `${seed}-${Date.now()}-${i}`,
         params: generateAllParams(
@@ -1056,14 +1096,14 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
           width,
           height,
           0,
-          randomFolds ? null : batchFolds
+          foldCount
         ),
       });
     }
 
     setBatchItems(items);
     setIsGenerating(false);
-  }, [batchSize, width, height, randomFolds, batchFolds]);
+  }, [batchSize, width, height, foldMode, batchFolds]);
 
   useEffect(() => {
     if (batchItems.length === 0) {
@@ -1091,7 +1131,7 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
       const itemFolds = item.params.folds !== undefined ? item.params.folds : batchFolds;
 
       // Render to canvas
-      const dataUrl = renderToCanvas({
+      const { dataUrl } = renderToCanvas({
         folds: itemFolds,
         seed: item.params.seed,
         outputWidth: exportWidth,
@@ -1230,37 +1270,39 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
                   const val = parseInt(e.target.value) || 0;
                   setBatchFolds(Math.max(0, Math.min(200, val)));
                 }}
-                disabled={randomFolds}
+                disabled={foldMode !== "fixed"}
                 style={{
-                  background: randomFolds ? "#1a1a1a" : "#222",
+                  background: foldMode !== "fixed" ? "#1a1a1a" : "#222",
                   border: "1px solid #333",
-                  color: randomFolds ? "#444" : "#aaa",
+                  color: foldMode !== "fixed" ? "#444" : "#aaa",
                   padding: "4px 8px",
                   fontSize: 10,
                   fontFamily: "inherit",
                   width: 60,
                   textAlign: "center",
-                  cursor: randomFolds ? "not-allowed" : "text",
+                  cursor: foldMode !== "fixed" ? "not-allowed" : "text",
                 }}
               />
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 9,
-                  color: "#666",
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={randomFolds}
-                  onChange={(e) => setRandomFolds(e.target.checked)}
-                  style={{ cursor: "pointer" }}
-                />
-                <span>Random</span>
-              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                {["fixed", "random", "incremental"].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setFoldMode(mode)}
+                    style={{
+                      background: foldMode === mode ? "#444" : "#222",
+                      border: "1px solid #333",
+                      color: foldMode === mode ? "#ccc" : "#666",
+                      padding: "4px 8px",
+                      fontSize: 9,
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {mode === "incremental" ? "1,2,3…" : mode}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button
@@ -1323,36 +1365,17 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
             }}
           >
             {batchItems.map((item) => (
-              <div key={item.id} style={{ position: "relative" }}>
-                <MiniCanvas
-                  params={item.params}
-                  folds={
-                    item.params.folds !== undefined ? item.params.folds : folds
-                  }
-                  width={width}
-                  height={height}
-                  onClick={() => setSelectedItem(item)}
-                  isSelected={selectedItem?.id === item.id}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 4,
-                    left: 4,
-                    right: 4,
-                    fontSize: 8,
-                    color: "#fff",
-                    background: "rgba(0,0,0,0.7)",
-                    padding: "2px 4px",
-                    borderRadius: 2,
-                    textAlign: "center",
-                  }}
-                >
-                  #{item.params.seed}
-                  {item.params.folds !== undefined &&
-                    ` · ${item.params.folds}f`}
-                </div>
-              </div>
+              <MiniCanvas
+                key={item.id}
+                params={item.params}
+                folds={
+                  item.params.folds !== undefined ? item.params.folds : folds
+                }
+                width={width}
+                height={height}
+                onClick={() => setSelectedItem(item)}
+                isSelected={selectedItem?.id === item.id}
+              />
             ))}
           </div>
         </div>
@@ -1456,7 +1479,7 @@ function ASCIICanvas({
     if (!canvas) return;
 
     // Use unified renderToCanvas function
-    const dataUrl = renderToCanvas({
+    const { dataUrl, settings } = renderToCanvas({
       folds,
       seed,
       outputWidth: width,
@@ -1489,19 +1512,31 @@ function ASCIICanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Call onStatsUpdate if provided (stats from grid calculation)
+      // Call onStatsUpdate with settings from render
       if (onStatsUpdate) {
-        const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
-        const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
-        const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, refInnerWidth, refInnerHeight);
-        const overlap = generateOverlapInfo(seed);
+        const formatGap = (gap, cellSize) => {
+          if (gap === 0) return null;
+          const pct = Math.round((gap / cellSize) * 100);
+          return pct < 0 ? `${pct}%` : `+${pct}%`;
+        };
+        const colGap = formatGap(settings.grid.colGap, cellWidth);
+        const rowGap = formatGap(settings.grid.rowGap, cellHeight);
+        const parts = [
+          `${settings.grid.cols}×${settings.grid.rows}`,
+          `dir:${settings.drawDirection}`,
+          `strategy:${settings.foldStrategy}`,
+        ];
+        if (colGap) parts.push(`colGap:${colGap}`);
+        if (rowGap) parts.push(`rowGap:${rowGap}`);
+        if (settings.multiColor) parts.push("multiColor");
+        if (settings.showCreaseLines) parts.push("creaseLines");
         onStatsUpdate({
           intersections: 0,
-          creases: 0,
+          creases: settings.creaseCount,
           destroyed: 0,
           maxFolds: 0,
           fontSize: 0,
-          overlapInfo: `${grid.cols}x${grid.rows} cells · overlap: ${overlap.amount}`,
+          overlapInfo: parts.join(" · "),
         });
       }
     };
@@ -1610,7 +1645,7 @@ export default function FoldedPaper() {
   ];
 
   const downloadSingleToken = () => {
-    const dataUrl = renderToCanvas({
+    const { dataUrl } = renderToCanvas({
       folds,
       seed,
       outputWidth: width,
@@ -1697,7 +1732,7 @@ export default function FoldedPaper() {
       for (let i = 0; i < frameFolds.length; i++) {
         const foldCount = frameFolds[i];
 
-        const dataUrl = renderToCanvas({
+        const { dataUrl } = renderToCanvas({
           folds: foldCount,
           seed,
           outputWidth: width,

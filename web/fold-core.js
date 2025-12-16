@@ -905,6 +905,12 @@ export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
 // ============ GAP CALCULATION ============
 
 const ALLOWED_GAP_RATIOS = [
+  // Negative (overlap)
+  -1 / 2,
+  -1 / 4,
+  -1 / 8,
+  -1 / 16,
+  // Positive (spacing)
   1 / 64,
   1 / 32,
   1 / 16,
@@ -943,9 +949,16 @@ export function calculateGridWithGaps(
   }
 
   const getWeightedGapRatios = () => {
-    const ratios = ALLOWED_GAP_RATIOS.slice(0, 7); // Always include up to 1x
+    // Positive ratios (indices 4-10): 1/64 through 1.0
+    const ratios = ALLOWED_GAP_RATIOS.slice(4, 11);
+    // 25% chance to include 2x positive gap
     if (gapRng() < 0.25) {
-      ratios.push(ALLOWED_GAP_RATIOS[7]); // 2x - rare
+      ratios.push(ALLOWED_GAP_RATIOS[11]); // 2x
+    }
+    // 20% chance to include negative gaps (overlap)
+    if (gapRng() < 0.2) {
+      // Add negative ratios (indices 0-3): -1/2 through -1/16
+      ratios.push(...ALLOWED_GAP_RATIOS.slice(0, 4));
     }
     return ratios;
   };
@@ -963,6 +976,8 @@ export function calculateGridWithGaps(
   for (const gapRatio of colGapRatios) {
     const gap = refCellWidth * gapRatio;
     const stride = refCellWidth + gap;
+    // Skip if stride <= 0 (would cause invalid calculations)
+    if (stride <= 0) continue;
     const cols = Math.max(1, Math.floor((innerWidth + gap) / stride));
 
     if (cols === 1) {
@@ -1002,6 +1017,8 @@ export function calculateGridWithGaps(
   for (const gapRatio of rowGapRatios) {
     const gap = refCellHeight * gapRatio;
     const stride = refCellHeight + gap;
+    // Skip if stride <= 0 (would cause invalid calculations)
+    if (stride <= 0) continue;
     const rows = Math.max(1, Math.floor((innerHeight + gap) / stride));
 
     if (rows === 1) {
@@ -1962,11 +1979,6 @@ export function simulateFolds(
     const p1 = anchor.point;
     const p2 = terminus.point;
 
-    // Skip if too short
-    if (V.dist(p1, p2) < Math.min(width, height) * 0.1) {
-      continue;
-    }
-
     // Absorbency check: does this crease register on the paper?
     const absorbencyRoll = absorbencyRng();
     const creaseRegisters = absorbencyRoll < paper.absorbency;
@@ -2166,6 +2178,7 @@ export function renderToCanvas({
   showCellOutlines = false,
   showCreaseLines = false,
   fontFamily = FONT_STACK,
+  linesOnlyMode = false,
 }) {
   // #region agent log
   fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
@@ -2547,8 +2560,51 @@ export function renderToCanvas({
   const drawAreaRight = marginStartX + drawWidth;
   const drawAreaBottom = marginStartY + drawHeight - charBottomOverflowDark; // ▓ extends down
 
+  // linesOnlyMode: skip character rendering, just draw lines and intersections
+  // Used for secret Shift+L animation mode
+  if (linesOnlyMode) {
+    // Calculate contrast-aware line color
+    const hexToLum = (hex) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return getLuminance(r, g, b);
+    };
+    const bgLum = hexToLum(bgColor);
+    const textLum = hexToLum(textColor);
+    const accentLum = hexToLum(accentColor);
+    const lineColor = Math.abs(bgLum - textLum) > Math.abs(bgLum - accentLum) ? textColor : accentColor;
+
+    // Draw crease lines
+    if (activeCreases.length > 0) {
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2 * scaleX;
+      ctx.globalAlpha = 0.9;
+      ctx.lineCap = "round";
+      for (const crease of activeCreases) {
+        ctx.beginPath();
+        ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
+        ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
+        ctx.stroke();
+      }
+    }
+
+    // Draw intersection points as stroked circles (same color as lines, transparent fill)
+    if (activeIntersections && activeIntersections.length > 0) {
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.5 * scaleX;
+      ctx.globalAlpha = 1;
+      const radius = 4 * scaleX;
+      for (const inter of activeIntersections) {
+        ctx.beginPath();
+        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  } else if (showHitCounts) {
   // showHitCounts mode: draw numeric weight values instead of shade characters
-  if (showHitCounts) {
     const hitFontSize = Math.floor(
       Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7)
     );
@@ -3037,7 +3093,25 @@ export function renderToCanvas({
     }
   }
 
-  return canvas.toDataURL("image/png");
+  // Compile settings info for display
+  const settings = {
+    grid: {
+      cols,
+      rows,
+      colGap: grid.colGap,
+      rowGap: grid.rowGap,
+    },
+    drawDirection: drawDirectionMode,
+    foldStrategy: foldStrategy?.type || "random",
+    multiColor,
+    showCreaseLines,
+    creaseCount: creases.length,
+  };
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    settings,
+  };
 }
 
 // ============ PARAMETER GENERATION ============
@@ -3219,12 +3293,33 @@ function getOptimalDimensions() {
 // Store render state for resize re-rendering
 let _onChainState = null;
 
-// Render function that can be called on init and resize
-function renderOnChain(canvas, state) {
-  const dims = getOptimalDimensions();
+// Format gap value for display
+function formatGap(gap, cellSize) {
+  if (gap === 0) return "none";
+  const ratio = gap / cellSize;
+  if (ratio < 0) return `${Math.round(ratio * 100)}% overlap`;
+  return `${Math.round(ratio * 100)}% gap`;
+}
 
-  const dataUrl = renderToCanvas({
-    folds: state.foldCount,
+// Secret mode state for keyboard-activated features
+let _secretShowFoldLines = false;
+let _secretAnimating = false;
+let _secretAnimationFold = 0;
+let _secretAnimationMode = null; // 'full' | 'lines-only'
+let _secretAnimationTimer = null;
+
+// Render function that can be called on init and resize
+// Optional overrides: foldOverride (for animation), linesOnly (for lines-only mode), isAnimating (ignore toggle during animation)
+function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
+  const dims = getOptimalDimensions();
+  const actualFolds = foldOverride !== undefined ? foldOverride : state.foldCount;
+
+  // During animation: linesOnly mode shows lines, full mode shows clean render
+  // When not animating: respect _secretShowFoldLines toggle
+  const showOverlays = isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines);
+
+  const { dataUrl, settings } = renderToCanvas({
+    folds: actualFolds,
     seed: state.seed,
     outputWidth: dims.renderWidth,
     outputHeight: dims.renderHeight,
@@ -3239,7 +3334,27 @@ function renderOnChain(canvas, state) {
     foldStrategy: state.params.foldStrategy,
     paperProperties: state.params.paperProperties,
     showCreaseLines: state.params.showCreaseLines,
+    showCreases: showOverlays,
+    showIntersections: showOverlays,
+    linesOnlyMode: linesOnly || false,
   });
+
+  // Update settings display if info element exists
+  const infoEl = document.getElementById("info");
+  if (infoEl) {
+    const colGapStr = formatGap(settings.grid.colGap, state.params.cells.cellW);
+    const rowGapStr = formatGap(settings.grid.rowGap, state.params.cells.cellH);
+    const parts = [
+      `${settings.grid.cols}×${settings.grid.rows}`,
+      `dir:${settings.drawDirection}`,
+      `strategy:${settings.foldStrategy}`,
+    ];
+    if (colGapStr !== "none") parts.push(`col:${colGapStr}`);
+    if (rowGapStr !== "none") parts.push(`row:${rowGapStr}`);
+    if (settings.multiColor) parts.push("multiColor");
+    if (settings.showCreaseLines) parts.push("creaseLines");
+    infoEl.textContent = parts.join(" | ");
+  }
 
   const img = new Image();
   img.onload = () => {
@@ -3332,11 +3447,81 @@ export async function initOnChain() {
     window.addEventListener(
       "resize",
       debounce(() => {
-        if (_onChainState) {
+        if (_onChainState && !_secretAnimating) {
           renderOnChain(canvas, _onChainState);
         }
       }, 150)
     );
+
+    // Secret keyboard features
+    // Shift+F: Toggle fold lines and intersection points
+    // Shift+A: Animate from 0 to current fold count (full render)
+    // Shift+L: Animate from 0 to current fold count (lines only)
+    // Escape: Cancel animation
+    function runSecretAnimation() {
+      if (!_secretAnimating || _secretAnimationFold > foldCount) {
+        stopSecretAnimation();
+        return;
+      }
+      const isLinesOnly = _secretAnimationMode === "lines-only";
+      renderOnChain(canvas, _onChainState, _secretAnimationFold, isLinesOnly, true);
+      _secretAnimationFold++;
+      _secretAnimationTimer = setTimeout(runSecretAnimation, 50);
+    }
+
+    function startSecretAnimation(mode) {
+      _secretAnimating = true;
+      _secretAnimationFold = 0;
+      _secretAnimationMode = mode;
+      runSecretAnimation();
+    }
+
+    function stopSecretAnimation() {
+      _secretAnimating = false;
+      _secretAnimationMode = null;
+      if (_secretAnimationTimer) {
+        clearTimeout(_secretAnimationTimer);
+        _secretAnimationTimer = null;
+      }
+      // Leave canvas at last rendered state (don't reset)
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (!_onChainState) return;
+
+      // Shift+F: Toggle fold lines overlay
+      if (e.shiftKey && e.key === "F") {
+        e.preventDefault();
+        _secretShowFoldLines = !_secretShowFoldLines;
+        if (!_secretAnimating) {
+          renderOnChain(canvas, _onChainState);
+        }
+      }
+
+      // Shift+A: Start full animation
+      if (e.shiftKey && e.key === "A") {
+        e.preventDefault();
+        if (_secretAnimating) {
+          stopSecretAnimation();
+        }
+        startSecretAnimation("full");
+      }
+
+      // Shift+L: Start lines-only animation
+      if (e.shiftKey && e.key === "L") {
+        e.preventDefault();
+        if (_secretAnimating) {
+          stopSecretAnimation();
+        }
+        startSecretAnimation("lines-only");
+      }
+
+      // Escape: Cancel animation
+      if (e.key === "Escape" && _secretAnimating) {
+        e.preventDefault();
+        stopSecretAnimation();
+      }
+    });
   }
 }
 
