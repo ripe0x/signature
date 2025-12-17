@@ -429,9 +429,7 @@ contract LessRenderer is ILessRenderer, Ownable {
                 palette,
                 '"},{"trait_type":"Color Count","value":',
                 uint256(colorCount).toString(),
-                '},{"trait_type":"Grid Density","value":"',
-                _getGridDensity(seed),
-                '"},{"trait_type":"Paper Type","value":"',
+                '},{"trait_type":"Paper Type","value":"',
                 _getPaperType(seed),
                 '"}'
             )
@@ -502,37 +500,37 @@ contract LessRenderer is ILessRenderer, Ownable {
     function _getFoldStrategy(bytes32 seed) internal pure returns (string memory) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 6666);
         uint256 roll = (state * 100) / 0x7fffffff;
-        if (roll < 16) return "horizontal";
-        if (roll < 32) return "vertical";
-        if (roll < 44) return "diagonal";
-        if (roll < 56) return "radial";
-        if (roll < 68) return "grid";
-        if (roll < 80) return "clustered";
-        return "random";
+        if (roll < 16) return "Horizontal";
+        if (roll < 32) return "Vertical";
+        if (roll < 44) return "Diagonal";
+        if (roll < 56) return "Radial";
+        if (roll < 68) return "Grid";
+        if (roll < 80) return "Clustered";
+        return "Random";
     }
 
     /// @notice Derives render mode from seed (matches JS generateRenderMode)
     function _getRenderMode(bytes32 seed) internal pure returns (string memory) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
         uint256 roll = (state * 100) / 0x7fffffff;
-        if (roll < 35) return "normal";
-        if (roll < 40) return "binary";
-        if (roll < 65) return "inverted";
-        if (roll < 82) return "sparse";
-        return "dense";
+        if (roll < 35) return "Normal";
+        if (roll < 40) return "Binary";
+        if (roll < 65) return "Inverted";
+        if (roll < 82) return "Sparse";
+        return "Dense";
     }
 
     /// @notice Derives draw direction from seed (matches JS drawDirectionMode)
     function _getDrawDirection(bytes32 seed) internal pure returns (string memory) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 33333);
         uint256 roll = (state * 100) / 0x7fffffff;
-        if (roll < 22) return "ltr";
-        if (roll < 44) return "rtl";
-        if (roll < 65) return "center";
-        if (roll < 80) return "alternate";
-        if (roll < 90) return "diagonal";
-        if (roll < 96) return "randomMid";
-        return "checkerboard";
+        if (roll < 22) return "Left to Right";
+        if (roll < 44) return "Right to Left";
+        if (roll < 65) return "Center";
+        if (roll < 80) return "Alternate";
+        if (roll < 90) return "Diagonal";
+        if (roll < 96) return "Random Mid";
+        return "Checkerboard";
     }
 
     /// @notice Derives palette strategy and color count from seed (matches JS generatePalette)
@@ -546,7 +544,7 @@ contract LessRenderer is ILessRenderer, Ownable {
 
         // 12% monochrome
         if (roll < 12) {
-            return ("monochrome", 2, true);
+            return ("Monochrome", 2, true);
         }
 
         // Non-monochrome: determine contrast type
@@ -554,10 +552,10 @@ contract LessRenderer is ILessRenderer, Ownable {
         roll = (state * 100) / 0x7fffffff;
 
         string memory strat;
-        if (roll < 40) strat = "value";
-        else if (roll < 68) strat = "temperature";
-        else if (roll < 90) strat = "complement";
-        else strat = "clash";
+        if (roll < 40) strat = "Value";
+        else if (roll < 68) strat = "Temperature";
+        else if (roll < 90) strat = "Complement";
+        else strat = "Clash";
 
         // Color count: 40% get 2 colors, 60% get 3
         state = _nextRandom(state);
@@ -565,51 +563,6 @@ contract LessRenderer is ILessRenderer, Ownable {
         uint8 colors = roll < 40 ? 2 : 3;
 
         return (strat, colors, false);
-    }
-
-    /// @notice Derives grid density from seed (based on cell dimensions)
-    function _getGridDensity(bytes32 seed) internal pure returns (string memory) {
-        // Reference dimensions from JS
-        uint256 REFERENCE_WIDTH = 1200;
-        uint256 REFERENCE_HEIGHT = 1500;
-        uint256 DRAWING_MARGIN = 50;
-        uint256 CELL_MIN = 20;
-        uint256 CELL_MAX = 600;
-
-        uint256 innerW = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
-        uint256 innerH = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
-
-        // Use seed + 9999 for cell dimension RNG (matches JS)
-        uint256 state = _nextRandom(_seedToNumber(seed) + 9999);
-
-        // Simplified: estimate cell size from RNG distribution
-        // JS biases toward larger cells (50% in 75-90% range)
-        uint256 roll = (state * 100) / 0x7fffffff;
-
-        uint256 cellArea;
-        if (roll < 3) {
-            // Very small cells
-            cellArea = CELL_MIN * CELL_MIN;
-        } else if (roll < 10) {
-            // Small cells
-            cellArea = 50 * 50;
-        } else if (roll < 45) {
-            // Medium cells
-            cellArea = 100 * 100;
-        } else if (roll < 95) {
-            // Large cells (most common)
-            cellArea = 200 * 200;
-        } else {
-            // Very large cells
-            cellArea = CELL_MAX * CELL_MAX;
-        }
-
-        uint256 gridArea = innerW * innerH;
-        uint256 approxCells = gridArea / cellArea;
-
-        if (approxCells < 50) return "Sparse";
-        if (approxCells < 300) return "Normal";
-        return "Dense";
     }
 
     /// @notice Derives paper type from seed (matches JS generatePaperProperties)

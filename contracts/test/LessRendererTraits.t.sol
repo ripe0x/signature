@@ -106,63 +106,63 @@ contract LessRendererTraitsTest is Test {
 
     /// @notice Test fold strategy derivation matches JS
     function test_FoldStrategy_MatchesJS() public view {
-        assertEq(harness.getFoldStrategy(SEED_0), "random", "seed 0");
-        assertEq(harness.getFoldStrategy(SEED_1), "random", "seed 1");
-        assertEq(harness.getFoldStrategy(SEED_2), "horizontal", "seed 2");
-        assertEq(harness.getFoldStrategy(SEED_3), "random", "seed 3");
-        assertEq(harness.getFoldStrategy(SEED_4), "random", "seed 4");
-        assertEq(harness.getFoldStrategy(SEED_5), "radial", "seed 5");
-        assertEq(harness.getFoldStrategy(SEED_6), "random", "seed 6");
-        assertEq(harness.getFoldStrategy(SEED_7), "vertical", "seed 7");
+        assertEq(harness.getFoldStrategy(SEED_0), "Random", "seed 0");
+        assertEq(harness.getFoldStrategy(SEED_1), "Random", "seed 1");
+        assertEq(harness.getFoldStrategy(SEED_2), "Horizontal", "seed 2");
+        assertEq(harness.getFoldStrategy(SEED_3), "Random", "seed 3");
+        assertEq(harness.getFoldStrategy(SEED_4), "Random", "seed 4");
+        assertEq(harness.getFoldStrategy(SEED_5), "Radial", "seed 5");
+        assertEq(harness.getFoldStrategy(SEED_6), "Random", "seed 6");
+        assertEq(harness.getFoldStrategy(SEED_7), "Vertical", "seed 7");
     }
 
     /// @notice Test render mode derivation matches JS
     function test_RenderMode_MatchesJS() public view {
-        assertEq(harness.getRenderMode(SEED_0), "normal", "seed 0");
-        assertEq(harness.getRenderMode(SEED_1), "dense", "seed 1");
-        assertEq(harness.getRenderMode(SEED_2), "normal", "seed 2");
-        assertEq(harness.getRenderMode(SEED_3), "normal", "seed 3");
-        assertEq(harness.getRenderMode(SEED_4), "normal", "seed 4");
-        assertEq(harness.getRenderMode(SEED_5), "inverted", "seed 5");
-        assertEq(harness.getRenderMode(SEED_6), "normal", "seed 6");
-        assertEq(harness.getRenderMode(SEED_7), "normal", "seed 7");
+        assertEq(harness.getRenderMode(SEED_0), "Normal", "seed 0");
+        assertEq(harness.getRenderMode(SEED_1), "Dense", "seed 1");
+        assertEq(harness.getRenderMode(SEED_2), "Normal", "seed 2");
+        assertEq(harness.getRenderMode(SEED_3), "Normal", "seed 3");
+        assertEq(harness.getRenderMode(SEED_4), "Normal", "seed 4");
+        assertEq(harness.getRenderMode(SEED_5), "Inverted", "seed 5");
+        assertEq(harness.getRenderMode(SEED_6), "Normal", "seed 6");
+        assertEq(harness.getRenderMode(SEED_7), "Normal", "seed 7");
     }
 
     /// @notice Test draw direction derivation matches JS
     function test_DrawDirection_MatchesJS() public view {
-        assertEq(harness.getDrawDirection(SEED_0), "ltr", "seed 0");
-        assertEq(harness.getDrawDirection(SEED_1), "ltr", "seed 1");
-        assertEq(harness.getDrawDirection(SEED_2), "rtl", "seed 2");
-        assertEq(harness.getDrawDirection(SEED_3), "ltr", "seed 3");
-        assertEq(harness.getDrawDirection(SEED_4), "ltr", "seed 4");
-        assertEq(harness.getDrawDirection(SEED_5), "alternate", "seed 5");
-        assertEq(harness.getDrawDirection(SEED_6), "ltr", "seed 6");
-        assertEq(harness.getDrawDirection(SEED_7), "rtl", "seed 7");
+        assertEq(harness.getDrawDirection(SEED_0), "Left to Right", "seed 0");
+        assertEq(harness.getDrawDirection(SEED_1), "Left to Right", "seed 1");
+        assertEq(harness.getDrawDirection(SEED_2), "Right to Left", "seed 2");
+        assertEq(harness.getDrawDirection(SEED_3), "Left to Right", "seed 3");
+        assertEq(harness.getDrawDirection(SEED_4), "Left to Right", "seed 4");
+        assertEq(harness.getDrawDirection(SEED_5), "Alternate", "seed 5");
+        assertEq(harness.getDrawDirection(SEED_6), "Left to Right", "seed 6");
+        assertEq(harness.getDrawDirection(SEED_7), "Right to Left", "seed 7");
     }
 
     /// @notice Test palette derivation matches JS (BigInt version)
     function test_Palette_MatchesJS() public view {
         // Seed 0: complement, 3 colors
         (string memory strat0, uint8 count0, bool mono0) = harness.getPalette(SEED_0);
-        assertEq(strat0, "complement", "seed 0 strategy");
+        assertEq(strat0, "Complement", "seed 0 strategy");
         assertEq(count0, 3, "seed 0 colorCount");
         assertFalse(mono0, "seed 0 mono");
 
         // Seed 1: complement, 3 colors
         (string memory strat1, uint8 count1, bool mono1) = harness.getPalette(SEED_1);
-        assertEq(strat1, "complement", "seed 1 strategy");
+        assertEq(strat1, "Complement", "seed 1 strategy");
         assertEq(count1, 3, "seed 1 colorCount");
         assertFalse(mono1, "seed 1 mono");
 
         // Seed 2: clash, 2 colors
         (string memory strat2, uint8 count2, bool mono2) = harness.getPalette(SEED_2);
-        assertEq(strat2, "clash", "seed 2 strategy");
+        assertEq(strat2, "Clash", "seed 2 strategy");
         assertEq(count2, 2, "seed 2 colorCount");
         assertFalse(mono2, "seed 2 mono");
 
         // Seed 5: monochrome, 2 colors
         (string memory strat5, uint8 count5, bool mono5) = harness.getPalette(SEED_5);
-        assertEq(strat5, "monochrome", "seed 5 strategy");
+        assertEq(strat5, "Monochrome", "seed 5 strategy");
         assertEq(count5, 2, "seed 5 colorCount");
         assertTrue(mono5, "seed 5 mono");
     }
@@ -204,7 +204,7 @@ contract LessRendererTraitsTest is Test {
     /// @notice Test that special seeds produce monochrome palette
     function test_MonochromeSeed() public view {
         (string memory strategy, uint8 colorCount, bool isMonochrome) = harness.getPalette(SEED_MONO);
-        assertEq(strategy, "monochrome", "strategy should be monochrome");
+        assertEq(strategy, "Monochrome", "strategy should be monochrome");
         assertEq(colorCount, 2, "monochrome should have 2 colors");
         assertTrue(isMonochrome, "isMonochrome should be true");
     }
@@ -222,11 +222,11 @@ contract LessRendererTraitsTest is Test {
     /// @notice Verify the monochrome seed (SEED_5) traits
     function test_Seed5_Monochrome() public view {
         (string memory strategy, , bool isMonochrome) = harness.getPalette(SEED_5);
-        assertEq(strategy, "monochrome", "should be monochrome");
+        assertEq(strategy, "Monochrome", "should be monochrome");
         assertTrue(isMonochrome, "isMonochrome should be true");
         assertFalse(harness.hasPaperGrain(SEED_5), "should not have grain"); // BigInt: false
-        assertEq(harness.getFoldStrategy(SEED_5), "radial", "fold strategy should be radial");
-        assertEq(harness.getRenderMode(SEED_5), "inverted", "render mode should be inverted");
+        assertEq(harness.getFoldStrategy(SEED_5), "Radial", "fold strategy should be radial");
+        assertEq(harness.getRenderMode(SEED_5), "Inverted", "render mode should be inverted");
     }
 
     /// @notice Test a seed that has paper grain

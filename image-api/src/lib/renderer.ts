@@ -10,7 +10,7 @@ const __dirname = dirname(__filename);
 const POOL_SIZE = 3;
 const RENDER_TIMEOUT = 30000;
 const DEFAULT_WIDTH = 1200;
-const DEFAULT_HEIGHT = 1200;
+const DEFAULT_HEIGHT = 1697; // A4 aspect ratio (1:√2)
 
 export class PlaywrightRenderer {
   private browser: Browser | null = null;

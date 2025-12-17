@@ -7,9 +7,9 @@
 export const CELL_MIN = 20;
 export const CELL_MAX = 600;
 export const CELL_ASPECT_MAX = 3;
-export const DRAWING_MARGIN = 50;
+export const DRAWING_MARGIN = 145; // ~12.1% of width (1 inch margin for A4)
 export const REFERENCE_WIDTH = 1200;
-export const REFERENCE_HEIGHT = 1500;
+export const REFERENCE_HEIGHT = 1697; // A4 aspect ratio (1:√2)
 
 // On-chain font configuration
 // Courier New subset (904 bytes) - contains only: space, ░, ▒, ▓
@@ -1692,14 +1692,18 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strate
   // Later folds: increasingly prefer existing creases/intersections
   const edgeProbability = Math.max(0.2, 1.0 - foldIndex * 0.015);
 
+  // Grid/horizontal/vertical strategies must always use edge anchors for straight lines
+  const forceEdge = strategy && (strategy.type === "horizontal" || strategy.type === "vertical" || strategy.type === "grid");
+
   const useEdge =
+    forceEdge ||
     rng() < edgeProbability ||
     (existingCreases.length === 0 && intersections.length === 0);
 
   if (useEdge) {
     // Pick from canvas boundary (edges or corners)
-    // Diagonal strategy prefers corners
-    const cornerChance = strategy && strategy.type === "diagonal" ? 0.5 : 0.15;
+    // Diagonal strategy prefers corners; grid/horizontal/vertical never use corners
+    const cornerChance = forceEdge ? 0 : (strategy && strategy.type === "diagonal" ? 0.5 : 0.15);
     const useCorner = rng() < cornerChance;
 
     if (useCorner) {
@@ -1798,7 +1802,11 @@ function pickTerminus(
         const jitter = strategy.jitter ? strategy.jitter / 100 : 0;
         const baseT = anchor.t !== undefined ? anchor.t : 0.5;
         // Only apply small jitter - keep lines nearly straight
-        const t = Math.max(0.05, Math.min(0.95, baseT + (rng() - 0.5) * jitter));
+        let t = Math.max(0.05, Math.min(0.95, baseT + (rng() - 0.5) * jitter));
+
+        // getEdgePoint uses t for edges 0,1 and (1-t) for edges 2,3
+        // Opposite edges always have different conventions, so always invert
+        t = 1 - t;
 
         return {
           point: getEdgePoint(oppositeEdge, t, w, h),
@@ -3354,16 +3362,15 @@ export function renderToCanvas({
     }
   }
 
-  // Draw intersection points
+  // Draw intersection points (same pink as crease lines, transparent inside)
   if (
     showIntersections &&
     activeIntersections &&
     activeIntersections.length > 0
   ) {
-    ctx.strokeStyle = "#ff0000";
-    ctx.fillStyle = "rgba(255, 0, 0, 0)";
+    ctx.strokeStyle = "#ff00ff";
     ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.7;
     const radius = 3;
     for (const intersection of activeIntersections) {
       ctx.beginPath();
@@ -3374,9 +3381,9 @@ export function renderToCanvas({
         0,
         Math.PI * 2
       );
-      ctx.fill();
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
   }
 
   // Compile settings info for display
@@ -3404,8 +3411,8 @@ export function renderToCanvas({
 
 export function generateAllParams(
   seed,
-  width = 1200,
-  height = 1500,
+  width = REFERENCE_WIDTH,
+  height = REFERENCE_HEIGHT,
   padding = 0,
   folds = null
 ) {
@@ -3449,7 +3456,7 @@ export function generateAllParams(
 // ============ METADATA GENERATION ============
 
 export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
-  const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
+  const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
 
   // Calculate crease count by running simulation (with paper properties)
   const weightRange = generateWeightRange(seed);
@@ -3542,22 +3549,22 @@ function hexSeedToNumber(hexSeed) {
   return Number(bigNum % BigInt(2147483647));
 }
 
-// Calculate optimal canvas dimensions based on screen size while maintaining 4:5 aspect ratio
+// Calculate optimal canvas dimensions based on screen size while maintaining A4 aspect ratio
 function getOptimalDimensions() {
   const dpr = window.devicePixelRatio || 1;
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
 
-  // Maintain 4:5 aspect ratio (width:height)
-  const aspectRatio = 4 / 5;
+  // Maintain A4 aspect ratio (1:√2, width:height)
+  const aspectRatio = 1 / Math.sqrt(2);
 
   let width, height;
   if (screenW / screenH > aspectRatio) {
-    // Screen is wider than 4:5, fit to height
+    // Screen is wider than A4, fit to height
     height = screenH;
     width = Math.floor(height * aspectRatio);
   } else {
-    // Screen is taller than 4:5, fit to width
+    // Screen is taller than A4, fit to width
     width = screenW;
     height = Math.floor(width / aspectRatio);
   }
@@ -3594,15 +3601,40 @@ let _secretAnimationFold = 0;
 let _secretAnimationMode = null; // 'full' | 'lines-only'
 let _secretAnimationTimer = null;
 
-// Render function that can be called on init and resize
-// Optional overrides: foldOverride (for animation), linesOnly (for lines-only mode), isAnimating (ignore toggle during animation)
-function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
-  const dims = getOptimalDimensions();
+/**
+ * Unified render function for both on-chain and preview contexts
+ * @param {HTMLCanvasElement} canvas - Target canvas element
+ * @param {Object} state - Render state with seed, foldCount, params
+ * @param {Object} options - Optional overrides
+ * @param {number} options.foldOverride - Override fold count (for animation)
+ * @param {boolean} options.linesOnly - Lines-only mode
+ * @param {boolean} options.isAnimating - Whether currently animating
+ * @param {number} options.width - Override output width (default: auto from getOptimalDimensions)
+ * @param {number} options.height - Override output height (default: auto from getOptimalDimensions)
+ * @param {boolean} options.showOverlays - Override overlay visibility
+ */
+export function renderWithState(canvas, state, options = {}) {
+  const {
+    foldOverride,
+    linesOnly = false,
+    isAnimating = false,
+    width,
+    height,
+    showOverlays: showOverlaysOverride,
+  } = options;
+
+  // Use provided dimensions or calculate optimal ones
+  const dims = (width && height)
+    ? { renderWidth: width, renderHeight: height, width, height }
+    : getOptimalDimensions();
+
   const actualFolds = foldOverride !== undefined ? foldOverride : state.foldCount;
 
   // During animation: linesOnly mode shows lines, full mode shows clean render
   // When not animating: respect _secretShowFoldLines toggle
-  const showOverlays = isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines);
+  const showOverlays = showOverlaysOverride !== undefined
+    ? showOverlaysOverride
+    : (isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines));
 
   const { dataUrl, settings } = renderToCanvas({
     folds: actualFolds,
@@ -3622,7 +3654,7 @@ function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
     showCreaseLines: state.params.showCreaseLines,
     showCreases: showOverlays,
     showIntersections: showOverlays,
-    linesOnlyMode: linesOnly || false,
+    linesOnlyMode: linesOnly,
   });
 
   // Update settings display if info element exists
@@ -3648,17 +3680,24 @@ function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
     // Set canvas internal resolution (includes internal 2x from renderToCanvas)
     canvas.width = dims.renderWidth * 2;
     canvas.height = dims.renderHeight * 2;
-    // Set CSS size to fit screen
+    // Set CSS size to fit screen (use provided dims or calculated)
     canvas.style.width = dims.width + "px";
     canvas.style.height = dims.height + "px";
     // Draw at full resolution
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     // Trigger scaling callback if defined
-    if (typeof window.scaleCanvas === "function") {
+    if (typeof window !== "undefined" && typeof window.scaleCanvas === "function") {
       window.scaleCanvas();
     }
   };
   img.src = dataUrl;
+
+  return { dataUrl, settings };
+}
+
+// Internal alias for backward compatibility within initOnChain
+function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
+  return renderWithState(canvas, state, { foldOverride, linesOnly, isAnimating });
 }
 
 // Debounce helper to avoid excessive re-renders during resize

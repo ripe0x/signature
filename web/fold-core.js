@@ -7,9 +7,9 @@
 export const CELL_MIN = 20;
 export const CELL_MAX = 600;
 export const CELL_ASPECT_MAX = 3;
-export const DRAWING_MARGIN = 50;
+export const DRAWING_MARGIN = 145; // ~12.1% of width (1 inch margin for A4)
 export const REFERENCE_WIDTH = 1200;
-export const REFERENCE_HEIGHT = 1500;
+export const REFERENCE_HEIGHT = 1697; // A4 aspect ratio (1:√2)
 
 // On-chain font configuration
 // Courier New subset (904 bytes) - contains only: space, ░, ▒, ▓
@@ -3411,8 +3411,8 @@ export function renderToCanvas({
 
 export function generateAllParams(
   seed,
-  width = 1200,
-  height = 1500,
+  width = REFERENCE_WIDTH,
+  height = REFERENCE_HEIGHT,
   padding = 0,
   folds = null
 ) {
@@ -3456,7 +3456,7 @@ export function generateAllParams(
 // ============ METADATA GENERATION ============
 
 export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
-  const params = generateAllParams(seed, 1200, 1500, 0, foldCount);
+  const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
 
   // Calculate crease count by running simulation (with paper properties)
   const weightRange = generateWeightRange(seed);
@@ -3549,22 +3549,22 @@ function hexSeedToNumber(hexSeed) {
   return Number(bigNum % BigInt(2147483647));
 }
 
-// Calculate optimal canvas dimensions based on screen size while maintaining 4:5 aspect ratio
+// Calculate optimal canvas dimensions based on screen size while maintaining A4 aspect ratio
 function getOptimalDimensions() {
   const dpr = window.devicePixelRatio || 1;
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
 
-  // Maintain 4:5 aspect ratio (width:height)
-  const aspectRatio = 4 / 5;
+  // Maintain A4 aspect ratio (1:√2, width:height)
+  const aspectRatio = 1 / Math.sqrt(2);
 
   let width, height;
   if (screenW / screenH > aspectRatio) {
-    // Screen is wider than 4:5, fit to height
+    // Screen is wider than A4, fit to height
     height = screenH;
     width = Math.floor(height * aspectRatio);
   } else {
-    // Screen is taller than 4:5, fit to width
+    // Screen is taller than A4, fit to width
     width = screenW;
     height = Math.floor(width / aspectRatio);
   }

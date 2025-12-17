@@ -158,7 +158,7 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const thumbWidth = 120;
+    const thumbWidth = 106;  // A4 aspect ratio (1:√2)
     const thumbHeight = 150;
 
     canvas.width = thumbWidth * 2; // 2x for sharpness
@@ -205,7 +205,7 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
         ref={canvasRef}
         style={{
           display: "block",
-          width: 120,
+          width: 106,  // A4 aspect ratio
           height: 150,
         }}
       />
@@ -1360,7 +1360,7 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(106px, 1fr))",
               gap: 12,
             }}
           >
@@ -1578,11 +1578,11 @@ export default function FoldedPaper() {
   const [colorScheme, setColorScheme] = useState("generative");
   const [randomizeFolds, setRandomizeFolds] = useState(false);
 
-  const height = 1500;
-  const width = 1200;
+  const height = REFERENCE_HEIGHT;
+  const width = REFERENCE_WIDTH;
 
   const initialPalette = generatePalette(42);
-  const initialCells = generateCellDimensions(1200, 1500, 0, 42);
+  const initialCells = generateCellDimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, 42);
   const initialRenderMode = generateRenderMode(42);
   const initialMultiColor = generateMultiColorEnabled(42);
   const initialFoldStrategy = generateFoldStrategy(42);
