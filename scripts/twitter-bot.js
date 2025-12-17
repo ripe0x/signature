@@ -11,7 +11,7 @@
  */
 
 import { createPublicClient, http, parseAbiItem, formatEther } from 'viem';
-import { mainnet } from 'viem/chains';
+import { mainnet, sepolia } from 'viem/chains';
 import { TwitterApi } from 'twitter-api-v2';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { get as httpsGet } from 'https';
@@ -39,6 +39,7 @@ const testMode = args.includes('--test');
 const testMintMode = args.includes('--test-mint');
 const verifyMode = args.includes('--verify');
 const postTestTweet = args.includes('--post-test');
+const rescanMode = args.includes('--rescan'); // Force rescan from lookback, ignoring saved lastBlock
 const pollingInterval = parseInt(args.find((arg) => arg.startsWith('--interval='))?.split('=')[1] || '60', 10) * 1000;
 
 // Color logging
@@ -153,6 +154,16 @@ function getRpcUrl() {
   if (network === 'mainnet') {
     return process.env.MAINNET_RPC_URL;
   }
+  if (network === 'sepolia') {
+    return process.env.SEPOLIA_RPC_URL;
+  }
+  throw new Error(`Unsupported network: ${network}`);
+}
+
+// Get chain config
+function getChain() {
+  if (network === 'mainnet') return mainnet;
+  if (network === 'sepolia') return sepolia;
   throw new Error(`Unsupported network: ${network}`);
 }
 
@@ -239,15 +250,159 @@ function formatDuration(seconds) {
   return `${days} day${days !== 1 ? 's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
 }
 
-// Format tweet message
-function formatTweet(foldId, startTime, endTime, mintPrice, contractAddress) {
+const MINT_URL = 'less.ripe.wtf';
+const LESS_TOKEN_ADDRESS = process.env.LESS_TOKEN_ADDRESS;
+const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 decimals
+
+// Fetch burn data from strategy and token contracts
+async function fetchBurnData(client, contractAddress, abi) {
+  try {
+    if (!LESS_TOKEN_ADDRESS) {
+      logInfo('LESS_TOKEN_ADDRESS not set, skipping burn data');
+      return null;
+    }
+
+    // Create mainnet client for token reads (token is always on mainnet)
+    const mainnetRpc = process.env.MAINNET_RPC_URL;
+    if (!mainnetRpc) {
+      logInfo('MAINNET_RPC_URL not set, skipping burn data');
+      return null;
+    }
+
+    const mainnetClient = createPublicClient({
+      chain: mainnet,
+      transport: http(mainnetRpc),
+    });
+
+    // Get current total supply from token (on mainnet)
+    const tokenAbi = [
+      {
+        inputs: [],
+        name: 'totalSupply',
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ];
+
+    const totalSupply = await mainnetClient.readContract({
+      address: LESS_TOKEN_ADDRESS,
+      abi: tokenAbi,
+      functionName: 'totalSupply',
+    });
+
+    logInfo(`Token totalSupply: ${formatEther(totalSupply)} LESS`);
+
+    // Calculate remaining supply percentage (2 decimal places)
+    const supplyRemainingBps = (totalSupply * 10000n) / INITIAL_SUPPLY;
+    const supplyRemaining = (Number(supplyRemainingBps) / 100).toFixed(2);
+
+    // Try to get lastBurn from strategy (on same network as LESS NFT contract)
+    let lastBurnFormatted = null;
+    try {
+      const strategyAddress = await client.readContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: 'strategy',
+      });
+
+      if (strategyAddress && strategyAddress !== '0x0000000000000000000000000000000000000000') {
+        const strategyAbi = [
+          {
+            inputs: [],
+            name: 'getState',
+            outputs: [
+              { name: 'supply', type: 'uint256' },
+              { name: 'eth', type: 'uint256' },
+              { name: 'lastBurn', type: 'uint256' },
+              { name: 'burns', type: 'uint256' },
+            ],
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ];
+
+        const [supply, eth, lastBurn, burns] = await client.readContract({
+          address: strategyAddress,
+          abi: strategyAbi,
+          functionName: 'getState',
+        });
+
+        // Format burn amount (in whole tokens, no decimals)
+        lastBurnFormatted = Number(lastBurn / 10n ** 18n).toLocaleString();
+        logInfo(`Strategy lastBurn: ${lastBurnFormatted} LESS`);
+      }
+    } catch (e) {
+      logInfo('No strategy available for lastBurn data');
+    }
+
+    // If we have lastBurn, return full data; otherwise just supply
+    if (lastBurnFormatted && lastBurnFormatted !== '0') {
+      return {
+        amountBurned: lastBurnFormatted,
+        supplyRemaining: supplyRemaining,
+      };
+    }
+
+    // Return just supply data (will use simple format without burn line)
+    logInfo(`Supply remaining: ${supplyRemaining}%`);
+    return {
+      amountBurned: null,
+      supplyRemaining: supplyRemaining,
+    };
+  } catch (error) {
+    logWarn(`Failed to fetch burn data: ${error.message}`);
+    return null;
+  }
+}
+
+// Truncate address to 0x1234...5678 format
+function truncateAddress(address) {
+  if (!address) return 'unknown';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+// Format minutes remaining
+function formatMinutesRemaining(seconds) {
+  const minutes = Math.ceil(seconds / 60);
+  return minutes;
+}
+
+// Format tweet message for FoldCreated
+function formatTweet(foldId, startTime, endTime, burnData = null) {
   const now = Math.floor(Date.now() / 1000);
   const timeRemaining = Math.max(0, Number(endTime) - now);
-  const duration = formatDuration(timeRemaining);
+  const minutesLeft = formatMinutesRemaining(timeRemaining);
 
-  return `Fold #${foldId} mint window is now open.
+  // If we have full burn data (amount + supply), include both lines
+  if (burnData && burnData.amountBurned && burnData.supplyRemaining) {
+    return `new LESS mint window
 
-Window closes in ${duration}.`;
+${burnData.amountBurned} $LESS was just bought and burned
+${burnData.supplyRemaining}% total supply remaining
+
+fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
+${MINT_URL}`;
+  }
+
+  // If we have only supply data (no burn amount), show just supply
+  if (burnData && burnData.supplyRemaining) {
+    return `new LESS mint window
+
+${burnData.supplyRemaining}% total supply remaining
+
+fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
+${MINT_URL}`;
+  }
+
+  // Simple format without any burn/supply data
+  return `new LESS mint window
+
+fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
+${MINT_URL}`;
 }
 
 // Display tweet preview in console
@@ -354,35 +509,22 @@ async function runTestMode() {
   logInfo('Running in TEST MODE - simulating a FoldCreated event');
   console.log();
 
-  // Use sample data or try to get real contract address
-  let contractAddress = '0x1234567890123456789012345678901234567890';
-  try {
-    contractAddress = getContractAddress();
-    logInfo(`Using real contract address: ${contractAddress}`);
-  } catch (e) {
-    logInfo(`Using sample contract address: ${contractAddress}`);
-  }
-
   // Simulate event data
   const now = Math.floor(Date.now() / 1000);
   const testFoldId = 42;
   const testStartTime = now;
   const testEndTime = now + 3600; // 1 hour from now
-  const testMintPrice = 100000000000000000n; // 0.1 ETH
 
   logInfo(`Simulated event: Fold #${testFoldId}`);
   logInfo(`  Start time: ${new Date(testStartTime * 1000).toISOString()}`);
   logInfo(`  End time: ${new Date(testEndTime * 1000).toISOString()}`);
-  logInfo(`  Mint price: ${formatEther(testMintPrice)} ETH`);
   console.log();
 
   // Format and display the tweet (no image for window open)
   const tweetMessage = formatTweet(
     testFoldId,
     testStartTime,
-    testEndTime,
-    testMintPrice,
-    contractAddress
+    testEndTime
   );
 
   await postTweet(null, tweetMessage);
@@ -396,11 +538,12 @@ async function runTestMintMode() {
 
   // Simulate event data
   const testTokenId = 7;
-  const testFoldId = 42;
+  const testMinter = '0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c';
   // Use a test seed
   const testSeed = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
 
-  logInfo(`Simulated event: Minted token #${testTokenId} from fold #${testFoldId}`);
+  logInfo(`Simulated event: Minted token #${testTokenId}`);
+  logInfo(`  Minter: ${testMinter}`);
   logInfo(`  Seed: ${testSeed}`);
   console.log();
 
@@ -408,7 +551,8 @@ async function runTestMintMode() {
   const imageBuffer = await fetchImage(testSeed);
 
   // Format and display the tweet with image
-  const tweetMessage = formatMintTweet(testTokenId, testFoldId);
+  const minterDisplay = truncateAddress(testMinter);
+  const tweetMessage = formatMintTweet(testTokenId, minterDisplay);
 
   await postTweet(null, tweetMessage, imageBuffer);
   logSuccess('Test mint completed!');
@@ -446,26 +590,15 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
 
     logInfo(`Detected FoldCreated event: foldId=${foldId}, startTime=${startTime}, endTime=${endTime}`);
 
-    // Fetch mint price
-    let mintPrice;
-    try {
-      mintPrice = await client.readContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'mintPrice',
-      });
-    } catch (error) {
-      logError(`Failed to fetch mint price: ${error.message}`);
-      return;
-    }
+    // Fetch burn data (if available)
+    const burnData = await fetchBurnData(client, contractAddress, abi);
 
     // Format and post tweet (no image for window open)
     const tweetMessage = formatTweet(
       Number(foldId),
       Number(startTime),
       Number(endTime),
-      mintPrice,
-      contractAddress
+      burnData
     );
 
     logInfo('Posting tweet...');
@@ -486,8 +619,29 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
 }
 
 // Format mint tweet message
-function formatMintTweet(tokenId, foldId) {
-  return `less #${tokenId} just minted from fold #${foldId}.`;
+function formatMintTweet(tokenId, minterDisplay) {
+  return `LESS #${tokenId} minted by ${minterDisplay}
+
+${MINT_URL}/${tokenId}`;
+}
+
+// Resolve ENS name for an address (mainnet only)
+async function resolveEns(address) {
+  try {
+    // Only try ENS on mainnet
+    if (network !== 'mainnet') {
+      return null;
+    }
+    const mainnetClient = createPublicClient({
+      chain: mainnet,
+      transport: http(process.env.MAINNET_RPC_URL),
+    });
+    const ensName = await mainnetClient.getEnsName({ address });
+    return ensName;
+  } catch (error) {
+    logWarn(`ENS lookup failed: ${error.message}`);
+    return null;
+  }
 }
 
 // Process a Minted event
@@ -495,6 +649,7 @@ async function processMintEvent(log, processedMints, twitterClient) {
   try {
     const tokenId = log.args.tokenId;
     const foldId = log.args.foldId;
+    const minter = log.args.minter;
     const seed = log.args.seed;
 
     // Skip if already processed
@@ -503,13 +658,17 @@ async function processMintEvent(log, processedMints, twitterClient) {
       return;
     }
 
-    logInfo(`Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, seed=${seed}`);
+    logInfo(`Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, minter=${minter}, seed=${seed}`);
+
+    // Resolve ENS or use truncated address
+    const ensName = await resolveEns(minter);
+    const minterDisplay = ensName || truncateAddress(minter);
 
     // Fetch image using the actual seed from the event
     const imageBuffer = await fetchImage(seed);
 
     // Format and post tweet with image
-    const tweetMessage = formatMintTweet(Number(tokenId), Number(foldId));
+    const tweetMessage = formatMintTweet(Number(tokenId), minterDisplay);
 
     logInfo('Posting mint tweet...');
     const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
@@ -583,8 +742,11 @@ async function runBot() {
   const state = loadState();
   const processedFolds = state.processedFolds;
   const processedMints = state.processedMints;
-  let lastProcessedBlock = state.lastBlock;
+  let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
+  if (rescanMode) {
+    logInfo('Rescan mode: ignoring saved lastBlock, will scan from lookback');
+  }
   if (processedFolds.size > 0) {
     logInfo(`Loaded ${processedFolds.size} previously processed folds from state`);
   }
@@ -606,13 +768,13 @@ async function runBot() {
     try {
       // Create viem client
       const client = createPublicClient({
-        chain: mainnet,
+        chain: getChain(),
         transport: http(rpcUrl),
         pollingInterval,
       });
 
       logInfo(`Polling interval: ${pollingInterval / 1000} seconds`);
-      logSuccess('Connected to Ethereum mainnet');
+      logSuccess(`Connected to Ethereum ${network}`);
 
       // Get current block
       const currentBlock = await client.getBlockNumber();
@@ -631,7 +793,7 @@ async function runBot() {
         const missedFoldLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, uint64 strategyBlock)'
+            'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)'
           ),
           fromBlock,
           toBlock: currentBlock,
@@ -677,7 +839,7 @@ async function runBot() {
       const unwatchFolds = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, uint64 strategyBlock)'
+          'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)'
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
@@ -739,7 +901,8 @@ async function runBot() {
         // Periodic health check every 5 minutes
         const healthCheck = setInterval(async () => {
           try {
-            await client.getBlockNumber();
+            const block = await client.getBlockNumber();
+            logInfo(`Heartbeat: block ${block}, processed ${processedFolds.size} folds, ${processedMints.size} mints`);
           } catch (error) {
             clearInterval(healthCheck);
             reject(error);

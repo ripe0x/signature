@@ -1,0 +1,15 @@
+{
+  "network": "local",
+  "chainId": 31337,
+  "timestamp": "2025-12-17T15:16:33.171Z",
+  "contracts": {
+    "less": "0x685009Edc4Df588555d7e7Ed4854c450b423DD97",
+    "renderer": "0x87a97BC3a0EC7952F4F2C8d22eD5c0A56811fd10"
+  },
+  "config": {
+    "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    "scriptName": "less",
+    "useMockLess": true
+  }
+}

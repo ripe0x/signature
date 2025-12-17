@@ -28,9 +28,13 @@ export class PlaywrightRenderer {
       throw new Error('fold-core.js not found. Run: npm run copy-sketch');
     }
 
-    // Launch browser
+    // Launch browser (use system Chromium if available)
+    console.log('Launching Chromium browser...');
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
     this.browser = await chromium.launch({
       headless: true,
+      timeout: 60000,
+      executablePath: executablePath || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -38,6 +42,7 @@ export class PlaywrightRenderer {
         '--disable-gpu',
       ],
     });
+    console.log('Chromium browser launched');
 
     // Pre-warm page pool
     for (let i = 0; i < POOL_SIZE; i++) {

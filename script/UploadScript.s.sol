@@ -6,59 +6,36 @@ import {Script, console} from "forge-std/Script.sol";
 /// @title IScriptyStorage
 /// @notice Interface for ScriptyStorageV2 contract
 interface IScriptyStorage {
-    /// @notice Creates a new content entry
-    /// @param name The name/identifier for the content
-    /// @param details Additional metadata (usually empty bytes)
-    function createContent(
-        string calldata name,
-        bytes calldata details
-    ) external;
-
-    /// @notice Adds a chunk of code to existing content
-    /// @param name The name/identifier of the content
-    /// @param chunk The code chunk to append
-    function addChunkToContent(
-        string calldata name,
-        bytes calldata chunk
-    ) external;
-
-    /// @notice Retrieves content from storage
-    /// @param name The name/identifier of the content
-    /// @param data Additional data (usually empty)
-    /// @return The content as bytes
-    function getContent(
-        string memory name,
-        bytes memory data
-    ) external view returns (bytes memory);
+    function createContent(string calldata name, bytes calldata details) external;
+    function addChunkToContent(string calldata name, bytes calldata chunk) external;
+    function getContent(string memory name, bytes memory data) external view returns (bytes memory);
 }
 
 /// @title UploadScript
-/// @notice Uploads the image generation JavaScript to ScriptyStorage
-/// @dev Best practices:
-///      - Separate from deployment for flexibility
-///      - Supports file path configuration
-///      - Verifies upload success
-///      - Handles large files (may need chunking for very large scripts)
-///      - Idempotent (can be run multiple times)
+/// @notice Uploads JavaScript to ScriptyStorage with network detection
+/// @dev Supports mainnet, sepolia, and local (fork) environments
 contract UploadScript is Script {
+    // ScriptyV2 address (same on mainnet and sepolia)
+    address constant SCRIPTY_STORAGE = 0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699;
+
+    // Chain IDs
+    uint256 constant MAINNET_CHAIN_ID = 1;
+    uint256 constant SEPOLIA_CHAIN_ID = 11155111;
+    uint256 constant LOCAL_CHAIN_ID = 31337;
+
+    // Maximum chunk size (24KB with some margin)
+    uint256 constant MAX_CHUNK_SIZE = 24000;
+
     function run() external {
-        // Load configuration from environment
-        address scriptyStorage = vm.envOr(
-            "SCRIPTY_STORAGE",
-            address(0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699) // ScriptyStorageV2 mainnet (updated)
-        );
-        string memory scriptName = vm.envOr("SCRIPT_NAME", string("less"));
+        // Get ScriptyStorage address based on network
+        address scriptyStorage = getScriptyStorage();
+        string memory scriptName = getScriptName();
+        string memory scriptPath = vm.envOr("SCRIPT_PATH", string("web/onchain/bundled.js"));
 
-        // Path to the JavaScript file to upload
-        // Default assumes a bundled/compiled version exists
-        // You may need to build this first (e.g., using a bundler)
-        string memory scriptPath = vm.envOr(
-            "SCRIPT_PATH",
-            string("web/onchain/bundled.js")
-        );
-
-        console.log("=== Uploading Script to ScriptyStorage ===");
-        console.log("Storage contract:", scriptyStorage);
+        console.log("=== Upload Script to ScriptyStorage ===");
+        console.log("Network:", getNetworkName());
+        console.log("Chain ID:", block.chainid);
+        console.log("Storage:", scriptyStorage);
         console.log("Script name:", scriptName);
         console.log("Script path:", scriptPath);
         console.log("");
@@ -66,31 +43,31 @@ contract UploadScript is Script {
         // Read the script file
         string memory scriptContent = vm.readFile(scriptPath);
         bytes memory scriptBytes = bytes(scriptContent);
-
         uint256 scriptSize = scriptBytes.length;
+
         console.log("Script size:", scriptSize, "bytes");
+
+        uint256 totalChunks = (scriptSize + MAX_CHUNK_SIZE - 1) / MAX_CHUNK_SIZE;
+        console.log("Chunks required:", totalChunks);
         console.log("");
 
-        // Start broadcast
         vm.startBroadcast();
 
-        IScriptyStorage storageContract = IScriptyStorage(scriptyStorage);
+        IScriptyStorage storage_ = IScriptyStorage(scriptyStorage);
 
-        // Create the content entry
-        console.log("Creating content entry...");
-        storageContract.createContent(scriptName, "");
-        console.log("Content entry created");
+        // Create content entry
+        console.log("[1] Creating content entry...");
+        try storage_.createContent(scriptName, "") {
+            console.log("    Content entry created");
+        } catch {
+            console.log("    Content entry may already exist, continuing...");
+        }
 
-        // Upload the script in chunks (ScriptyStorageV2 requires chunked uploads)
-        // Maximum chunk size is typically 24576 bytes (24KB) per chunk
-        uint256 maxChunkSize = 24000; // Leave some margin
-        uint256 totalChunks = (scriptSize + maxChunkSize - 1) / maxChunkSize;
-
-        console.log("Uploading script in", totalChunks, "chunk(s)...");
-
+        // Upload chunks
+        console.log("[2] Uploading chunks...");
         for (uint256 i = 0; i < totalChunks; i++) {
-            uint256 start = i * maxChunkSize;
-            uint256 end = start + maxChunkSize;
+            uint256 start = i * MAX_CHUNK_SIZE;
+            uint256 end = start + MAX_CHUNK_SIZE;
             if (end > scriptSize) {
                 end = scriptSize;
             }
@@ -100,45 +77,57 @@ contract UploadScript is Script {
                 chunk[j] = scriptBytes[start + j];
             }
 
-            storageContract.addChunkToContent(scriptName, chunk);
-            console.log("  Chunk uploaded:");
-            console.log("    Chunk number:", i + 1);
-            console.log("    Total chunks:", totalChunks);
-            console.log("    Chunk size:", chunk.length, "bytes");
+            storage_.addChunkToContent(scriptName, chunk);
+            console.log("    Chunk uploaded:", chunk.length, "bytes");
         }
 
-        console.log("SUCCESS: Script uploaded successfully");
-        console.log("");
+        vm.stopBroadcast();
 
-        // Verify the upload by reading it back
-        console.log("Verifying upload...");
-        try storageContract.getContent(scriptName, "") returns (
-            bytes memory retrieved
-        ) {
+        // Verify upload
+        console.log("");
+        console.log("[3] Verifying upload...");
+        try storage_.getContent(scriptName, "") returns (bytes memory retrieved) {
             if (keccak256(retrieved) == keccak256(scriptBytes)) {
-                console.log(
-                    "SUCCESS: Verification successful: Script matches uploaded content"
-                );
-                console.log("  Retrieved size:", retrieved.length, "bytes");
+                console.log("    SUCCESS: Upload verified");
+                console.log("    Stored size:", retrieved.length, "bytes");
             } else {
-                console.log(
-                    "WARNING: Retrieved script does not match uploaded content!"
-                );
-                console.log("  Uploaded:", scriptBytes.length, "bytes");
-                console.log("  Retrieved:", retrieved.length, "bytes");
+                console.log("    WARNING: Content mismatch!");
+                console.log("    Uploaded:", scriptBytes.length, "bytes");
+                console.log("    Retrieved:", retrieved.length, "bytes");
             }
         } catch {
-            console.log(
-                "WARNING: Could not verify upload (getScript may have failed)"
-            );
+            console.log("    WARNING: Could not verify upload");
         }
-        vm.stopBroadcast();
 
         console.log("");
         console.log("=== Upload Complete ===");
-        console.log("Script name:", scriptName);
-        console.log("Storage contract:", scriptyStorage);
-        console.log("");
-        console.log("You can now deploy contracts that reference this script.");
+    }
+
+    function getScriptyStorage() public view returns (address) {
+        // ScriptyV2 has same address on all networks
+        return SCRIPTY_STORAGE;
+    }
+
+    function getScriptName() public view returns (string memory) {
+        string memory defaultName;
+        uint256 chainId = block.chainid;
+
+        if (chainId == MAINNET_CHAIN_ID) {
+            defaultName = "less";
+        } else if (chainId == SEPOLIA_CHAIN_ID) {
+            defaultName = "less-sepolia";
+        } else {
+            defaultName = "less-local";
+        }
+
+        return vm.envOr("SCRIPT_NAME", defaultName);
+    }
+
+    function getNetworkName() public view returns (string memory) {
+        uint256 chainId = block.chainid;
+        if (chainId == MAINNET_CHAIN_ID) return "mainnet";
+        if (chainId == SEPOLIA_CHAIN_ID) return "sepolia";
+        if (chainId == LOCAL_CHAIN_ID) return "local";
+        return "unknown";
     }
 }

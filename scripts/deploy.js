@@ -1,13 +1,36 @@
 #!/usr/bin/env node
 
 /**
- * Comprehensive Deployment Script
+ * Unified Deployment Script for Less NFT
  *
- * Bundles JavaScript, uploads to ScriptyStorage, and deploys contracts
- * with transaction confirmation and status updates.
+ * Supports all environments: mainnet, sepolia, local (fork)
  *
  * Usage:
- *   node scripts/deploy.js [--network mainnet|fork] [--skip-bundle] [--skip-upload] [--skip-deploy]
+ *   node scripts/deploy.js --network <network> [options]
+ *
+ * Networks:
+ *   mainnet   - Ethereum mainnet (requires full config)
+ *   sepolia   - Sepolia testnet (uses MockLess)
+ *   local     - Local anvil fork (uses MockLess + forked Scripty)
+ *
+ * Options:
+ *   --skip-bundle    Skip JavaScript bundling
+ *   --skip-upload    Skip ScriptyStorage upload
+ *   --skip-deploy    Skip contract deployment
+ *   --skip-verify    Skip Etherscan verification
+ *   --dry-run        Preview without executing transactions
+ *   --yes            Skip confirmation prompts
+ *
+ * Environment Variables:
+ *   MAINNET_RPC_URL    - Mainnet RPC endpoint
+ *   SEPOLIA_RPC_URL    - Sepolia RPC endpoint
+ *   PRIVATE_KEY        - Deployer private key
+ *   ETHERSCAN_API_KEY  - For contract verification
+ *   STRATEGY_ADDRESS   - RecursiveStrategy (mainnet only)
+ *   PAYOUT_RECIPIENT   - Receives mint fees (mainnet only)
+ *   OWNER_ADDRESS      - Contract owner
+ *   SCRIPT_NAME        - Name in ScriptyStorage (optional)
+ *   BASE_IMAGE_URL     - Static image URL base (optional)
  */
 
 import { execSync } from "child_process";
@@ -20,1049 +43,703 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = join(__dirname, "..");
 
-// Colors for terminal output
-const colors = {
+// ============================================================
+// Network Configuration
+// ============================================================
+
+const NETWORKS = {
+  mainnet: {
+    chainId: 1,
+    rpcEnvVar: "MAINNET_RPC_URL",
+    scriptyStorage: "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    scriptyBuilder: "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    useMockLess: false,
+    verify: true,
+    confirmations: true,
+  },
+  sepolia: {
+    chainId: 11155111,
+    rpcEnvVar: "SEPOLIA_RPC_URL",
+    scriptyStorage: "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    scriptyBuilder: "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    useMockLess: true,
+    verify: true,
+    confirmations: true,
+  },
+  local: {
+    chainId: 31337,
+    rpcEnvVar: "MAINNET_RPC_URL", // Fork mainnet
+    rpcUrl: "http://127.0.0.1:8545",
+    scriptyStorage: "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    scriptyBuilder: "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    useMockLess: true,
+    verify: false,
+    confirmations: false,
+  },
+};
+
+// ============================================================
+// Colors and Logging
+// ============================================================
+
+const c = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
+  dim: "\x1b[2m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
-  blue: "\x1b[34m",
   red: "\x1b[31m",
   cyan: "\x1b[36m",
   gray: "\x1b[90m",
+  magenta: "\x1b[35m",
 };
 
-function log(message, color = "reset") {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
+const log = (msg, color = "reset") => console.log(`${c[color]}${msg}${c.reset}`);
+const logStep = (step, msg) => log(`\n${"─".repeat(50)}\n[${step}] ${msg}\n${"─".repeat(50)}`, "cyan");
+const logSuccess = (msg) => log(`✓ ${msg}`, "green");
+const logWarning = (msg) => log(`⚠ ${msg}`, "yellow");
+const logError = (msg) => log(`✗ ${msg}`, "red");
+const logInfo = (msg) => log(`  ${msg}`, "gray");
 
-function logStep(step, message) {
-  log(`\n[${step}] ${message}`, "cyan");
-}
+// ============================================================
+// Argument Parsing
+// ============================================================
 
-function logSuccess(message) {
-  log(`✓ ${message}`, "green");
-}
-
-function logWarning(message) {
-  log(`⚠ ${message}`, "yellow");
-}
-
-function logError(message) {
-  log(`✗ ${message}`, "red");
-}
-
-// Parse command line arguments
 const args = process.argv.slice(2);
-const network =
-  args.find((arg) => arg.startsWith("--network"))?.split("=")[1] || "fork";
-const skipBundle = args.includes("--skip-bundle");
-const skipUpload = args.includes("--skip-upload");
-const skipDeploy = args.includes("--skip-deploy");
+const getArg = (name) => {
+  const arg = args.find(a => a.startsWith(`--${name}=`));
+  return arg ? arg.split("=")[1] : null;
+};
+const hasFlag = (name) => args.includes(`--${name}`);
 
-// Load environment variables
+const networkName = getArg("network") || args.find(a => !a.startsWith("--")) || null;
+const skipBundle = hasFlag("skip-bundle");
+const skipUpload = hasFlag("skip-upload");
+const skipDeploy = hasFlag("skip-deploy");
+const skipVerify = hasFlag("skip-verify");
+const dryRun = hasFlag("dry-run");
+const autoYes = hasFlag("yes");
+
+// ============================================================
+// Environment Loading
+// ============================================================
+
 function loadEnv() {
   const envPath = join(rootDir, ".env");
   const env = {};
-
-  // Also load from process.env (for CI/CD or manual setup)
-  Object.keys(process.env).forEach((key) => {
-    env[key] = process.env[key];
-  });
-
-  // Override with .env file if it exists
+  // Load .env file first
   if (existsSync(envPath)) {
-    const envContent = readFileSync(envPath, "utf-8");
-    envContent.split("\n").forEach((line) => {
+    readFileSync(envPath, "utf-8").split("\n").forEach(line => {
       const trimmed = line.trim();
       if (trimmed && !trimmed.startsWith("#")) {
-        const [key, ...valueParts] = trimmed.split("=");
-        if (key && valueParts.length > 0) {
-          env[key.trim()] = valueParts.join("=").trim();
-        }
+        const [key, ...rest] = trimmed.split("=");
+        if (key && rest.length) env[key.trim()] = rest.join("=").trim();
       }
     });
-  } else {
-    logWarning(".env file not found. Using environment variables only.");
   }
-
+  // CLI environment variables override .env
+  Object.assign(env, process.env);
   return env;
 }
 
 const env = loadEnv();
 
-// Get RPC URL based on network
-function getRpcUrl() {
-  if (network === "fork") {
-    return env.FORK_RPC_URL || "http://127.0.0.1:8545";
-  } else if (network === "mainnet") {
-    return env.MAINNET_RPC_URL;
-  } else {
-    logError(
-      `Unknown network: ${network}. Use --network=mainnet or --network=fork`
-    );
-    process.exit(1);
-  }
-}
+// ============================================================
+// Utilities
+// ============================================================
 
-const rpcUrl = getRpcUrl();
-if (!rpcUrl && !skipUpload && !skipDeploy) {
-  logError(`RPC URL not found for network: ${network}`);
-  if (network === "fork") {
-    logError(
-      "For fork mode, either set FORK_RPC_URL in .env or start a local node on http://127.0.0.1:8545"
-    );
-  } else {
-    logError("For mainnet, set MAINNET_RPC_URL in .env");
-  }
-  process.exit(1);
-}
-
-// Check if we're on a fork (local node)
-const isFork = network === "fork";
-
-// Ask for user confirmation
-function askConfirmation(question) {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
+function confirm(question) {
+  if (autoYes) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(`${c.yellow}${question} (y/n): ${c.reset}`, answer => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
     });
-
-    rl.question(
-      `${colors.yellow}${question} (y/n): ${colors.reset}`,
-      (answer) => {
-        rl.close();
-        resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
-      }
-    );
   });
 }
 
-// Wait for transaction confirmation
-async function waitForTx(txHash, network) {
-  if (isFork) {
-    // On fork, transactions are instant, just verify it exists
-    log(`Transaction hash: ${txHash}`, "gray");
-    return true;
-  }
-
-  log(`Waiting for transaction confirmation: ${txHash}`, "gray");
-
-  try {
-    // Use ethers or viem to wait for confirmation
-    // For now, we'll use a simple fetch-based approach
-    const maxAttempts = 60; // 5 minutes max
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "eth_getTransactionReceipt",
-            params: [txHash],
-          }),
-        });
-
-        const data = await response.json();
-        if (data.result) {
-          const receipt = data.result;
-          if (receipt.status === "0x1") {
-            logSuccess(
-              `Transaction confirmed in block ${parseInt(
-                receipt.blockNumber,
-                16
-              )}`
-            );
-            return true;
-          } else {
-            logError("Transaction failed");
-            return false;
-          }
-        }
-      } catch (error) {
-        // Ignore and retry
-      }
-
-      attempts++;
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
-      process.stdout.write(".");
-    }
-
-    logWarning("Transaction confirmation timeout. Please verify manually.");
-    return false;
-  } catch (error) {
-    logWarning(`Could not verify transaction: ${error.message}`);
-    return false;
-  }
-}
-
-// Extract transaction hash from forge output
-function extractTxHash(output) {
-  const lines = output.split("\n");
-  for (const line of lines) {
-    // Look for transaction hash patterns
-    const txHashMatch = line.match(/0x[a-fA-F0-9]{64}/);
-    if (txHashMatch) {
-      return txHashMatch[0];
-    }
-    // Also check for "Transaction hash:" pattern
-    const txHashLine = line.match(/Transaction hash:\s*(0x[a-fA-F0-9]{64})/i);
-    if (txHashLine) {
-      return txHashLine[1];
-    }
-  }
-  return null;
-}
-
-// Extract contract addresses from forge output
-function extractAddresses(output) {
-  const addresses = {};
-  const lines = output.split("\n");
-
-  for (const line of lines) {
-    // Look for "deployed at:" pattern
-    const lessMatch = line.match(/Less deployed at:\s*(0x[a-fA-F0-9]{40})/i);
-    if (lessMatch) {
-      addresses.less = lessMatch[1];
-    }
-
-    const rendererMatch = line.match(
-      /LessRenderer deployed at:\s*(0x[a-fA-F0-9]{40})/i
-    );
-    if (rendererMatch) {
-      addresses.renderer = rendererMatch[1];
-    }
-  }
-
-  return addresses;
-}
-
-// Extract contract addresses from broadcast JSON file (fallback)
-function extractAddressesFromBroadcast() {
-  const addresses = {};
-  const broadcastPath = join(
-    rootDir,
-    "broadcast/Deploy.s.sol/1/run-latest.json"
-  );
-
-  if (!existsSync(broadcastPath)) {
-    return addresses;
-  }
-
-  try {
-    const broadcast = JSON.parse(readFileSync(broadcastPath, "utf-8"));
-    if (broadcast.transactions && Array.isArray(broadcast.transactions)) {
-      for (const tx of broadcast.transactions) {
-        if (tx.contractName === "Less" && tx.contractAddress) {
-          addresses.less = tx.contractAddress;
-        }
-        if (tx.contractName === "LessRenderer" && tx.contractAddress) {
-          addresses.renderer = tx.contractAddress;
-        }
-      }
-    }
-  } catch (error) {
-    // Silently fail - this is just a fallback
-  }
-
-  return addresses;
-}
-
-// Deploy contracts directly using forge create (more reliable for forks)
-async function deployWithForgeCreate(rpcUrl, privateKey) {
-  const addresses = {};
-
-  log("Deploying contracts using forge create...", "yellow");
-
-  // Get constructor arguments from env
-  const strategy = env.STRATEGY_ADDRESS;
-  const mintPrice = env.MINT_PRICE || "10000000000000000";
-  const payoutRecipient = env.PAYOUT_RECIPIENT;
-  const owner = env.OWNER_ADDRESS;
-  const scriptyBuilder = env.SCRIPTY_BUILDER || "0xD7587F110E08F4D120A231bA97d3B577A81Df022";
-  const scriptyStorage = env.SCRIPTY_STORAGE || "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699";
-  const scriptName = env.SCRIPT_NAME || "less";
-  const baseImageURL = env.BASE_IMAGE_URL || "https://less.art/images/";
-
-  try {
-    // Step 1: Deploy Less contract
-    log("Deploying Less contract...", "gray");
-    const lessCmd = [
-      "forge create contracts/Less.sol:Less",
-      `--rpc-url ${rpcUrl}`,
-      `--private-key ${privateKey}`,
-      "--legacy",
-      "--broadcast",
-      "--constructor-args",
-      strategy,
-      mintPrice,
-      payoutRecipient,
-      owner,
-    ].join(" ");
-
-    const lessResult = execSync(lessCmd, {
-      cwd: rootDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-    });
-
-    // Extract deployed address from forge create output
-    // Format: "Deployed to: 0x..." or "Deployer: 0x..." / "Deployed to: 0x..."
-    const lessAddressMatch = lessResult.match(/Deployed to:\s*(0x[a-fA-F0-9]{40})/i);
-    if (!lessAddressMatch) {
-      logError("Failed to extract Less contract address from forge create output");
-      console.log(lessResult);
-      return null;
-    }
-    addresses.less = lessAddressMatch[1];
-    logSuccess(`Less deployed at: ${addresses.less}`);
-
-    // Step 2: Deploy LessRenderer contract
-    log("Deploying LessRenderer contract...", "gray");
-    const rendererCmd = [
-      "forge create contracts/LessRenderer.sol:LessRenderer",
-      `--rpc-url ${rpcUrl}`,
-      `--private-key ${privateKey}`,
-      "--legacy",
-      "--broadcast",
-      "--constructor-args",
-      addresses.less,
-      scriptyBuilder,
-      scriptyStorage,
-      `"${scriptName}"`,
-      `"${baseImageURL}"`,
-      owner,
-    ].join(" ");
-
-    const rendererResult = execSync(rendererCmd, {
-      cwd: rootDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-    });
-
-    const rendererAddressMatch = rendererResult.match(/Deployed to:\s*(0x[a-fA-F0-9]{40})/i);
-    if (!rendererAddressMatch) {
-      logError("Failed to extract LessRenderer contract address from forge create output");
-      console.log(rendererResult);
-      return null;
-    }
-    addresses.renderer = rendererAddressMatch[1];
-    logSuccess(`LessRenderer deployed at: ${addresses.renderer}`);
-
-    // Step 3: Call setRenderer on Less contract
-    // The owner needs to call this - on Anvil we can impersonate the account
-    log("Setting renderer on Less contract...", "gray");
-
-    // Encode the setRenderer call: selector 0x56d3163d + padded address
-    const rendererAddressPadded = addresses.renderer.toLowerCase().replace("0x", "").padStart(64, "0");
-    const setRendererCalldata = `0x56d3163d${rendererAddressPadded}`;
-
+function execWithRetry(cmd, options = {}, maxRetries = 3) {
+  const { silent = false } = options;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // First, impersonate the owner account on Anvil
-      log("Impersonating owner account...", "gray");
-      execSync(
-        `cast rpc anvil_impersonateAccount ${owner} --rpc-url ${rpcUrl}`,
-        { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
-      );
-
-      // Now send the transaction from the impersonated account
-      // Use function signature with single quotes (shell-safe)
-      const setRendererCmd = `cast send --rpc-url ${rpcUrl} --unlocked --from ${owner} --legacy ${addresses.less} 'setRenderer(address)' ${addresses.renderer}`;
-
-      execSync(setRendererCmd, {
+      return execSync(cmd, {
         cwd: rootDir,
         encoding: "utf-8",
-        stdio: "pipe",
+        stdio: silent ? "pipe" : "inherit",
       });
-
-      // Stop impersonating
-      execSync(
-        `cast rpc anvil_stopImpersonatingAccount ${owner} --rpc-url ${rpcUrl}`,
-        { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
-      );
-
-      logSuccess("Renderer set on Less contract");
-    } catch (setRendererError) {
-      // Try alternative: if owner is Anvil's first account, use its private key
-      logWarning(`setRenderer with impersonation failed, trying alternative...`);
-
-      const anvilFirstAccount = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".toLowerCase();
-      if (owner.toLowerCase() === anvilFirstAccount) {
-        const altCmd = `cast send --rpc-url ${rpcUrl} --private-key ${privateKey} --legacy ${addresses.less} 'setRenderer(address)' ${addresses.renderer}`;
-
-        execSync(altCmd, {
-          cwd: rootDir,
-          encoding: "utf-8",
-          stdio: "pipe",
-        });
-        logSuccess("Renderer set on Less contract");
-      } else {
-        // Log the error but continue - user may need to manually set renderer
-        logWarning(`Could not set renderer automatically. Owner ${owner} is not the deployer.`);
-        logWarning(`You may need to manually call setRenderer(${addresses.renderer}) on ${addresses.less}`);
+    } catch (error) {
+      if (error.message?.includes("socket") && attempt < maxRetries) {
+        log(`  Retry ${attempt}/${maxRetries}...`, "yellow");
+        execSync("sleep 2");
+        continue;
       }
+      throw error;
     }
+  }
+}
 
-    return addresses;
-  } catch (error) {
-    logError(`Deployment failed: ${error.message}`);
-    if (error.stdout) console.log(error.stdout);
-    if (error.stderr) console.log(error.stderr);
+function extractAddress(output) {
+  const match = output.match(/Deployed to:\s*(0x[a-fA-F0-9]{40})/i);
+  return match ? match[1] : null;
+}
+
+function extractTxHash(output) {
+  const match = output.match(/Transaction hash:\s*(0x[a-fA-F0-9]{64})/i);
+  return match ? match[1] : null;
+}
+
+// Fetch ETH price for USD estimates
+async function getEthPrice() {
+  try {
+    const result = execSync(
+      'curl -s "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd" 2>/dev/null',
+      { encoding: "utf-8", timeout: 5000 }
+    );
+    const data = JSON.parse(result);
+    return data.ethereum?.usd || null;
+  } catch {
     return null;
   }
 }
 
-// Send transactions from broadcast JSON using cast send (for forks) - LEGACY FALLBACK
-async function sendBroadcastTransactions(rpcUrl, privateKey) {
-  // Try both run-latest.json and dry-run/run-latest.json
-  let broadcastPath = join(rootDir, "broadcast/Deploy.s.sol/1/run-latest.json");
-
-  if (!existsSync(broadcastPath)) {
-    broadcastPath = join(
-      rootDir,
-      "broadcast/Deploy.s.sol/1/dry-run/run-latest.json"
-    );
+// Format gas cost for display
+function formatGasCost(gasUsed, gasPriceGwei, ethPrice) {
+  const ethCost = (gasUsed * gasPriceGwei) / 1e9;
+  let msg = `${gasUsed.toLocaleString()} gas (~${ethCost.toFixed(6)} ETH`;
+  if (ethPrice) {
+    msg += ` / $${(ethCost * ethPrice).toFixed(2)}`;
   }
-
-  if (!existsSync(broadcastPath)) {
-    return false;
-  }
-
-  try {
-    const broadcast = JSON.parse(readFileSync(broadcastPath, "utf-8"));
-    if (!broadcast.transactions || !Array.isArray(broadcast.transactions)) {
-      return false;
-    }
-
-    log("Sending transactions manually using cast send...", "yellow");
-    const deployedAddresses = {};
-
-    for (const tx of broadcast.transactions) {
-      if (tx.hash && tx.hash !== null) {
-        // Transaction already sent, skip
-        continue;
-      }
-
-      if (!tx.transaction) {
-        continue;
-      }
-
-      const txData = tx.transaction;
-      // Contract creation: transaction has no 'to' field (or 'to' is null/empty)
-      // Function call: transaction has a 'to' field pointing to an existing contract
-      const isContractCreation =
-        !txData.to ||
-        txData.to === null ||
-        txData.to === "0x" ||
-        txData.to === "";
-
-      // Build cast send command
-      let cmd;
-
-      // Build common options
-      const value =
-        txData.value && txData.value !== "0x0" && txData.value !== "0"
-          ? txData.value.startsWith("0x")
-            ? parseInt(txData.value, 16).toString()
-            : txData.value
-          : "0";
-
-      if (isContractCreation) {
-        // Contract creation: cast send --create <CODE>
-        const opts = [
-          `--private-key ${privateKey}`,
-          `--rpc-url ${rpcUrl}`,
-          "--legacy",
-        ];
-        if (value !== "0") opts.push(`--value ${value}`);
-
-        cmd = ["cast send", ...opts, "--create", txData.input].join(" ");
-      } else {
-        // Function call: use raw calldata with --data to avoid shell quoting issues
-        const targetAddress = txData.to;
-        const fromAddress = txData.from;
-
-        // Check if sender is the deployer (has private key) or needs impersonation
-        const deployerAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".toLowerCase();
-        const isDeployer = fromAddress.toLowerCase() === deployerAddress;
-
-        const opts = [`--rpc-url ${rpcUrl}`, "--legacy"];
-
-        if (isDeployer) {
-          opts.push(`--private-key ${privateKey}`);
-        } else {
-          // Use --unlocked to impersonate on Anvil
-          opts.push("--unlocked", `--from ${fromAddress}`);
-        }
-
-        if (value !== "0") opts.push(`--value ${value}`);
-
-        // Use --data with raw calldata (avoids shell quoting issues with function signatures)
-        cmd = ["cast send", ...opts, targetAddress, `--data ${txData.input}`].join(" ");
-      }
-
-      try {
-        log(`Sending ${tx.contractName || "transaction"}...`, "gray");
-        const result = execSync(cmd, {
-          cwd: rootDir,
-          encoding: "utf-8",
-          stdio: "pipe",
-        });
-
-        // Extract transaction hash from result
-        const txHashMatch = result.match(/0x[a-fA-F0-9]{64}/);
-        if (txHashMatch && isContractCreation) {
-          const txHash = txHashMatch[0];
-          // Get the transaction receipt to find the contract address
-          try {
-            const receipt = execSync(
-              `cast receipt ${txHash} --rpc-url ${rpcUrl} --json`,
-              { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
-            );
-            const receiptJson = JSON.parse(receipt);
-            if (receiptJson.contractAddress) {
-              deployedAddresses[tx.contractName] = receiptJson.contractAddress;
-              log(
-                `✓ ${tx.contractName || "Contract"} deployed at ${receiptJson.contractAddress}`,
-                "green"
-              );
-            } else {
-              log(`✓ ${tx.contractName || "Transaction"} sent`, "green");
-            }
-          } catch (receiptError) {
-            log(`✓ ${tx.contractName || "Transaction"} sent`, "green");
-          }
-        } else {
-          log(`✓ ${tx.contractName || "Transaction"} sent`, "green");
-        }
-      } catch (error) {
-        logError(
-          `Failed to send ${tx.contractName || "transaction"}: ${error.message}`
-        );
-        if (error.stderr) console.log(error.stderr);
-        return false;
-      }
-    }
-
-    // Wait a moment for transactions to be mined
-    log("Waiting for transactions to be mined...", "gray");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    return deployedAddresses;
-  } catch (error) {
-    logError(`Failed to parse broadcast JSON: ${error.message}`);
-    return false;
-  }
+  msg += ")";
+  return msg;
 }
 
+async function waitForTx(txHash, rpcUrl, maxWait = 180) {
+  log(`  Waiting for tx: ${txHash.slice(0, 10)}...`, "gray");
+  const start = Date.now();
+  while ((Date.now() - start) / 1000 < maxWait) {
+    try {
+      const result = execSync(
+        `cast receipt ${txHash} --rpc-url "${rpcUrl}" --json`,
+        { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
+      );
+      const receipt = JSON.parse(result);
+      if (receipt.status === "0x1") {
+        logSuccess(`Confirmed in block ${parseInt(receipt.blockNumber, 16)}`);
+        return receipt;
+      } else {
+        logError("Transaction reverted");
+        return null;
+      }
+    } catch {
+      process.stdout.write(".");
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+  logWarning("Confirmation timeout");
+  return null;
+}
+
+// ============================================================
 // Step 1: Bundle JavaScript
-async function bundleScript() {
+// ============================================================
+
+async function stepBundle() {
   if (skipBundle) {
-    logWarning("Skipping bundle step");
-    return;
+    logWarning("Skipping bundle");
+    return true;
   }
 
-  logStep("1/3", "Bundling JavaScript for on-chain deployment");
+  logStep("1/4", "Bundle JavaScript");
+
+  const entryPoint = join(rootDir, "web/onchain/index.js");
+  const outputPath = join(rootDir, "web/onchain/bundled.js");
+
+  if (!existsSync(entryPoint)) {
+    logError(`Entry point not found: ${entryPoint}`);
+    return false;
+  }
+
+  if (dryRun) {
+    logInfo("DRY RUN: Would bundle JavaScript");
+    return true;
+  }
 
   try {
-    // Dynamic import for esbuild (ES module)
-    let esbuild;
-    try {
-      esbuild = await import("esbuild");
-    } catch (e) {
-      logError("esbuild not found. Installing...");
-      execSync("npm install --save-dev esbuild", {
-        cwd: rootDir,
-        stdio: "inherit",
-      });
-      esbuild = await import("esbuild");
-    }
-
-    const entryPoint = join(rootDir, "web/onchain/index.js");
-    const outputPath = join(rootDir, "web/onchain/bundled.js");
-
-    if (!existsSync(entryPoint)) {
-      logError(`Entry point not found: ${entryPoint}`);
-      process.exit(1);
-    }
-
-    log("Bundling JavaScript...", "gray");
-
+    const esbuild = await import("esbuild");
     await esbuild.default.build({
       entryPoints: [entryPoint],
       bundle: true,
-      format: "iife",  // Use IIFE for inline <script> tags (not ESM)
+      format: "iife",
       platform: "browser",
       outfile: outputPath,
       minify: true,
       sourcemap: false,
       target: "es2020",
-      define: {
-        "process.env.NODE_ENV": '"production"',
-      },
     });
 
-    const bundleSize = readFileSync(outputPath, "utf-8").length;
-    logSuccess(
-      `Bundle created: ${outputPath} (${(bundleSize / 1024).toFixed(2)} KB)`
-    );
-  } catch (error) {
-    logError(`Bundle failed: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-// Check if RPC endpoint is available
-async function checkRpcConnection() {
-  if (isFork) {
-    try {
-      const response = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "eth_blockNumber",
-          params: [],
-        }),
-      });
-      const data = await response.json();
-      if (data.result) {
-        return true;
-      }
-    } catch (error) {
-      return false;
-    }
-  }
-  return true; // Assume mainnet RPC is available
-}
-
-// Upload script directly using cast send (for forks)
-async function uploadScriptDirect(rpcUrl, privateKey) {
-  const scriptyStorage = env.SCRIPTY_STORAGE || "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699";
-  const scriptName = env.SCRIPT_NAME || "less";
-  const scriptPath = join(rootDir, "web/onchain/bundled.js");
-
-  log(`Uploading script "${scriptName}" to ScriptyStorage...`, "yellow");
-
-  const scriptContent = readFileSync(scriptPath, "utf-8");
-  const scriptBytes = Buffer.from(scriptContent, "utf-8");
-  const scriptHex = "0x" + scriptBytes.toString("hex");
-
-  log(`Script size: ${scriptBytes.length} bytes`, "gray");
-
-  try {
-    // Step 1: Create content entry
-    // Function: createContent(string name, bytes details)
-    // Selector: 0x56c3163d... let me calculate it
-    log("Creating content entry...", "gray");
-
-    // Encode createContent(string,bytes) call
-    const createContentCmd = `cast send --rpc-url ${rpcUrl} --private-key ${privateKey} --legacy ${scriptyStorage} 'createContent(string,bytes)' "${scriptName}" "0x"`;
-
-    try {
-      execSync(createContentCmd, { cwd: rootDir, encoding: "utf-8", stdio: "pipe" });
-      logSuccess("Content entry created");
-    } catch (error) {
-      // May fail if content already exists, continue anyway
-      logWarning("Content entry may already exist, continuing...");
-    }
-
-    // Step 2: Upload script in chunks (max ~24KB per chunk due to gas limits)
-    const maxChunkSize = 24000;
-    const totalChunks = Math.ceil(scriptBytes.length / maxChunkSize);
-
-    log(`Uploading in ${totalChunks} chunk(s)...`, "gray");
-
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * maxChunkSize;
-      const end = Math.min(start + maxChunkSize, scriptBytes.length);
-      const chunk = scriptBytes.slice(start, end);
-      const chunkHex = "0x" + chunk.toString("hex");
-
-      log(`  Uploading chunk ${i + 1}/${totalChunks} (${chunk.length} bytes)...`, "gray");
-
-      const addChunkCmd = `cast send --rpc-url ${rpcUrl} --private-key ${privateKey} --legacy ${scriptyStorage} 'addChunkToContent(string,bytes)' "${scriptName}" ${chunkHex}`;
-
-      execSync(addChunkCmd, { cwd: rootDir, encoding: "utf-8", stdio: "pipe" });
-    }
-
-    logSuccess("Script uploaded to ScriptyStorage");
-
-    // Verify upload
-    log("Verifying upload...", "gray");
-    try {
-      const verifyCmd = `cast call ${scriptyStorage} 'getContent(string,bytes)(bytes)' "${scriptName}" "0x" --rpc-url ${rpcUrl}`;
-      const result = execSync(verifyCmd, { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }).trim();
-
-      if (result && result !== "0x" && result.length > 10) {
-        logSuccess(`Verified: Script stored (${(result.length - 2) / 2} bytes)`);
-      } else {
-        logWarning("Verification returned empty - upload may have failed");
-      }
-    } catch (error) {
-      logWarning(`Could not verify upload: ${error.message}`);
-    }
-
+    const size = readFileSync(outputPath).length;
+    logSuccess(`Bundle created: ${(size / 1024).toFixed(2)} KB`);
     return true;
   } catch (error) {
-    logError(`Upload failed: ${error.message}`);
+    logError(`Bundle failed: ${error.message}`);
     return false;
   }
 }
 
+// ============================================================
 // Step 2: Upload to ScriptyStorage
-async function uploadScript() {
+// ============================================================
+
+async function stepUpload(network, rpcUrl, privateKey) {
   if (skipUpload) {
-    logWarning("Skipping upload step");
-    return;
+    logWarning("Skipping upload");
+    return true;
   }
 
-  logStep("2/3", "Uploading script to ScriptyStorage");
+  logStep("2/4", "Upload to ScriptyStorage");
 
   const scriptPath = join(rootDir, "web/onchain/bundled.js");
   if (!existsSync(scriptPath)) {
-    logError(`Bundled script not found: ${scriptPath}`);
-    logError("Run without --skip-bundle first");
-    process.exit(1);
+    logError("Bundled script not found");
+    return false;
   }
 
-  // Check RPC connection for fork
-  if (isFork) {
-    log("Checking RPC connection...", "gray");
-    const rpcAvailable = await checkRpcConnection();
-    if (!rpcAvailable) {
-      logError(`Cannot connect to RPC at ${rpcUrl}`);
-      logError(
-        "Please start a fork node (e.g., `anvil --fork-url $MAINNET_RPC_URL`)"
-      );
-      process.exit(1);
-    }
-    logSuccess("RPC connection OK");
+  const scriptName = env.SCRIPT_NAME || (network.useMockLess ? `less-${networkName}` : "less");
+  const scriptBytes = readFileSync(scriptPath);
+  const chunkSize = 24000;
+  const numChunks = Math.ceil(scriptBytes.length / chunkSize);
 
-    // Use direct upload for forks (forge script --broadcast doesn't work)
-    const forkPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    const success = await uploadScriptDirect(rpcUrl, forkPrivateKey);
-    if (!success) {
-      logError("Upload failed");
-      process.exit(1);
+  logInfo(`Script: ${scriptName}`);
+  logInfo(`Size: ${scriptBytes.length} bytes (${numChunks} chunks)`);
+  logInfo(`Storage: ${network.scriptyStorage}`);
+
+  // Estimate gas for upload
+  log("\n  Estimating upload costs...", "gray");
+  let totalGas = 0;
+  let gasPriceGwei = null;
+  let ethPrice = null;
+
+  try {
+    // Get gas price
+    const gasPriceWei = execSync(
+      `cast gas-price --rpc-url "${rpcUrl}"`,
+      { encoding: "utf-8", stdio: "pipe" }
+    ).trim();
+    gasPriceGwei = Number(BigInt(gasPriceWei)) / 1e9;
+
+    // Estimate createContent gas
+    try {
+      const createGas = execSync(
+        `cast estimate --rpc-url "${rpcUrl}" ${network.scriptyStorage} "createContent(string,bytes)" "${scriptName}" "0x"`,
+        { encoding: "utf-8", stdio: "pipe" }
+      ).trim();
+      totalGas += parseInt(createGas);
+    } catch {
+      totalGas += 100000; // Fallback estimate
     }
-    return;
+
+    // Estimate gas for each chunk
+    for (let i = 0; i < numChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, scriptBytes.length);
+      const chunk = scriptBytes.slice(start, end);
+      const chunkHex = "0x" + chunk.toString("hex");
+
+      try {
+        const chunkGas = execSync(
+          `cast estimate --rpc-url "${rpcUrl}" ${network.scriptyStorage} "addChunkToContent(string,bytes)" "${scriptName}" ${chunkHex}`,
+          { encoding: "utf-8", stdio: "pipe" }
+        ).trim();
+        totalGas += parseInt(chunkGas);
+      } catch {
+        totalGas += 500000; // Fallback per chunk
+      }
+    }
+
+    ethPrice = await getEthPrice();
+
+    const ethCost = (totalGas * gasPriceGwei) / 1e9;
+    log("\n  Upload Cost Estimate:", "cyan");
+    logInfo(`Transactions: ${numChunks + 1} (1 create + ${numChunks} chunks)`);
+    logInfo(`Total gas: ${totalGas.toLocaleString()}`);
+    logInfo(`Gas price: ${gasPriceGwei.toFixed(2)} gwei`);
+    logInfo(`ETH: ${ethCost.toFixed(6)} ETH`);
+    if (ethPrice) {
+      log(`  USD: ~$${(ethCost * ethPrice).toFixed(2)} (at $${ethPrice}/ETH)`, "yellow");
+    }
+    log("", "reset");
+  } catch (error) {
+    logWarning(`Gas estimation failed: ${error.message}`);
   }
 
-  if (!isFork) {
-    const confirmed = await askConfirmation(
-      `\nReady to upload script to ${network}. This will cost gas. Continue?`
+  if (dryRun) {
+    logInfo("DRY RUN: Skipping actual upload");
+    return true;
+  }
+
+  if (!autoYes && !await confirm("Proceed with upload?")) {
+    return false;
+  }
+
+  // Create content entry
+  log("\n  Creating content entry...", "gray");
+  try {
+    execWithRetry(
+      `cast send --rpc-url "${rpcUrl}" --private-key ${privateKey} ${network.scriptyStorage} "createContent(string,bytes)" "${scriptName}" "0x"`,
+      { silent: true }
     );
-    if (!confirmed) {
-      log("Upload cancelled", "yellow");
-      process.exit(0);
+    logSuccess("Content entry created");
+  } catch {
+    logWarning("Content may already exist, continuing...");
+  }
+
+  // Upload chunks
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, scriptBytes.length);
+    const chunk = scriptBytes.slice(start, end);
+    const chunkHex = "0x" + chunk.toString("hex");
+
+    log(`  Uploading chunk ${i + 1}/${numChunks} (${chunk.length} bytes)...`, "gray");
+
+    try {
+      const result = execWithRetry(
+        `cast send --rpc-url "${rpcUrl}" --private-key ${privateKey} ${network.scriptyStorage} "addChunkToContent(string,bytes)" "${scriptName}" ${chunkHex}`,
+        { silent: true }
+      );
+
+      if (network.confirmations) {
+        const txHash = extractTxHash(result);
+        if (txHash) await waitForTx(txHash, rpcUrl);
+      }
+      logSuccess(`Chunk ${i + 1}/${numChunks} uploaded`);
+    } catch (error) {
+      logError(`Chunk ${i + 1} failed: ${error.message}`);
+      return false;
     }
+  }
+
+  logSuccess("Upload complete");
+  return true;
+}
+
+// ============================================================
+// Step 3: Deploy Contracts
+// ============================================================
+
+async function stepDeploy(network, rpcUrl, privateKey) {
+  if (skipDeploy) {
+    logWarning("Skipping deployment");
+    return null;
+  }
+
+  logStep("3/4", "Deploy Contracts");
+
+  logInfo(`Network: ${networkName}`);
+  logInfo(`Using MockLess: ${network.useMockLess}`);
+
+  // Run simulation to get gas estimates
+  log("\n  Simulating deployment...", "gray");
+
+  let gasEstimate = null;
+  let gasPriceGwei = null;
+  let ethPrice = null;
+
+  try {
+    const simCmd = [
+      "forge script script/Deploy.s.sol:Deploy",
+      `--rpc-url "${rpcUrl}"`,
+      `--private-key ${privateKey}`,
+      "-vvv",
+    ].join(" ");
+
+    const simResult = execWithRetry(simCmd, { silent: true });
+
+    // Parse gas estimates
+    const gasMatch = simResult.match(/Estimated total gas used for script:\s*([\d,]+)/);
+    const gasPriceMatch = simResult.match(/Estimated gas price:\s*([\d.]+)\s*gwei/);
+
+    if (gasMatch) gasEstimate = parseInt(gasMatch[1].replace(/,/g, ""));
+    if (gasPriceMatch) gasPriceGwei = parseFloat(gasPriceMatch[1]);
+
+    // Get current ETH price
+    ethPrice = await getEthPrice();
+
+    if (gasEstimate && gasPriceGwei) {
+      const ethCost = (gasEstimate * gasPriceGwei) / 1e9;
+      log("\n  Deployment Cost Estimate:", "cyan");
+      logInfo(`Gas: ${gasEstimate.toLocaleString()}`);
+      logInfo(`Gas price: ${gasPriceGwei.toFixed(2)} gwei`);
+      logInfo(`ETH: ${ethCost.toFixed(6)} ETH`);
+      if (ethPrice) {
+        log(`  USD: ~$${(ethCost * ethPrice).toFixed(2)} (at $${ethPrice}/ETH)`, "yellow");
+      }
+      log("", "reset");
+    }
+  } catch (error) {
+    logWarning(`Simulation failed: ${error.message}`);
+  }
+
+  if (dryRun) {
+    logInfo("DRY RUN: Skipping actual deployment");
+    return { less: "0xDRY_RUN", renderer: "0xDRY_RUN" };
+  }
+
+  if (!autoYes && !await confirm("Proceed with deployment?")) {
+    return null;
   }
 
   try {
-    log("Running upload script...", "gray");
+    log("\n  Broadcasting transactions...", "gray");
 
     const forgeCmd = [
-      "forge script script/UploadScript.s.sol",
-      "--tc UploadScript",
-      `--rpc-url ${rpcUrl}`,
+      "forge script script/Deploy.s.sol:Deploy",
+      `--rpc-url "${rpcUrl}"`,
+      `--private-key ${privateKey}`,
       "--broadcast",
       "-vvv",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    ].join(" ");
 
-    let output;
-    let success = false;
-    try {
-      output = execSync(forgeCmd, {
-        cwd: rootDir,
-        encoding: "utf-8",
-        stdio: "pipe",
-      });
-      success = true;
-    } catch (error) {
-      output = error.stdout || error.stderr || error.message;
+    const result = execWithRetry(forgeCmd, { silent: true });
 
-      if (
-        output.includes("Script ran successfully") ||
-        output.includes("SUCCESS: Script uploaded successfully") ||
-        output.includes("=== Upload Complete ===")
-      ) {
-        success = true;
+    // Extract addresses from output
+    const lessMatch = result.match(/Less(?:Mock)?.*?deployed.*?:\s*(0x[a-fA-F0-9]{40})/i) ||
+                      result.match(/MockLess deployed at:\s*(0x[a-fA-F0-9]{40})/i) ||
+                      result.match(/Less deployed at:\s*(0x[a-fA-F0-9]{40})/i);
+    const rendererMatch = result.match(/LessRenderer deployed at:\s*(0x[a-fA-F0-9]{40})/i);
+
+    const addresses = {
+      less: lessMatch ? lessMatch[1] : null,
+      renderer: rendererMatch ? rendererMatch[1] : null,
+    };
+
+    if (!addresses.less || !addresses.renderer) {
+      // Try to extract from broadcast file
+      const broadcastPath = join(rootDir, `broadcast/Deploy.s.sol/${network.chainId}/run-latest.json`);
+      if (existsSync(broadcastPath)) {
+        const broadcast = JSON.parse(readFileSync(broadcastPath, "utf-8"));
+        for (const tx of broadcast.transactions || []) {
+          if (tx.contractName === "MockLess" || tx.contractName === "Less") {
+            addresses.less = tx.contractAddress;
+          }
+          if (tx.contractName === "LessRenderer") {
+            addresses.renderer = tx.contractAddress;
+          }
+        }
       }
     }
 
-    console.log(output);
+    if (addresses.less) logSuccess(`Less: ${addresses.less}`);
+    if (addresses.renderer) logSuccess(`Renderer: ${addresses.renderer}`);
 
-    if (
-      !success &&
-      (output.includes("Error: Compiler run failed") ||
-        output.includes("Error: script failed") ||
-        (output.includes("Revert") &&
-          !output.includes("Script ran successfully")))
-    ) {
-      logError(`Upload failed. Check the output above for details.`);
-      process.exit(1);
-    }
-
-    const txHash = extractTxHash(output);
-    if (txHash) {
-      const confirmed = await waitForTx(txHash, network);
-      if (!confirmed) {
-        logWarning("Transaction confirmation failed. Please verify manually.");
-      }
-    }
-
-    logSuccess("Script uploaded to ScriptyStorage");
+    return addresses;
   } catch (error) {
-    logError(`Upload failed: ${error.message}`);
-    process.exit(1);
+    logError(`Deployment failed: ${error.message}`);
+    if (error.stdout) console.log(error.stdout);
+    return null;
   }
 }
 
-// Step 3: Deploy contracts
-async function deployContracts() {
-  if (skipDeploy) {
-    logWarning("Skipping deployment step");
+// ============================================================
+// Step 4: Verify Contracts
+// ============================================================
+
+async function stepVerify(network, addresses) {
+  if (skipVerify || !network.verify) {
+    if (!network.verify) logInfo("Verification not available for this network");
+    else logWarning("Skipping verification");
     return;
   }
 
-  logStep("3/3", "Deploying contracts");
-
-  // Verify required environment variables
-  const required = ["STRATEGY_ADDRESS", "PAYOUT_RECIPIENT", "OWNER_ADDRESS"];
-  const missing = required.filter((key) => !env[key] || env[key].trim() === "");
-
-  if (missing.length > 0) {
-    logError(`Missing required environment variables: ${missing.join(", ")}`);
-    logError("");
-    logError("To deploy contracts, you need to set these in your .env file:");
-    missing.forEach((key) => {
-      logError(`  ${key}=0x...`);
-    });
-    logError("");
-    logError("Example .env file:");
-    logError("  STRATEGY_ADDRESS=0x1234567890123456789012345678901234567890");
-    logError("  PAYOUT_RECIPIENT=0x1234567890123456789012345678901234567890");
-    logError("  OWNER_ADDRESS=0x1234567890123456789012345678901234567890");
-    logError("");
-    logError("Or skip deployment with: --skip-deploy");
-    logError("Or test upload only: node scripts/deploy.js --skip-deploy");
-    process.exit(1);
+  if (!env.ETHERSCAN_API_KEY) {
+    logWarning("ETHERSCAN_API_KEY not set, skipping verification");
+    return;
   }
 
-  // Validate that addresses are valid (start with 0x and are 42 chars)
-  const invalid = required.filter((key) => {
-    const value = env[key];
-    return value && (!value.startsWith("0x") || value.length !== 42);
-  });
+  logStep("4/4", "Verify Contracts on Etherscan");
 
-  if (invalid.length > 0) {
-    logError(`Invalid address format for: ${invalid.join(", ")}`);
-    logError(
-      "Addresses must start with 0x and be 42 characters long (0x + 40 hex chars)"
-    );
-    invalid.forEach((key) => {
-      logError(`  ${key}=${env[key]} (length: ${env[key].length})`);
-    });
-    process.exit(1);
+  if (dryRun) {
+    logInfo("DRY RUN: Would verify contracts on Etherscan");
+    return;
   }
 
-  if (!isFork) {
-    const confirmed = await askConfirmation(
-      `\nReady to deploy contracts to ${network}. This will cost gas. Continue?`
-    );
-    if (!confirmed) {
-      log("Deployment cancelled", "yellow");
-      process.exit(0);
-    }
-  }
+  const chainName = networkName === "mainnet" ? "mainnet" : "sepolia";
 
-  // For fork, use anvil's default private key
-  // Anvil's first account: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-  const forkPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+  // Verify Less/MockLess
+  if (addresses.less) {
+    log("\n  Verifying Less contract...", "gray");
+    try {
+      const contractName = network.useMockLess
+        ? "contracts/test/MockLess.sol:MockLess"
+        : "contracts/Less.sol:Less";
 
-  let addresses = {};
+      let cmd = `forge verify-contract ${addresses.less} ${contractName} --chain ${chainName} --watch`;
 
-  try {
-    if (isFork) {
-      // Use forge create for fork deployments (more reliable than forge script)
-      log("Using forge create for fork deployment...", "gray");
-      addresses = await deployWithForgeCreate(rpcUrl, forkPrivateKey);
-
-      if (!addresses) {
-        logError("Fork deployment failed");
-        process.exit(1);
-      }
-    } else {
-      // For mainnet, use forge script with --broadcast
-      log("Deploying contracts with forge script...", "gray");
-
-      const forgeCmd = [
-        "forge script script/Deploy.s.sol",
-        "--tc DeployScript",
-        `--rpc-url ${rpcUrl}`,
-        "--broadcast",
-        "-vvv",
-      ].join(" ");
-
-      // Prepare environment variables for Foundry
-      const forgeEnv = {
-        ...process.env,
-        ...env,
-      };
-
-      let output;
-      let success = false;
-      try {
-        output = execSync(forgeCmd, {
-          cwd: rootDir,
-          encoding: "utf-8",
-          stdio: "pipe",
-          env: forgeEnv,
-        });
-        success = true;
-      } catch (error) {
-        output = error.stdout || error.stderr || error.message;
-        if (
-          output.includes("Script ran successfully") ||
-          output.includes("Renderer set on Less contract") ||
-          output.includes("Less deployed at:")
-        ) {
-          success = true;
-        }
-      }
-
-      console.log(output);
-
-      if (
-        !success &&
-        (output.includes("Error: Compiler run failed") ||
-          output.includes("Error: script failed") ||
-          (output.includes("Revert") && !output.includes("Script ran successfully")))
-      ) {
-        logError(`Deployment failed. Check the output above for details.`);
-        process.exit(1);
-      }
-
-      addresses = extractAddresses(output);
-
-      // Fallback: try to extract from broadcast JSON
-      if (!addresses.less || !addresses.renderer) {
-        const broadcastAddresses = extractAddressesFromBroadcast();
-        if (broadcastAddresses.less && !addresses.less) {
-          addresses.less = broadcastAddresses.less;
-        }
-        if (broadcastAddresses.renderer && !addresses.renderer) {
-          addresses.renderer = broadcastAddresses.renderer;
-        }
-      }
-
-      // Wait for transaction confirmation
-      const txHash = extractTxHash(output);
-      if (txHash) {
-        const confirmed = await waitForTx(txHash, network);
-        if (!confirmed) {
-          logWarning("Transaction confirmation failed. Please verify manually.");
-        }
-      }
-    }
-
-    logSuccess("Contracts deployed successfully");
-
-    if (addresses.less) {
-      log(`Less NFT: ${addresses.less}`, "green");
-    } else {
-      logWarning("Could not extract Less contract address");
-    }
-
-    if (addresses.renderer) {
-      log(`LessRenderer: ${addresses.renderer}`, "green");
-    } else {
-      logWarning("Could not extract LessRenderer contract address");
-    }
-
-    // Verify contracts exist on fork
-    if (isFork && addresses.less) {
-      try {
-        const code = execSync(
-          `cast code ${addresses.less} --rpc-url ${rpcUrl}`,
-          { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
+      if (!network.useMockLess) {
+        const constructorArgs = execSync(
+          `cast abi-encode "constructor(address,uint256,address,address)" ${env.STRATEGY_ADDRESS} ${env.MINT_PRICE || "10000000000000000"} ${env.PAYOUT_RECIPIENT} ${env.OWNER_ADDRESS}`,
+          { encoding: "utf-8", cwd: rootDir }
         ).trim();
-        if (!code || code === "0x") {
-          logError(`Less contract at ${addresses.less} does not exist on fork`);
-          process.exit(1);
-        } else {
-          logSuccess(`Verified Less contract exists on fork`);
-        }
-
-        // Also verify renderer is set
-        const rendererResult = execSync(
-          `cast call ${addresses.less} "renderer()(address)" --rpc-url ${rpcUrl}`,
-          { cwd: rootDir, encoding: "utf-8", stdio: "pipe" }
-        ).trim();
-        if (rendererResult.toLowerCase() === addresses.renderer.toLowerCase()) {
-          logSuccess(`Verified renderer is correctly set to ${addresses.renderer}`);
-        } else {
-          logWarning(`Renderer mismatch: expected ${addresses.renderer}, got ${rendererResult}`);
-        }
-      } catch (error) {
-        logWarning(`Could not verify contract: ${error.message}`);
+        cmd += ` --constructor-args ${constructorArgs}`;
       }
+
+      execWithRetry(cmd);
+      logSuccess("Less verified");
+    } catch (error) {
+      logWarning(`Less verification failed: ${error.message}`);
     }
+  }
 
-    // Save deployment info
-    const deploymentInfo = {
-      network,
-      timestamp: new Date().toISOString(),
-      addresses,
-      scriptName: env.SCRIPT_NAME || "less",
-      scriptyStorage: env.SCRIPTY_STORAGE,
-      scriptyBuilder: env.SCRIPTY_BUILDER,
-    };
+  // Verify Renderer
+  if (addresses.renderer) {
+    log("\n  Verifying LessRenderer...", "gray");
+    try {
+      const scriptName = env.SCRIPT_NAME || (network.useMockLess ? `less-${networkName}` : "less");
+      const baseImageURL = env.BASE_IMAGE_URL || "https://less.art/images/";
+      const owner = env.OWNER_ADDRESS || addresses.less; // Fallback
 
-    const infoPath = join(rootDir, `deployment-${network}.json`);
-    writeFileSync(infoPath, JSON.stringify(deploymentInfo, null, 2));
-    log(`Deployment info saved to: ${infoPath}`, "gray");
-  } catch (error) {
-    logError(`Deployment failed: ${error.message}`);
-    process.exit(1);
+      const constructorArgs = execSync(
+        `cast abi-encode "constructor(address,address,address,string,string,address)" ${addresses.less} ${network.scriptyBuilder} ${network.scriptyStorage} "${scriptName}" "${baseImageURL}" ${owner}`,
+        { encoding: "utf-8", cwd: rootDir }
+      ).trim();
+
+      execWithRetry(
+        `forge verify-contract ${addresses.renderer} contracts/LessRenderer.sol:LessRenderer --chain ${chainName} --constructor-args ${constructorArgs} --watch`
+      );
+      logSuccess("LessRenderer verified");
+    } catch (error) {
+      logWarning(`LessRenderer verification failed: ${error.message}`);
+    }
   }
 }
 
-// Main execution
-async function main() {
-  log("\n" + "=".repeat(60), "bright");
-  log("  Less NFT Deployment Script", "bright");
-  log("=".repeat(60) + "\n", "bright");
+// ============================================================
+// Main
+// ============================================================
 
-  log(`Network: ${network}`, "cyan");
-  log(`RPC URL: ${rpcUrl}`, "gray");
-  log(`Fork mode: ${isFork ? "Yes" : "No"}`, "gray");
+async function main() {
+  console.log(`
+${c.bright}╔════════════════════════════════════════════════════════╗
+║           LESS NFT - UNIFIED DEPLOYMENT                ║
+╚════════════════════════════════════════════════════════╝${c.reset}
+`);
+
+  // Validate network
+  if (!networkName || !NETWORKS[networkName]) {
+    logError("Usage: node scripts/deploy.js --network <mainnet|sepolia|local> [options]");
+    logError("");
+    logError("Options:");
+    logError("  --skip-bundle    Skip JS bundling");
+    logError("  --skip-upload    Skip ScriptyStorage upload");
+    logError("  --skip-deploy    Skip contract deployment");
+    logError("  --skip-verify    Skip Etherscan verification");
+    logError("  --dry-run        Preview without executing");
+    logError("  --yes            Skip confirmation prompts");
+    process.exit(1);
+  }
+
+  const network = NETWORKS[networkName];
+
+  if (dryRun) {
+    log("DRY RUN MODE - No transactions will be sent\n", "magenta");
+  }
+
+  // Get RPC URL
+  const rpcUrl = network.rpcUrl || env[network.rpcEnvVar];
+  if (!rpcUrl && !skipDeploy && !skipUpload) {
+    logError(`${network.rpcEnvVar} not set in .env`);
+    process.exit(1);
+  }
+
+  // Get private key
+  const privateKey = env.PRIVATE_KEY;
+  if (!privateKey && !skipDeploy && !skipUpload && !dryRun) {
+    logError("PRIVATE_KEY not set in .env");
+    process.exit(1);
+  }
+
+  // Get deployer address
+  let deployerAddress = "unknown";
+  let balance = 0;
+  if (privateKey) {
+    try {
+      deployerAddress = execSync(`cast wallet address --private-key ${privateKey}`, {
+        encoding: "utf-8",
+        stdio: "pipe",
+      }).trim();
+      const balanceWei = execSync(`cast balance ${deployerAddress} --rpc-url "${rpcUrl}"`, {
+        encoding: "utf-8",
+        stdio: "pipe",
+      }).trim();
+      balance = Number(BigInt(balanceWei)) / 1e18;
+    } catch {}
+  }
+
+  // Display configuration
+  log(`Network:     ${networkName}`, "gray");
+  log(`Chain ID:    ${network.chainId}`, "gray");
+  log(`Deployer:    ${deployerAddress}`, "gray");
+  log(`Balance:     ${balance.toFixed(4)} ETH`, balance < 0.1 ? "yellow" : "gray");
+  log(`Mock Mode:   ${network.useMockLess}`, "gray");
+  log(`Verify:      ${network.verify && !skipVerify}`, "gray");
   log("");
 
-  try {
-    await bundleScript();
-    await uploadScript();
-    await deployContracts();
+  // Execute steps (each step has its own confirmation with gas estimates)
+  const bundled = await stepBundle();
+  if (!bundled && !skipBundle) process.exit(1);
 
-    log("\n" + "=".repeat(60), "green");
-    log("  Deployment Complete!", "green");
-    log("=".repeat(60) + "\n", "green");
-  } catch (error) {
-    logError(`\nDeployment failed: ${error.message}`);
-    process.exit(1);
+  const uploaded = await stepUpload(network, rpcUrl, privateKey);
+  if (!uploaded && !skipUpload) process.exit(1);
+
+  const addresses = await stepDeploy(network, rpcUrl, privateKey);
+  if (!addresses && !skipDeploy) process.exit(1);
+
+  if (addresses) {
+    await stepVerify(network, addresses);
+
+    // Save deployment info
+    if (!dryRun) {
+      const deploymentInfo = {
+        network: networkName,
+        chainId: network.chainId,
+        timestamp: new Date().toISOString(),
+        contracts: addresses,
+        config: {
+          scriptyStorage: network.scriptyStorage,
+          scriptyBuilder: network.scriptyBuilder,
+          scriptName: env.SCRIPT_NAME || `less-${networkName}`,
+          useMockLess: network.useMockLess,
+        },
+      };
+
+      const infoPath = join(rootDir, `deployment-${networkName}.json`);
+      writeFileSync(infoPath, JSON.stringify(deploymentInfo, null, 2));
+      log(`\nDeployment saved to: ${infoPath}`, "gray");
+    }
+  }
+
+  console.log(`
+${c.green}╔════════════════════════════════════════════════════════╗
+║                 DEPLOYMENT COMPLETE                    ║
+╚════════════════════════════════════════════════════════╝${c.reset}
+`);
+
+  if (addresses) {
+    log(`Less:     ${addresses.less}`, "green");
+    log(`Renderer: ${addresses.renderer}`, "green");
+
+    if (networkName !== "local") {
+      const explorer = networkName === "mainnet" ? "etherscan.io" : "sepolia.etherscan.io";
+      log(`\nView on Etherscan:`, "gray");
+      log(`  https://${explorer}/address/${addresses.less}`, "gray");
+      log(`  https://${explorer}/address/${addresses.renderer}`, "gray");
+    }
   }
 }
 
-main().catch((error) => {
+main().catch(error => {
   logError(`Fatal error: ${error.message}`);
+  console.error(error);
   process.exit(1);
 });

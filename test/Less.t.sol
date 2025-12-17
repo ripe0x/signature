@@ -99,12 +99,18 @@ contract LessTest is Test {
         less = new Less(address(strategy), MINT_PRICE, payout, owner);
 
         renderer = new LessRenderer(
-            address(less),
-            address(scriptyBuilder),
-            address(0), // scriptyStorage not needed for mock
-            "test-script",
-            "https://example.com/less/",
-            owner
+            LessRenderer.RendererConfig({
+                less: address(less),
+                scriptyBuilder: address(scriptyBuilder),
+                scriptyStorage: address(0), // scriptyStorage not needed for mock
+                scriptName: "test-script",
+                baseImageURL: "https://example.com/less/",
+                collectionName: "LESS",
+                description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
+                collectionImage: "https://example.com/less/collection.png",
+                externalLink: "https://less.art",
+                owner: owner
+            })
         );
 
         less.setRenderer(address(renderer));
@@ -913,6 +919,80 @@ contract LessTest is Test {
 
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         RENDERER METADATA TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Renderer_SetMetadata() public {
+        vm.startPrank(owner);
+
+        string memory newName = "NEW COLLECTION";
+        string memory newDesc = "A new description for testing.";
+        string memory newImage = "https://new.example.com/image.png";
+        string memory newLink = "https://new.example.com";
+
+        renderer.setMetadata(newName, newDesc, newImage, newLink);
+
+        assertEq(renderer.collectionName(), newName);
+        assertEq(renderer.description(), newDesc);
+        assertEq(renderer.collectionImage(), newImage);
+        assertEq(renderer.externalLink(), newLink);
+
+        vm.stopPrank();
+    }
+
+    function test_Renderer_SetMetadata_Event() public {
+        vm.startPrank(owner);
+
+        string memory newName = "NEW COLLECTION";
+        string memory newDesc = "A new description.";
+        string memory newImage = "https://new.example.com/image.png";
+        string memory newLink = "https://new.example.com";
+
+        vm.expectEmit(false, false, false, true);
+        emit LessRenderer.MetadataUpdated(newName, newDesc, newImage, newLink);
+
+        renderer.setMetadata(newName, newDesc, newImage, newLink);
+
+        vm.stopPrank();
+    }
+
+    function test_Renderer_SetMetadata_RevertNonOwner() public {
+        vm.startPrank(user1);
+
+        vm.expectRevert();
+        renderer.setMetadata("New", "Desc", "Image", "Link");
+
+        vm.stopPrank();
+    }
+
+    function test_Renderer_ContractURI_ReflectsMetadataUpdate() public {
+        // Get initial contractURI
+        string memory initialURI = less.contractURI();
+
+        // Update metadata
+        vm.prank(owner);
+        renderer.setMetadata(
+            "UPDATED",
+            "Updated description.",
+            "https://updated.com/image.png",
+            "https://updated.com"
+        );
+
+        // Get new contractURI
+        string memory updatedURI = less.contractURI();
+
+        // URIs should be different after update
+        assertFalse(keccak256(bytes(initialURI)) == keccak256(bytes(updatedURI)));
+    }
+
+    function test_Renderer_ConstructorMetadataValues() public view {
+        assertEq(renderer.collectionName(), "LESS");
+        assertTrue(bytes(renderer.description()).length > 0);
+        assertEq(renderer.collectionImage(), "https://example.com/less/collection.png");
+        assertEq(renderer.externalLink(), "https://less.art");
     }
 
     function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {

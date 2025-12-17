@@ -1,0 +1,14 @@
+{
+  "network": "sepolia",
+  "timestamp": "2025-12-17T15:26:24.938Z",
+  "contracts": {
+    "mockLessBot": "0x4ADec8C9B2763f776944d9452b80D282eD3fA595",
+    "lessRenderer": "0xC179BA24781cBea95fF64EFD514abb86Fa026d0E"
+  },
+  "config": {
+    "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    "scriptName": "less",
+    "owner": "0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c"
+  }
+}

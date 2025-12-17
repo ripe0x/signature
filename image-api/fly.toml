@@ -7,7 +7,6 @@ primary_region = "iad"
 [env]
   NODE_ENV = "production"
   CACHE_ENABLED = "true"
-  PLAYWRIGHT_BROWSERS_PATH = "/app/.cache/ms-playwright"
 
 [http_service]
   internal_port = 3001
@@ -21,6 +20,6 @@ primary_region = "iad"
   destination = "/data/cache"
 
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1

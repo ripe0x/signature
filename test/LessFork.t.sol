@@ -46,12 +46,18 @@ contract LessForkTest is Test {
 
         // Deploy renderer with real Scripty contracts
         renderer = new LessRenderer(
-            address(less),
-            SCRIPTY_BUILDER_V2,      // Real ScriptyBuilder on mainnet
-            SCRIPTY_STORAGE_V2,      // Real ScriptyStorage on mainnet
-            "less",                   // Script name (would need to be uploaded)
-            "https://less.art/images/",
-            owner
+            LessRenderer.RendererConfig({
+                less: address(less),
+                scriptyBuilder: SCRIPTY_BUILDER_V2,      // Real ScriptyBuilder on mainnet
+                scriptyStorage: SCRIPTY_STORAGE_V2,      // Real ScriptyStorage on mainnet
+                scriptName: "less",                       // Script name (would need to be uploaded)
+                baseImageURL: "https://less.art/images/",
+                collectionName: "LESS",
+                description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
+                collectionImage: "https://less.art/images/collection.png",
+                externalLink: "https://less.art",
+                owner: owner
+            })
         );
 
         less.setRenderer(address(renderer));

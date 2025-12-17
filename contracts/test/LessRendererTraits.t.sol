@@ -9,12 +9,18 @@ import {LessRenderer} from "../LessRenderer.sol";
 contract LessRendererTraitsHarness is LessRenderer {
     constructor()
         LessRenderer(
-            address(1), // less
-            address(2), // scriptyBuilder
-            address(3), // scriptyStorage
-            "test",     // scriptName
-            "https://test.com/", // baseImageURL
-            address(this) // owner
+            RendererConfig({
+                less: address(1),
+                scriptyBuilder: address(2),
+                scriptyStorage: address(3),
+                scriptName: "test",
+                baseImageURL: "https://test.com/",
+                collectionName: "LESS",
+                description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
+                collectionImage: "https://test.com/collection.png",
+                externalLink: "https://test.com",
+                owner: address(this)
+            })
         )
     {}
 

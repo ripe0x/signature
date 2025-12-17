@@ -118,12 +118,18 @@ contract LessIntegrationTest is Test {
         vm.startPrank(owner);
         less = new Less(address(strategy), MINT_PRICE, payout, owner);
         renderer = new LessRenderer(
-            address(less),
-            address(scriptyBuilder),
-            address(0),
-            "less",
-            "https://less.art/images/",
-            owner
+            LessRenderer.RendererConfig({
+                less: address(less),
+                scriptyBuilder: address(scriptyBuilder),
+                scriptyStorage: address(0),
+                scriptName: "less",
+                baseImageURL: "https://less.art/images/",
+                collectionName: "LESS",
+                description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
+                collectionImage: "https://less.art/images/collection.png",
+                externalLink: "https://less.art",
+                owner: owner
+            })
         );
         less.setRenderer(address(renderer));
         vm.stopPrank();

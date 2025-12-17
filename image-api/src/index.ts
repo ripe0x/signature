@@ -113,11 +113,14 @@ async function start() {
   console.log(`Cache ${CACHE_ENABLED ? 'enabled' : 'disabled'} at ${CACHE_DIR}`);
 
   // Initialize renderer
+  console.log('Initializing Playwright renderer...');
   renderer = new PlaywrightRenderer();
   await renderer.initialize();
+  console.log('Playwright renderer initialized');
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  // Bind to 0.0.0.0 for Fly.io
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`Server running on 0.0.0.0:${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
     console.log(`Render endpoint: http://localhost:${PORT}/api/render?seed=0x...`);
   });

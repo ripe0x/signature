@@ -128,12 +128,18 @@ contract GeneratePreviewScript is Script {
         );
 
         LessRenderer renderer = new LessRenderer(
-            address(less),
-            address(scriptyBuilder),
-            address(0),
-            "less",
-            "https://less.art/images/",
-            address(this)
+            LessRenderer.RendererConfig({
+                less: address(less),
+                scriptyBuilder: address(scriptyBuilder),
+                scriptyStorage: address(0),
+                scriptName: "less",
+                baseImageURL: "https://less.art/images/",
+                collectionName: "LESS",
+                description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
+                collectionImage: "https://less.art/images/collection.png",
+                externalLink: "https://less.art",
+                owner: address(this)
+            })
         );
 
         less.setRenderer(address(renderer));

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SVG Preview - Option 1</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #111;
+      color: #fff;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .container {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+    .preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .preview h3 {
+      margin: 0;
+    }
+    canvas, svg {
+      border: 1px solid #333;
+    }
+    #svgCode {
+      max-width: 600px;
+      max-height: 300px;
+      overflow: auto;
+      background: #222;
+      padding: 10px;
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    input {
+      padding: 5px 10px;
+      font-family: monospace;
+    }
+    button {
+      padding: 5px 15px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Option 1: Grid-based SVG with Rectangles</h2>
+
+  <div class="controls">
+    <label>Seed: <input type="text" id="seedInput" value="12345"></label>
+    <button onclick="regenerate()">Regenerate</button>
+    <button onclick="randomSeed()">Random Seed</button>
+  </div>
+
+  <div class="container">
+    <div class="preview">
+      <h3>Original (Canvas)</h3>
+      <canvas id="originalCanvas"></canvas>
+    </div>
+    <div class="preview">
+      <h3>SVG Version</h3>
+      <div id="svgContainer"></div>
+    </div>
+  </div>
+
+  <div>
+    <h3>SVG Code (base64 size: <span id="svgSize">-</span>)</h3>
+    <div id="svgCode"></div>
+  </div>
+
+  <script type="module">
+    import {
+      seededRandom,
+      generateAllParams,
+      renderToCanvas,
+      simulateFolds,
+      calculateGridWithGaps,
+      processCreases,
+      calculateAdaptiveThresholds,
+      countToLevelAdaptive,
+      generateWeightRange,
+      scaleAbsorbencyForGrid,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+      DRAWING_MARGIN,
+    } from './web/fold-core.js';
+
+    const SVG_WIDTH = 240;
+    const SVG_HEIGHT = 300;
+
+    function generateSVG(seed) {
+      // Generate params at reference dimensions
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0);
+
+      const refInnerWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
+      const refInnerHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
+
+      // Get grid configuration
+      const grid = calculateGridWithGaps(
+        seed,
+        params.cells.cellW,
+        params.cells.cellH,
+        refInnerWidth,
+        refInnerHeight
+      );
+
+      const { cols, rows, strideX, strideY, cellWidth, cellHeight } = grid;
+      const weightRange = generateWeightRange(seed);
+      const scaledPaperProps = scaleAbsorbencyForGrid(params.paperProperties, cols, rows);
+
+      // Run fold simulation
+      const { creases, maxFolds } = simulateFolds(
+        grid.actualGridWidth,
+        grid.actualGridHeight,
+        params.foldCount,
+        seed,
+        weightRange,
+        params.foldStrategy,
+        scaledPaperProps
+      );
+
+      // Process creases to get cell weights
+      const { cellWeights } = processCreases(
+        creases,
+        cols,
+        rows,
+        strideX,
+        strideY,
+        maxFolds,
+        params.paperProperties
+      );
+
+      // Calculate adaptive thresholds
+      const thresholds = calculateAdaptiveThresholds(cellWeights);
+
+      // Scale factors for SVG
+      const scaleX = SVG_WIDTH / REFERENCE_WIDTH;
+      const scaleY = SVG_HEIGHT / REFERENCE_HEIGHT;
+      const offsetX = (DRAWING_MARGIN + grid.gridOffsetX) * scaleX;
+      const offsetY = (DRAWING_MARGIN + grid.gridOffsetY) * scaleY;
+      const svgCellWidth = cellWidth * scaleX;
+      const svgCellHeight = cellHeight * scaleY;
+      const svgStrideX = strideX * scaleX;
+      const svgStrideY = strideY * scaleY;
+
+      // Build SVG
+      const bgColor = params.palette.bg;
+      const textColor = params.palette.text;
+
+      // Level to opacity mapping (approximating shade characters)
+      const levelOpacity = [0, 0.25, 0.5, 0.85];
+
+      let rects = '';
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const key = `${col},${row}`;
+          const weight = cellWeights[key] || 0;
+          const level = countToLevelAdaptive(weight, thresholds);
+
+          if (level > 0) {
+            const x = (offsetX + col * svgStrideX).toFixed(2);
+            const y = (offsetY + row * svgStrideY).toFixed(2);
+            const w = svgCellWidth.toFixed(2);
+            const h = svgCellHeight.toFixed(2);
+            const opacity = levelOpacity[level];
+            rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${textColor}" opacity="${opacity}"/>`;
+          }
+        }
+      }
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}" width="${SVG_WIDTH}" height="${SVG_HEIGHT}">
+<rect width="100%" height="100%" fill="${bgColor}"/>
+${rects}
+</svg>`;
+
+      return { svg, params, grid };
+    }
+
+    function renderOriginal(seed) {
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0);
+      const { dataUrl } = renderToCanvas({
+        folds: params.foldCount,
+        seed: seed,
+        outputWidth: 240,
+        outputHeight: 300,
+        bgColor: params.palette.bg,
+        textColor: params.palette.text,
+        accentColor: params.palette.accent,
+        cellWidth: params.cells.cellW,
+        cellHeight: params.cells.cellH,
+        renderMode: params.renderMode,
+        multiColor: params.multiColor,
+        levelColors: params.levelColors,
+        foldStrategy: params.foldStrategy,
+        paperProperties: params.paperProperties,
+        showCreaseLines: params.showCreaseLines,
+      });
+
+      const canvas = document.getElementById('originalCanvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = 240 * 2;
+        canvas.height = 300 * 2;
+        canvas.style.width = '240px';
+        canvas.style.height = '300px';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = dataUrl;
+    }
+
+    window.regenerate = function() {
+      const seedStr = document.getElementById('seedInput').value;
+      const seed = parseInt(seedStr) || Math.floor(Math.random() * 1000000);
+      document.getElementById('seedInput').value = seed;
+
+      // Generate SVG
+      const { svg, params, grid } = generateSVG(seed);
+
+      // Display SVG
+      document.getElementById('svgContainer').innerHTML = svg;
+
+      // Show code and size
+      const base64 = btoa(svg);
+      const dataUri = `data:image/svg+xml;base64,${base64}`;
+      document.getElementById('svgCode').textContent = svg;
+      document.getElementById('svgSize').textContent = `${base64.length} chars (~${(base64.length / 1024).toFixed(1)} KB)`;
+
+      // Render original for comparison
+      renderOriginal(seed);
+    };
+
+    window.randomSeed = function() {
+      document.getElementById('seedInput').value = Math.floor(Math.random() * 1000000);
+      regenerate();
+    };
+
+    // Initial render
+    regenerate();
+  </script>
+</body>
+</html>
