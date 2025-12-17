@@ -2,34 +2,15 @@
 # Frontend is a Next.js app located in /frontend directory
 
 [build]
-  # Base directory - where to run commands from
   base = "frontend"
-
-  # Build command
   command = "npm run build"
 
-  # Publish directory - Next.js plugin handles the actual output
-  publish = ".next"
-
-# Use Netlify's Next.js runtime
+# Next.js runtime plugin handles routing and static files
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
 # Environment variables - set these in Netlify dashboard:
 # - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: from cloud.walletconnect.com
-# - NEXT_PUBLIC_RPC_URL: Alchemy/Infura mainnet RPC URL (optional, uses public RPC if not set)
+# - NEXT_PUBLIC_RPC_URL: Alchemy/Infura mainnet RPC URL (optional)
 [build.environment]
   NODE_VERSION = "20"
-
-# Headers for security and caching
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[headers]]
-  for = "/_next/static/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
