@@ -36,6 +36,7 @@ const args = process.argv.slice(2);
 const network = args.find((arg) => arg.startsWith('--network'))?.split('=')[1] || 'mainnet';
 const dryRun = args.includes('--dry-run');
 const testMode = args.includes('--test');
+const testMintMode = args.includes('--test-mint');
 const verifyMode = args.includes('--verify');
 const postTestTweet = args.includes('--post-test');
 const pollingInterval = parseInt(args.find((arg) => arg.startsWith('--interval='))?.split('=')[1] || '60', 10) * 1000;
@@ -73,26 +74,28 @@ function logWarn(message) {
   log(`⚠ ${message}`, 'yellow');
 }
 
-// State persistence - tracks processed folds and last block
+// State persistence - tracks processed folds, mints, and last block
 function loadState() {
   try {
     if (existsSync(stateFile)) {
       const data = JSON.parse(readFileSync(stateFile, 'utf-8'));
       return {
         processedFolds: new Set(data.processedFolds || []),
+        processedMints: new Set(data.processedMints || []),
         lastBlock: BigInt(data.lastBlock || 0),
       };
     }
   } catch (error) {
     logWarn(`Failed to load state file: ${error.message}`);
   }
-  return { processedFolds: new Set(), lastBlock: 0n };
+  return { processedFolds: new Set(), processedMints: new Set(), lastBlock: 0n };
 }
 
-function saveState(processedFolds, lastBlock) {
+function saveState(processedFolds, processedMints, lastBlock) {
   try {
     const data = {
       processedFolds: Array.from(processedFolds),
+      processedMints: Array.from(processedMints),
       lastBlock: lastBlock.toString(),
       updatedAt: new Date().toISOString(),
     };
@@ -264,7 +267,7 @@ function displayTweetPreview(message) {
 // Post tweet with optional image
 async function postTweet(twitterClient, message, imageBuffer = null) {
   // In dry-run or test mode, just display the preview
-  if (dryRun || testMode) {
+  if (dryRun || testMode || testMintMode) {
     displayTweetPreview(message);
     if (imageBuffer) {
       logInfo(`[DRY-RUN] Would attach image (${imageBuffer.length} bytes)`);
@@ -366,7 +369,6 @@ async function runTestMode() {
   const testStartTime = now;
   const testEndTime = now + 3600; // 1 hour from now
   const testMintPrice = 100000000000000000n; // 0.1 ETH
-  const testStrategyBlock = 18000000;
 
   logInfo(`Simulated event: Fold #${testFoldId}`);
   logInfo(`  Start time: ${new Date(testStartTime * 1000).toISOString()}`);
@@ -374,12 +376,7 @@ async function runTestMode() {
   logInfo(`  Mint price: ${formatEther(testMintPrice)} ETH`);
   console.log();
 
-  // Generate preview seed and fetch image
-  const previewSeed = generatePreviewSeed(testFoldId, testStrategyBlock, testStartTime);
-  logInfo(`Preview seed: ${previewSeed}`);
-  const imageBuffer = await fetchImage(previewSeed);
-
-  // Format and display the tweet
+  // Format and display the tweet (no image for window open)
   const tweetMessage = formatTweet(
     testFoldId,
     testStartTime,
@@ -388,8 +385,33 @@ async function runTestMode() {
     contractAddress
   );
 
-  await postTweet(null, tweetMessage, imageBuffer);
+  await postTweet(null, tweetMessage);
   logSuccess('Test completed!');
+}
+
+// Run test mint mode - simulate a Minted event
+async function runTestMintMode() {
+  logInfo('Running in TEST MINT MODE - simulating a Minted event');
+  console.log();
+
+  // Simulate event data
+  const testTokenId = 7;
+  const testFoldId = 42;
+  // Use a test seed
+  const testSeed = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+  logInfo(`Simulated event: Minted token #${testTokenId} from fold #${testFoldId}`);
+  logInfo(`  Seed: ${testSeed}`);
+  console.log();
+
+  // Fetch image using the seed
+  const imageBuffer = await fetchImage(testSeed);
+
+  // Format and display the tweet with image
+  const tweetMessage = formatMintTweet(testTokenId, testFoldId);
+
+  await postTweet(null, tweetMessage, imageBuffer);
+  logSuccess('Test mint completed!');
 }
 
 // Generate a preview seed for a fold (deterministic based on fold parameters)
@@ -437,12 +459,7 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
       return;
     }
 
-    // Generate preview seed and fetch image
-    const previewSeed = generatePreviewSeed(Number(foldId), Number(strategyBlock), Number(startTime));
-    logInfo(`Preview seed: ${previewSeed}`);
-    const imageBuffer = await fetchImage(previewSeed);
-
-    // Format and post tweet
+    // Format and post tweet (no image for window open)
     const tweetMessage = formatTweet(
       Number(foldId),
       Number(startTime),
@@ -452,7 +469,7 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
     );
 
     logInfo('Posting tweet...');
-    const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
+    const tweetId = await postTweet(twitterClient, tweetMessage);
 
     if (tweetId) {
       logSuccess(`Tweet posted successfully! Tweet ID: ${tweetId}`);
@@ -462,6 +479,49 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
     }
   } catch (error) {
     logError(`Error processing event: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+  }
+}
+
+// Format mint tweet message
+function formatMintTweet(tokenId, foldId) {
+  return `less #${tokenId} just minted from fold #${foldId}.`;
+}
+
+// Process a Minted event
+async function processMintEvent(log, processedMints, twitterClient) {
+  try {
+    const tokenId = log.args.tokenId;
+    const foldId = log.args.foldId;
+    const seed = log.args.seed;
+
+    // Skip if already processed
+    if (processedMints.has(Number(tokenId))) {
+      logInfo(`Skipping already processed mint #${tokenId}`);
+      return;
+    }
+
+    logInfo(`Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, seed=${seed}`);
+
+    // Fetch image using the actual seed from the event
+    const imageBuffer = await fetchImage(seed);
+
+    // Format and post tweet with image
+    const tweetMessage = formatMintTweet(Number(tokenId), Number(foldId));
+
+    logInfo('Posting mint tweet...');
+    const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
+
+    if (tweetId) {
+      logSuccess(`Mint tweet posted! Tweet ID: ${tweetId}`);
+      processedMints.add(Number(tokenId));
+    } else {
+      logError('Failed to post mint tweet');
+    }
+  } catch (error) {
+    logError(`Error processing mint event: ${error.message}`);
     if (error.stack) {
       console.error(error.stack);
     }
@@ -485,6 +545,12 @@ async function runBot() {
   // Handle test mode
   if (testMode) {
     await runTestMode();
+    return;
+  }
+
+  // Handle test mint mode
+  if (testMintMode) {
+    await runTestMintMode();
     return;
   }
 
@@ -516,10 +582,14 @@ async function runBot() {
   // Load persisted state
   const state = loadState();
   const processedFolds = state.processedFolds;
+  const processedMints = state.processedMints;
   let lastProcessedBlock = state.lastBlock;
 
   if (processedFolds.size > 0) {
     logInfo(`Loaded ${processedFolds.size} previously processed folds from state`);
+  }
+  if (processedMints.size > 0) {
+    logInfo(`Loaded ${processedMints.size} previously processed mints from state`);
   }
   if (lastProcessedBlock > 0n) {
     logInfo(`Last processed block: ${lastProcessedBlock}`);
@@ -557,7 +627,8 @@ async function runBot() {
       if (fromBlock < currentBlock) {
         logInfo(`Scanning for missed events from block ${fromBlock} to ${currentBlock}...`);
 
-        const missedLogs = await client.getLogs({
+        // Scan for missed FoldCreated events
+        const missedFoldLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
             'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, uint64 strategyBlock)'
@@ -566,25 +637,44 @@ async function runBot() {
           toBlock: currentBlock,
         });
 
-        if (missedLogs.length > 0) {
-          logInfo(`Found ${missedLogs.length} events in block range`);
-          for (const log of missedLogs) {
+        if (missedFoldLogs.length > 0) {
+          logInfo(`Found ${missedFoldLogs.length} FoldCreated events`);
+          for (const log of missedFoldLogs) {
             await processEvent(log, processedFolds, twitterClient, contractAddress, client, abi);
           }
-        } else {
+        }
+
+        // Scan for missed Minted events
+        const missedMintLogs = await client.getLogs({
+          address: contractAddress,
+          event: parseAbiItem(
+            'event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)'
+          ),
+          fromBlock,
+          toBlock: currentBlock,
+        });
+
+        if (missedMintLogs.length > 0) {
+          logInfo(`Found ${missedMintLogs.length} Minted events`);
+          for (const log of missedMintLogs) {
+            await processMintEvent(log, processedMints, twitterClient);
+          }
+        }
+
+        if (missedFoldLogs.length === 0 && missedMintLogs.length === 0) {
           logInfo('No missed events found');
         }
       }
 
       // Update last processed block
       lastProcessedBlock = currentBlock;
-      saveState(processedFolds, lastProcessedBlock);
+      saveState(processedFolds, processedMints, lastProcessedBlock);
 
       // Reset retry count on successful connection
       retryCount = 0;
 
       // Watch for new FoldCreated events
-      unwatch = client.watchEvent({
+      const unwatchFolds = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
           'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, uint64 strategyBlock)'
@@ -592,27 +682,51 @@ async function runBot() {
         onLogs: async (logs) => {
           for (const log of logs) {
             await processEvent(log, processedFolds, twitterClient, contractAddress, client, abi);
-            // Update last processed block and save state
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(processedFolds, lastProcessedBlock);
+              saveState(processedFolds, processedMints, lastProcessedBlock);
             }
           }
         },
         onError: (error) => {
-          logError(`Watcher error: ${error.message}`);
-          // The error will cause the watcher to stop, triggering reconnection
+          logError(`FoldCreated watcher error: ${error.message}`);
         },
       });
 
-      logSuccess('Bot is running and monitoring for FoldCreated events...');
+      // Watch for new Minted events
+      const unwatchMints = client.watchEvent({
+        address: contractAddress,
+        event: parseAbiItem(
+          'event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)'
+        ),
+        onLogs: async (logs) => {
+          for (const log of logs) {
+            await processMintEvent(log, processedMints, twitterClient);
+            if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
+              lastProcessedBlock = log.blockNumber;
+              saveState(processedFolds, processedMints, lastProcessedBlock);
+            }
+          }
+        },
+        onError: (error) => {
+          logError(`Minted watcher error: ${error.message}`);
+        },
+      });
+
+      // Combined unwatch function
+      unwatch = () => {
+        unwatchFolds();
+        unwatchMints();
+      };
+
+      logSuccess('Bot is running and monitoring for FoldCreated and Minted events...');
       logInfo('Press Ctrl+C to stop');
 
       // Graceful shutdown handler
       const shutdown = () => {
         logInfo('Shutting down...');
         if (unwatch) unwatch();
-        saveState(processedFolds, lastProcessedBlock);
+        saveState(processedFolds, processedMints, lastProcessedBlock);
         logSuccess('State saved. Bot stopped.');
         process.exit(0);
       };

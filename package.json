@@ -20,6 +20,7 @@
     "twitter-bot": "node scripts/twitter-bot.js",
     "twitter-bot:dev": "node scripts/twitter-bot.js --network=mainnet",
     "twitter-bot:test": "node scripts/twitter-bot.js --test",
+    "twitter-bot:test-mint": "node scripts/twitter-bot.js --test-mint",
     "twitter-bot:dry-run": "node scripts/twitter-bot.js --dry-run"
   },
   "dependencies": {
