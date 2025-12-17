@@ -680,27 +680,21 @@ export function findVGAColor(hex) {
 }
 
 export function generateMultiColorPalette(seed, bgColor, textColor) {
+  // Generates 4 colors for intensity levels, strictly from CGA_PALETTE
   const rng = seededRandom(seed + 3333);
 
   const bgVGA = findVGAColor(bgColor);
   const textVGA = findVGAColor(textColor);
   const isLightBg = bgVGA.luminance > 50;
 
+  const sortByLum = (a, b) =>
+    isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance;
+
   const strategy = rng();
 
-  if (strategy < 0.45) {
-    if (bgVGA.cubePos && textVGA.cubePos) {
-      const path = getCubeDiagonalPath(bgVGA, textVGA, 6);
-      if (path.length >= 4) {
-        return [
-          path[0].hex,
-          path[Math.floor(path.length * 0.33)].hex,
-          path[Math.floor(path.length * 0.66)].hex,
-          path[path.length - 1].hex,
-        ];
-      }
-    }
-
+  if (strategy < 0.5) {
+    // Strategy 1: Luminance interpolation within same temperature family
+    // This creates a smooth gradient from bg toward text using CGA colors
     const path = interpolateByLuminance(bgVGA, textVGA, 6);
     return [
       path[0].hex,
@@ -708,96 +702,62 @@ export function generateMultiColorPalette(seed, bgColor, textColor) {
       path[Math.floor(path.length * 0.66)].hex,
       path[path.length - 1].hex,
     ];
-  } else if (strategy < 0.75) {
-    const neighbors1 = getCubeNeighbors(textVGA, 1);
-    const neighbors2 = getCubeNeighbors(textVGA, 2);
-    const neighbors3 = getCubeNeighbors(textVGA, 3);
-
-    const sortByLum = (a, b) =>
-      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance;
-
-    const level1Candidates = neighbors1
-      .filter((c) => hasGoodContrast(bgVGA, c, 2.0))
-      .sort(sortByLum);
-    const level2Candidates = neighbors2
-      .filter((c) => hasGoodContrast(bgVGA, c, 3.0))
-      .sort(sortByLum);
-    const level3Candidates = neighbors3
-      .filter((c) => hasGoodContrast(bgVGA, c, 4.0))
-      .sort(sortByLum);
-
-    const colors = [textVGA.hex];
-
-    if (level1Candidates.length > 0) {
-      colors.push(pickRandom(rng, level1Candidates).hex);
-    } else {
-      colors.push(textVGA.hex);
-    }
-
-    if (level2Candidates.length > 0) {
-      const unused = level2Candidates.filter((c) => !colors.includes(c.hex));
-      colors.push(
-        unused.length > 0
-          ? pickRandom(rng, unused).hex
-          : level2Candidates[0].hex
-      );
-    } else {
-      colors.push(colors[1]);
-    }
-
-    if (level3Candidates.length > 0) {
-      const unused = level3Candidates.filter((c) => !colors.includes(c.hex));
-      colors.push(
-        unused.length > 0
-          ? pickRandom(rng, unused).hex
-          : level3Candidates[0].hex
-      );
-    } else {
-      colors.push(textVGA.hex);
-    }
-
-    const colorObjs = colors.map((hex) => findVGAColor(hex));
-    colorObjs.sort((a, b) =>
-      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance
-    );
-
-    return colorObjs.map((c) => c.hex);
   } else {
+    // Strategy 2: Temperature-based selection from CGA palette
+    // Pick colors from same and opposite temperature families
     const textTemp = textVGA.temperature;
     const oppositeTemp =
       textTemp === "warm" ? "cool" : textTemp === "cool" ? "warm" : "warm";
 
-    const sameTemp = PALETTE_BY_TEMPERATURE[textTemp].filter((c) =>
-      hasGoodContrast(bgVGA, c, 2.5)
-    );
-    const oppTemp = PALETTE_BY_TEMPERATURE[oppositeTemp].filter((c) =>
-      hasGoodContrast(bgVGA, c, 2.5)
-    );
-
-    const sortByLum = (a, b) =>
-      isLightBg ? b.luminance - a.luminance : a.luminance - b.luminance;
-    sameTemp.sort(sortByLum);
-    oppTemp.sort(sortByLum);
+    // Get CGA colors with good contrast against background
+    const sameTemp = PALETTE_BY_TEMPERATURE[textTemp]
+      .filter((c) => hasGoodContrast(bgVGA, c, 2.0))
+      .sort(sortByLum);
+    const oppTemp = PALETTE_BY_TEMPERATURE[oppositeTemp]
+      .filter((c) => hasGoodContrast(bgVGA, c, 2.0))
+      .sort(sortByLum);
 
     const colors = [];
+    const used = new Set();
 
-    colors.push(sameTemp.length > 0 ? sameTemp[0].hex : textVGA.hex);
+    // Level 1: lightest visible mark from same temperature
+    if (sameTemp.length > 0) {
+      colors.push(sameTemp[0].hex);
+      used.add(sameTemp[0].hex);
+    } else {
+      colors.push(textVGA.hex);
+      used.add(textVGA.hex);
+    }
 
-    const mid1 = sameTemp.filter((c) => !colors.includes(c.hex));
-    colors.push(
-      mid1.length > 0 ? mid1[Math.floor(mid1.length * 0.3)].hex : textVGA.hex
-    );
+    // Level 2: mid-tone from same temperature
+    const mid1 = sameTemp.filter((c) => !used.has(c.hex));
+    if (mid1.length > 0) {
+      const pick = mid1[Math.floor(mid1.length * 0.4)];
+      colors.push(pick.hex);
+      used.add(pick.hex);
+    } else {
+      colors.push(textVGA.hex);
+    }
 
-    const mid2 = oppTemp.filter((c) => !colors.includes(c.hex));
-    colors.push(
-      mid2.length > 0 ? mid2[Math.floor(mid2.length * 0.5)].hex : textVGA.hex
-    );
+    // Level 3: add contrast with opposite temperature if available
+    const mid2 = oppTemp.filter((c) => !used.has(c.hex));
+    if (mid2.length > 0) {
+      const pick = mid2[Math.floor(mid2.length * 0.5)];
+      colors.push(pick.hex);
+      used.add(pick.hex);
+    } else {
+      colors.push(textVGA.hex);
+    }
 
-    const final = [...sameTemp, ...oppTemp].filter(
-      (c) => !colors.includes(c.hex)
-    );
-    final.sort(sortByLum);
-    colors.push(final.length > 0 ? final[final.length - 1].hex : textVGA.hex);
+    // Level 4: darkest/most saturated unused color
+    const remaining = [...sameTemp, ...oppTemp]
+      .filter((c) => !used.has(c.hex))
+      .sort(sortByLum);
+    if (remaining.length > 0) {
+      colors.push(remaining[remaining.length - 1].hex);
+    } else {
+      colors.push(textVGA.hex);
+    }
 
     return colors;
   }
@@ -1608,18 +1568,143 @@ function areAdjacentEdges(e1, e2) {
 }
 
 // Pick anchor point for a crease
-function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng) {
+function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strategy) {
+  // Strategy-specific edge selection
+  // Edge mapping: 0=top, 1=right, 2=bottom, 3=left
+  // Horizontal edges: 0, 2 (top, bottom)
+  // Vertical edges: 1, 3 (right, left)
+
+  const getStrategyEdges = () => {
+    if (!strategy) return [0, 1, 2, 3];
+
+    switch (strategy.type) {
+      case "horizontal":
+        // Horizontal crease lines anchor on left/right edges
+        return [1, 3];
+      case "vertical":
+        // Vertical crease lines anchor on top/bottom edges
+        return [0, 2];
+      case "grid":
+        // Alternate between horizontal and vertical crease lines
+        return foldIndex % 2 === 0 ? [1, 3] : [0, 2];
+      case "diagonal":
+        // Diagonal prefers corners, but can use any edge
+        return [0, 1, 2, 3];
+      case "radial":
+      case "clustered":
+      case "random":
+      default:
+        return [0, 1, 2, 3];
+    }
+  };
+
+  const strategyEdges = getStrategyEdges();
+
+  // For radial strategy, bias anchor toward focal point
+  if (strategy && strategy.type === "radial") {
+    const focalX = strategy.focalX * w;
+    const focalY = strategy.focalY * h;
+
+    // Early folds: start from edges near focal point
+    // Later folds: can start from existing creases
+    if (foldIndex < 10 || existingCreases.length === 0 || rng() < 0.6) {
+      // Pick edge closest to focal point
+      const edgeDistances = [
+        { edge: 0, dist: focalY },                    // top
+        { edge: 1, dist: w - focalX },                // right
+        { edge: 2, dist: h - focalY },                // bottom
+        { edge: 3, dist: focalX },                    // left
+      ];
+      edgeDistances.sort((a, b) => a.dist - b.dist);
+
+      // Weight toward closer edges
+      const roll = rng();
+      const edge = roll < 0.5 ? edgeDistances[0].edge :
+                   roll < 0.8 ? edgeDistances[1].edge :
+                   edgeDistances[Math.floor(rng() * 4)].edge;
+
+      // Position along edge biased toward focal point projection
+      let t;
+      if (edge === 0 || edge === 2) {
+        // Top or bottom edge - bias toward focalX
+        t = 0.1 + (focalX / w) * 0.8 + (rng() - 0.5) * 0.3;
+      } else {
+        // Left or right edge - bias toward focalY
+        t = 0.1 + (focalY / h) * 0.8 + (rng() - 0.5) * 0.3;
+      }
+      t = Math.max(0.05, Math.min(0.95, t));
+
+      return {
+        point: getEdgePoint(edge, t, w, h),
+        type: "edge",
+        edge,
+        t,
+      };
+    }
+  }
+
+  // For clustered strategy, bias anchor toward cluster area
+  if (strategy && strategy.type === "clustered") {
+    const clusterX = strategy.clusterX * w;
+    const clusterY = strategy.clusterY * h;
+    const spread = strategy.spread;
+
+    // Higher chance to use edges that pass near cluster
+    if (foldIndex < 15 || rng() < 0.7) {
+      // Pick edge that will allow fold to pass through cluster
+      const edgeWeights = [
+        { edge: 0, weight: 1 + (1 - Math.abs(clusterY / h)) * 2 },        // top - better if cluster is high
+        { edge: 1, weight: 1 + (clusterX / w) * 2 },                       // right - better if cluster is right
+        { edge: 2, weight: 1 + (clusterY / h) * 2 },                       // bottom - better if cluster is low
+        { edge: 3, weight: 1 + (1 - clusterX / w) * 2 },                   // left - better if cluster is left
+      ];
+
+      const totalWeight = edgeWeights.reduce((sum, e) => sum + e.weight, 0);
+      let roll = rng() * totalWeight;
+      let edge = 0;
+      for (const ew of edgeWeights) {
+        roll -= ew.weight;
+        if (roll <= 0) {
+          edge = ew.edge;
+          break;
+        }
+      }
+
+      // Position along edge biased toward cluster projection
+      let t;
+      if (edge === 0 || edge === 2) {
+        t = clusterX / w + (rng() - 0.5) * spread;
+      } else {
+        t = clusterY / h + (rng() - 0.5) * spread;
+      }
+      t = Math.max(0.05, Math.min(0.95, t));
+
+      return {
+        point: getEdgePoint(edge, t, w, h),
+        type: "edge",
+        edge,
+        t,
+      };
+    }
+  }
+
   // Early folds: strongly prefer canvas edges
   // Later folds: increasingly prefer existing creases/intersections
   const edgeProbability = Math.max(0.2, 1.0 - foldIndex * 0.015);
 
+  // Grid/horizontal/vertical strategies must always use edge anchors for straight lines
+  const forceEdge = strategy && (strategy.type === "horizontal" || strategy.type === "vertical" || strategy.type === "grid");
+
   const useEdge =
+    forceEdge ||
     rng() < edgeProbability ||
     (existingCreases.length === 0 && intersections.length === 0);
 
   if (useEdge) {
     // Pick from canvas boundary (edges or corners)
-    const useCorner = rng() < 0.15; // 15% chance of corner
+    // Diagonal strategy prefers corners; grid/horizontal/vertical never use corners
+    const cornerChance = forceEdge ? 0 : (strategy && strategy.type === "diagonal" ? 0.5 : 0.15);
+    const useCorner = rng() < cornerChance;
 
     if (useCorner) {
       const corner = Math.floor(rng() * 4);
@@ -1629,9 +1714,12 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng) {
         corner,
       };
     } else {
-      const edge = Math.floor(rng() * 4);
-      // Avoid extreme edges (keep t between 0.05 and 0.95)
-      const t = 0.05 + rng() * 0.9;
+      // Pick from strategy-appropriate edges
+      const edge = strategyEdges[Math.floor(rng() * strategyEdges.length)];
+      // Apply jitter to position if strategy has it
+      const jitter = strategy && strategy.jitter ? strategy.jitter / 100 : 0;
+      const baseT = 0.05 + rng() * 0.9;
+      const t = Math.max(0.05, Math.min(0.95, baseT + (rng() - 0.5) * jitter));
       return {
         point: getEdgePoint(edge, t, w, h),
         type: "edge",
@@ -1664,7 +1752,7 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng) {
       };
     } else {
       // Fallback to edge
-      const edge = Math.floor(rng() * 4);
+      const edge = strategyEdges[Math.floor(rng() * strategyEdges.length)];
       const t = 0.05 + rng() * 0.9;
       return {
         point: getEdgePoint(edge, t, w, h),
@@ -1685,11 +1773,196 @@ function pickTerminus(
   w,
   h,
   rng,
-  relationshipBias
+  relationshipBias,
+  strategy
 ) {
   const minCreaseLength = Math.min(w, h) * 0.15; // Minimum crease length
 
-  // Determine valid terminus options based on anchor type
+  // Strategy-specific terminus selection
+  // Edge mapping: 0=top, 1=right, 2=bottom, 3=left
+  const isHorizontalEdge = (edge) => edge === 0 || edge === 2;
+  const isVerticalEdge = (edge) => edge === 1 || edge === 3;
+
+  // For horizontal/vertical/grid strategies, enforce straight folds
+  if (strategy && (strategy.type === "horizontal" || strategy.type === "vertical" || strategy.type === "grid")) {
+    const wantHorizontalFold = strategy.type === "horizontal" ||
+      (strategy.type === "grid" && foldIndex % 2 === 0);
+
+    if (anchor.type === "edge") {
+      // For straight folds: go to opposite edge
+      const oppositeEdge = (anchor.edge + 2) % 4;
+
+      // Check if this creates the right fold direction
+      // Anchor on vertical edge (left/right) creates horizontal crease
+      const createsHorizontalFold = isVerticalEdge(anchor.edge);
+
+      if ((wantHorizontalFold && createsHorizontalFold) ||
+          (!wantHorizontalFold && !createsHorizontalFold)) {
+        // Good - anchor is on correct edge type, go to opposite
+        const jitter = strategy.jitter ? strategy.jitter / 100 : 0;
+        const baseT = anchor.t !== undefined ? anchor.t : 0.5;
+        // Only apply small jitter - keep lines nearly straight
+        let t = Math.max(0.05, Math.min(0.95, baseT + (rng() - 0.5) * jitter));
+
+        // getEdgePoint uses t for edges 0,1 and (1-t) for edges 2,3
+        // Opposite edges always have different conventions, so always invert
+        t = 1 - t;
+
+        return {
+          point: getEdgePoint(oppositeEdge, t, w, h),
+          type: "edge",
+          edge: oppositeEdge,
+        };
+      }
+    }
+  }
+
+  // For diagonal strategy, enforce 45° or 135° angles
+  if (strategy && strategy.type === "diagonal") {
+    const targetAngle = strategy.angle || (rng() < 0.5 ? 45 : 135);
+
+    if (anchor.type === "corner") {
+      // From corner, go to opposite corner for perfect diagonal
+      const oppositeCorner = (anchor.corner + 2) % 4;
+      return {
+        point: getCornerPoint(oppositeCorner, w, h),
+        type: "corner",
+      };
+    } else if (anchor.type === "edge") {
+      // Calculate terminus to achieve target angle
+      const jitter = strategy.jitter ? (rng() - 0.5) * strategy.jitter : 0;
+      const angle = (targetAngle + jitter) * Math.PI / 180;
+
+      // Project from anchor point at target angle to find edge intersection
+      const ax = anchor.point.x;
+      const ay = anchor.point.y;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+
+      // Find intersection with canvas edges
+      let bestPoint = null;
+      let bestDist = 0;
+
+      // Check all four edges
+      const edges = [
+        { edge: 0, y: 0 },      // top
+        { edge: 2, y: h },      // bottom
+        { edge: 3, x: 0 },      // left
+        { edge: 1, x: w },      // right
+      ];
+
+      for (const e of edges) {
+        let point = null;
+        if (e.y !== undefined) {
+          // Horizontal edge
+          const t = (e.y - ay) / dy;
+          if (t > 0) {
+            const x = ax + dx * t;
+            if (x >= 0 && x <= w) {
+              point = { x, y: e.y };
+            }
+          }
+        } else {
+          // Vertical edge
+          const t = (e.x - ax) / dx;
+          if (t > 0) {
+            const y = ay + dy * t;
+            if (y >= 0 && y <= h) {
+              point = { x: e.x, y };
+            }
+          }
+        }
+
+        if (point) {
+          const dist = V.dist(anchor.point, point);
+          if (dist > bestDist && dist >= minCreaseLength) {
+            bestDist = dist;
+            bestPoint = point;
+          }
+        }
+      }
+
+      if (bestPoint) {
+        return { point: bestPoint, type: "edge" };
+      }
+    }
+  }
+
+  // For radial strategy, terminus should radiate from focal point
+  if (strategy && strategy.type === "radial") {
+    const focalX = strategy.focalX * w;
+    const focalY = strategy.focalY * h;
+    const focal = { x: focalX, y: focalY };
+
+    // Calculate direction from focal point through anchor
+    const dx = anchor.point.x - focalX;
+    const dy = anchor.point.y - focalY;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len > 0) {
+      // Extend line from focal through anchor to opposite edge
+      const ndx = dx / len;
+      const ndy = dy / len;
+
+      // Find where this ray exits the canvas
+      let maxT = Infinity;
+      if (ndx > 0) maxT = Math.min(maxT, (w - anchor.point.x) / ndx);
+      if (ndx < 0) maxT = Math.min(maxT, -anchor.point.x / ndx);
+      if (ndy > 0) maxT = Math.min(maxT, (h - anchor.point.y) / ndy);
+      if (ndy < 0) maxT = Math.min(maxT, -anchor.point.y / ndy);
+
+      const terminus = {
+        x: Math.max(0, Math.min(w, anchor.point.x + ndx * maxT * 0.95)),
+        y: Math.max(0, Math.min(h, anchor.point.y + ndy * maxT * 0.95)),
+      };
+
+      if (V.dist(anchor.point, terminus) >= minCreaseLength) {
+        return { point: terminus, type: "edge" };
+      }
+    }
+  }
+
+  // For clustered strategy, bias terminus toward cluster
+  if (strategy && strategy.type === "clustered") {
+    const clusterX = strategy.clusterX * w;
+    const clusterY = strategy.clusterY * h;
+    const cluster = { x: clusterX, y: clusterY };
+
+    // Create candidates that pass through or near cluster
+    const clusterCandidates = [];
+
+    for (let edge = 0; edge < 4; edge++) {
+      for (let i = 0; i < 3; i++) {
+        const t = 0.1 + rng() * 0.8;
+        const point = getEdgePoint(edge, t, w, h);
+
+        // Weight by how close the fold line passes to cluster
+        const lineDistToCluster = pointToLineDistance(cluster, anchor.point, point);
+        const maxDist = Math.max(w, h) * 0.5;
+        const proximityWeight = Math.max(0.1, 1 - lineDistToCluster / maxDist) * 3;
+
+        clusterCandidates.push({
+          point,
+          type: "edge",
+          edge,
+          weight: proximityWeight,
+        });
+      }
+    }
+
+    // Filter and select
+    const validClusterCandidates = clusterCandidates.filter(
+      (c) => V.dist(anchor.point, c.point) >= minCreaseLength
+    );
+
+    if (validClusterCandidates.length > 0) {
+      const weights = validClusterCandidates.map((c) => c.weight);
+      const idx = weightedRandomIndex(weights, rng);
+      return validClusterCandidates[idx];
+    }
+  }
+
+  // Default behavior for random strategy or fallback
   const candidates = [];
 
   // Always consider opposite/adjacent edges for strong compositions
@@ -1836,6 +2109,25 @@ function pickTerminus(
   return validCandidates[idx];
 }
 
+// Helper: calculate distance from point to line segment
+function pointToLineDistance(point, lineStart, lineEnd) {
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
+  const lenSq = dx * dx + dy * dy;
+
+  if (lenSq === 0) return V.dist(point, lineStart);
+
+  let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+
+  const closest = {
+    x: lineStart.x + t * dx,
+    y: lineStart.y + t * dy,
+  };
+
+  return V.dist(point, closest);
+}
+
 // Find intersections between creases (for anchor picking)
 function findCreaseIntersections(creases) {
   const intersections = [];
@@ -1962,7 +2254,8 @@ export function simulateFolds(
       knownIntersections,
       width,
       height,
-      mainRng
+      mainRng,
+      strategy
     );
     const terminus = pickTerminus(
       anchor,
@@ -1972,7 +2265,8 @@ export function simulateFolds(
       width,
       height,
       mainRng,
-      relationshipBias
+      relationshipBias,
+      strategy
     );
 
     // Create the crease line
@@ -2895,8 +3189,10 @@ export function renderToCanvas({
                 const extraOffset = Math.floor((overflowIndex + 1) / 2) * step;
                 if (overflowIndex % 2 === 0) {
                   drawX = cellCenterX + baseOffset + extraOffset;
+                  if (drawX + charWidth > drawAreaRight) break;
                 } else {
                   drawX = cellCenterX - baseOffset - extraOffset - charWidth;
+                  if (drawX < drawAreaLeft) break;
                 }
               }
             } else if (i < numCharsInCell) {
@@ -2906,15 +3202,13 @@ export function renderToCanvas({
               // Overflow extends LEFT from cell start
               const overflowIndex = i - numCharsInCell;
               drawX = x - (overflowIndex + 1) * step;
+              if (drawX < drawAreaLeft) break;
             } else {
               // Overflow extends RIGHT from cell end (ltr)
               const overflowIndex = i - numCharsInCell;
               drawX = effectiveCellEndX + overflowIndex * step;
+              if (drawX + charWidth > drawAreaRight) break;
             }
-
-            // Unified boundary check for all directions
-            // Use floor(drawAreaLeft) to account for Math.round() on x coordinates
-            if (drawX < Math.floor(drawAreaLeft) || drawX + charWidth > drawAreaRight) break;
 
             // Draw shadow first (behind main character)
             if (hasShadowEffect && !isEmptyCell) {
@@ -3068,16 +3362,15 @@ export function renderToCanvas({
     }
   }
 
-  // Draw intersection points
+  // Draw intersection points (same pink as crease lines, transparent inside)
   if (
     showIntersections &&
     activeIntersections &&
     activeIntersections.length > 0
   ) {
-    ctx.strokeStyle = "#ff0000";
-    ctx.fillStyle = "rgba(255, 0, 0, 0)";
+    ctx.strokeStyle = "#ff00ff";
     ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.7;
     const radius = 3;
     for (const intersection of activeIntersections) {
       ctx.beginPath();
@@ -3088,9 +3381,9 @@ export function renderToCanvas({
         0,
         Math.PI * 2
       );
-      ctx.fill();
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
   }
 
   // Compile settings info for display
@@ -3308,15 +3601,40 @@ let _secretAnimationFold = 0;
 let _secretAnimationMode = null; // 'full' | 'lines-only'
 let _secretAnimationTimer = null;
 
-// Render function that can be called on init and resize
-// Optional overrides: foldOverride (for animation), linesOnly (for lines-only mode), isAnimating (ignore toggle during animation)
-function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
-  const dims = getOptimalDimensions();
+/**
+ * Unified render function for both on-chain and preview contexts
+ * @param {HTMLCanvasElement} canvas - Target canvas element
+ * @param {Object} state - Render state with seed, foldCount, params
+ * @param {Object} options - Optional overrides
+ * @param {number} options.foldOverride - Override fold count (for animation)
+ * @param {boolean} options.linesOnly - Lines-only mode
+ * @param {boolean} options.isAnimating - Whether currently animating
+ * @param {number} options.width - Override output width (default: auto from getOptimalDimensions)
+ * @param {number} options.height - Override output height (default: auto from getOptimalDimensions)
+ * @param {boolean} options.showOverlays - Override overlay visibility
+ */
+export function renderWithState(canvas, state, options = {}) {
+  const {
+    foldOverride,
+    linesOnly = false,
+    isAnimating = false,
+    width,
+    height,
+    showOverlays: showOverlaysOverride,
+  } = options;
+
+  // Use provided dimensions or calculate optimal ones
+  const dims = (width && height)
+    ? { renderWidth: width, renderHeight: height, width, height }
+    : getOptimalDimensions();
+
   const actualFolds = foldOverride !== undefined ? foldOverride : state.foldCount;
 
   // During animation: linesOnly mode shows lines, full mode shows clean render
   // When not animating: respect _secretShowFoldLines toggle
-  const showOverlays = isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines);
+  const showOverlays = showOverlaysOverride !== undefined
+    ? showOverlaysOverride
+    : (isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines));
 
   const { dataUrl, settings } = renderToCanvas({
     folds: actualFolds,
@@ -3336,7 +3654,7 @@ function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
     showCreaseLines: state.params.showCreaseLines,
     showCreases: showOverlays,
     showIntersections: showOverlays,
-    linesOnlyMode: linesOnly || false,
+    linesOnlyMode: linesOnly,
   });
 
   // Update settings display if info element exists
@@ -3362,17 +3680,24 @@ function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
     // Set canvas internal resolution (includes internal 2x from renderToCanvas)
     canvas.width = dims.renderWidth * 2;
     canvas.height = dims.renderHeight * 2;
-    // Set CSS size to fit screen
+    // Set CSS size to fit screen (use provided dims or calculated)
     canvas.style.width = dims.width + "px";
     canvas.style.height = dims.height + "px";
     // Draw at full resolution
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     // Trigger scaling callback if defined
-    if (typeof window.scaleCanvas === "function") {
+    if (typeof window !== "undefined" && typeof window.scaleCanvas === "function") {
       window.scaleCanvas();
     }
   };
   img.src = dataUrl;
+
+  return { dataUrl, settings };
+}
+
+// Internal alias for backward compatibility within initOnChain
+function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
+  return renderWithState(canvas, state, { foldOverride, linesOnly, isAnimating });
 }
 
 // Debounce helper to avoid excessive re-renders during resize

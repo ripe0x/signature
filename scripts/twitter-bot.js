@@ -250,7 +250,7 @@ function formatDuration(seconds) {
   return `${days} day${days !== 1 ? 's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
 }
 
-const MINT_URL = 'less.ripe.wtf';
+const MINT_URL = 'https://less.ripe.wtf';
 const LESS_TOKEN_ADDRESS = process.env.LESS_TOKEN_ADDRESS;
 const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 decimals
 
@@ -274,7 +274,7 @@ async function fetchBurnData(client, contractAddress, abi) {
       transport: http(mainnetRpc),
     });
 
-    // Get current total supply from token (on mainnet)
+    // Get current total supply and burned amount from token (on mainnet)
     const tokenAbi = [
       {
         inputs: [],
@@ -283,18 +283,40 @@ async function fetchBurnData(client, contractAddress, abi) {
         stateMutability: 'view',
         type: 'function',
       },
+      {
+        inputs: [{ name: 'account', type: 'address' }],
+        name: 'balanceOf',
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
     ];
 
-    const totalSupply = await mainnetClient.readContract({
-      address: LESS_TOKEN_ADDRESS,
-      abi: tokenAbi,
-      functionName: 'totalSupply',
-    });
+    const DEAD_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+
+    const [totalSupply, burnedBalance] = await Promise.all([
+      mainnetClient.readContract({
+        address: LESS_TOKEN_ADDRESS,
+        abi: tokenAbi,
+        functionName: 'totalSupply',
+      }),
+      mainnetClient.readContract({
+        address: LESS_TOKEN_ADDRESS,
+        abi: tokenAbi,
+        functionName: 'balanceOf',
+        args: [DEAD_ADDRESS],
+      }),
+    ]);
+
+    // Circulating supply = totalSupply - burned (sent to dead address)
+    const circulatingSupply = totalSupply - burnedBalance;
 
     logInfo(`Token totalSupply: ${formatEther(totalSupply)} LESS`);
+    logInfo(`Burned (dead address): ${formatEther(burnedBalance)} LESS`);
+    logInfo(`Circulating supply: ${formatEther(circulatingSupply)} LESS`);
 
     // Calculate remaining supply percentage (2 decimal places)
-    const supplyRemainingBps = (totalSupply * 10000n) / INITIAL_SUPPLY;
+    const supplyRemainingBps = (circulatingSupply * 10000n) / INITIAL_SUPPLY;
     const supplyRemaining = (Number(supplyRemainingBps) / 100).toFixed(2);
 
     // Try to get lastBurn from strategy (on same network as LESS NFT contract)
@@ -378,10 +400,12 @@ function formatTweet(foldId, startTime, endTime, burnData = null) {
   if (burnData && burnData.amountBurned && burnData.supplyRemaining) {
     return `new LESS mint window
 
+
 ${burnData.amountBurned} $LESS was just bought and burned
 ${burnData.supplyRemaining}% total supply remaining
 
 fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
 
 ${MINT_URL}`;
   }
@@ -390,9 +414,11 @@ ${MINT_URL}`;
   if (burnData && burnData.supplyRemaining) {
     return `new LESS mint window
 
+
 ${burnData.supplyRemaining}% total supply remaining
 
 fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
 
 ${MINT_URL}`;
   }
@@ -400,7 +426,9 @@ ${MINT_URL}`;
   // Simple format without any burn/supply data
   return `new LESS mint window
 
+
 fold ${foldId} mints are open for the next ${minutesLeft} minutes
+
 
 ${MINT_URL}`;
 }
@@ -621,6 +649,7 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
 // Format mint tweet message
 function formatMintTweet(tokenId, minterDisplay) {
   return `LESS #${tokenId} minted by ${minterDisplay}
+
 
 ${MINT_URL}/${tokenId}`;
 }

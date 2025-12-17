@@ -90,6 +90,7 @@
       simulateFolds,
       calculateGridWithGaps,
       processCreases,
+      findIntersections,
       calculateAdaptiveThresholds,
       countToLevelAdaptive,
       generateWeightRange,
@@ -122,7 +123,14 @@
       const weightRange = generateWeightRange(seed);
       const scaledPaperProps = scaleAbsorbencyForGrid(params.paperProperties, cols, rows);
 
-      // Run fold simulation
+      // Match renderToCanvas coordinate system exactly
+      // scaleX/Y converts from reference to output pixel space
+      const scaleX = SVG_WIDTH / REFERENCE_WIDTH;
+      const scaleY = SVG_HEIGHT / REFERENCE_HEIGHT;
+      const actualStrideX = strideX * scaleX;
+      const actualStrideY = strideY * scaleY;
+
+      // Run fold simulation in grid coordinate space
       const { creases, maxFolds } = simulateFolds(
         grid.actualGridWidth,
         grid.actualGridHeight,
@@ -133,13 +141,20 @@
         scaledPaperProps
       );
 
-      // Process creases to get cell weights
+      // Scale creases to output coordinate space (like renderToCanvas does)
+      const scaledCreases = creases.map((crease) => ({
+        ...crease,
+        p1: { x: crease.p1.x * scaleX, y: crease.p1.y * scaleY },
+        p2: { x: crease.p2.x * scaleX, y: crease.p2.y * scaleY },
+      }));
+
+      // Process creases to get cell weights (using scaled coordinates)
       const { cellWeights } = processCreases(
-        creases,
+        scaledCreases,
         cols,
         rows,
-        strideX,
-        strideY,
+        actualStrideX,
+        actualStrideY,
         maxFolds,
         params.paperProperties
       );
@@ -147,9 +162,35 @@
       // Calculate adaptive thresholds
       const thresholds = calculateAdaptiveThresholds(cellWeights);
 
-      // Scale factors for SVG
-      const scaleX = SVG_WIDTH / REFERENCE_WIDTH;
-      const scaleY = SVG_HEIGHT / REFERENCE_HEIGHT;
+      // Debug - verbose
+      console.log('=== SVG Generation Debug ===');
+      console.log('Grid:', cols, 'x', rows, '=', cols * rows, 'cells');
+      console.log('strideX:', strideX, 'strideY:', strideY);
+      console.log('actualStrideX:', actualStrideX, 'actualStrideY:', actualStrideY);
+      console.log('scaleX:', scaleX, 'scaleY:', scaleY);
+      console.log('actualGridWidth:', grid.actualGridWidth, 'actualGridHeight:', grid.actualGridHeight);
+      console.log('Creases:', creases.length);
+      if (creases.length > 0) {
+        console.log('Sample crease:', creases[0]);
+        console.log('Sample scaled crease:', scaledCreases[0]);
+      }
+
+      // Check intersections directly
+      const rawIntersections = findIntersections(scaledCreases);
+      console.log('Raw intersections found:', rawIntersections.length);
+      if (rawIntersections.length > 0) {
+        console.log('Sample intersection:', rawIntersections[0]);
+        // Check if intersection falls in grid
+        const testInter = rawIntersections[0];
+        const testCol = Math.floor(testInter.x / actualStrideX);
+        const testRow = Math.floor(testInter.y / actualStrideY);
+        console.log('Test intersection maps to cell:', testCol, testRow, '(grid is', cols, 'x', rows, ')');
+      }
+
+      console.log('Cell weights:', Object.keys(cellWeights).length, 'cells with weight');
+      console.log('Thresholds:', thresholds);
+
+      // SVG positioning
       const offsetX = (DRAWING_MARGIN + grid.gridOffsetX) * scaleX;
       const offsetY = (DRAWING_MARGIN + grid.gridOffsetY) * scaleY;
       const svgCellWidth = cellWidth * scaleX;
@@ -165,6 +206,7 @@
       const levelOpacity = [0, 0.25, 0.5, 0.85];
 
       let rects = '';
+      let rectCount = 0;
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const key = `${col},${row}`;
@@ -178,9 +220,11 @@
             const h = svgCellHeight.toFixed(2);
             const opacity = levelOpacity[level];
             rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${textColor}" opacity="${opacity}"/>`;
+            rectCount++;
           }
         }
       }
+      console.log('Generated', rectCount, 'rects');
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}" width="${SVG_WIDTH}" height="${SVG_HEIGHT}">
 <rect width="100%" height="100%" fill="${bgColor}"/>

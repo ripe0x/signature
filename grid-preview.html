@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fold Grid Preview - Trait Analysis</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: #141414;
+      border-right: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .sidebar-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-header p {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .controls {
+      padding: 16px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .control-row:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="number"], select {
+      width: 100%;
+      padding: 8px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: #4a9eff;
+    }
+
+    button {
+      padding: 10px 16px;
+      background: #4a9eff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #3a8eef;
+    }
+
+    button:disabled {
+      background: #333;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #333;
+    }
+
+    button.secondary:hover {
+      background: #444;
+    }
+
+    .generate-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    /* Filters */
+    .filters {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .filter-section {
+      margin-bottom: 16px;
+    }
+
+    .filter-section h3 {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .filter-chip {
+      padding: 4px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-chip:hover {
+      border-color: #4a9eff;
+    }
+
+    .filter-chip.active {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+
+    .filter-chip .count {
+      background: rgba(255,255,255,0.2);
+      padding: 1px 5px;
+      border-radius: 8px;
+      font-size: 10px;
+    }
+
+    .filter-chip.active .count {
+      background: rgba(0,0,0,0.2);
+    }
+
+    /* Stats */
+    .stats {
+      padding: 16px;
+      border-top: 1px solid #2a2a2a;
+      background: #111;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .stats-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stats-label {
+      color: #888;
+    }
+
+    .stats-value {
+      color: #4a9eff;
+      font-weight: 500;
+    }
+
+    /* Main content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      padding: 12px 16px;
+      background: #141414;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .toolbar-info {
+      font-size: 13px;
+      color: #888;
+    }
+
+    .toolbar-info strong {
+      color: #fff;
+    }
+
+    .view-options {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .size-slider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .size-slider input {
+      width: 100px;
+    }
+
+    /* Grid */
+    .grid-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(var(--cell-size, 120px), 1fr));
+    }
+
+    .grid-item {
+      aspect-ratio: 4/5;
+      background: #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+
+    .grid-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .grid-item img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .grid-item .item-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .grid-item:hover .item-info {
+      opacity: 1;
+    }
+
+    .item-info .seed {
+      font-family: monospace;
+      color: #888;
+    }
+
+    .item-info .strategy {
+      color: #4a9eff;
+    }
+
+    /* Progress */
+    .progress-bar {
+      height: 3px;
+      background: #2a2a2a;
+      margin-top: 12px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #4a9eff;
+      width: 0%;
+      transition: width 0.1s;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #1a1a1a;
+      border-radius: 12px;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .modal-image {
+      width: 480px;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-image canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .modal-details {
+      width: 400px;
+      padding: 24px;
+      overflow-y: auto;
+      background: #141414;
+    }
+
+    .modal-details h2 {
+      font-size: 20px;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    .modal-details .seed-display {
+      font-family: monospace;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+
+    .traits-section {
+      margin-bottom: 20px;
+    }
+
+    .traits-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .trait-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .trait-card {
+      background: #1e1e2e;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .trait-card.rare {
+      background: linear-gradient(135deg, #2a1a3a 0%, #1a2a3a 100%);
+      border-color: #4a3a5a;
+    }
+
+    .trait-card .trait-type {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .trait-card .trait-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .trait-card.rare .trait-value {
+      color: #a78bfa;
+    }
+
+    .trait-card .trait-rarity {
+      font-size: 9px;
+      color: #4a9eff;
+      margin-top: 4px;
+    }
+
+    .color-preview {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .trait-list {
+      list-style: none;
+    }
+
+    .trait-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 13px;
+    }
+
+    .trait-item:last-child {
+      border-bottom: none;
+    }
+
+    .trait-name {
+      color: #888;
+    }
+
+    .trait-value {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-close:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Loading state */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10,10,10,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #666;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>Fold Grid Preview</h1>
+        <p>Generate and analyze trait distributions</p>
+      </div>
+
+      <div class="controls">
+        <div class="control-row">
+          <div style="flex: 1">
+            <label>Count</label>
+            <input type="number" id="countInput" value="100" min="1" max="10000">
+          </div>
+          <div style="flex: 1">
+            <label>Start Seed</label>
+            <input type="number" id="startSeedInput" value="1" min="0">
+          </div>
+        </div>
+        <div class="control-row">
+          <div style="flex: 1">
+            <label>Folds</label>
+            <input type="number" id="foldsInput" value="50" min="0" max="500">
+          </div>
+          <div style="flex: 1">
+            <label>Fold Mode</label>
+            <select id="foldModeSelect">
+              <option value="fixed">Fixed</option>
+              <option value="random">Random</option>
+              <option value="incremental">1, 2, 3...</option>
+            </select>
+          </div>
+        </div>
+        <button class="generate-btn" id="generateBtn">Generate</button>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="filters" id="filtersContainer">
+        <div class="empty-state">
+          <p>Generate outputs to see filters</p>
+        </div>
+      </div>
+
+      <div class="stats" id="statsContainer">
+        <div class="stats-row">
+          <span class="stats-label">Generated</span>
+          <span class="stats-value" id="statGenerated">0</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">Filtered</span>
+          <span class="stats-value" id="statFiltered">0</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">Render time</span>
+          <span class="stats-value" id="statTime">-</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="toolbar">
+        <div class="toolbar-info">
+          Showing <strong id="showingCount">0</strong> of <strong id="totalCount">0</strong> outputs
+        </div>
+        <div class="view-options">
+          <div class="size-slider">
+            <span style="font-size: 12px; color: #888;">Size:</span>
+            <input type="range" id="sizeSlider" min="80" max="240" value="120">
+          </div>
+          <button class="secondary" id="exportBtn" disabled>Export CSV</button>
+        </div>
+      </div>
+
+      <div class="grid-container" id="gridContainer">
+        <div class="empty-state">
+          <h3>No outputs generated</h3>
+          <p>Click "Generate" to create fold previews</p>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div id="loadingText">Generating...</div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-image">
+        <canvas id="modalCanvas" width="480" height="600"></canvas>
+      </div>
+      <div class="modal-details">
+        <h2 id="modalTitle">Fold #1</h2>
+        <div class="seed-display" id="modalSeed"></div>
+        <div id="modalTraits"></div>
+      </div>
+    </div>
+    <button class="modal-close" id="modalClose">&times;</button>
+  </div>
+
+  <script type="module">
+    import {
+      generateAllParams,
+      renderWithState,
+      generateMetadata,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+    } from './web/fold-core.js';
+
+    // State
+    let allOutputs = [];
+    let filteredOutputs = [];
+    let activeFilters = {};
+    let traitCounts = {};
+    let currentModalIndex = -1;
+    let currentModalOutput = null;
+
+    // DOM elements
+    const countInput = document.getElementById('countInput');
+    const startSeedInput = document.getElementById('startSeedInput');
+    const foldsInput = document.getElementById('foldsInput');
+    const foldModeSelect = document.getElementById('foldModeSelect');
+    const generateBtn = document.getElementById('generateBtn');
+    const progressFill = document.getElementById('progressFill');
+    const filtersContainer = document.getElementById('filtersContainer');
+    const gridContainer = document.getElementById('gridContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    const showingCount = document.getElementById('showingCount');
+    const totalCount = document.getElementById('totalCount');
+    const statGenerated = document.getElementById('statGenerated');
+    const statFiltered = document.getElementById('statFiltered');
+    const statTime = document.getElementById('statTime');
+    const sizeSlider = document.getElementById('sizeSlider');
+    const exportBtn = document.getElementById('exportBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalCanvas = document.getElementById('modalCanvas');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSeed = document.getElementById('modalSeed');
+    const modalTraits = document.getElementById('modalTraits');
+    const modalClose = document.getElementById('modalClose');
+
+    // Generate a single output
+    function generateOutput(seed, foldCount = null) {
+      const hexSeed = '0x' + seed.toString(16).padStart(64, '0');
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+
+      // Get metadata to extract traits (tokenId, seed, foldCount, imageBaseUrl)
+      // Note: generateAllParams returns folds, not foldCount
+      const actualFoldCount = foldCount !== null ? foldCount : params.folds;
+      const metadata = generateMetadata(seed, seed, actualFoldCount, '');
+
+      // Extract traits into a simple object
+      const traits = {};
+      for (const attr of metadata.attributes) {
+        traits[attr.trait_type] = attr.value;
+      }
+
+      return {
+        seed,
+        hexSeed,
+        params,
+        traits,
+        metadata,
+        foldCount: actualFoldCount,
+      };
+    }
+
+    // Temporary canvas for thumbnail rendering (reused)
+    const thumbCanvas = document.createElement('canvas');
+
+    // Render thumbnail using unified render function
+    function renderThumbnail(output, size = 120) {
+      // Use the same render path as on-chain
+      const { dataUrl } = renderWithState(thumbCanvas, output, {
+        width: REFERENCE_WIDTH,
+        height: REFERENCE_HEIGHT,
+      });
+
+      // Use an img element instead of canvas for proper scaling
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = `Fold #${output.seed}`;
+
+      return img;
+    }
+
+    // Render full size for modal using unified render function
+    function renderFullSize(output) {
+      currentModalOutput = output;
+      renderWithState(modalCanvas, output, { width: 480, height: 600 });
+    }
+
+    // Count traits
+    function countTraits(outputs) {
+      const counts = {};
+      for (const output of outputs) {
+        for (const [traitType, value] of Object.entries(output.traits)) {
+          if (!counts[traitType]) counts[traitType] = {};
+          if (!counts[traitType][value]) counts[traitType][value] = 0;
+          counts[traitType][value]++;
+        }
+      }
+      return counts;
+    }
+
+    // Build filter UI
+    function buildFilters() {
+      traitCounts = countTraits(allOutputs);
+
+      // Filter order
+      const filterOrder = [
+        'Fold Strategy',
+        'Render Mode',
+        'Multi-Color',
+        'Paper Type',
+        'Paper Grain',
+        'Palette Strategy',
+        'Cell Size',
+        'Crease Lines',
+      ];
+
+      let html = '';
+      for (const traitType of filterOrder) {
+        if (!traitCounts[traitType]) continue;
+
+        const values = Object.entries(traitCounts[traitType])
+          .sort((a, b) => b[1] - a[1]); // Sort by count desc
+
+        html += `
+          <div class="filter-section" data-trait="${traitType}">
+            <h3>${traitType}</h3>
+            <div class="filter-options">
+              ${values.map(([value, count]) => `
+                <div class="filter-chip" data-trait="${traitType}" data-value="${value}">
+                  ${value}
+                  <span class="count">${count}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      filtersContainer.innerHTML = html;
+
+      // Add click handlers
+      filtersContainer.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const trait = chip.dataset.trait;
+          const value = chip.dataset.value;
+
+          if (!activeFilters[trait]) activeFilters[trait] = new Set();
+
+          if (activeFilters[trait].has(value)) {
+            activeFilters[trait].delete(value);
+            chip.classList.remove('active');
+          } else {
+            activeFilters[trait].add(value);
+            chip.classList.add('active');
+          }
+
+          if (activeFilters[trait].size === 0) {
+            delete activeFilters[trait];
+          }
+
+          applyFilters();
+        });
+      });
+    }
+
+    // Apply filters
+    function applyFilters() {
+      if (Object.keys(activeFilters).length === 0) {
+        filteredOutputs = [...allOutputs];
+      } else {
+        filteredOutputs = allOutputs.filter(output => {
+          for (const [trait, values] of Object.entries(activeFilters)) {
+            if (!values.has(String(output.traits[trait]))) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      updateStats();
+      renderGrid();
+    }
+
+    // Update stats
+    function updateStats() {
+      statGenerated.textContent = allOutputs.length.toLocaleString();
+      statFiltered.textContent = filteredOutputs.length.toLocaleString();
+      showingCount.textContent = filteredOutputs.length.toLocaleString();
+      totalCount.textContent = allOutputs.length.toLocaleString();
+    }
+
+    // Render grid
+    function renderGrid() {
+      const size = parseInt(sizeSlider.value);
+      gridContainer.style.setProperty('--cell-size', size + 'px');
+
+      if (filteredOutputs.length === 0) {
+        gridContainer.innerHTML = `
+          <div class="empty-state">
+            <h3>No outputs match filters</h3>
+            <p>Try removing some filters</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Limit visible items for performance
+      const maxVisible = 500;
+      const visibleOutputs = filteredOutputs.slice(0, maxVisible);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+
+      visibleOutputs.forEach((output, index) => {
+        const item = document.createElement('div');
+        item.className = 'grid-item';
+        item.dataset.seed = output.seed;
+
+        const canvas = renderThumbnail(output, size);
+        item.appendChild(canvas);
+
+        const info = document.createElement('div');
+        info.className = 'item-info';
+        info.innerHTML = `
+          <div class="seed">#${output.seed} · ${output.foldCount}f</div>
+          <div class="strategy">${output.traits['Fold Strategy']}</div>
+        `;
+        item.appendChild(info);
+
+        item.addEventListener('click', () => openModal(output, index));
+        grid.appendChild(item);
+      });
+
+      gridContainer.innerHTML = '';
+      gridContainer.appendChild(grid);
+
+      if (filteredOutputs.length > maxVisible) {
+        const notice = document.createElement('div');
+        notice.style.cssText = 'text-align: center; padding: 20px; color: #888; font-size: 13px;';
+        notice.textContent = `Showing first ${maxVisible} of ${filteredOutputs.length} outputs. Use filters to narrow down.`;
+        gridContainer.appendChild(notice);
+      }
+    }
+
+    // Get grid density description based on cell size
+    function getGridDensity(cellW, cellH) {
+      const cellArea = cellW * cellH;
+      if (cellArea < 1500) return 'Dense';
+      if (cellArea < 6000) return 'Medium';
+      if (cellArea < 20000) return 'Sparse';
+      return 'Very Sparse';
+    }
+
+    // Get draw direction from params (simplified - would need to match contract logic)
+    function getDrawDirection(seed) {
+      const directions = ['ltr', 'rtl', 'center', 'alternate', 'diagonal', 'randomMid', 'checkerboard'];
+      // Simplified random selection based on seed
+      return directions[seed % directions.length];
+    }
+
+    // Check if monochrome (bg and text are same hue or grayscale)
+    function isMonochrome(palette) {
+      const bg = palette.bg;
+      const text = palette.text;
+      // Simple check: if both are grayscale or very similar
+      const isGray = (hex) => {
+        const r = parseInt(hex.slice(1,3), 16);
+        const g = parseInt(hex.slice(3,5), 16);
+        const b = parseInt(hex.slice(5,7), 16);
+        return Math.abs(r - g) < 20 && Math.abs(g - b) < 20;
+      };
+      return isGray(bg) && isGray(text);
+    }
+
+    // Open modal
+    function openModal(output, index = -1) {
+      currentModalIndex = index >= 0 ? index : filteredOutputs.indexOf(output);
+
+      const total = Math.min(filteredOutputs.length, 500); // match grid limit
+      const position = currentModalIndex >= 0 ? `${currentModalIndex + 1} / ${total}` : '';
+      modalTitle.textContent = `Fold #${output.seed}${position ? ` (${position})` : ''}`;
+      modalSeed.textContent = output.hexSeed;
+
+      const params = output.params;
+      const traits = output.traits;
+
+      // Build marketplace-style traits display matching on-chain contract metadata exactly
+      let traitsHtml = '';
+
+      // Determine rare traits
+      const hasCreaseLines = params.showCreaseLines;
+      const hasHitCounts = traits['Hit Counts'] === 'Visible';
+      const mono = isMonochrome(params.palette);
+
+      // On-chain attributes section (matches LessRenderer.sol _buildAttributes)
+      const paperType = traits['Paper Type'] || 'Standard';
+      const paperGrain = params.paperProperties?.angleAffinity !== null ? 'Grain' : 'Uniform';
+      const colorCount = params.palette?.colorCount || 2;
+
+      traitsHtml += `
+        <div class="traits-section">
+          <div class="traits-section-title">On-Chain Attributes</div>
+          <div class="trait-grid">
+            <div class="trait-card">
+              <div class="trait-type">Folds</div>
+              <div class="trait-value">${output.foldCount}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Fold Strategy</div>
+              <div class="trait-value">${params.foldStrategy?.type || 'random'}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Render Mode</div>
+              <div class="trait-value">${params.renderMode || 'normal'}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Draw Direction</div>
+              <div class="trait-value">${getDrawDirection(output.seed)}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Palette</div>
+              <div class="trait-value">${params.palette?.strategy || 'unknown'}</div>
+              <div class="color-preview">
+                <div class="color-swatch" style="background: ${params.palette?.bg}" title="Background"></div>
+                <div class="color-swatch" style="background: ${params.palette?.text}" title="Text"></div>
+                <div class="color-swatch" style="background: ${params.palette?.accent}" title="Accent"></div>
+              </div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Color Count</div>
+              <div class="trait-value">${colorCount}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Grid Density</div>
+              <div class="trait-value">${getGridDensity(params.cells?.cellW || 20, params.cells?.cellH || 20)}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Paper Type</div>
+              <div class="trait-value">${paperType}</div>
+            </div>
+            <div class="trait-card">
+              <div class="trait-type">Paper Grain</div>
+              <div class="trait-value">${paperGrain}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Rare Traits section (only shown on-chain when true)
+      if (hasCreaseLines || mono || hasHitCounts) {
+        traitsHtml += `
+          <div class="traits-section">
+            <div class="traits-section-title">Rare Traits</div>
+            <div class="trait-grid">
+        `;
+
+        if (hasCreaseLines) {
+          traitsHtml += `
+            <div class="trait-card rare">
+              <div class="trait-type">Crease Lines</div>
+              <div class="trait-value">Visible</div>
+              <div class="trait-rarity">Rare</div>
+            </div>
+          `;
+        }
+
+        if (mono) {
+          traitsHtml += `
+            <div class="trait-card rare">
+              <div class="trait-type">Monochrome</div>
+              <div class="trait-value">Yes</div>
+              <div class="trait-rarity">Rare</div>
+            </div>
+          `;
+        }
+
+        if (hasHitCounts) {
+          traitsHtml += `
+            <div class="trait-card rare">
+              <div class="trait-type">Hit Counts</div>
+              <div class="trait-value">Visible</div>
+              <div class="trait-rarity">Rare</div>
+            </div>
+          `;
+        }
+
+        traitsHtml += `
+            </div>
+          </div>
+        `;
+      }
+
+      modalTraits.innerHTML = traitsHtml;
+
+      renderFullSize(output);
+      modalOverlay.classList.add('active');
+    }
+
+    // Navigate modal
+    function navigateModal(direction) {
+      if (currentModalIndex < 0) return;
+
+      const maxIndex = Math.min(filteredOutputs.length, 500) - 1;
+      let newIndex = currentModalIndex + direction;
+
+      // Wrap around
+      if (newIndex < 0) newIndex = maxIndex;
+      if (newIndex > maxIndex) newIndex = 0;
+
+      openModal(filteredOutputs[newIndex], newIndex);
+    }
+
+    // Close modal
+    function closeModal() {
+      modalOverlay.classList.remove('active');
+      currentModalIndex = -1;
+      currentModalOutput = null;
+      // Stop any running animation
+      if (typeof stopSecretAnimation === 'function') {
+        stopSecretAnimation();
+      }
+    }
+
+    // Generate all outputs
+    async function generate() {
+      const count = parseInt(countInput.value) || 100;
+      const startSeed = parseInt(startSeedInput.value) || 1;
+      const baseFolds = parseInt(foldsInput.value) || 50;
+      const foldMode = foldModeSelect.value;
+
+      allOutputs = [];
+      filteredOutputs = [];
+      activeFilters = {};
+
+      generateBtn.disabled = true;
+      loadingOverlay.classList.add('active');
+      progressFill.style.width = '0%';
+
+      const startTime = performance.now();
+      const batchSize = 50;
+
+      for (let i = 0; i < count; i += batchSize) {
+        const batchEnd = Math.min(i + batchSize, count);
+
+        for (let j = i; j < batchEnd; j++) {
+          const seed = startSeed + j;
+
+          // Determine fold count based on mode
+          let foldCount;
+          if (foldMode === 'fixed') {
+            foldCount = baseFolds;
+          } else if (foldMode === 'random') {
+            foldCount = null; // Let generateAllParams decide
+          } else if (foldMode === 'incremental') {
+            foldCount = j + 1; // 1, 2, 3, ...
+          }
+
+          try {
+            const output = generateOutput(seed, foldCount);
+            allOutputs.push(output);
+          } catch (err) {
+            console.error(`Failed to generate seed ${seed}:`, err);
+          }
+        }
+
+        const progress = (batchEnd / count) * 100;
+        progressFill.style.width = progress + '%';
+        loadingText.textContent = `Generating... ${batchEnd}/${count}`;
+
+        // Allow UI to update
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      const elapsed = performance.now() - startTime;
+      statTime.textContent = (elapsed / 1000).toFixed(2) + 's';
+
+      filteredOutputs = [...allOutputs];
+      buildFilters();
+      updateStats();
+      renderGrid();
+
+      loadingOverlay.classList.remove('active');
+      generateBtn.disabled = false;
+      exportBtn.disabled = false;
+    }
+
+    // Export to CSV
+    function exportCSV() {
+      if (allOutputs.length === 0) return;
+
+      const headers = ['Seed', 'Hex Seed', ...Object.keys(allOutputs[0].traits)];
+      const rows = allOutputs.map(o => [
+        o.seed,
+        o.hexSeed,
+        ...Object.values(o.traits)
+      ]);
+
+      const csv = [
+        headers.join(','),
+        ...rows.map(r => r.map(v => `"${v}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fold-traits-${allOutputs.length}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Event listeners
+    generateBtn.addEventListener('click', generate);
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+    exportBtn.addEventListener('click', exportCSV);
+
+    sizeSlider.addEventListener('input', () => {
+      renderGrid();
+    });
+
+    // Secret animation state
+    let secretAnimating = false;
+    let secretAnimationFold = 0;
+    let secretAnimationMode = null;
+    let secretAnimationTimer = null;
+    let secretShowFoldLines = false;
+
+    function runSecretAnimation() {
+      if (!secretAnimating || !currentModalOutput || secretAnimationFold > currentModalOutput.foldCount) {
+        stopSecretAnimation();
+        return;
+      }
+      const isLinesOnly = secretAnimationMode === 'lines-only';
+      renderWithState(modalCanvas, currentModalOutput, {
+        width: 480,
+        height: 600,
+        foldOverride: secretAnimationFold,
+        linesOnly: isLinesOnly,
+        isAnimating: true,
+      });
+      secretAnimationFold++;
+      secretAnimationTimer = setTimeout(runSecretAnimation, 50);
+    }
+
+    function startSecretAnimation(mode) {
+      if (!currentModalOutput) return;
+      secretAnimating = true;
+      secretAnimationFold = 0;
+      secretAnimationMode = mode;
+      runSecretAnimation();
+    }
+
+    function stopSecretAnimation() {
+      secretAnimating = false;
+      secretAnimationMode = null;
+      if (secretAnimationTimer) {
+        clearTimeout(secretAnimationTimer);
+        secretAnimationTimer = null;
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Modal navigation
+      if (e.key === 'Escape') {
+        if (secretAnimating) {
+          e.preventDefault();
+          stopSecretAnimation();
+        } else {
+          closeModal();
+        }
+        return;
+      }
+      if (e.key === 'ArrowLeft') navigateModal(-1);
+      if (e.key === 'ArrowRight') navigateModal(1);
+
+      // Secret animations (only when modal is open)
+      if (!currentModalOutput) return;
+
+      // Shift+F: Toggle fold lines overlay
+      if (e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        secretShowFoldLines = !secretShowFoldLines;
+        if (!secretAnimating) {
+          renderWithState(modalCanvas, currentModalOutput, {
+            width: 480,
+            height: 600,
+            showOverlays: secretShowFoldLines,
+          });
+        }
+      }
+
+      // Shift+A: Start full animation
+      if (e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        if (secretAnimating) stopSecretAnimation();
+        startSecretAnimation('full');
+      }
+
+      // Shift+L: Start lines-only animation
+      if (e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        if (secretAnimating) stopSecretAnimation();
+        startSecretAnimation('lines-only');
+      }
+    });
+
+    // Initial state
+    updateStats();
+  </script>
+</body>
+</html>
