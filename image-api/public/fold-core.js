@@ -2895,8 +2895,10 @@ export function renderToCanvas({
                 const extraOffset = Math.floor((overflowIndex + 1) / 2) * step;
                 if (overflowIndex % 2 === 0) {
                   drawX = cellCenterX + baseOffset + extraOffset;
+                  if (drawX + charWidth > drawAreaRight) break;
                 } else {
                   drawX = cellCenterX - baseOffset - extraOffset - charWidth;
+                  if (drawX < drawAreaLeft) break;
                 }
               }
             } else if (i < numCharsInCell) {
@@ -2906,15 +2908,13 @@ export function renderToCanvas({
               // Overflow extends LEFT from cell start
               const overflowIndex = i - numCharsInCell;
               drawX = x - (overflowIndex + 1) * step;
+              if (drawX < drawAreaLeft) break;
             } else {
               // Overflow extends RIGHT from cell end (ltr)
               const overflowIndex = i - numCharsInCell;
               drawX = effectiveCellEndX + overflowIndex * step;
+              if (drawX + charWidth > drawAreaRight) break;
             }
-
-            // Unified boundary check for all directions
-            // Use floor(drawAreaLeft) to account for Math.round() on x coordinates
-            if (drawX < Math.floor(drawAreaLeft) || drawX + charWidth > drawAreaRight) break;
 
             // Draw shadow first (behind main character)
             if (hasShadowEffect && !isEmptyCell) {

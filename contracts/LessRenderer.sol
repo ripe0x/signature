@@ -158,11 +158,10 @@ contract LessRenderer is ILessRenderer, Ownable {
     ) external view override returns (string memory) {
         // Get token data from the Less contract
         ILess.TokenData memory token = ILess(less).getTokenData(tokenId);
-        ILess.Fold memory fold = ILess(less).getFold(token.foldId);
         bytes32 seed = ILess(less).getSeed(tokenId);
 
         // Build the metadata JSON
-        string memory json = _buildMetadataJSON(tokenId, token, fold, seed);
+        string memory json = _buildMetadataJSON(tokenId, token, seed);
 
         // Encode as base64 data URI
         return
@@ -204,12 +203,11 @@ contract LessRenderer is ILessRenderer, Ownable {
     function _buildMetadataJSON(
         uint256 tokenId,
         ILess.TokenData memory token,
-        ILess.Fold memory fold,
         bytes32 seed
     ) internal view returns (string memory) {
         string memory animationURL = _buildAnimationURL(tokenId, seed);
         string memory imageURL = _buildImageURL(tokenId);
-        string memory attributes = _buildAttributes(token, fold, seed);
+        string memory attributes = _buildAttributes(token, seed);
 
         return
             string(
@@ -390,40 +388,56 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Builds the attributes array for metadata
     function _buildAttributes(
         ILess.TokenData memory token,
-        ILess.Fold memory fold,
         bytes32 seed
-    ) internal view returns (string memory) {
-        // Get strategy supply if available
-        string memory supplyAttr = "";
-        try IStrategy(ILess(less).strategy()).totalSupply() returns (
-            uint256 supply
-        ) {
-            supplyAttr = string(
-                abi.encodePacked(
-                    ',{"trait_type":"Strategy Supply","value":',
-                    supply.toString(),
-                    "}"
-                )
-            );
-        } catch {}
-        return
-            string(
-                abi.encodePacked(
-                    '[{"trait_type":"Fold ID","value":',
-                    uint256(token.foldId).toString(),
-                    '},{"trait_type":"Seed","value":"',
-                    _bytes32ToHexString(seed),
-                    '"},{"trait_type":"Block Hash","value":"',
-                    _bytes32ToHexString(fold.blockHash),
-                    '"},{"trait_type":"Window Start","display_type":"date","value":',
-                    uint256(fold.startTime).toString(),
-                    '},{"trait_type":"Window End","display_type":"date","value":',
-                    uint256(fold.endTime).toString(),
-                    "}",
-                    supplyAttr,
-                    "]"
-                )
-            );
+    ) internal pure returns (string memory) {
+        // Get palette info (includes monochrome check)
+        (string memory palette, uint8 colorCount, bool isMonochrome) = _getPalette(seed);
+
+        // Build base attributes (always present)
+        string memory attrs = string(
+            abi.encodePacked(
+                '[{"trait_type":"Folds","value":',
+                uint256(token.foldId).toString(),
+                '},{"trait_type":"Fold Strategy","value":"',
+                _getFoldStrategy(seed),
+                '"},{"trait_type":"Render Mode","value":"',
+                _getRenderMode(seed),
+                '"},{"trait_type":"Draw Direction","value":"',
+                _getDrawDirection(seed),
+                '"},{"trait_type":"Palette","value":"',
+                palette,
+                '"},{"trait_type":"Color Count","value":',
+                uint256(colorCount).toString(),
+                '},{"trait_type":"Grid Density","value":"',
+                _getGridDensity(seed),
+                '"},{"trait_type":"Paper Type","value":"',
+                _getPaperType(seed),
+                '"}'
+            )
+        );
+
+        // Add Paper Grain (always shown)
+        if (_hasPaperGrain(seed)) {
+            attrs = string(abi.encodePacked(attrs, ',{"trait_type":"Paper Grain","value":"Grain"}'));
+        } else {
+            attrs = string(abi.encodePacked(attrs, ',{"trait_type":"Paper Grain","value":"Uniform"}'));
+        }
+
+        // Add rare traits (only when true)
+        if (_hasCreaseLines(seed)) {
+            attrs = string(abi.encodePacked(attrs, ',{"trait_type":"Crease Lines","value":"Visible"}'));
+        }
+
+        if (isMonochrome) {
+            attrs = string(abi.encodePacked(attrs, ',{"trait_type":"Monochrome","value":"Yes"}'));
+        }
+
+        if (_hasHitCounts(seed)) {
+            attrs = string(abi.encodePacked(attrs, ',{"trait_type":"Hit Counts","value":"Visible"}'));
+        }
+
+        // Close the array
+        return string(abi.encodePacked(attrs, "]"));
     }
 
     /// @notice Converts bytes32 to hex string with 0x prefix
@@ -439,6 +453,174 @@ contract LessRenderer is ILessRenderer, Ownable {
             str[3 + i * 2] = alphabet[uint8(data[i] & 0x0f)];
         }
         return string(str);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         SEEDED RNG & TRAIT DERIVATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Converts bytes32 seed to JS-compatible number
+    /// @dev Matches JS hexSeedToNumber: takes first 64 bits, mods by 0x7fffffff
+    function _seedToNumber(bytes32 seed) internal pure returns (uint256) {
+        // Take upper 64 bits (first 16 hex chars) and mod by 0x7fffffff
+        // This matches JS: Number(BigInt("0x" + hex.slice(0,16)) % BigInt(2147483647))
+        uint256 upper64 = uint256(seed) >> 192;
+        return upper64 % 0x7fffffff;
+    }
+
+    /// @notice LCG random number generator matching JS implementation
+    /// @dev Uses unchecked arithmetic to allow overflow (required for LCG)
+    function _nextRandom(uint256 state) internal pure returns (uint256) {
+        if (state == 0) state = 1;
+        unchecked {
+            return (state * 1103515245 + 12345) & 0x7fffffff;
+        }
+    }
+
+    /// @notice Derives fold strategy from seed (matches JS generateFoldStrategy)
+    function _getFoldStrategy(bytes32 seed) internal pure returns (string memory) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 6666);
+        uint256 roll = (state * 100) / 0x7fffffff;
+        if (roll < 16) return "horizontal";
+        if (roll < 32) return "vertical";
+        if (roll < 44) return "diagonal";
+        if (roll < 56) return "radial";
+        if (roll < 68) return "grid";
+        if (roll < 80) return "clustered";
+        return "random";
+    }
+
+    /// @notice Derives render mode from seed (matches JS generateRenderMode)
+    function _getRenderMode(bytes32 seed) internal pure returns (string memory) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
+        uint256 roll = (state * 100) / 0x7fffffff;
+        if (roll < 35) return "normal";
+        if (roll < 40) return "binary";
+        if (roll < 65) return "inverted";
+        if (roll < 82) return "sparse";
+        return "dense";
+    }
+
+    /// @notice Derives draw direction from seed (matches JS drawDirectionMode)
+    function _getDrawDirection(bytes32 seed) internal pure returns (string memory) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 33333);
+        uint256 roll = (state * 100) / 0x7fffffff;
+        if (roll < 22) return "ltr";
+        if (roll < 44) return "rtl";
+        if (roll < 65) return "center";
+        if (roll < 80) return "alternate";
+        if (roll < 90) return "diagonal";
+        if (roll < 96) return "randomMid";
+        return "checkerboard";
+    }
+
+    /// @notice Derives palette strategy and color count from seed (matches JS generatePalette)
+    function _getPalette(bytes32 seed) internal pure returns (
+        string memory strategy,
+        uint8 colorCount,
+        bool isMonochrome
+    ) {
+        uint256 state = _nextRandom(_seedToNumber(seed));
+        uint256 roll = (state * 100) / 0x7fffffff;
+
+        // 12% monochrome
+        if (roll < 12) {
+            return ("monochrome", 2, true);
+        }
+
+        // Non-monochrome: determine contrast type
+        state = _nextRandom(state);
+        roll = (state * 100) / 0x7fffffff;
+
+        string memory strat;
+        if (roll < 40) strat = "value";
+        else if (roll < 68) strat = "temperature";
+        else if (roll < 90) strat = "complement";
+        else strat = "clash";
+
+        // Color count: 40% get 2 colors, 60% get 3
+        state = _nextRandom(state);
+        roll = (state * 100) / 0x7fffffff;
+        uint8 colors = roll < 40 ? 2 : 3;
+
+        return (strat, colors, false);
+    }
+
+    /// @notice Derives grid density from seed (based on cell dimensions)
+    function _getGridDensity(bytes32 seed) internal pure returns (string memory) {
+        // Reference dimensions from JS
+        uint256 REFERENCE_WIDTH = 1200;
+        uint256 REFERENCE_HEIGHT = 1500;
+        uint256 DRAWING_MARGIN = 50;
+        uint256 CELL_MIN = 20;
+        uint256 CELL_MAX = 600;
+
+        uint256 innerW = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
+        uint256 innerH = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
+
+        // Use seed + 9999 for cell dimension RNG (matches JS)
+        uint256 state = _nextRandom(_seedToNumber(seed) + 9999);
+
+        // Simplified: estimate cell size from RNG distribution
+        // JS biases toward larger cells (50% in 75-90% range)
+        uint256 roll = (state * 100) / 0x7fffffff;
+
+        uint256 cellArea;
+        if (roll < 3) {
+            // Very small cells
+            cellArea = CELL_MIN * CELL_MIN;
+        } else if (roll < 10) {
+            // Small cells
+            cellArea = 50 * 50;
+        } else if (roll < 45) {
+            // Medium cells
+            cellArea = 100 * 100;
+        } else if (roll < 95) {
+            // Large cells (most common)
+            cellArea = 200 * 200;
+        } else {
+            // Very large cells
+            cellArea = CELL_MAX * CELL_MAX;
+        }
+
+        uint256 gridArea = innerW * innerH;
+        uint256 approxCells = gridArea / cellArea;
+
+        if (approxCells < 50) return "Sparse";
+        if (approxCells < 300) return "Normal";
+        return "Dense";
+    }
+
+    /// @notice Derives paper type from seed (matches JS generatePaperProperties)
+    function _getPaperType(bytes32 seed) internal pure returns (string memory) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
+        // absorbency = 0.1 + rng() * 0.8, so range 10-90 when scaled
+        uint256 absorbency = ((state * 80) / 0x7fffffff) + 10;
+        if (absorbency < 35) return "Resistant";
+        if (absorbency < 65) return "Standard";
+        return "Absorbent";
+    }
+
+    /// @notice Derives paper grain from seed (matches JS generatePaperProperties)
+    function _hasPaperGrain(bytes32 seed) internal pure returns (bool) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
+        // Skip first roll (absorbency), use second for angle affinity
+        state = _nextRandom(state); // intersectionThreshold (disabled, but still advances)
+        state = _nextRandom(state); // hasAngleAffinity check
+        uint256 roll = (state * 100) / 0x7fffffff;
+        return roll < 40; // 40% have grain
+    }
+
+    /// @notice Checks if token has rare crease lines (0.8%)
+    function _hasCreaseLines(bytes32 seed) internal pure returns (bool) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 9191);
+        return (state * 1000) / 0x7fffffff < 8;
+    }
+
+    /// @notice Checks if token has rare hit counts display (0.8%)
+    function _hasHitCounts(bytes32 seed) internal pure returns (bool) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 8888);
+        return (state * 1000) / 0x7fffffff < 8;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -13,16 +13,16 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'less',
+  title: 'LESS',
   description: 'an onchain artwork about what remains when a system keeps taking things away',
   openGraph: {
-    title: 'less',
+    title: 'LESS',
     description: 'an onchain artwork about what remains when a system keeps taking things away',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'less',
+    title: 'LESS',
     description: 'an onchain artwork about what remains when a system keeps taking things away',
   },
 };

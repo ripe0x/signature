@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useTokenStats } from '@/hooks/useTokenStats';
-import { formatNumber, formatCountdown, formatTimestamp } from '@/lib/utils';
+import { formatCountdown, formatTimestamp } from '@/lib/utils';
 import { formatEther } from 'viem';
+import { IS_PRE_LAUNCH } from '@/lib/contracts';
 
 export function TokenPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,11 +17,13 @@ export function TokenPanel() {
     foldCount,
   } = useTokenStats();
 
-  const formattedSupply = tokenSupply > 0
-    ? parseFloat(formatEther(tokenSupply)).toLocaleString(undefined, {
-        maximumFractionDigits: 0,
-      })
-    : '—';
+  const formattedSupply = IS_PRE_LAUNCH
+    ? '—'
+    : tokenSupply > 0
+      ? parseFloat(formatEther(tokenSupply)).toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        })
+      : '—';
 
   return (
     <>
@@ -51,33 +54,38 @@ export function TokenPanel() {
           <div>
             <h2 className="text-lg mb-1">$LESS</h2>
             <p className="text-xs text-muted">recursive strategy token</p>
+            {IS_PRE_LAUNCH && (
+              <div className="mt-3 px-2 py-1 border border-muted text-muted text-xs inline-block">
+                coming soon
+              </div>
+            )}
           </div>
 
           {/* Stats */}
           <div className="space-y-6">
-            <div>
+            <div className={IS_PRE_LAUNCH ? 'opacity-40' : ''}>
               <div className="text-xs text-muted mb-1">token supply</div>
               <div className="text-xl tabular-nums">{formattedSupply}</div>
             </div>
 
-            <div>
+            <div className={IS_PRE_LAUNCH ? 'opacity-40' : ''}>
               <div className="text-xs text-muted mb-1">burn events</div>
-              <div className="text-xl tabular-nums">{foldCount}</div>
+              <div className="text-xl tabular-nums">{IS_PRE_LAUNCH ? '—' : foldCount}</div>
             </div>
 
-            <div>
+            <div className={IS_PRE_LAUNCH ? 'opacity-40' : ''}>
               <div className="text-xs text-muted mb-1">nfts minted</div>
-              <div className="text-xl tabular-nums">{nftsMinted}</div>
+              <div className="text-xl tabular-nums">{IS_PRE_LAUNCH ? '—' : nftsMinted}</div>
             </div>
 
-            {lastBurnTime > 0 && (
+            {!IS_PRE_LAUNCH && lastBurnTime > 0 && (
               <div>
                 <div className="text-xs text-muted mb-1">last burn</div>
                 <div className="text-sm">{formatTimestamp(lastBurnTime)}</div>
               </div>
             )}
 
-            {timeUntilNextBurn > 0 && (
+            {!IS_PRE_LAUNCH && timeUntilNextBurn > 0 && (
               <div>
                 <div className="text-xs text-muted mb-1">next burn possible in</div>
                 <div className="text-xl tabular-nums font-mono">
@@ -86,14 +94,14 @@ export function TokenPanel() {
               </div>
             )}
 
-            <div>
+            <div className={IS_PRE_LAUNCH ? 'opacity-40' : ''}>
               <div className="text-xs text-muted mb-1">burn interval</div>
-              <div className="text-sm">{formatCountdown(timeBetweenBurns)}</div>
+              <div className="text-sm">{IS_PRE_LAUNCH ? '—' : formatCountdown(timeBetweenBurns)}</div>
             </div>
           </div>
 
           {/* Links */}
-          <div className="pt-6 border-t border-border space-y-3">
+          <div className={`pt-6 border-t border-border space-y-3 ${IS_PRE_LAUNCH ? 'opacity-40 pointer-events-none' : ''}`}>
             <a
               href="#"
               className="block text-sm text-muted hover:text-foreground transition-colors"

@@ -1,15 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  generateAllParams,
-  renderToCanvas,
-  REFERENCE_WIDTH,
-  REFERENCE_HEIGHT,
-} from '@/lib/fold-core';
+import { renderToCanvas } from '@/lib/fold-core-wrapper';
 
 interface UseArtworkRendererOptions {
   seed: number;
+  foldCount?: number;
   width?: number;
   height?: number;
   autoRender?: boolean;
@@ -19,22 +15,19 @@ interface UseArtworkRendererReturn {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   isLoading: boolean;
   error: Error | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  params: any | null;
   render: () => Promise<void>;
 }
 
 export function useArtworkRenderer({
   seed,
-  width = REFERENCE_WIDTH,
-  height = REFERENCE_HEIGHT,
+  foldCount,
+  width = 600,
+  height = 750,
   autoRender = true,
 }: UseArtworkRendererOptions): UseArtworkRendererReturn {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [params, setParams] = useState<any | null>(null);
 
   const render = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -44,27 +37,14 @@ export function useArtworkRenderer({
     setError(null);
 
     try {
-      // Generate parameters from seed
-      const renderParams = await generateAllParams(seed);
-      setParams(renderParams);
-
-      // Set canvas dimensions
-      canvas.width = width;
-      canvas.height = height;
-
-      // Render to canvas with all params spread
-      await renderToCanvas({
-        canvas,
-        ...renderParams,
-        width,
-        height,
-      });
+      await renderToCanvas(canvas, seed, width, height, foldCount);
     } catch (err) {
+      console.error('Render error:', err);
       setError(err instanceof Error ? err : new Error('Failed to render artwork'));
     } finally {
       setIsLoading(false);
     }
-  }, [seed, width, height]);
+  }, [seed, foldCount, width, height]);
 
   useEffect(() => {
     if (autoRender && seed) {
@@ -76,7 +56,6 @@ export function useArtworkRenderer({
     canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     isLoading,
     error,
-    params,
     render,
   };
 }

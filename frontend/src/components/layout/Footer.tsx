@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 export function Footer() {
   return (
@@ -6,7 +6,7 @@ export function Footer() {
       <div className="px-6 md:px-8 py-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-sm text-muted">
-            less — onchain generative art
+            LESS — onchain generative art
           </div>
 
           <nav className="flex items-center gap-6 text-sm">
@@ -29,12 +29,12 @@ export function Footer() {
               about
             </Link>
             <a
-              href="#"
+              href="https://x.com/lessstrategy"
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted hover:text-foreground transition-colors"
             >
-              twitter
+              X
             </a>
           </nav>
         </div>

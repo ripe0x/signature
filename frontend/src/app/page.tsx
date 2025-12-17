@@ -5,25 +5,55 @@ import { Button } from '@/components/ui/Button';
 import { ArtworkCanvas } from '@/components/artwork/ArtworkCanvas';
 import { useMintWindow } from '@/hooks/useMintWindow';
 import { useTokenStats } from '@/hooks/useTokenStats';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { IS_PRE_LAUNCH } from '@/lib/contracts';
+
+// Generate random seed and fold count
+function generateRandom() {
+  return {
+    seed: Math.floor(Math.random() * 1000000),
+    foldCount: Math.floor(Math.random() * 500) + 1,
+  };
+}
 
 export default function HomePage() {
   const { isActive, foldId } = useMintWindow();
   const { nftsMinted, foldCount } = useTokenStats();
 
-  // Generate a seed for the hero artwork
-  // Use current fold if active, otherwise use a featured seed
-  const [heroSeed, setHeroSeed] = useState(12345);
+  const [heroSeed, setHeroSeed] = useState(42069);
+  const [heroFoldCount, setHeroFoldCount] = useState(100);
+  const [mounted, setMounted] = useState(false);
 
+  // Initialize with random values after mount (avoid hydration mismatch)
   useEffect(() => {
-    // If there's an active window, generate seed from fold info
-    if (isActive && foldId > 0) {
+    setMounted(true);
+    const { seed, foldCount } = generateRandom();
+    setHeroSeed(seed);
+    setHeroFoldCount(foldCount);
+  }, []);
+
+  // For pre-launch: auto-update with new random artwork
+  // For live: use fold-based seed
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (IS_PRE_LAUNCH) {
+      const interval = setInterval(() => {
+        const { seed, foldCount } = generateRandom();
+        setHeroSeed(seed);
+        setHeroFoldCount(foldCount);
+      }, 8000);
+      return () => clearInterval(interval);
+    } else if (isActive && foldId > 0) {
       setHeroSeed(foldId * 1000000 + Date.now() % 1000);
-    } else {
-      // Use a deterministic featured seed
-      setHeroSeed(42069);
     }
-  }, [isActive, foldId]);
+  }, [mounted, isActive, foldId]);
+
+  const loadNew = useCallback(() => {
+    const { seed, foldCount } = generateRandom();
+    setHeroSeed(seed);
+    setHeroFoldCount(foldCount);
+  }, []);
 
   return (
     <div className="min-h-screen pt-20">
@@ -36,11 +66,13 @@ export default function HomePage() {
               <div className="relative aspect-[4/5] max-w-lg mx-auto lg:max-w-none">
                 <ArtworkCanvas
                   seed={heroSeed}
+                  foldCount={heroFoldCount}
                   width={800}
                   height={1000}
                   className="w-full"
+                  onClick={IS_PRE_LAUNCH ? loadNew : undefined}
                 />
-                {isActive && (
+                {!IS_PRE_LAUNCH && isActive && (
                   <div className="absolute top-4 left-4 px-3 py-1.5 bg-foreground text-background text-xs">
                     live / fold #{foldId}
                   </div>
@@ -52,7 +84,7 @@ export default function HomePage() {
             <div className="order-2 lg:order-2 space-y-8">
               <div className="space-y-6">
                 <p className="text-lg md:text-xl leading-relaxed text-muted">
-                  less is an onchain artwork about what remains when a system keeps taking things away
+                  LESS is an onchain artwork about what remains when a system keeps taking things away
                 </p>
 
                 <p className="text-sm leading-relaxed">
@@ -62,20 +94,28 @@ export default function HomePage() {
               </div>
 
               {/* Stats */}
-              <div className="flex gap-12 text-sm">
-                <div>
-                  <div className="text-muted mb-1">minted</div>
-                  <div className="text-2xl">{nftsMinted}</div>
+              {!IS_PRE_LAUNCH && (
+                <div className="flex gap-12 text-sm">
+                  <div>
+                    <div className="text-muted mb-1">minted</div>
+                    <div className="text-2xl">{nftsMinted}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted mb-1">folds</div>
+                    <div className="text-2xl">{foldCount}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-muted mb-1">folds</div>
-                  <div className="text-2xl">{foldCount}</div>
-                </div>
-              </div>
+              )}
 
               {/* Actions */}
               <div className="flex flex-wrap gap-4">
-                {isActive ? (
+                {IS_PRE_LAUNCH ? (
+                  <Link href="/about">
+                    <Button variant="outline" size="lg">
+                      learn more
+                    </Button>
+                  </Link>
+                ) : isActive ? (
                   <Link href="/mint">
                     <Button size="lg">
                       mint now
@@ -88,11 +128,13 @@ export default function HomePage() {
                     </Button>
                   </Link>
                 )}
-                <Link href="/collection">
-                  <Button variant="outline" size="lg">
-                    view collection
-                  </Button>
-                </Link>
+                {!IS_PRE_LAUNCH && (
+                  <Link href="/collection">
+                    <Button variant="outline" size="lg">
+                      view collection
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -102,7 +144,7 @@ export default function HomePage() {
       {/* Concept Preview */}
       <section className="px-6 md:px-8 py-12 md:py-20 border-t border-border">
         <div className="max-w-3xl mx-auto space-y-8">
-          <h2 className="text-lg">how it works</h2>
+          <h2 className="text-lg">{IS_PRE_LAUNCH ? 'how it will work' : 'how it works'}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
             <div className="space-y-2">

@@ -5,42 +5,50 @@ import { cn } from '@/lib/utils';
 
 interface ArtworkCanvasProps {
   seed: number;
+  foldCount?: number;
   width?: number;
   height?: number;
   className?: string;
   showLoading?: boolean;
+  onClick?: () => void;
 }
 
 export function ArtworkCanvas({
   seed,
+  foldCount,
   width = 600,
   height = 750,
   className,
   showLoading = true,
+  onClick,
 }: ArtworkCanvasProps) {
   const { canvasRef, isLoading, error } = useArtworkRenderer({
     seed,
+    foldCount,
     width,
     height,
   });
 
   return (
-    <div className={cn('relative', className)}>
+    <div
+      className={cn('relative', onClick && 'cursor-pointer', className)}
+      onClick={onClick}
+    >
       <canvas
         ref={canvasRef}
-        width={width}
-        height={height}
         className={cn(
           'max-w-full h-auto',
           isLoading && showLoading && 'opacity-0'
         )}
-        style={{ aspectRatio: `${width}/${height}` }}
+        style={{
+          aspectRatio: `${width}/${height}`,
+          width: '100%',
+        }}
       />
 
       {isLoading && showLoading && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-background"
-          style={{ aspectRatio: `${width}/${height}` }}
         >
           <span className="text-sm text-muted animate-pulse">loading...</span>
         </div>
@@ -49,7 +57,6 @@ export function ArtworkCanvas({
       {error && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-background"
-          style={{ aspectRatio: `${width}/${height}` }}
         >
           <span className="text-sm text-red-500">failed to render</span>
         </div>

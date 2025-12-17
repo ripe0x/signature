@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "copy-core": "cp ../web/fold-core.js ./src/lib/fold-core.js",
+    "dev": "npm run copy-core && next dev",
+    "build": "npm run copy-core && next build",
     "start": "next start",
     "lint": "next lint"
   },

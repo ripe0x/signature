@@ -1,0 +1,17 @@
+services:
+  - type: worker
+    name: fold-twitter-bot
+    runtime: node
+    buildCommand: npm install
+    startCommand: node scripts/twitter-bot.js
+    envVars:
+      - key: MAINNET_RPC_URL
+        sync: false
+      - key: TWITTER_API_KEY
+        sync: false
+      - key: TWITTER_API_SECRET
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN_SECRET
+        sync: false

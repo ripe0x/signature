@@ -8,6 +8,7 @@ dist/
 frontend/.next/
 frontend/out/
 frontend/.vercel
+frontend/src/lib/fold-core.js
 
 # Environment files
 .env
@@ -24,6 +25,9 @@ frontend/.vercel
 # Logs
 *.log
 npm-debug.log*
+
+# Twitter bot state
+.twitter-bot-state.json
 
 # Cache
 .cache/

@@ -77,14 +77,14 @@ export default function TokenPage() {
             {/* Details */}
             <div className="space-y-8">
               <div>
-                <h1 className="text-3xl mb-2">less #{id}</h1>
+                <h1 className="text-3xl mb-2">LESS #{id}</h1>
                 <p className="text-muted">fold {foldId}</p>
               </div>
 
               {/* Concept */}
               <div className="text-sm leading-relaxed text-muted border-l border-border pl-4">
                 this piece was generated from the compression points of a specific
-                burn event in the less recursive token. the folds that led here are
+                burn event in the LESS recursive token. the folds that led here are
                 invisible. you only see where they collided.
               </div>
 

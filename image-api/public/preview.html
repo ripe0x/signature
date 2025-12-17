@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tweet Preview - Fold</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #15202b;
+      color: #fff;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #8899a6;
+    }
+    .controls {
+      background: #192734;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .controls label {
+      display: block;
+      font-size: 14px;
+      color: #8899a6;
+      margin-bottom: 8px;
+    }
+    .controls input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #38444d;
+      border-radius: 8px;
+      background: #15202b;
+      color: #fff;
+      font-size: 14px;
+      font-family: monospace;
+    }
+    .controls input:focus {
+      outline: none;
+      border-color: #1da1f2;
+    }
+    .controls button {
+      margin-top: 16px;
+      padding: 12px 24px;
+      background: #1da1f2;
+      color: #fff;
+      border: none;
+      border-radius: 9999px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .controls button:hover {
+      background: #1a91da;
+    }
+    .controls button:disabled {
+      background: #38444d;
+      cursor: not-allowed;
+    }
+    .tweet {
+      background: #192734;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid #38444d;
+    }
+    .tweet-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #1da1f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .user-info {
+      flex: 1;
+    }
+    .display-name {
+      font-weight: bold;
+      font-size: 15px;
+    }
+    .username {
+      color: #8899a6;
+      font-size: 15px;
+    }
+    .tweet-text {
+      font-size: 17px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      margin-bottom: 16px;
+    }
+    .tweet-image {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #38444d;
+      margin-bottom: 16px;
+    }
+    .tweet-image img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .tweet-image.loading {
+      background: #38444d;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #8899a6;
+    }
+    .tweet-time {
+      color: #8899a6;
+      font-size: 15px;
+    }
+    .tweet-actions {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #38444d;
+    }
+    .tweet-actions span {
+      color: #8899a6;
+      font-size: 14px;
+    }
+    .error {
+      background: #5c1124;
+      color: #f4212e;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .params {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .params input {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tweet Preview</h1>
+
+    <div class="controls">
+      <label for="foldId">Fold ID</label>
+      <input type="number" id="foldId" value="42" min="1">
+
+      <div class="params">
+        <div>
+          <label for="duration">Window Duration (hours)</label>
+          <input type="number" id="duration" value="1" min="1" max="168">
+        </div>
+        <div>
+          <label for="strategyBlock">Strategy Block</label>
+          <input type="number" id="strategyBlock" value="18000000">
+        </div>
+      </div>
+
+      <label for="seed" style="margin-top: 12px">Or use custom seed (optional)</label>
+      <input type="text" id="seed" placeholder="0x1234...">
+
+      <button id="generate">Generate Preview</button>
+      <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <div class="tweet">
+      <div class="tweet-header">
+        <div class="avatar">L</div>
+        <div class="user-info">
+          <div class="display-name">LESS</div>
+          <div class="username">@lessstrategy</div>
+        </div>
+      </div>
+      <div class="tweet-text" id="tweetText">Fold #42 mint window is now open.
+
+Window closes in 1 hour.</div>
+      <div class="tweet-image" id="imageContainer">
+        <img id="tweetImage" src="" alt="Fold preview">
+      </div>
+      <div class="tweet-time" id="tweetTime"></div>
+      <div class="tweet-actions">
+        <span>Reply</span>
+        <span>Repost</span>
+        <span>Like</span>
+        <span>Share</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const foldIdInput = document.getElementById('foldId');
+    const durationInput = document.getElementById('duration');
+    const strategyBlockInput = document.getElementById('strategyBlock');
+    const seedInput = document.getElementById('seed');
+    const generateBtn = document.getElementById('generate');
+    const tweetText = document.getElementById('tweetText');
+    const tweetImage = document.getElementById('tweetImage');
+    const imageContainer = document.getElementById('imageContainer');
+    const tweetTime = document.getElementById('tweetTime');
+    const errorDiv = document.getElementById('error');
+
+    function formatDuration(hours) {
+      if (hours < 1) return `${Math.round(hours * 60)} minutes`;
+      if (hours === 1) return '1 hour';
+      if (hours < 24) return `${hours} hours`;
+      const days = Math.floor(hours / 24);
+      return days === 1 ? '1 day' : `${days} days`;
+    }
+
+    function generatePreviewSeed(foldId, strategyBlock, startTime) {
+      const data = `fold-${foldId}-${strategyBlock}-${startTime}`;
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      const hex = Math.abs(hash).toString(16).padStart(16, '0');
+      return `0x${hex}${hex}${hex}${hex}`;
+    }
+
+    function updatePreview() {
+      errorDiv.style.display = 'none';
+
+      const foldId = parseInt(foldIdInput.value) || 42;
+      const duration = parseInt(durationInput.value) || 1;
+      const strategyBlock = parseInt(strategyBlockInput.value) || 18000000;
+      const startTime = Math.floor(Date.now() / 1000);
+
+      // Update tweet text
+      tweetText.textContent = `Fold #${foldId} mint window is now open.\n\nWindow closes in ${formatDuration(duration)}.`;
+
+      // Update time
+      tweetTime.textContent = new Date().toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      // Generate or use custom seed
+      const seed = seedInput.value.trim() || generatePreviewSeed(foldId, strategyBlock, startTime);
+
+      // Show loading state
+      imageContainer.classList.add('loading');
+      imageContainer.innerHTML = 'Loading image...';
+
+      // Fetch image
+      const imageUrl = `/api/render?seed=${seed}`;
+
+      fetch(imageUrl)
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.blob();
+        })
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          imageContainer.classList.remove('loading');
+          imageContainer.innerHTML = `<img src="${url}" alt="Fold #${foldId} preview">`;
+        })
+        .catch(err => {
+          imageContainer.classList.remove('loading');
+          imageContainer.innerHTML = 'Failed to load image';
+          errorDiv.textContent = `Error: ${err.message}`;
+          errorDiv.style.display = 'block';
+        });
+    }
+
+    generateBtn.addEventListener('click', updatePreview);
+
+    // Generate on Enter key
+    [foldIdInput, durationInput, strategyBlockInput, seedInput].forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') updatePreview();
+      });
+    });
+
+    // Initial preview
+    updatePreview();
+  </script>
+</body>
+</html>

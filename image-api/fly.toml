@@ -1,0 +1,26 @@
+app = "fold-image-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  CACHE_ENABLED = "true"
+  PLAYWRIGHT_BROWSERS_PATH = "/app/.cache/ms-playwright"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[mounts]
+  source = "image_cache"
+  destination = "/data/cache"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

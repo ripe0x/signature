@@ -11,6 +11,8 @@ via_ir = false
 fs_permissions = [{ access = "read", path = "./web" }]
 
 # Fork testing profile
+# IMPORTANT: Fork tests must be run from the repo root (/Users/dd/Sites/signature), NOT from /contracts
+# Example: cd /Users/dd/Sites/signature && MAINNET_RPC_URL="https://eth-mainnet.g.alchemy.com/v2/..." forge test --match-contract LessFork --fork-url "$MAINNET_RPC_URL" -vv
 [profile.fork]
 src = "contracts"
 out = "out"

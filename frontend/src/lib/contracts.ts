@@ -7,6 +7,30 @@ export const CONTRACTS = {
 
 export const CHAIN_ID = 1; // Ethereum Mainnet
 
+// Zero address for comparison
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+// Automatically detect pre-launch mode based on contract addresses
+export const IS_PRE_LAUNCH =
+  CONTRACTS.LESS_NFT === ZERO_ADDRESS ||
+  CONTRACTS.LESS_STRATEGY === ZERO_ADDRESS;
+
+// Sample seeds for pre-launch preview
+export const SAMPLE_SEEDS = [
+  42069,
+  12345,
+  88888,
+  31415,
+  27182,
+  69420,
+  11111,
+  99999,
+  54321,
+  77777,
+  13579,
+  24680,
+] as const;
+
 // Less NFT ABI - extracted from Less.sol
 export const LESS_NFT_ABI = [
   // Read functions
