@@ -15,7 +15,9 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Environment variables (set additional ones in Netlify dashboard)
+# Environment variables - set these in Netlify dashboard:
+# - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: from cloud.walletconnect.com
+# - NEXT_PUBLIC_RPC_URL: Alchemy/Infura mainnet RPC URL (optional, uses public RPC if not set)
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
