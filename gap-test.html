@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gap Ratio Test - Negative Margin Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 320px;
+      background: #141414;
+      border-right: 1px solid #2a2a2a;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+    .sidebar p {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .control-group {
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .control-group:last-child {
+      border-bottom: none;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #4a9eff;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+    .row > div {
+      flex: 1;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #4a9eff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    button:hover {
+      background: #3a8eef;
+    }
+    button.secondary {
+      background: #333;
+    }
+    button.secondary:hover {
+      background: #444;
+    }
+    .info-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 12px;
+      margin-top: 16px;
+    }
+    .info-box h4 {
+      color: #4a9eff;
+      margin-bottom: 8px;
+    }
+    .info-box ul {
+      margin-left: 16px;
+      color: #888;
+    }
+    .info-box li {
+      margin-bottom: 4px;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .preview-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #111;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .stats {
+      padding: 12px 16px;
+      background: #141414;
+      border-top: 1px solid #2a2a2a;
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+    }
+    .stat {
+      display: flex;
+      gap: 8px;
+    }
+    .stat-label {
+      color: #888;
+    }
+    .stat-value {
+      color: #4a9eff;
+      font-weight: 500;
+    }
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .comparison-item {
+      background: #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .comparison-item canvas {
+      width: 100%;
+      aspect-ratio: 4/5;
+      display: block;
+    }
+    .comparison-item .label {
+      padding: 8px;
+      font-size: 11px;
+      text-align: center;
+      background: #222;
+    }
+    .view-toggle {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .view-toggle button {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    .view-toggle button.active {
+      background: #4a9eff;
+    }
+    .view-toggle button:not(.active) {
+      background: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Gap Ratio Test</h1>
+      <p>Test different negative margin / overlap settings</p>
+
+      <div class="view-toggle">
+        <button id="singleBtn" class="active">Single</button>
+        <button id="compareBtn">Compare All</button>
+      </div>
+
+      <div class="control-group">
+        <label>Seed</label>
+        <input type="number" id="seedInput" value="12345" min="0">
+        <button class="secondary" id="randomSeedBtn">Random Seed</button>
+      </div>
+
+      <div class="control-group">
+        <label>Fold Count</label>
+        <input type="number" id="foldInput" value="50" min="0" max="500">
+      </div>
+
+      <div class="control-group">
+        <label>Column Gap Ratio</label>
+        <select id="colGapSelect">
+          <option value="auto">Auto (from seed)</option>
+          <optgroup label="Negative (Overlap)">
+            <option value="-1">-1 (100% overlap)</option>
+            <option value="-0.5">-1/2 (50% overlap)</option>
+            <option value="-0.25">-1/4 (25% overlap)</option>
+            <option value="-0.125">-1/8 (12.5% overlap)</option>
+            <option value="-0.0625">-1/16 (6.25% overlap)</option>
+          </optgroup>
+          <optgroup label="None">
+            <option value="0">0 (no gap)</option>
+          </optgroup>
+          <optgroup label="Positive (Spacing)">
+            <option value="0.015625">1/64</option>
+            <option value="0.03125">1/32</option>
+            <option value="0.0625">1/16</option>
+            <option value="0.125">1/8</option>
+            <option value="0.25">1/4</option>
+            <option value="0.5">1/2</option>
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+          </optgroup>
+        </select>
+
+        <label>Row Gap Ratio</label>
+        <select id="rowGapSelect">
+          <option value="auto">Auto (from seed)</option>
+          <optgroup label="Negative (Overlap)">
+            <option value="-1">-1 (100% overlap)</option>
+            <option value="-0.5">-1/2 (50% overlap)</option>
+            <option value="-0.25">-1/4 (25% overlap)</option>
+            <option value="-0.125">-1/8 (12.5% overlap)</option>
+            <option value="-0.0625">-1/16 (6.25% overlap)</option>
+          </optgroup>
+          <optgroup label="None">
+            <option value="0">0 (no gap)</option>
+          </optgroup>
+          <optgroup label="Positive (Spacing)">
+            <option value="0.015625">1/64</option>
+            <option value="0.03125">1/32</option>
+            <option value="0.0625">1/16</option>
+            <option value="0.125">1/8</option>
+            <option value="0.25">1/4</option>
+            <option value="0.5">1/2</option>
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <button id="renderBtn">Render</button>
+      </div>
+
+      <div class="info-box">
+        <h4>Gap Ratios Explained</h4>
+        <ul>
+          <li><strong>Negative</strong>: Cells overlap each other</li>
+          <li><strong>Zero</strong>: Cells touch edge-to-edge</li>
+          <li><strong>Positive</strong>: Space between cells</li>
+        </ul>
+        <p style="margin-top: 8px; color: #666;">
+          Gap = cellSize * ratio<br>
+          e.g., -0.5 means cells overlap by half their width
+        </p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="preview-container" id="singleView">
+        <canvas id="previewCanvas" width="480" height="600"></canvas>
+      </div>
+      <div class="comparison-grid" id="compareView" style="display: none;"></div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Grid:</span>
+          <span class="stat-value" id="statGrid">-</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Col Gap:</span>
+          <span class="stat-value" id="statColGap">-</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Row Gap:</span>
+          <span class="stat-value" id="statRowGap">-</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Cell Size:</span>
+          <span class="stat-value" id="statCellSize">-</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import {
+      generateAllParams,
+      renderWithState,
+      calculateGridWithGaps,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+      DRAWING_MARGIN,
+    } from './web/fold-core.js';
+
+    const canvas = document.getElementById('previewCanvas');
+    const seedInput = document.getElementById('seedInput');
+    const foldInput = document.getElementById('foldInput');
+    const colGapSelect = document.getElementById('colGapSelect');
+    const rowGapSelect = document.getElementById('rowGapSelect');
+    const renderBtn = document.getElementById('renderBtn');
+    const randomSeedBtn = document.getElementById('randomSeedBtn');
+    const singleBtn = document.getElementById('singleBtn');
+    const compareBtn = document.getElementById('compareBtn');
+    const singleView = document.getElementById('singleView');
+    const compareView = document.getElementById('compareView');
+
+    const statGrid = document.getElementById('statGrid');
+    const statColGap = document.getElementById('statColGap');
+    const statRowGap = document.getElementById('statRowGap');
+    const statCellSize = document.getElementById('statCellSize');
+
+    let currentView = 'single';
+
+    // Format gap ratio for display
+    function formatGapRatio(ratio) {
+      if (ratio === 0) return '0';
+      if (ratio === -1) return '-1';
+      if (ratio === -0.5) return '-1/2';
+      if (ratio === -0.25) return '-1/4';
+      if (ratio === -0.125) return '-1/8';
+      if (ratio === -0.0625) return '-1/16';
+      if (ratio === 0.015625) return '1/64';
+      if (ratio === 0.03125) return '1/32';
+      if (ratio === 0.0625) return '1/16';
+      if (ratio === 0.125) return '1/8';
+      if (ratio === 0.25) return '1/4';
+      if (ratio === 0.5) return '1/2';
+      if (ratio === 1) return '1x';
+      if (ratio === 2) return '2x';
+      return ratio.toFixed(4);
+    }
+
+    // Generate output with optional gap overrides
+    function generateWithGapOverride(seed, foldCount, colGapRatio, rowGapRatio) {
+      // Generate base params
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+
+      // Store gap overrides for render time (gaps are applied during rendering, not param generation)
+      // Both must be specified (non-auto) to use overrides
+      const gapOverrides = (colGapRatio !== 'auto' && rowGapRatio !== 'auto') ? {
+        colGapRatio: parseFloat(colGapRatio),
+        rowGapRatio: parseFloat(rowGapRatio),
+      } : null;
+
+      return { params, gapOverrides };
+    }
+
+    // Render single preview
+    function renderSingle() {
+      const seed = parseInt(seedInput.value) || 12345;
+      const foldCount = parseInt(foldInput.value) || 50;
+      const colGapRatio = colGapSelect.value;
+      const rowGapRatio = rowGapSelect.value;
+
+      const { params, gapOverrides } = generateWithGapOverride(seed, foldCount, colGapRatio, rowGapRatio);
+
+      const output = {
+        seed,
+        hexSeed: '0x' + seed.toString(16).padStart(64, '0'),
+        params,
+        foldCount,
+      };
+
+      renderWithState(canvas, output, { width: 480, height: 600, gapOverrides });
+
+      // Update stats - show override values if set, otherwise show computed values
+      const displayColGap = gapOverrides?.colGapRatio ?? (params.cells.colGap / params.cells.cellW);
+      const displayRowGap = gapOverrides?.rowGapRatio ?? (params.cells.rowGap / params.cells.cellH);
+      statGrid.textContent = gapOverrides ? 'varies' : `${params.cells.cols}x${params.cells.rows}`;
+      statColGap.textContent = formatGapRatio(displayColGap);
+      statRowGap.textContent = formatGapRatio(displayRowGap);
+      statCellSize.textContent = `${params.cells.cellW.toFixed(0)}x${params.cells.cellH.toFixed(0)}`;
+    }
+
+    // Render comparison grid
+    function renderComparison() {
+      const seed = parseInt(seedInput.value) || 12345;
+      const foldCount = parseInt(foldInput.value) || 50;
+
+      const gapRatios = [
+        { value: -1, label: '-1 (100% overlap)' },
+        { value: -0.5, label: '-1/2 (50% overlap)' },
+        { value: -0.25, label: '-1/4 (25% overlap)' },
+        { value: -0.125, label: '-1/8 (12.5% overlap)' },
+        { value: -0.0625, label: '-1/16 (6.25% overlap)' },
+        { value: 0, label: '0 (no gap)' },
+        { value: 0.0625, label: '1/16' },
+        { value: 0.125, label: '1/8' },
+        { value: 0.25, label: '1/4' },
+      ];
+
+      compareView.innerHTML = '';
+
+      for (const gap of gapRatios) {
+        const { params, gapOverrides } = generateWithGapOverride(seed, foldCount, gap.value.toString(), gap.value.toString());
+
+        const output = {
+          seed,
+          hexSeed: '0x' + seed.toString(16).padStart(64, '0'),
+          params,
+          foldCount,
+        };
+
+        const item = document.createElement('div');
+        item.className = 'comparison-item';
+
+        const itemCanvas = document.createElement('canvas');
+        itemCanvas.width = 240;
+        itemCanvas.height = 300;
+        item.appendChild(itemCanvas);
+
+        renderWithState(itemCanvas, output, { width: 240, height: 300, gapOverrides });
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = gap.label;
+        item.appendChild(label);
+
+        compareView.appendChild(item);
+      }
+
+      // Update stats for comparison view
+      statGrid.textContent = 'varies';
+      statColGap.textContent = 'varies';
+      statRowGap.textContent = 'varies';
+      statCellSize.textContent = '-';
+    }
+
+    // Event listeners
+    renderBtn.addEventListener('click', () => {
+      if (currentView === 'single') {
+        renderSingle();
+      } else {
+        renderComparison();
+      }
+    });
+
+    randomSeedBtn.addEventListener('click', () => {
+      seedInput.value = Math.floor(Math.random() * 1000000);
+      if (currentView === 'single') {
+        renderSingle();
+      } else {
+        renderComparison();
+      }
+    });
+
+    singleBtn.addEventListener('click', () => {
+      currentView = 'single';
+      singleBtn.classList.add('active');
+      compareBtn.classList.remove('active');
+      singleView.style.display = 'flex';
+      compareView.style.display = 'none';
+      renderSingle();
+    });
+
+    compareBtn.addEventListener('click', () => {
+      currentView = 'compare';
+      compareBtn.classList.add('active');
+      singleBtn.classList.remove('active');
+      singleView.style.display = 'none';
+      compareView.style.display = 'grid';
+      renderComparison();
+    });
+
+    // Auto-render on input change
+    seedInput.addEventListener('change', () => {
+      if (currentView === 'single') renderSingle();
+      else renderComparison();
+    });
+    foldInput.addEventListener('change', () => {
+      if (currentView === 'single') renderSingle();
+      else renderComparison();
+    });
+    colGapSelect.addEventListener('change', renderSingle);
+    rowGapSelect.addEventListener('change', renderSingle);
+
+    // Initial render
+    renderSingle();
+  </script>
+</body>
+</html>

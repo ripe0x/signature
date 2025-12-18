@@ -10,76 +10,85 @@
  *   node scripts/twitter-bot.js [--network mainnet]
  */
 
-import { createPublicClient, http, parseAbiItem, formatEther } from 'viem';
-import { mainnet, sepolia } from 'viem/chains';
-import { TwitterApi } from 'twitter-api-v2';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { get as httpsGet } from 'https';
-import { get as httpGet } from 'http';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import { createPublicClient, http, parseAbiItem, formatEther } from "viem";
+import { mainnet, sepolia } from "viem/chains";
+import { TwitterApi } from "twitter-api-v2";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { get as httpsGet } from "https";
+import { get as httpGet } from "http";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = join(__dirname, '..');
+const rootDir = join(__dirname, "..");
 
 // Use /data for persistent storage on Fly.io, fallback to project root locally
-const dataDir = existsSync('/data') ? '/data' : rootDir;
-const stateFile = join(dataDir, '.twitter-bot-state.json');
+const dataDir = existsSync("/data") ? "/data" : rootDir;
+const stateFile = join(dataDir, ".twitter-bot-state.json");
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const network = args.find((arg) => arg.startsWith('--network'))?.split('=')[1] || 'mainnet';
-const dryRun = args.includes('--dry-run');
-const testMode = args.includes('--test');
-const testMintMode = args.includes('--test-mint');
-const verifyMode = args.includes('--verify');
-const postTestTweet = args.includes('--post-test');
-const rescanMode = args.includes('--rescan'); // Force rescan from lookback, ignoring saved lastBlock
-const pollingInterval = parseInt(args.find((arg) => arg.startsWith('--interval='))?.split('=')[1] || '60', 10) * 1000;
+const network =
+  args.find((arg) => arg.startsWith("--network"))?.split("=")[1] || "mainnet";
+const dryRun = args.includes("--dry-run");
+const testMode = args.includes("--test");
+const testMintMode = args.includes("--test-mint");
+const verifyMode = args.includes("--verify");
+const postTestTweet = args.includes("--post-test");
+const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
+const pollingInterval =
+  parseInt(
+    args.find((arg) => arg.startsWith("--interval="))?.split("=")[1] || "60",
+    10
+  ) * 1000;
 
 // Color logging
 const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  red: '\x1b[31m',
-  cyan: '\x1b[36m',
-  gray: '\x1b[90m',
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  red: "\x1b[31m",
+  cyan: "\x1b[36m",
+  gray: "\x1b[90m",
 };
 
-function log(message, color = 'reset') {
+function log(message, color = "reset") {
   const timestamp = new Date().toISOString();
-  console.log(`${colors.gray}[${timestamp}]${colors.reset} ${colors[color] || ''}${message}${colors.reset}`);
+  console.log(
+    `${colors.gray}[${timestamp}]${colors.reset} ${
+      colors[color] || ""
+    }${message}${colors.reset}`
+  );
 }
 
 function logSuccess(message) {
-  log(`✓ ${message}`, 'green');
+  log(`✓ ${message}`, "green");
 }
 
 function logError(message) {
-  log(`✗ ${message}`, 'red');
+  log(`✗ ${message}`, "red");
 }
 
 function logInfo(message) {
-  log(message, 'cyan');
+  log(message, "cyan");
 }
 
 function logWarn(message) {
-  log(`⚠ ${message}`, 'yellow');
+  log(`⚠ ${message}`, "yellow");
 }
 
 // State persistence - tracks processed folds, mints, and last block
 function loadState() {
   try {
     if (existsSync(stateFile)) {
-      const data = JSON.parse(readFileSync(stateFile, 'utf-8'));
+      const data = JSON.parse(readFileSync(stateFile, "utf-8"));
       return {
         processedFolds: new Set(data.processedFolds || []),
         processedMints: new Set(data.processedMints || []),
@@ -89,7 +98,11 @@ function loadState() {
   } catch (error) {
     logWarn(`Failed to load state file: ${error.message}`);
   }
-  return { processedFolds: new Set(), processedMints: new Set(), lastBlock: 0n };
+  return {
+    processedFolds: new Set(),
+    processedMints: new Set(),
+    lastBlock: 0n,
+  };
 }
 
 function saveState(processedFolds, processedMints, lastBlock) {
@@ -115,7 +128,7 @@ function sleep(ms) {
 async function fetchImage(seed) {
   const imageApiUrl = process.env.IMAGE_API_URL;
   if (!imageApiUrl) {
-    logWarn('IMAGE_API_URL not set, skipping image');
+    logWarn("IMAGE_API_URL not set, skipping image");
     return null;
   }
 
@@ -123,7 +136,7 @@ async function fetchImage(seed) {
   logInfo(`Fetching image from ${url}`);
 
   return new Promise((resolve) => {
-    const get = url.startsWith('https') ? httpsGet : httpGet;
+    const get = url.startsWith("https") ? httpsGet : httpGet;
     get(url, (res) => {
       if (res.statusCode !== 200) {
         logError(`Image API returned status ${res.statusCode}`);
@@ -132,17 +145,17 @@ async function fetchImage(seed) {
       }
 
       const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
         const buffer = Buffer.concat(chunks);
         logSuccess(`Image fetched: ${buffer.length} bytes`);
         resolve(buffer);
       });
-      res.on('error', (err) => {
+      res.on("error", (err) => {
         logError(`Image fetch error: ${err.message}`);
         resolve(null);
       });
-    }).on('error', (err) => {
+    }).on("error", (err) => {
       logError(`Image fetch error: ${err.message}`);
       resolve(null);
     });
@@ -151,10 +164,10 @@ async function fetchImage(seed) {
 
 // Get RPC URL
 function getRpcUrl() {
-  if (network === 'mainnet') {
+  if (network === "mainnet") {
     return process.env.MAINNET_RPC_URL;
   }
-  if (network === 'sepolia') {
+  if (network === "sepolia") {
     return process.env.SEPOLIA_RPC_URL;
   }
   throw new Error(`Unsupported network: ${network}`);
@@ -162,8 +175,8 @@ function getRpcUrl() {
 
 // Get chain config
 function getChain() {
-  if (network === 'mainnet') return mainnet;
-  if (network === 'sepolia') return sepolia;
+  if (network === "mainnet") return mainnet;
+  if (network === "sepolia") return sepolia;
   throw new Error(`Unsupported network: ${network}`);
 }
 
@@ -177,22 +190,26 @@ function getContractAddress() {
   // Try to read from deployment file
   const deploymentFile = join(rootDir, `deployment-${network}.json`);
   if (existsSync(deploymentFile)) {
-    const deployment = JSON.parse(readFileSync(deploymentFile, 'utf-8'));
-    if (deployment.addresses?.less) {
-      return deployment.addresses.less;
+    const deployment = JSON.parse(readFileSync(deploymentFile, "utf-8"));
+    if (deployment.contracts?.less) {
+      return deployment.contracts.less;
     }
   }
 
-  throw new Error(`Contract address not found. Set LESS_CONTRACT_ADDRESS env var or deploy contracts.`);
+  throw new Error(
+    `Contract address not found. Set LESS_CONTRACT_ADDRESS env var or deploy contracts.`
+  );
 }
 
 // Load contract ABI
 function loadContractABI() {
-  const abiPath = join(rootDir, 'out/Less.sol/Less.json');
+  const abiPath = join(rootDir, "out/Less.sol/Less.json");
   if (!existsSync(abiPath)) {
-    throw new Error(`Contract ABI not found at ${abiPath}. Run forge build first.`);
+    throw new Error(
+      `Contract ABI not found at ${abiPath}. Run forge build first.`
+    );
   }
-  const contractJson = JSON.parse(readFileSync(abiPath, 'utf-8'));
+  const contractJson = JSON.parse(readFileSync(abiPath, "utf-8"));
   return contractJson.abi;
 }
 
@@ -222,35 +239,41 @@ function initTwitterClient() {
     });
   }
 
-  throw new Error('Twitter API credentials not found. Set TWITTER_BEARER_TOKEN or OAuth credentials.');
+  throw new Error(
+    "Twitter API credentials not found. Set TWITTER_BEARER_TOKEN or OAuth credentials."
+  );
 }
 
 // Format duration as human-readable string
 function formatDuration(seconds) {
   if (seconds < 60) {
-    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+    return `${seconds} second${seconds !== 1 ? "s" : ""}`;
   }
   if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60);
-    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   }
   if (seconds < 86400) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (minutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+      return `${hours} hour${hours !== 1 ? "s" : ""}`;
     }
-    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${
+      minutes !== 1 ? "s" : ""
+    }`;
   }
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   if (hours === 0) {
-    return `${days} day${days !== 1 ? 's' : ''}`;
+    return `${days} day${days !== 1 ? "s" : ""}`;
   }
-  return `${days} day${days !== 1 ? 's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
+  return `${days} day${days !== 1 ? "s" : ""} ${hours} hour${
+    hours !== 1 ? "s" : ""
+  }`;
 }
 
-const MINT_URL = 'https://less.ripe.wtf';
+const MINT_URL = "https://less.ripe.wtf";
 const LESS_TOKEN_ADDRESS = process.env.LESS_TOKEN_ADDRESS;
 const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 decimals
 
@@ -258,14 +281,14 @@ const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 
 async function fetchBurnData(client, contractAddress, abi) {
   try {
     if (!LESS_TOKEN_ADDRESS) {
-      logInfo('LESS_TOKEN_ADDRESS not set, skipping burn data');
+      logInfo("LESS_TOKEN_ADDRESS not set, skipping burn data");
       return null;
     }
 
     // Create mainnet client for token reads (token is always on mainnet)
     const mainnetRpc = process.env.MAINNET_RPC_URL;
     if (!mainnetRpc) {
-      logInfo('MAINNET_RPC_URL not set, skipping burn data');
+      logInfo("MAINNET_RPC_URL not set, skipping burn data");
       return null;
     }
 
@@ -278,32 +301,32 @@ async function fetchBurnData(client, contractAddress, abi) {
     const tokenAbi = [
       {
         inputs: [],
-        name: 'totalSupply',
-        outputs: [{ name: '', type: 'uint256' }],
-        stateMutability: 'view',
-        type: 'function',
+        name: "totalSupply",
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
       },
       {
-        inputs: [{ name: 'account', type: 'address' }],
-        name: 'balanceOf',
-        outputs: [{ name: '', type: 'uint256' }],
-        stateMutability: 'view',
-        type: 'function',
+        inputs: [{ name: "account", type: "address" }],
+        name: "balanceOf",
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
       },
     ];
 
-    const DEAD_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+    const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
     const [totalSupply, burnedBalance] = await Promise.all([
       mainnetClient.readContract({
         address: LESS_TOKEN_ADDRESS,
         abi: tokenAbi,
-        functionName: 'totalSupply',
+        functionName: "totalSupply",
       }),
       mainnetClient.readContract({
         address: LESS_TOKEN_ADDRESS,
         abi: tokenAbi,
-        functionName: 'balanceOf',
+        functionName: "balanceOf",
         args: [DEAD_ADDRESS],
       }),
     ]);
@@ -321,45 +344,55 @@ async function fetchBurnData(client, contractAddress, abi) {
 
     // Try to get lastBurn from strategy (on same network as LESS NFT contract)
     let lastBurnFormatted = null;
-    try {
-      const strategyAddress = await client.readContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'strategy',
-      });
 
-      if (strategyAddress && strategyAddress !== '0x0000000000000000000000000000000000000000') {
-        const strategyAbi = [
-          {
-            inputs: [],
-            name: 'getState',
-            outputs: [
-              { name: 'supply', type: 'uint256' },
-              { name: 'eth', type: 'uint256' },
-              { name: 'lastBurn', type: 'uint256' },
-              { name: 'burns', type: 'uint256' },
-            ],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ];
-
-        const [supply, eth, lastBurn, burns] = await client.readContract({
-          address: strategyAddress,
-          abi: strategyAbi,
-          functionName: 'getState',
+    // Allow mock lastBurn for testing
+    if (process.env.MOCK_LAST_BURN) {
+      lastBurnFormatted = Number(process.env.MOCK_LAST_BURN).toLocaleString();
+      logInfo(`Using mock lastBurn: ${lastBurnFormatted} LESS`);
+    } else {
+      try {
+        const strategyAddress = await client.readContract({
+          address: contractAddress,
+          abi: abi,
+          functionName: "strategy",
         });
 
-        // Format burn amount (in whole tokens, no decimals)
-        lastBurnFormatted = Number(lastBurn / 10n ** 18n).toLocaleString();
-        logInfo(`Strategy lastBurn: ${lastBurnFormatted} LESS`);
+        if (
+          strategyAddress &&
+          strategyAddress !== "0x0000000000000000000000000000000000000000"
+        ) {
+          const strategyAbi = [
+            {
+              inputs: [],
+              name: "getState",
+              outputs: [
+                { name: "supply", type: "uint256" },
+                { name: "eth", type: "uint256" },
+                { name: "lastBurn", type: "uint256" },
+                { name: "burns", type: "uint256" },
+              ],
+              stateMutability: "view",
+              type: "function",
+            },
+          ];
+
+          const [supply, eth, lastBurn, burns] = await client.readContract({
+            address: strategyAddress,
+            abi: strategyAbi,
+            functionName: "getState",
+          });
+
+          // Format burn amount (in whole tokens, no decimals)
+          lastBurnFormatted = Number(lastBurn / 10n ** 18n).toLocaleString();
+          logInfo(`Strategy lastBurn: ${lastBurnFormatted} LESS`);
+        }
+      } catch (e) {
+        logInfo("No strategy available for lastBurn data");
       }
-    } catch (e) {
-      logInfo('No strategy available for lastBurn data');
     }
 
     // If we have lastBurn, return full data; otherwise just supply
-    if (lastBurnFormatted && lastBurnFormatted !== '0') {
+    if (lastBurnFormatted && lastBurnFormatted !== "0") {
       return {
         amountBurned: lastBurnFormatted,
         supplyRemaining: supplyRemaining,
@@ -380,7 +413,7 @@ async function fetchBurnData(client, contractAddress, abi) {
 
 // Truncate address to 0x1234...5678 format
 function truncateAddress(address) {
-  if (!address) return 'unknown';
+  if (!address) return "unknown";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
@@ -398,36 +431,34 @@ function formatTweet(foldId, startTime, endTime, burnData = null) {
 
   // If we have full burn data (amount + supply), include both lines
   if (burnData && burnData.amountBurned && burnData.supplyRemaining) {
-    return `new LESS mint window
+    return `new LESS window opened
 
+${burnData.amountBurned} $LESS bought and burned
+${burnData.supplyRemaining}% supply remaining
 
-${burnData.amountBurned} $LESS was just bought and burned
-${burnData.supplyRemaining}% total supply remaining
-
-fold ${foldId} mints are open for the next ${minutesLeft} minutes
-
+LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
 
 ${MINT_URL}`;
   }
 
   // If we have only supply data (no burn amount), show just supply
   if (burnData && burnData.supplyRemaining) {
-    return `new LESS mint window
+    return `new LESS window opened
 
 
 ${burnData.supplyRemaining}% total supply remaining
 
-fold ${foldId} mints are open for the next ${minutesLeft} minutes
+LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
 
 
 ${MINT_URL}`;
   }
 
   // Simple format without any burn/supply data
-  return `new LESS mint window
+  return `new LESS window opened
 
 
-fold ${foldId} mints are open for the next ${minutesLeft} minutes
+ LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
 
 
 ${MINT_URL}`;
@@ -436,14 +467,22 @@ ${MINT_URL}`;
 // Display tweet preview in console
 function displayTweetPreview(message) {
   console.log();
-  console.log(`${colors.cyan}╭────────────────────────────────────────────╮${colors.reset}`);
-  console.log(`${colors.cyan}│${colors.reset} ${colors.bright}📱 Tweet Preview${colors.reset}                          ${colors.cyan}│${colors.reset}`);
-  console.log(`${colors.cyan}╰────────────────────────────────────────────╯${colors.reset}`);
+  console.log(
+    `${colors.cyan}╭────────────────────────────────────────────╮${colors.reset}`
+  );
+  console.log(
+    `${colors.cyan}│${colors.reset} ${colors.bright}📱 Tweet Preview${colors.reset}                          ${colors.cyan}│${colors.reset}`
+  );
+  console.log(
+    `${colors.cyan}╰────────────────────────────────────────────╯${colors.reset}`
+  );
   console.log();
   console.log(message);
   console.log();
-  console.log(`${colors.gray}${'─'.repeat(44)}${colors.reset}`);
-  console.log(`${colors.gray}Character count: ${message.length}/280${colors.reset}`);
+  console.log(`${colors.gray}${"─".repeat(44)}${colors.reset}`);
+  console.log(
+    `${colors.gray}Character count: ${message.length}/280${colors.reset}`
+  );
   console.log();
 }
 
@@ -455,8 +494,8 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
     if (imageBuffer) {
       logInfo(`[DRY-RUN] Would attach image (${imageBuffer.length} bytes)`);
     }
-    logInfo('[DRY-RUN] Tweet would be posted (not actually sent)');
-    return 'dry-run-id';
+    logInfo("[DRY-RUN] Tweet would be posted (not actually sent)");
+    return "dry-run-id";
   }
 
   try {
@@ -465,8 +504,10 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
     // Upload image if provided
     if (imageBuffer && twitterClient) {
       try {
-        logInfo('Uploading image to Twitter...');
-        mediaId = await twitterClient.v1.uploadMedia(imageBuffer, { mimeType: 'image/png' });
+        logInfo("Uploading image to Twitter...");
+        mediaId = await twitterClient.v1.uploadMedia(imageBuffer, {
+          mimeType: "image/png",
+        });
         logSuccess(`Image uploaded, media_id: ${mediaId}`);
       } catch (uploadError) {
         logError(`Image upload failed: ${uploadError.message}`);
@@ -481,7 +522,7 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
   } catch (error) {
     if (error.code === 187) {
       // Duplicate tweet
-      logError('Tweet failed: duplicate content');
+      logError("Tweet failed: duplicate content");
       return null;
     }
     throw error;
@@ -490,7 +531,7 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
 
 // Verify Twitter credentials
 async function verifyCredentials() {
-  logInfo('Verifying Twitter credentials...');
+  logInfo("Verifying Twitter credentials...");
 
   try {
     const twitterClient = new TwitterApi({
@@ -511,7 +552,7 @@ async function verifyCredentials() {
 
 // Post an actual test tweet
 async function postTestTweetNow() {
-  logInfo('Posting test tweet...');
+  logInfo("Posting test tweet...");
 
   try {
     const twitterClient = new TwitterApi({
@@ -534,7 +575,7 @@ async function postTestTweetNow() {
 
 // Run test mode - simulate a FoldCreated event
 async function runTestMode() {
-  logInfo('Running in TEST MODE - simulating a FoldCreated event');
+  logInfo("Running in TEST MODE - simulating a FoldCreated event");
   console.log();
 
   // Simulate event data
@@ -548,27 +589,44 @@ async function runTestMode() {
   logInfo(`  End time: ${new Date(testEndTime * 1000).toISOString()}`);
   console.log();
 
-  // Format and display the tweet (no image for window open)
+  // Fetch burn data (if configured)
+  let burnData = null;
+  try {
+    const rpcUrl = getRpcUrl();
+    const contractAddress = getContractAddress();
+    const abi = loadContractABI();
+    const client = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+    burnData = await fetchBurnData(client, contractAddress, abi);
+  } catch (error) {
+    logWarn(`Could not fetch burn data: ${error.message}`);
+  }
+
+  // Format and display the tweet
   const tweetMessage = formatTweet(
     testFoldId,
     testStartTime,
-    testEndTime
+    testEndTime,
+    burnData
   );
 
   await postTweet(null, tweetMessage);
-  logSuccess('Test completed!');
+  logSuccess("Test completed!");
 }
 
 // Run test mint mode - simulate a Minted event
 async function runTestMintMode() {
-  logInfo('Running in TEST MINT MODE - simulating a Minted event');
+  logInfo("Running in TEST MINT MODE - simulating a Minted event");
   console.log();
 
   // Simulate event data
   const testTokenId = 7;
-  const testMinter = '0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c';
+  const testMinter = "0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c";
   // Use a test seed
-  const testSeed = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const testSeed =
+    "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
   logInfo(`Simulated event: Minted token #${testTokenId}`);
   logInfo(`  Minter: ${testMinter}`);
@@ -583,7 +641,7 @@ async function runTestMintMode() {
   const tweetMessage = formatMintTweet(testTokenId, minterDisplay);
 
   await postTweet(null, tweetMessage, imageBuffer);
-  logSuccess('Test mint completed!');
+  logSuccess("Test mint completed!");
 }
 
 // Generate a preview seed for a fold (deterministic based on fold parameters)
@@ -594,16 +652,23 @@ function generatePreviewSeed(foldId, strategyBlock, startTime) {
   let hash = 0;
   for (let i = 0; i < data.length; i++) {
     const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   // Convert to hex string
-  const hex = Math.abs(hash).toString(16).padStart(16, '0');
+  const hex = Math.abs(hash).toString(16).padStart(16, "0");
   return `0x${hex}${hex}${hex}${hex}`;
 }
 
 // Process a single FoldCreated event
-async function processEvent(log, processedFolds, twitterClient, contractAddress, client, abi) {
+async function processEvent(
+  log,
+  processedFolds,
+  twitterClient,
+  contractAddress,
+  client,
+  abi
+) {
   try {
     const foldId = log.args.foldId;
     const startTime = log.args.startTime;
@@ -616,7 +681,9 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
       return;
     }
 
-    logInfo(`Detected FoldCreated event: foldId=${foldId}, startTime=${startTime}, endTime=${endTime}`);
+    logInfo(
+      `Detected FoldCreated event: foldId=${foldId}, startTime=${startTime}, endTime=${endTime}`
+    );
 
     // Fetch burn data (if available)
     const burnData = await fetchBurnData(client, contractAddress, abi);
@@ -629,14 +696,14 @@ async function processEvent(log, processedFolds, twitterClient, contractAddress,
       burnData
     );
 
-    logInfo('Posting tweet...');
+    logInfo("Posting tweet...");
     const tweetId = await postTweet(twitterClient, tweetMessage);
 
     if (tweetId) {
       logSuccess(`Tweet posted successfully! Tweet ID: ${tweetId}`);
       processedFolds.add(Number(foldId));
     } else {
-      logError('Failed to post tweet');
+      logError("Failed to post tweet");
     }
   } catch (error) {
     logError(`Error processing event: ${error.message}`);
@@ -658,7 +725,7 @@ ${MINT_URL}/${tokenId}`;
 async function resolveEns(address) {
   try {
     // Only try ENS on mainnet
-    if (network !== 'mainnet') {
+    if (network !== "mainnet") {
       return null;
     }
     const mainnetClient = createPublicClient({
@@ -687,7 +754,9 @@ async function processMintEvent(log, processedMints, twitterClient) {
       return;
     }
 
-    logInfo(`Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, minter=${minter}, seed=${seed}`);
+    logInfo(
+      `Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, minter=${minter}, seed=${seed}`
+    );
 
     // Resolve ENS or use truncated address
     const ensName = await resolveEns(minter);
@@ -699,14 +768,14 @@ async function processMintEvent(log, processedMints, twitterClient) {
     // Format and post tweet with image
     const tweetMessage = formatMintTweet(Number(tokenId), minterDisplay);
 
-    logInfo('Posting mint tweet...');
+    logInfo("Posting mint tweet...");
     const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
 
     if (tweetId) {
       logSuccess(`Mint tweet posted! Tweet ID: ${tweetId}`);
       processedMints.add(Number(tokenId));
     } else {
-      logError('Failed to post mint tweet');
+      logError("Failed to post mint tweet");
     }
   } catch (error) {
     logError(`Error processing mint event: ${error.message}`);
@@ -742,15 +811,17 @@ async function runBot() {
     return;
   }
 
-  logInfo('Starting Twitter bot for mint window announcements...');
+  logInfo("Starting Twitter bot for mint window announcements...");
   if (dryRun) {
-    logInfo('Running in DRY-RUN mode - tweets will be previewed but not posted');
+    logInfo(
+      "Running in DRY-RUN mode - tweets will be previewed but not posted"
+    );
   }
 
   // Initialize configuration
   const rpcUrl = getRpcUrl();
   if (!rpcUrl) {
-    logError('MAINNET_RPC_URL environment variable not set');
+    logError("MAINNET_RPC_URL environment variable not set");
     process.exit(1);
   }
 
@@ -758,13 +829,13 @@ async function runBot() {
   logInfo(`Contract address: ${contractAddress}`);
 
   const abi = loadContractABI();
-  logInfo('Contract ABI loaded');
+  logInfo("Contract ABI loaded");
 
   const twitterClient = initTwitterClient();
   if (twitterClient) {
-    logInfo('Twitter client initialized');
+    logInfo("Twitter client initialized");
   } else {
-    logInfo('Twitter client skipped (dry-run mode)');
+    logInfo("Twitter client skipped (dry-run mode)");
   }
 
   // Load persisted state
@@ -774,13 +845,17 @@ async function runBot() {
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
   if (rescanMode) {
-    logInfo('Rescan mode: ignoring saved lastBlock, will scan from lookback');
+    logInfo("Rescan mode: ignoring saved lastBlock, will scan from lookback");
   }
   if (processedFolds.size > 0) {
-    logInfo(`Loaded ${processedFolds.size} previously processed folds from state`);
+    logInfo(
+      `Loaded ${processedFolds.size} previously processed folds from state`
+    );
   }
   if (processedMints.size > 0) {
-    logInfo(`Loaded ${processedMints.size} previously processed mints from state`);
+    logInfo(
+      `Loaded ${processedMints.size} previously processed mints from state`
+    );
   }
   if (lastProcessedBlock > 0n) {
     logInfo(`Last processed block: ${lastProcessedBlock}`);
@@ -811,18 +886,21 @@ async function runBot() {
 
       // Scan for missed events since last processed block
       const lookbackBlocks = 1000n; // ~3.5 hours of blocks
-      const fromBlock = lastProcessedBlock > 0n
-        ? lastProcessedBlock + 1n
-        : currentBlock - lookbackBlocks;
+      const fromBlock =
+        lastProcessedBlock > 0n
+          ? lastProcessedBlock + 1n
+          : currentBlock - lookbackBlocks;
 
       if (fromBlock < currentBlock) {
-        logInfo(`Scanning for missed events from block ${fromBlock} to ${currentBlock}...`);
+        logInfo(
+          `Scanning for missed events from block ${fromBlock} to ${currentBlock}...`
+        );
 
         // Scan for missed FoldCreated events
         const missedFoldLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)'
+            "event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
           ),
           fromBlock,
           toBlock: currentBlock,
@@ -831,7 +909,14 @@ async function runBot() {
         if (missedFoldLogs.length > 0) {
           logInfo(`Found ${missedFoldLogs.length} FoldCreated events`);
           for (const log of missedFoldLogs) {
-            await processEvent(log, processedFolds, twitterClient, contractAddress, client, abi);
+            await processEvent(
+              log,
+              processedFolds,
+              twitterClient,
+              contractAddress,
+              client,
+              abi
+            );
           }
         }
 
@@ -839,7 +924,7 @@ async function runBot() {
         const missedMintLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            'event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)'
+            "event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)"
           ),
           fromBlock,
           toBlock: currentBlock,
@@ -853,7 +938,7 @@ async function runBot() {
         }
 
         if (missedFoldLogs.length === 0 && missedMintLogs.length === 0) {
-          logInfo('No missed events found');
+          logInfo("No missed events found");
         }
       }
 
@@ -868,11 +953,18 @@ async function runBot() {
       const unwatchFolds = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          'event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)'
+          "event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
-            await processEvent(log, processedFolds, twitterClient, contractAddress, client, abi);
+            await processEvent(
+              log,
+              processedFolds,
+              twitterClient,
+              contractAddress,
+              client,
+              abi
+            );
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
               saveState(processedFolds, processedMints, lastProcessedBlock);
@@ -888,7 +980,7 @@ async function runBot() {
       const unwatchMints = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          'event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)'
+          "event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)"
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
@@ -910,20 +1002,22 @@ async function runBot() {
         unwatchMints();
       };
 
-      logSuccess('Bot is running and monitoring for FoldCreated and Minted events...');
-      logInfo('Press Ctrl+C to stop');
+      logSuccess(
+        "Bot is running and monitoring for FoldCreated and Minted events..."
+      );
+      logInfo("Press Ctrl+C to stop");
 
       // Graceful shutdown handler
       const shutdown = () => {
-        logInfo('Shutting down...');
+        logInfo("Shutting down...");
         if (unwatch) unwatch();
         saveState(processedFolds, processedMints, lastProcessedBlock);
-        logSuccess('State saved. Bot stopped.');
+        logSuccess("State saved. Bot stopped.");
         process.exit(0);
       };
 
-      process.on('SIGTERM', shutdown);
-      process.on('SIGINT', shutdown);
+      process.on("SIGTERM", shutdown);
+      process.on("SIGINT", shutdown);
 
       // Keep alive - this will block until an error occurs
       await new Promise((_, reject) => {
@@ -931,14 +1025,15 @@ async function runBot() {
         const healthCheck = setInterval(async () => {
           try {
             const block = await client.getBlockNumber();
-            logInfo(`Heartbeat: block ${block}, processed ${processedFolds.size} folds, ${processedMints.size} mints`);
+            logInfo(
+              `Heartbeat: block ${block}, processed ${processedFolds.size} folds, ${processedMints.size} mints`
+            );
           } catch (error) {
             clearInterval(healthCheck);
             reject(error);
           }
         }, 300000);
       });
-
     } catch (error) {
       if (unwatch) unwatch();
 
@@ -950,7 +1045,11 @@ async function runBot() {
 
       const delay = Math.min(baseDelay * Math.pow(2, retryCount - 1), 300000); // Max 5 min
       logError(`Connection error: ${error.message}`);
-      logWarn(`Reconnecting in ${delay / 1000} seconds (attempt ${retryCount}/${maxRetries})...`);
+      logWarn(
+        `Reconnecting in ${
+          delay / 1000
+        } seconds (attempt ${retryCount}/${maxRetries})...`
+      );
 
       await sleep(delay);
     }

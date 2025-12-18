@@ -1,24 +1,15 @@
 {
   "network": "sepolia",
   "chainId": 11155111,
-  "timestamp": "2024-12-16T00:00:00.000Z",
-  "scriptName": "less-sepolia-test",
+  "timestamp": "2025-12-18T03:30:00.000Z",
   "contracts": {
-    "mockLess": "0xc46A899ED4C7AA7c7e9624EB7D3A84B5bE16ce7c",
-    "lessRenderer": "0x262b46266bFB6C1a88e320A3d590E1e0738b0d13"
+    "less": "0xEC7c87FD313546B96741FC24AC2236f181e49CF2",
+    "renderer": "0xb946292fCf819410BF80C4044e25963F2306aE69"
   },
-  "scripty": {
-    "storage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
-    "builder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022"
-  },
-  "testToken": {
-    "tokenId": 1,
-    "seed": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-  },
-  "verified": {
-    "scriptUpload": true,
-    "tokenURI": true,
-    "animationUrl": true,
-    "seedInjection": true
+  "config": {
+    "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    "scriptName": "less-sepolia",
+    "useMockLess": true
   }
 }

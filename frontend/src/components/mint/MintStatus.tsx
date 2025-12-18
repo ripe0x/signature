@@ -1,6 +1,7 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { cn, getTxUrl } from '@/lib/utils';
+import { CHAIN_ID } from '@/lib/contracts';
 
 interface MintStatusProps {
   isConfirmed: boolean;
@@ -25,7 +26,7 @@ export function MintStatus({ isConfirmed, error, txHash, onReset }: MintStatusPr
           <p className="text-green-800">minted successfully!</p>
           {txHash && (
             <a
-              href={`https://etherscan.io/tx/${txHash}`}
+              href={getTxUrl(txHash, CHAIN_ID)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-600 hover:underline block"

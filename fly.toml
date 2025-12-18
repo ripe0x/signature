@@ -6,6 +6,9 @@ primary_region = "iad"
 
 [env]
   NODE_ENV = "production"
+  IMAGE_API_URL = "https://fold-image-api.fly.dev"
+  # TODO: Update LESS_TOKEN_ADDRESS when the real token is deployed
+  LESS_TOKEN_ADDRESS = "0x32f223e5c09878823934a8116f289bae2b657b8e"
 
 [mounts]
   source = "bot_data"

@@ -748,21 +748,32 @@ export function generateGapInfo(seed, cellWidth, cellHeight, innerWidth, innerHe
   const colGapRatio = grid.colGap / grid.cellWidth;
   const rowGapRatio = grid.rowGap / grid.cellHeight;
 
-  // Categorize gap ratios
-  const categorizeGap = (ratio) => {
-    if (ratio <= -0.5) return "-1/2 or more overlap";
-    if (ratio < -0.1) return "slight overlap";
-    if (ratio < 0.1) return "none";
-    if (ratio < 0.3) return "small";
-    if (ratio < 0.6) return "medium";
-    return "large";
+  // Map ratio to readable label (matches ALLOWED_GAP_RATIOS)
+  const ratioToLabel = (ratio) => {
+    if (Math.abs(ratio) < 0.01) return "none";
+    if (Math.abs(ratio + 1) < 0.01) return "-1 (100% overlap)";
+    if (Math.abs(ratio + 0.5) < 0.01) return "-1/2 (50% overlap)";
+    if (Math.abs(ratio + 0.25) < 0.01) return "-1/4 (25% overlap)";
+    if (Math.abs(ratio + 0.125) < 0.01) return "-1/8 (12.5% overlap)";
+    if (Math.abs(ratio + 0.0625) < 0.01) return "-1/16 (6.25% overlap)";
+    if (Math.abs(ratio - 0.015625) < 0.01) return "1/64";
+    if (Math.abs(ratio - 0.03125) < 0.01) return "1/32";
+    if (Math.abs(ratio - 0.0625) < 0.01) return "1/16";
+    if (Math.abs(ratio - 0.125) < 0.01) return "1/8";
+    if (Math.abs(ratio - 0.25) < 0.01) return "1/4";
+    if (Math.abs(ratio - 0.5) < 0.01) return "1/2";
+    if (Math.abs(ratio - 1) < 0.01) return "1x";
+    if (Math.abs(ratio - 2) < 0.01) return "2x";
+    // Fallback for non-standard values
+    if (ratio < 0) return `${Math.round(ratio * 100)}% overlap`;
+    return `${Math.round(ratio * 100)}%`;
   };
 
   return {
     colGapRatio,
     rowGapRatio,
-    colGapCategory: categorizeGap(colGapRatio),
-    rowGapCategory: categorizeGap(rowGapRatio),
+    colGapCategory: ratioToLabel(colGapRatio),
+    rowGapCategory: ratioToLabel(rowGapRatio),
     hasGaps: Math.abs(colGapRatio) > 0.01 || Math.abs(rowGapRatio) > 0.01,
     hasOverlap: colGapRatio < -0.01 || rowGapRatio < -0.01,
   };
@@ -1087,6 +1098,8 @@ export function calculateGridWithGaps(
 
   let useColGaps = false;
   let useRowGaps = false;
+  let forceNegativeCol = false;
+  let forceNegativeRow = false;
 
   if (useGaps) {
     const gapTypeRoll = gapRng();
@@ -1098,19 +1111,29 @@ export function calculateGridWithGaps(
       useColGaps = true;
       useRowGaps = true;
     }
+
+    // 30% chance to force negative (overlap) gaps when gaps are enabled
+    if (useColGaps && gapRng() < 0.3) {
+      forceNegativeCol = true;
+    }
+    if (useRowGaps && gapRng() < 0.3) {
+      forceNegativeRow = true;
+    }
   }
 
-  const getWeightedGapRatios = () => {
-    // Positive ratios (indices 4-10): 1/64 through 1.0
-    const ratios = ALLOWED_GAP_RATIOS.slice(4, 11);
+  // Negative ratios that work well (not too extreme)
+  const NEGATIVE_RATIOS = [-1/16, -1/8, -1/4, -1/2];
+
+  const getWeightedGapRatios = (forceNegative) => {
+    if (forceNegative) {
+      // Only return negative ratios - pick randomly
+      return NEGATIVE_RATIOS;
+    }
+    // Positive ratios (indices 5-11): 1/64 through 1.0
+    const ratios = ALLOWED_GAP_RATIOS.slice(5, 12);
     // 25% chance to include 2x positive gap
     if (gapRng() < 0.25) {
-      ratios.push(ALLOWED_GAP_RATIOS[11]); // 2x
-    }
-    // 20% chance to include negative gaps (overlap)
-    if (gapRng() < 0.2) {
-      // Add negative ratios (indices 0-3): -1/2 through -1/16
-      ratios.push(...ALLOWED_GAP_RATIOS.slice(0, 4));
+      ratios.push(ALLOWED_GAP_RATIOS[12]); // 2x
     }
     return ratios;
   };
@@ -1123,40 +1146,51 @@ export function calculateGridWithGaps(
   let bestColGap = 0;
   let bestColFit = Infinity;
 
-  const colGapRatios = useColGaps ? getWeightedGapRatios() : [0];
-
-  for (const gapRatio of colGapRatios) {
-    const gap = refCellWidth * gapRatio;
+  // If forcing negative, randomly pick one and calculate grid directly
+  if (forceNegativeCol) {
+    const randomRatio = NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
+    const gap = refCellWidth * randomRatio;
     const stride = refCellWidth + gap;
-    // Skip if stride <= 0 (would cause invalid calculations)
-    if (stride <= 0) continue;
-    const cols = Math.max(1, Math.floor((innerWidth + gap) / stride));
+    if (stride > 0) {
+      bestCols = Math.max(1, Math.floor((innerWidth + gap) / stride));
+      bestColGap = gap;
+    }
+  } else {
+    const colGapRatios = useColGaps ? getWeightedGapRatios(false) : [0];
 
-    if (cols === 1) {
-      const cellW = Math.min(refCellWidth, innerWidth);
-      const fit = Math.abs(innerWidth - cellW);
-      if (fit < bestColFit) {
-        bestColFit = fit;
-        bestCols = 1;
-        bestColGap = 0;
-        refCellWidth = cellW;
-      }
-    } else {
-      const actualWidth = cols * refCellWidth + (cols - 1) * gap;
-      if (actualWidth <= innerWidth) {
-        const fit = Math.abs(innerWidth - actualWidth);
+    for (const gapRatio of colGapRatios) {
+      const gap = refCellWidth * gapRatio;
+      const stride = refCellWidth + gap;
+      // Skip if stride <= 0 (would cause invalid calculations)
+      if (stride <= 0) continue;
+      const cols = Math.max(1, Math.floor((innerWidth + gap) / stride));
+
+      if (cols === 1) {
+        const cellW = Math.min(refCellWidth, innerWidth);
+        const fit = Math.abs(innerWidth - cellW);
         if (fit < bestColFit) {
           bestColFit = fit;
-          bestCols = cols;
-          bestColGap = gap;
+          bestCols = 1;
+          bestColGap = 0;
+          refCellWidth = cellW;
+        }
+      } else {
+        const actualWidth = cols * refCellWidth + (cols - 1) * gap;
+        if (actualWidth <= innerWidth) {
+          const fit = Math.abs(innerWidth - actualWidth);
+          if (fit < bestColFit) {
+            bestColFit = fit;
+            bestCols = cols;
+            bestColGap = gap;
+          }
         }
       }
     }
-  }
 
-  if (bestCols === 1 && refCellWidth < innerWidth) {
-    refCellWidth = innerWidth;
-    bestColGap = 0;
+    if (bestCols === 1 && refCellWidth < innerWidth) {
+      refCellWidth = innerWidth;
+      bestColGap = 0;
+    }
   }
 
   // Calculate best row configuration
@@ -1164,32 +1198,43 @@ export function calculateGridWithGaps(
   let bestRowGap = 0;
   let bestRowFit = Infinity;
 
-  const rowGapRatios = useRowGaps ? getWeightedGapRatios() : [0];
-
-  for (const gapRatio of rowGapRatios) {
-    const gap = refCellHeight * gapRatio;
+  // If forcing negative, randomly pick one and calculate grid directly
+  if (forceNegativeRow) {
+    const randomRatio = NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
+    const gap = refCellHeight * randomRatio;
     const stride = refCellHeight + gap;
-    // Skip if stride <= 0 (would cause invalid calculations)
-    if (stride <= 0) continue;
-    const rows = Math.max(1, Math.floor((innerHeight + gap) / stride));
+    if (stride > 0) {
+      bestRows = Math.max(1, Math.floor((innerHeight + gap) / stride));
+      bestRowGap = gap;
+    }
+  } else {
+    const rowGapRatios = useRowGaps ? getWeightedGapRatios(false) : [0];
 
-    if (rows === 1) {
-      const cellH = Math.min(refCellHeight, innerHeight);
-      const fit = Math.abs(innerHeight - cellH);
-      if (fit < bestRowFit) {
-        bestRowFit = fit;
-        bestRows = 1;
-        bestRowGap = 0;
-        refCellHeight = cellH;
-      }
-    } else {
-      const actualHeight = rows * refCellHeight + (rows - 1) * gap;
-      if (actualHeight <= innerHeight) {
-        const fit = Math.abs(innerHeight - actualHeight);
+    for (const gapRatio of rowGapRatios) {
+      const gap = refCellHeight * gapRatio;
+      const stride = refCellHeight + gap;
+      // Skip if stride <= 0 (would cause invalid calculations)
+      if (stride <= 0) continue;
+      const rows = Math.max(1, Math.floor((innerHeight + gap) / stride));
+
+      if (rows === 1) {
+        const cellH = Math.min(refCellHeight, innerHeight);
+        const fit = Math.abs(innerHeight - cellH);
         if (fit < bestRowFit) {
           bestRowFit = fit;
-          bestRows = rows;
-          bestRowGap = gap;
+          bestRows = 1;
+          bestRowGap = 0;
+          refCellHeight = cellH;
+        }
+      } else {
+        const actualHeight = rows * refCellHeight + (rows - 1) * gap;
+        if (actualHeight <= innerHeight) {
+          const fit = Math.abs(innerHeight - actualHeight);
+          if (fit < bestRowFit) {
+            bestRowFit = fit;
+            bestRows = rows;
+            bestRowGap = gap;
+          }
         }
       }
     }
@@ -3043,10 +3088,11 @@ export function renderToCanvas({
         : accentColor;
 
     // Draw crease lines
+    const lineWidth = 2 * scaleX;
     if (activeCreases.length > 0) {
       ctx.strokeStyle = lineColor;
-      ctx.lineWidth = 2 * scaleX;
-      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = 1;
       ctx.lineCap = "round";
       for (const crease of activeCreases) {
         ctx.beginPath();
@@ -3056,10 +3102,10 @@ export function renderToCanvas({
       }
     }
 
-    // Draw intersection points as stroked circles (same color as lines, transparent fill)
+    // Draw intersection points as stroked circles (same style as lines)
     if (activeIntersections && activeIntersections.length > 0) {
       ctx.strokeStyle = lineColor;
-      ctx.lineWidth = 1.5 * scaleX;
+      ctx.lineWidth = lineWidth;
       ctx.globalAlpha = 1;
       const radius = 4 * scaleX;
       for (const inter of activeIntersections) {
@@ -3518,8 +3564,10 @@ export function renderToCanvas({
   }
 
   // Draw intersection points (same pink as crease lines, transparent inside)
+  // Skip if linesOnlyMode already drew them
   if (
     showIntersections &&
+    !linesOnlyMode &&
     activeIntersections &&
     activeIntersections.length > 0
   ) {

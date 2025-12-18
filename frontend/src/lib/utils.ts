@@ -71,3 +71,19 @@ export function seedToNumber(seed: `0x${string}`): number {
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
+// Get Etherscan base URL based on chain ID
+export function getEtherscanUrl(chainId: number): string {
+  if (chainId === 11155111) return 'https://sepolia.etherscan.io';
+  return 'https://etherscan.io';
+}
+
+// Build Etherscan URL for address
+export function getAddressUrl(address: string, chainId: number): string {
+  return `${getEtherscanUrl(chainId)}/address/${address}`;
+}
+
+// Build Etherscan URL for transaction
+export function getTxUrl(txHash: string, chainId: number): string {
+  return `${getEtherscanUrl(chainId)}/tx/${txHash}`;
+}

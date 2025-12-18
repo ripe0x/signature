@@ -655,8 +655,10 @@
       generateAllParams,
       renderWithState,
       generateMetadata,
+      generateGapInfo,
       REFERENCE_WIDTH,
       REFERENCE_HEIGHT,
+      DRAWING_MARGIN,
     } from './web/fold-core.js';
 
     // State
@@ -708,6 +710,14 @@
         traits[attr.trait_type] = attr.value;
       }
 
+      // Add gap info to traits
+      const innerW = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
+      const innerH = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
+      const gapInfo = generateGapInfo(seed, params.cells.cellW, params.cells.cellH, innerW, innerH);
+      traits['Col Gap'] = gapInfo.colGapCategory;
+      traits['Row Gap'] = gapInfo.rowGapCategory;
+      traits['Has Overlap'] = gapInfo.hasOverlap ? 'Yes' : 'No';
+
       return {
         seed,
         hexSeed,
@@ -715,6 +725,7 @@
         traits,
         metadata,
         foldCount: actualFoldCount,
+        gapInfo,
       };
     }
 
@@ -770,6 +781,9 @@
         'Palette Strategy',
         'Cell Size',
         'Crease Lines',
+        'Col Gap',
+        'Row Gap',
+        'Has Overlap',
       ];
 
       let html = '';
@@ -954,7 +968,6 @@
       // On-chain attributes section (matches LessRenderer.sol _buildAttributes)
       const paperType = traits['Paper Type'] || 'Standard';
       const paperGrain = params.paperProperties?.angleAffinity !== null ? 'Grain' : 'Uniform';
-      const colorCount = params.palette?.colorCount || 2;
 
       traitsHtml += `
         <div class="traits-section">
@@ -984,10 +997,6 @@
                 <div class="color-swatch" style="background: ${params.palette?.text}" title="Text"></div>
                 <div class="color-swatch" style="background: ${params.palette?.accent}" title="Accent"></div>
               </div>
-            </div>
-            <div class="trait-card">
-              <div class="trait-type">Color Count</div>
-              <div class="trait-value">${colorCount}</div>
             </div>
             <div class="trait-card">
               <div class="trait-type">Grid Density</div>

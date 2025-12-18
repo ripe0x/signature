@@ -239,8 +239,9 @@ contract Deploy is Script {
         console.log("Setting renderer on Less contract...");
 
         if (isMock) {
+            MockLess(lessAddress).setRenderer(rendererAddress);
+            console.log("Renderer set on MockLess");
             MockLess(lessAddress).transferOwnership(config.owner);
-            // MockLess doesn't have setRenderer, it just provides data
             console.log("MockLess ownership transferred to:", config.owner);
         } else {
             Less(lessAddress).setRenderer(rendererAddress);

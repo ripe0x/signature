@@ -226,7 +226,7 @@ contract LessRenderer is ILessRenderer, Ownable {
         ILess.TokenData memory token,
         bytes32 seed
     ) internal view returns (string memory) {
-        string memory animationURL = _buildAnimationURL(tokenId, seed);
+        string memory animationURL = _buildAnimationURL(tokenId, seed, token.foldId);
         string memory imageURL = _buildImageURL(tokenId);
         string memory attributes = _buildAttributes(token, seed);
 
@@ -261,12 +261,14 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @dev The ScriptyBuilder contract interface may not match - this tries multiple approaches
     function _buildAnimationURL(
         uint256 tokenId,
-        bytes32 seed
+        bytes32 seed,
+        uint64 foldId
     ) internal view returns (string memory) {
         // Build HTML with scripty
         IScriptyBuilderV2.HTMLRequest memory request = _buildHTMLRequest(
             tokenId,
-            seed
+            seed,
+            foldId
         );
 
         // Try multiple function signatures - the actual contract may use different names
@@ -340,7 +342,8 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Constructs the HTMLRequest for scripty builder
     function _buildHTMLRequest(
         uint256 tokenId,
-        bytes32 seed
+        bytes32 seed,
+        uint64 foldId
     ) internal view returns (IScriptyBuilderV2.HTMLRequest memory) {
         // Create head tags (inject seed as a global variable)
         IScriptyBuilderV2.HTMLTag[]
@@ -357,7 +360,7 @@ contract LessRenderer is ILessRenderer, Ownable {
             tagContent: ""
         });
 
-        // Inject seed and tokenId as global JS variables
+        // Inject seed, tokenId, and foldCount as global JS variables
         headTags[1] = IScriptyBuilderV2.HTMLTag({
             name: "",
             contractAddress: address(0),
@@ -365,7 +368,7 @@ contract LessRenderer is ILessRenderer, Ownable {
             tagType: IScriptyBuilderV2.HTMLTagType.useTagOpenAndClose,
             tagOpen: "<script>",
             tagClose: "</script>",
-            tagContent: bytes(_buildSeedScript(tokenId, seed))
+            tagContent: bytes(_buildSeedScript(tokenId, seed, foldId))
         });
 
         // Create body tags (the main script from storage)
@@ -389,10 +392,11 @@ contract LessRenderer is ILessRenderer, Ownable {
             });
     }
 
-    /// @notice Builds the inline script that sets global seed/tokenId variables
+    /// @notice Builds the inline script that sets global seed/tokenId/foldCount variables
     function _buildSeedScript(
         uint256 tokenId,
-        bytes32 seed
+        bytes32 seed,
+        uint64 foldId
     ) internal pure returns (string memory) {
         return
             string(
@@ -401,7 +405,9 @@ contract LessRenderer is ILessRenderer, Ownable {
                     tokenId.toString(),
                     ';window.LESS_SEED="',
                     _bytes32ToHexString(seed),
-                    '";'
+                    '";window.FOLD_COUNT=',
+                    uint256(foldId).toString(),
+                    ";"
                 )
             );
     }
@@ -512,11 +518,11 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Derives render mode from seed (matches JS generateRenderMode)
     function _getRenderMode(bytes32 seed) internal pure returns (string memory) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
-        uint256 roll = (state * 100) / 0x7fffffff;
-        if (roll < 35) return "Normal";
-        if (roll < 40) return "Binary";
-        if (roll < 65) return "Inverted";
-        if (roll < 82) return "Sparse";
+        uint256 roll = (state * 1000000) / 0x7fffffff;
+        if (roll < 350000) return "Normal";
+        if (roll < 400000) return "Binary";
+        if (roll < 650000) return "Inverted";
+        if (roll < 825000) return "Sparse";  // 82.5%
         return "Dense";
     }
 
@@ -534,33 +540,41 @@ contract LessRenderer is ILessRenderer, Ownable {
     }
 
     /// @notice Derives palette strategy and color count from seed (matches JS generatePalette)
+    /// RNG sequence: (1) monochrome check, (2) ground selection, (3) contrast type,
+    /// (4) deriveMark, (5) deriveAccent check
     function _getPalette(bytes32 seed) internal pure returns (
         string memory strategy,
         uint8 colorCount,
         bool isMonochrome
     ) {
+        // Call 1: monochrome check (12%)
         uint256 state = _nextRandom(_seedToNumber(seed));
-        uint256 roll = (state * 100) / 0x7fffffff;
+        uint256 roll = (state * 1000000) / 0x7fffffff;
 
-        // 12% monochrome
-        if (roll < 12) {
+        if (roll < 120000) {
             return ("Monochrome", 2, true);
         }
 
-        // Non-monochrome: determine contrast type
+        // Call 2: ground selection (burn - we don't need actual color for metadata)
         state = _nextRandom(state);
-        roll = (state * 100) / 0x7fffffff;
+
+        // Call 3: contrast type (40% value, 28% temperature, 22% complement, 10% clash)
+        state = _nextRandom(state);
+        roll = (state * 1000000) / 0x7fffffff;
 
         string memory strat;
-        if (roll < 40) strat = "Value";
-        else if (roll < 68) strat = "Temperature";
-        else if (roll < 90) strat = "Complement";
+        if (roll < 400000) strat = "Value";
+        else if (roll < 680000) strat = "Temperature";
+        else if (roll < 900000) strat = "Complement";
         else strat = "Clash";
 
-        // Color count: 40% get 2 colors, 60% get 3
+        // Call 4: deriveMark (burn - we don't need actual color for metadata)
         state = _nextRandom(state);
-        roll = (state * 100) / 0x7fffffff;
-        uint8 colors = roll < 40 ? 2 : 3;
+
+        // Call 5: deriveAccent check - < 40% means no distinct accent (2 colors)
+        state = _nextRandom(state);
+        roll = (state * 1000000) / 0x7fffffff;
+        uint8 colors = roll < 400000 ? 2 : 3;
 
         return (strat, colors, false);
     }
@@ -578,8 +592,8 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Derives paper grain from seed (matches JS generatePaperProperties)
     function _hasPaperGrain(bytes32 seed) internal pure returns (bool) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
-        // Skip first roll (absorbency), use second for angle affinity
-        state = _nextRandom(state); // intersectionThreshold (disabled, but still advances)
+        // First rng() call is for absorbency, second is for hasAngleAffinity
+        // intersectionThreshold is disabled in JS (no rng() call)
         state = _nextRandom(state); // hasAngleAffinity check
         uint256 roll = (state * 100) / 0x7fffffff;
         return roll < 40; // 40% have grain
