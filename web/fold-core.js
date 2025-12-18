@@ -53,23 +53,127 @@ export function getLuminance(r, g, b) {
 // The 13 CGA colors - brown and grays removed
 export const CGA_PALETTE = [
   // Darks (valid grounds) - luminance < 30
-  { hex: "#000000", name: "black", luminance: 0, temperature: "neutral", r: 0, g: 0, b: 0 },
-  { hex: "#0000AA", name: "blue", luminance: 10, temperature: "cool", r: 0, g: 0, b: 170 },
-  { hex: "#AA0000", name: "red", luminance: 20, temperature: "warm", r: 170, g: 0, b: 0 },
-  { hex: "#AA00AA", name: "magenta", luminance: 25, temperature: "warm", r: 170, g: 0, b: 170 },
+  {
+    hex: "#000000",
+    name: "black",
+    luminance: 0,
+    temperature: "neutral",
+    r: 0,
+    g: 0,
+    b: 0,
+  },
+  {
+    hex: "#0000AA",
+    name: "blue",
+    luminance: 10,
+    temperature: "cool",
+    r: 0,
+    g: 0,
+    b: 170,
+  },
+  {
+    hex: "#AA0000",
+    name: "red",
+    luminance: 20,
+    temperature: "warm",
+    r: 170,
+    g: 0,
+    b: 0,
+  },
+  {
+    hex: "#AA00AA",
+    name: "magenta",
+    luminance: 25,
+    temperature: "warm",
+    r: 170,
+    g: 0,
+    b: 170,
+  },
 
   // Lights (valid grounds) - luminance > 70
-  { hex: "#FFFFFF", name: "white", luminance: 100, temperature: "neutral", r: 255, g: 255, b: 255 },
-  { hex: "#FFFF55", name: "yellow", luminance: 93, temperature: "warm", r: 255, g: 255, b: 85 },
-  { hex: "#55FFFF", name: "lightCyan", luminance: 85, temperature: "cool", r: 85, g: 255, b: 255 },
-  { hex: "#55FF55", name: "lightGreen", luminance: 77, temperature: "cool", r: 85, g: 255, b: 85 },
+  {
+    hex: "#FFFFFF",
+    name: "white",
+    luminance: 100,
+    temperature: "neutral",
+    r: 255,
+    g: 255,
+    b: 255,
+  },
+  {
+    hex: "#FFFF55",
+    name: "yellow",
+    luminance: 93,
+    temperature: "warm",
+    r: 255,
+    g: 255,
+    b: 85,
+  },
+  {
+    hex: "#55FFFF",
+    name: "lightCyan",
+    luminance: 85,
+    temperature: "cool",
+    r: 85,
+    g: 255,
+    b: 255,
+  },
+  {
+    hex: "#55FF55",
+    name: "lightGreen",
+    luminance: 77,
+    temperature: "cool",
+    r: 85,
+    g: 255,
+    b: 85,
+  },
 
   // Mids (marks only, never grounds) - luminance 30-70
-  { hex: "#00AA00", name: "green", luminance: 30, temperature: "cool", r: 0, g: 170, b: 0 },
-  { hex: "#00AAAA", name: "cyan", luminance: 40, temperature: "cool", r: 0, g: 170, b: 170 },
-  { hex: "#5555FF", name: "lightBlue", luminance: 45, temperature: "cool", r: 85, g: 85, b: 255 },
-  { hex: "#FF5555", name: "lightRed", luminance: 45, temperature: "warm", r: 255, g: 85, b: 85 },
-  { hex: "#FF55FF", name: "lightMagenta", luminance: 60, temperature: "warm", r: 255, g: 85, b: 255 },
+  {
+    hex: "#00AA00",
+    name: "green",
+    luminance: 30,
+    temperature: "cool",
+    r: 0,
+    g: 170,
+    b: 0,
+  },
+  {
+    hex: "#00AAAA",
+    name: "cyan",
+    luminance: 40,
+    temperature: "cool",
+    r: 0,
+    g: 170,
+    b: 170,
+  },
+  {
+    hex: "#5555FF",
+    name: "lightBlue",
+    luminance: 45,
+    temperature: "cool",
+    r: 85,
+    g: 85,
+    b: 255,
+  },
+  {
+    hex: "#FF5555",
+    name: "lightRed",
+    luminance: 45,
+    temperature: "warm",
+    r: 255,
+    g: 85,
+    b: 85,
+  },
+  {
+    hex: "#FF55FF",
+    name: "lightMagenta",
+    luminance: 60,
+    temperature: "warm",
+    r: 255,
+    g: 85,
+    b: 255,
+  },
 ];
 
 // Role pools
@@ -82,13 +186,13 @@ export const GROUND_POOL = CGA_PALETTE.filter(
 // Ground weights - prevent any single color from dominating
 // Black and white anchor more often. Magenta is spice, not staple.
 const GROUND_WEIGHTS = {
-  black: 0.20,      // strongest ground, increase
-  white: 0.15,      // rare but powerful, increase
-  blue: 0.15,       // classic CGA
-  red: 0.15,        // classic CGA
-  magenta: 0.10,    // decrease - was overrepresented
-  yellow: 0.10,     // complement anchor
-  lightCyan: 0.08,  // light grounds are rarer
+  black: 0.2, // strongest ground, increase
+  white: 0.15, // rare but powerful, increase
+  blue: 0.15, // classic CGA
+  red: 0.15, // classic CGA
+  magenta: 0.1, // decrease - was overrepresented
+  yellow: 0.1, // complement anchor
+  lightCyan: 0.08, // light grounds are rarer
   lightGreen: 0.07, // light grounds are rarer
 };
 
@@ -102,9 +206,7 @@ export const ACCENT_POOL = CGA_PALETTE.filter(
 
 // Chromatic colors for monochrome "key" selection
 // These are the 11 non-neutral colors that can be the single voice
-const CHROMATIC_POOL = CGA_PALETTE.filter(
-  (c) => c.temperature !== "neutral"
-);
+const CHROMATIC_POOL = CGA_PALETTE.filter((c) => c.temperature !== "neutral");
 
 // Legacy exports for compatibility (point to CGA_PALETTE)
 export const VGA_PALETTE = CGA_PALETTE;
@@ -389,14 +491,16 @@ function generateMonochrome(rng) {
     groundColor = CGA_PALETTE.find((c) => c.name === "black");
   } else if (keyColor.luminance < 30) {
     // Dark color → mostly black (classic terminal), sometimes white (blueprint)
-    groundColor = rng() < 0.75
-      ? CGA_PALETTE.find((c) => c.name === "black")
-      : CGA_PALETTE.find((c) => c.name === "white");
+    groundColor =
+      rng() < 0.75
+        ? CGA_PALETTE.find((c) => c.name === "black")
+        : CGA_PALETTE.find((c) => c.name === "white");
   } else {
     // Mid color → either works
-    groundColor = rng() < 0.6
-      ? CGA_PALETTE.find((c) => c.name === "black")
-      : CGA_PALETTE.find((c) => c.name === "white");
+    groundColor =
+      rng() < 0.6
+        ? CGA_PALETTE.find((c) => c.name === "black")
+        : CGA_PALETTE.find((c) => c.name === "white");
   }
 
   return {
@@ -431,11 +535,11 @@ export function generatePalette(seed) {
 
   const contrastRoll = rng();
   let contrastType;
-  if (contrastRoll < 0.40) {
+  if (contrastRoll < 0.4) {
     contrastType = "value";
   } else if (contrastRoll < 0.68) {
     contrastType = "temperature";
-  } else if (contrastRoll < 0.90) {
+  } else if (contrastRoll < 0.9) {
     contrastType = "complement";
   } else {
     contrastType = "clash"; // 10% - intentional discord
@@ -454,14 +558,18 @@ export function generatePalette(seed) {
   // ============ STEP 5: VALIDATE ============
   // Safety check - should always pass with this system
 
+  // Compute RNG-based colorCount (for metadata consistency)
+  const rngColorCount = accent.hex === mark.hex ? 2 : 3;
+
   if (Math.abs(ground.luminance - mark.luminance) < 25) {
-    // Contrast failure - force black/white fallback
+    // Contrast failure - force black/white fallback colors
+    // Keep original contrastType and RNG-based colorCount for metadata consistency
     return {
       bg: ground.luminance < 50 ? "#000000" : "#FFFFFF",
       text: ground.luminance < 50 ? "#FFFFFF" : "#000000",
       accent: "#FFFF55",
-      strategy: "fallback",
-      colorCount: 3,
+      strategy: contrastType,
+      colorCount: rngColorCount,
     };
   }
 
@@ -470,7 +578,7 @@ export function generatePalette(seed) {
     text: mark.hex,
     accent: accent.hex,
     strategy: contrastType,
-    colorCount: accent.hex === mark.hex ? 2 : 3,
+    colorCount: rngColorCount,
   };
 }
 
@@ -632,6 +740,34 @@ export function generateOverlapInfo(seed) {
   return { hasOverlap: true, amount };
 }
 
+// Generate gap ratio info for a given seed and cell dimensions
+export function generateGapInfo(seed, cellWidth, cellHeight, innerWidth, innerHeight) {
+  // Run the gap calculation to get actual values
+  const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, innerWidth, innerHeight);
+
+  const colGapRatio = grid.colGap / grid.cellWidth;
+  const rowGapRatio = grid.rowGap / grid.cellHeight;
+
+  // Categorize gap ratios
+  const categorizeGap = (ratio) => {
+    if (ratio <= -0.5) return "-1/2 or more overlap";
+    if (ratio < -0.1) return "slight overlap";
+    if (ratio < 0.1) return "none";
+    if (ratio < 0.3) return "small";
+    if (ratio < 0.6) return "medium";
+    return "large";
+  };
+
+  return {
+    colGapRatio,
+    rowGapRatio,
+    colGapCategory: categorizeGap(colGapRatio),
+    rowGapCategory: categorizeGap(rowGapRatio),
+    hasGaps: Math.abs(colGapRatio) > 0.01 || Math.abs(rowGapRatio) > 0.01,
+    hasOverlap: colGapRatio < -0.01 || rowGapRatio < -0.01,
+  };
+}
+
 export function generateMaxFolds(seed) {
   const rng = seededRandom(seed + 2222);
   return Math.floor(4 + rng() * 66);
@@ -783,6 +919,18 @@ export function generateRareCreaseLines(seed) {
   return rng() < 0.008;
 }
 
+export function generateDrawDirection(seed) {
+  const rng = seededRandom(seed + 33333);
+  const roll = rng();
+  if (roll < 0.22) return "ltr";
+  if (roll < 0.44) return "rtl";
+  if (roll < 0.65) return "center";
+  if (roll < 0.8) return "alternate";
+  if (roll < 0.9) return "diagonal";
+  if (roll < 0.96) return "randomMid";
+  return "checkerboard";
+}
+
 // ============ PAPER PROPERTIES ============
 // These properties control how folds register on the paper,
 // breaking the 1:1 relationship between fold count and visual density.
@@ -866,6 +1014,7 @@ export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
 
 const ALLOWED_GAP_RATIOS = [
   // Negative (overlap)
+  -1 / 1,
   -1 / 2,
   -1 / 4,
   -1 / 8,
@@ -886,9 +1035,52 @@ export function calculateGridWithGaps(
   cellWidth,
   cellHeight,
   innerWidth,
-  innerHeight
+  innerHeight,
+  gapOverrides = null // { colGapRatio, rowGapRatio } - if provided, forces specific gap ratios
 ) {
   const gapRng = seededRandom(seed + 12345);
+
+  // TODO: Remove gapOverrides parameter after gap ratio testing is complete
+  // If overrides provided, use those directly (for testing purposes)
+  if (gapOverrides) {
+    const { colGapRatio = 0, rowGapRatio = 0 } = gapOverrides;
+    const colGap = cellWidth * colGapRatio;
+    const rowGap = cellHeight * rowGapRatio;
+
+    const colStride = cellWidth + colGap;
+    const rowStride = cellHeight + rowGap;
+
+    // Calculate grid dimensions with forced gaps
+    const cols =
+      colStride > 0
+        ? Math.max(1, Math.floor((innerWidth + colGap) / colStride))
+        : 1;
+    const rows =
+      rowStride > 0
+        ? Math.max(1, Math.floor((innerHeight + rowGap) / rowStride))
+        : 1;
+
+    // Calculate actual grid size and centering offset
+    const actualGridWidth = cols * cellWidth + (cols - 1) * colGap;
+    const actualGridHeight = rows * cellHeight + (rows - 1) * rowGap;
+    const gridOffsetX = (innerWidth - actualGridWidth) / 2;
+    const gridOffsetY = (innerHeight - actualGridHeight) / 2;
+
+    return {
+      cols,
+      rows,
+      cellWidth,
+      cellHeight,
+      colGap,
+      rowGap,
+      strideX: colStride,
+      strideY: rowStride,
+      gridOffsetX: Math.max(0, gridOffsetX),
+      gridOffsetY: Math.max(0, gridOffsetY),
+      actualGridWidth,
+      actualGridHeight,
+    };
+  }
 
   // 40% chance of having any gaps at all
   const useGaps = gapRng() < 0.4;
@@ -1074,12 +1266,17 @@ export function countToLevelAdaptive(weight, thresholds) {
 }
 
 // ============ SEEDED RANDOM ============
+// Uses BigInt for precise arithmetic matching Solidity uint256
+
+const LCG_MULT = 1103515245n;
+const LCG_INC = 12345n;
+const LCG_MASK = 0x7fffffffn;
 
 export function seededRandom(seed) {
-  let state = Math.abs(seed) || 1;
+  let state = BigInt(Math.abs(seed) || 1);
   return () => {
-    state = (state * 1103515245 + 12345) & 0x7fffffff;
-    return state / 0x7fffffff;
+    state = (state * LCG_MULT + LCG_INC) & LCG_MASK;
+    return Number(state) / Number(LCG_MASK);
   };
 }
 
@@ -1568,7 +1765,15 @@ function areAdjacentEdges(e1, e2) {
 }
 
 // Pick anchor point for a crease
-function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strategy) {
+function pickAnchor(
+  foldIndex,
+  existingCreases,
+  intersections,
+  w,
+  h,
+  rng,
+  strategy
+) {
   // Strategy-specific edge selection
   // Edge mapping: 0=top, 1=right, 2=bottom, 3=left
   // Horizontal edges: 0, 2 (top, bottom)
@@ -1610,18 +1815,21 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strate
     if (foldIndex < 10 || existingCreases.length === 0 || rng() < 0.6) {
       // Pick edge closest to focal point
       const edgeDistances = [
-        { edge: 0, dist: focalY },                    // top
-        { edge: 1, dist: w - focalX },                // right
-        { edge: 2, dist: h - focalY },                // bottom
-        { edge: 3, dist: focalX },                    // left
+        { edge: 0, dist: focalY }, // top
+        { edge: 1, dist: w - focalX }, // right
+        { edge: 2, dist: h - focalY }, // bottom
+        { edge: 3, dist: focalX }, // left
       ];
       edgeDistances.sort((a, b) => a.dist - b.dist);
 
       // Weight toward closer edges
       const roll = rng();
-      const edge = roll < 0.5 ? edgeDistances[0].edge :
-                   roll < 0.8 ? edgeDistances[1].edge :
-                   edgeDistances[Math.floor(rng() * 4)].edge;
+      const edge =
+        roll < 0.5
+          ? edgeDistances[0].edge
+          : roll < 0.8
+          ? edgeDistances[1].edge
+          : edgeDistances[Math.floor(rng() * 4)].edge;
 
       // Position along edge biased toward focal point projection
       let t;
@@ -1653,10 +1861,10 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strate
     if (foldIndex < 15 || rng() < 0.7) {
       // Pick edge that will allow fold to pass through cluster
       const edgeWeights = [
-        { edge: 0, weight: 1 + (1 - Math.abs(clusterY / h)) * 2 },        // top - better if cluster is high
-        { edge: 1, weight: 1 + (clusterX / w) * 2 },                       // right - better if cluster is right
-        { edge: 2, weight: 1 + (clusterY / h) * 2 },                       // bottom - better if cluster is low
-        { edge: 3, weight: 1 + (1 - clusterX / w) * 2 },                   // left - better if cluster is left
+        { edge: 0, weight: 1 + (1 - Math.abs(clusterY / h)) * 2 }, // top - better if cluster is high
+        { edge: 1, weight: 1 + (clusterX / w) * 2 }, // right - better if cluster is right
+        { edge: 2, weight: 1 + (clusterY / h) * 2 }, // bottom - better if cluster is low
+        { edge: 3, weight: 1 + (1 - clusterX / w) * 2 }, // left - better if cluster is left
       ];
 
       const totalWeight = edgeWeights.reduce((sum, e) => sum + e.weight, 0);
@@ -1693,7 +1901,11 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strate
   const edgeProbability = Math.max(0.2, 1.0 - foldIndex * 0.015);
 
   // Grid/horizontal/vertical strategies must always use edge anchors for straight lines
-  const forceEdge = strategy && (strategy.type === "horizontal" || strategy.type === "vertical" || strategy.type === "grid");
+  const forceEdge =
+    strategy &&
+    (strategy.type === "horizontal" ||
+      strategy.type === "vertical" ||
+      strategy.type === "grid");
 
   const useEdge =
     forceEdge ||
@@ -1703,7 +1915,11 @@ function pickAnchor(foldIndex, existingCreases, intersections, w, h, rng, strate
   if (useEdge) {
     // Pick from canvas boundary (edges or corners)
     // Diagonal strategy prefers corners; grid/horizontal/vertical never use corners
-    const cornerChance = forceEdge ? 0 : (strategy && strategy.type === "diagonal" ? 0.5 : 0.15);
+    const cornerChance = forceEdge
+      ? 0
+      : strategy && strategy.type === "diagonal"
+      ? 0.5
+      : 0.15;
     const useCorner = rng() < cornerChance;
 
     if (useCorner) {
@@ -1784,8 +2000,14 @@ function pickTerminus(
   const isVerticalEdge = (edge) => edge === 1 || edge === 3;
 
   // For horizontal/vertical/grid strategies, enforce straight folds
-  if (strategy && (strategy.type === "horizontal" || strategy.type === "vertical" || strategy.type === "grid")) {
-    const wantHorizontalFold = strategy.type === "horizontal" ||
+  if (
+    strategy &&
+    (strategy.type === "horizontal" ||
+      strategy.type === "vertical" ||
+      strategy.type === "grid")
+  ) {
+    const wantHorizontalFold =
+      strategy.type === "horizontal" ||
       (strategy.type === "grid" && foldIndex % 2 === 0);
 
     if (anchor.type === "edge") {
@@ -1796,8 +2018,10 @@ function pickTerminus(
       // Anchor on vertical edge (left/right) creates horizontal crease
       const createsHorizontalFold = isVerticalEdge(anchor.edge);
 
-      if ((wantHorizontalFold && createsHorizontalFold) ||
-          (!wantHorizontalFold && !createsHorizontalFold)) {
+      if (
+        (wantHorizontalFold && createsHorizontalFold) ||
+        (!wantHorizontalFold && !createsHorizontalFold)
+      ) {
         // Good - anchor is on correct edge type, go to opposite
         const jitter = strategy.jitter ? strategy.jitter / 100 : 0;
         const baseT = anchor.t !== undefined ? anchor.t : 0.5;
@@ -1831,7 +2055,7 @@ function pickTerminus(
     } else if (anchor.type === "edge") {
       // Calculate terminus to achieve target angle
       const jitter = strategy.jitter ? (rng() - 0.5) * strategy.jitter : 0;
-      const angle = (targetAngle + jitter) * Math.PI / 180;
+      const angle = ((targetAngle + jitter) * Math.PI) / 180;
 
       // Project from anchor point at target angle to find edge intersection
       const ax = anchor.point.x;
@@ -1845,10 +2069,10 @@ function pickTerminus(
 
       // Check all four edges
       const edges = [
-        { edge: 0, y: 0 },      // top
-        { edge: 2, y: h },      // bottom
-        { edge: 3, x: 0 },      // left
-        { edge: 1, x: w },      // right
+        { edge: 0, y: 0 }, // top
+        { edge: 2, y: h }, // bottom
+        { edge: 3, x: 0 }, // left
+        { edge: 1, x: w }, // right
       ];
 
       for (const e of edges) {
@@ -1937,9 +2161,14 @@ function pickTerminus(
         const point = getEdgePoint(edge, t, w, h);
 
         // Weight by how close the fold line passes to cluster
-        const lineDistToCluster = pointToLineDistance(cluster, anchor.point, point);
+        const lineDistToCluster = pointToLineDistance(
+          cluster,
+          anchor.point,
+          point
+        );
         const maxDist = Math.max(w, h) * 0.5;
-        const proximityWeight = Math.max(0.1, 1 - lineDistToCluster / maxDist) * 3;
+        const proximityWeight =
+          Math.max(0.1, 1 - lineDistToCluster / maxDist) * 3;
 
         clusterCandidates.push({
           point,
@@ -2473,29 +2702,8 @@ export function renderToCanvas({
   showCreaseLines = false,
   fontFamily = FONT_STACK,
   linesOnlyMode = false,
+  gapOverrides = null, // TODO: Remove after gap ratio testing - { colGapRatio, rowGapRatio }
 }) {
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "fold-core.js:2378",
-      message: "renderToCanvas entry",
-      data: {
-        outputWidth,
-        outputHeight,
-        padding,
-        DRAWING_MARGIN,
-        REFERENCE_WIDTH,
-        REFERENCE_HEIGHT,
-      },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "A,B,C",
-    }),
-  }).catch(() => {});
-  // #endregion
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const dpr = 2;
@@ -2513,21 +2721,6 @@ export function renderToCanvas({
   // Calculate inner dimensions accounting for padding and drawing margin
   const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "fold-core.js:2420",
-      message: "inner dimensions calculated",
-      data: { refInnerWidth, refInnerHeight, scaleX, scaleY },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "A,B",
-    }),
-  }).catch(() => {});
-  // #endregion
 
   // Use gap calculation for grid layout
   const grid = calculateGridWithGaps(
@@ -2535,7 +2728,8 @@ export function renderToCanvas({
     cellWidth,
     cellHeight,
     refInnerWidth,
-    refInnerHeight
+    refInnerHeight,
+    gapOverrides // TODO: Remove after gap ratio testing
   );
   const { cols, rows, strideX, strideY, gridOffsetX, gridOffsetY } = grid;
   const refCellWidth = grid.cellWidth;
@@ -2549,30 +2743,6 @@ export function renderToCanvas({
   const actualCellHeight = refCellHeight * scaleY;
   const actualStrideX = strideX * scaleX;
   const actualStrideY = strideY * scaleY;
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "fold-core.js:2434",
-      message: "drawing dimensions calculated",
-      data: {
-        drawWidth,
-        drawHeight,
-        offsetX,
-        offsetY,
-        cols,
-        rows,
-        gridOffsetX,
-        gridOffsetY,
-      },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "C,D,E",
-    }),
-  }).catch(() => {});
-  // #endregion
 
   const weightRange = generateWeightRange(seed);
 
@@ -2722,9 +2892,9 @@ export function renderToCanvas({
     drawDirectionMode = "rtl"; // 22% - overflow extends left
   } else if (directionRoll < 0.65) {
     drawDirectionMode = "center"; // 21% - expand from center outward
-  } else if (directionRoll < 0.80) {
+  } else if (directionRoll < 0.8) {
     drawDirectionMode = "alternate"; // 15% - alternate per row
-  } else if (directionRoll < 0.90) {
+  } else if (directionRoll < 0.9) {
     drawDirectionMode = "diagonal"; // 10% - diagonal seam
   } else if (directionRoll < 0.96) {
     drawDirectionMode = "randomMid"; // 6% - random switch point per row
@@ -2867,7 +3037,10 @@ export function renderToCanvas({
     const bgLum = hexToLum(bgColor);
     const textLum = hexToLum(textColor);
     const accentLum = hexToLum(accentColor);
-    const lineColor = Math.abs(bgLum - textLum) > Math.abs(bgLum - accentLum) ? textColor : accentColor;
+    const lineColor =
+      Math.abs(bgLum - textLum) > Math.abs(bgLum - accentLum)
+        ? textColor
+        : accentColor;
 
     // Draw crease lines
     if (activeCreases.length > 0) {
@@ -2898,7 +3071,7 @@ export function renderToCanvas({
 
     ctx.globalAlpha = 1;
   } else if (showHitCounts) {
-  // showHitCounts mode: draw numeric weight values instead of shade characters
+    // showHitCounts mode: draw numeric weight values instead of shade characters
     const hitFontSize = Math.floor(
       Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7)
     );
@@ -2989,7 +3162,10 @@ export function renderToCanvas({
             if (accentCells.has(key)) color = accentColor;
           }
         } else if (renderMode === "inverted") {
-          level = Math.min(3 - countToLevelAdaptive(weight, thresholds), maxShadeLevel);
+          level = Math.min(
+            3 - countToLevelAdaptive(weight, thresholds),
+            maxShadeLevel
+          );
           char = shadeChars[level];
           color = getColorForLevel(level, key);
           if (weight >= 1.5) {
@@ -3057,36 +3233,6 @@ export function renderToCanvas({
 
           const measuredCharWidth = ctx.measureText(char).width;
           const cellEndX = x + actualCellWidth;
-          // #region agent log
-          if (col === cols - 1) {
-            fetch(
-              "http://127.0.0.1:7242/ingest/74d4f25e-0fce-432d-aa79-8bfa524124c4",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  location: "fold-core.js:2923",
-                  message: "last column cell boundary",
-                  data: {
-                    col,
-                    row,
-                    x,
-                    actualCellWidth,
-                    cellEndX,
-                    drawAreaRight,
-                    outputWidth,
-                    offsetX,
-                    actualStrideX,
-                  },
-                  timestamp: Date.now(),
-                  sessionId: "debug-session",
-                  runId: "run2",
-                  hypothesisId: "F",
-                }),
-              }
-            ).catch(() => {});
-          }
-          // #endregion
 
           // Use cell boundary, capped at margin
           const effectiveCellEndX = Math.min(cellEndX, drawAreaRight);
@@ -3103,7 +3249,10 @@ export function renderToCanvas({
           const effectiveStep = charWidth * cellOverlapFactor;
 
           // Calculate how many chars fit with this step
-          const charsWithStep = Math.max(1, Math.floor((effectiveCellWidth - charWidth) / effectiveStep) + 1);
+          const charsWithStep = Math.max(
+            1,
+            Math.floor((effectiveCellWidth - charWidth) / effectiveStep) + 1
+          );
 
           // Check if we need one more char to fill remaining gap
           const coveredWidth = (charsWithStep - 1) * effectiveStep + charWidth;
@@ -3111,14 +3260,14 @@ export function renderToCanvas({
           const gapRatio = remainingGap / charWidth;
 
           // Add extra char if gap > 30% of char width
-          const numCharsInCell = (gapRatio > 0.3)
-            ? charsWithStep + 1
-            : charsWithStep;
+          const numCharsInCell =
+            gapRatio > 0.3 ? charsWithStep + 1 : charsWithStep;
 
           // Calculate actual step to fill cell exactly
-          const step = numCharsInCell <= 1
-            ? charWidth
-            : (effectiveCellWidth - charWidth) / (numCharsInCell - 1);
+          const step =
+            numCharsInCell <= 1
+              ? charWidth
+              : (effectiveCellWidth - charWidth) / (numCharsInCell - 1);
 
           // Calculate max overflow distance based on cellOverflowAmount
           const overflowDistance = cellOverflowAmount * actualCellWidth;
@@ -3142,10 +3291,14 @@ export function renderToCanvas({
           } else if (drawDirectionMode === "alternate") {
             // Alternate per row, with random start direction
             const isOddRow = row % 2 === 1;
-            cellDirection = (isOddRow !== alternateStartsRtl) ? "rtl" : "ltr";
+            cellDirection = isOddRow !== alternateStartsRtl ? "rtl" : "ltr";
           } else if (drawDirectionMode === "diagonal") {
             // Seam shifts per row; left of seam is one direction, right is other
-            const seamCol = (diagonalStartCol + (diagonalShiftRight ? row : -row) + cols * 100) % cols;
+            const seamCol =
+              (diagonalStartCol +
+                (diagonalShiftRight ? row : -row) +
+                cols * 100) %
+              cols;
             cellDirection = col < seamCol ? "ltr" : "rtl";
           } else if (drawDirectionMode === "randomMid") {
             // Random switch point per row (seeded by row)
@@ -3154,7 +3307,7 @@ export function renderToCanvas({
             cellDirection = col < switchCol ? "ltr" : "rtl";
           } else if (drawDirectionMode === "checkerboard") {
             // Alternate by both row and column
-            cellDirection = ((row + col) % 2 === 0) ? "ltr" : "rtl";
+            cellDirection = (row + col) % 2 === 0 ? "ltr" : "rtl";
           } else {
             cellDirection = "ltr";
           }
@@ -3177,7 +3330,9 @@ export function renderToCanvas({
                 const offset = Math.floor((i + 1) / 2) * step;
                 if (i % 2 === 0) {
                   // Even indices go right of center (or center itself for i=0)
-                  drawX = cellCenterX + (i === 0 ? -charWidth / 2 : offset - charWidth / 2);
+                  drawX =
+                    cellCenterX +
+                    (i === 0 ? -charWidth / 2 : offset - charWidth / 2);
                 } else {
                   // Odd indices go left of center
                   drawX = cellCenterX - offset - charWidth / 2;
@@ -3456,7 +3611,13 @@ export function generateAllParams(
 // ============ METADATA GENERATION ============
 
 export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
-  const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+  const params = generateAllParams(
+    seed,
+    REFERENCE_WIDTH,
+    REFERENCE_HEIGHT,
+    0,
+    foldCount
+  );
 
   // Calculate crease count by running simulation (with paper properties)
   const weightRange = generateWeightRange(seed);
@@ -3621,20 +3782,26 @@ export function renderWithState(canvas, state, options = {}) {
     width,
     height,
     showOverlays: showOverlaysOverride,
+    gapOverrides = null, // TODO: Remove after gap ratio testing - { colGapRatio, rowGapRatio }
   } = options;
 
   // Use provided dimensions or calculate optimal ones
-  const dims = (width && height)
-    ? { renderWidth: width, renderHeight: height, width, height }
-    : getOptimalDimensions();
+  const dims =
+    width && height
+      ? { renderWidth: width, renderHeight: height, width, height }
+      : getOptimalDimensions();
 
-  const actualFolds = foldOverride !== undefined ? foldOverride : state.foldCount;
+  const actualFolds =
+    foldOverride !== undefined ? foldOverride : state.foldCount;
 
   // During animation: linesOnly mode shows lines, full mode shows clean render
   // When not animating: respect _secretShowFoldLines toggle
-  const showOverlays = showOverlaysOverride !== undefined
-    ? showOverlaysOverride
-    : (isAnimating ? linesOnly : (linesOnly || _secretShowFoldLines));
+  const showOverlays =
+    showOverlaysOverride !== undefined
+      ? showOverlaysOverride
+      : isAnimating
+      ? linesOnly
+      : linesOnly || _secretShowFoldLines;
 
   const { dataUrl, settings } = renderToCanvas({
     folds: actualFolds,
@@ -3655,6 +3822,7 @@ export function renderWithState(canvas, state, options = {}) {
     showCreases: showOverlays,
     showIntersections: showOverlays,
     linesOnlyMode: linesOnly,
+    gapOverrides, // TODO: Remove after gap ratio testing
   });
 
   // Update settings display if info element exists
@@ -3686,7 +3854,10 @@ export function renderWithState(canvas, state, options = {}) {
     // Draw at full resolution
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     // Trigger scaling callback if defined
-    if (typeof window !== "undefined" && typeof window.scaleCanvas === "function") {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.scaleCanvas === "function"
+    ) {
       window.scaleCanvas();
     }
   };
@@ -3697,7 +3868,11 @@ export function renderWithState(canvas, state, options = {}) {
 
 // Internal alias for backward compatibility within initOnChain
 function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
-  return renderWithState(canvas, state, { foldOverride, linesOnly, isAnimating });
+  return renderWithState(canvas, state, {
+    foldOverride,
+    linesOnly,
+    isAnimating,
+  });
 }
 
 // Debounce helper to avoid excessive re-renders during resize
@@ -3789,7 +3964,13 @@ export async function initOnChain() {
         return;
       }
       const isLinesOnly = _secretAnimationMode === "lines-only";
-      renderOnChain(canvas, _onChainState, _secretAnimationFold, isLinesOnly, true);
+      renderOnChain(
+        canvas,
+        _onChainState,
+        _secretAnimationFold,
+        isLinesOnly,
+        true
+      );
       _secretAnimationFold++;
       _secretAnimationTimer = setTimeout(runSecretAnimation, 50);
     }
