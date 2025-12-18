@@ -194,7 +194,7 @@ export default function AboutPage() {
               </p>
             </section>
 
-            <section className="pt-8 border-t border-border">
+            {/* <section className="pt-8 border-t border-border">
               <div className="flex flex-wrap gap-6 text-sm">
                 <a
                   href="#"
@@ -217,7 +217,7 @@ export default function AboutPage() {
                   opensea →
                 </a>
               </div>
-            </section>
+            </section> */}
           </div>
         </div>
       </div>
