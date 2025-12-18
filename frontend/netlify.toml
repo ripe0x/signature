@@ -1,12 +1,6 @@
-# Netlify configuration for monorepo
-# 
-# NOTE: If deploying from the frontend directory (base directory set to "frontend" in Netlify dashboard),
-# use the netlify.toml file in the frontend/ directory instead.
-#
-# This file is for deploying from the root with base = "frontend"
+# Netlify configuration for Next.js app
 
 [build]
-  base = "frontend"
   command = "npm install && npm run build"
 
 # Next.js runtime plugin handles routing and static files
@@ -19,3 +13,4 @@
 # - NEXT_PUBLIC_RPC_URL: Alchemy/Infura mainnet RPC URL (optional)
 [build.environment]
   NODE_VERSION = "20"
+

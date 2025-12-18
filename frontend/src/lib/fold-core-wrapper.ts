@@ -14,7 +14,15 @@ let foldCorePromise: Promise<FoldCoreModule> | null = null;
 
 async function loadFoldCore(): Promise<FoldCoreModule> {
   if (!foldCorePromise) {
-    foldCorePromise = import('./fold-core.js');
+    // Use absolute path that Next.js can resolve correctly
+    foldCorePromise = import('@/lib/fold-core.js').catch((error) => {
+      console.error('Failed to load fold-core.js:', error);
+      // Try fallback with relative path
+      return import('./fold-core.js').catch((fallbackError) => {
+        console.error('Fallback import also failed:', fallbackError);
+        throw new Error(`Could not load fold-core.js: ${error.message}`);
+      });
+    });
   }
   return foldCorePromise;
 }

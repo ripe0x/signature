@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "copy-core": "cp ../web/fold-core.js ./src/lib/fold-core.js",
+    "minify-core": "terser ../web/fold-core.js -o ./src/lib/fold-core.js -c -m --module",
     "dev": "npm run copy-core && next dev",
-    "build": "npm run copy-core && next build",
+    "build": "npm run minify-core && next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -26,6 +27,7 @@
     "@types/react": "^18.3.14",
     "@types/react-dom": "^18.3.4",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.18"
+    "eslint-config-next": "^14.2.18",
+    "terser": "^5.36.0"
   }
 }
