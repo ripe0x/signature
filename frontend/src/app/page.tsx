@@ -50,7 +50,7 @@ function TokenLiveLanding() {
     if (!mounted) return;
     const interval = setInterval(() => {
       setSample(generateRandom());
-    }, 1000);
+    }, 700);
     return () => clearInterval(interval);
   }, [mounted]);
 
