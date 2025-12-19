@@ -80,16 +80,13 @@ export function useTokenStats() {
       }
     };
 
-    // Fetch holder count from Etherscan (optional - may need API key)
+    // Fetch holder count via our API route (avoids CORS issues with Etherscan)
     const fetchHolderCount = async () => {
       try {
-        // Using a public endpoint - may be rate limited
-        const response = await fetch(
-          `https://api.etherscan.io/api?module=token&action=tokenholdercount&contractaddress=${CONTRACTS.LESS_STRATEGY}`
-        );
+        const response = await fetch('/api/token-stats');
         const data = await response.json();
-        if (data.status === '1' && data.result) {
-          setHolderCount(parseInt(data.result, 10));
+        if (data.holderCount !== null) {
+          setHolderCount(data.holderCount);
         }
       } catch (error) {
         console.error('Failed to fetch holder count:', error);
