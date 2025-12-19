@@ -1,15 +1,15 @@
 {
   "network": "sepolia",
   "chainId": 11155111,
-  "timestamp": "2025-12-18T03:30:00.000Z",
+  "timestamp": "2025-12-19T04:00:00.000Z",
   "contracts": {
-    "less": "0xEC7c87FD313546B96741FC24AC2236f181e49CF2",
-    "renderer": "0xb946292fCf819410BF80C4044e25963F2306aE69"
+    "less": "0x8755aaC64b0C0af73f8484BB2550ceD2509b25aE",
+    "renderer": "0x1dADd235c8e8ED92b9B3b8aF68B4e75C23C60f1C"
   },
   "config": {
     "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
     "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
-    "scriptName": "less-sepolia",
+    "scriptName": "less-v3",
     "useMockLess": true
   }
 }

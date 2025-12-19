@@ -33,7 +33,7 @@ contract LessForkTest is Test {
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
 
-    uint256 public constant MINT_PRICE = 0.01 ether;
+    uint256 public constant MINT_PRICE = 0.001 ether;
 
     function setUp() public {
         // Verify we're on a fork
@@ -42,7 +42,7 @@ contract LessForkTest is Test {
         vm.startPrank(owner);
 
         // Deploy Less pointing to the real strategy
-        less = new Less(STRATEGY, MINT_PRICE, payout, owner);
+        less = new Less(STRATEGY, MINT_PRICE, payout, owner, 90 minutes);
 
         // Deploy renderer with real Scripty contracts
         renderer = new LessRenderer(
@@ -70,7 +70,7 @@ contract LessForkTest is Test {
 
     /// @notice Prepare the strategy for TWAP by setting ethToTwap and advancing time/blocks
     function _prepareStrategyForTwap(uint256 ethAmount) internal {
-        // Give strategy ETH balance (for Less.canCreateFold check)
+        // Give strategy ETH balance (for Less.canCreateWindow check)
         vm.deal(STRATEGY, ethAmount);
 
         // Set ethToTwap storage slot directly
@@ -101,15 +101,16 @@ contract LessForkTest is Test {
         console.log("Total Supply:", supply / 1e18, "tokens");
         console.log("Window Duration in Less:", less.windowDuration());
 
-        assertEq(less.windowDuration(), timeBetweenBurn);
+        // Window duration is configured to 90 minutes in Less contract
+        assertEq(less.windowDuration(), 90 minutes);
     }
 
     function test_Fork_StrategyHasETH() public view {
         uint256 ethBalance = STRATEGY.balance;
-        uint256 minEthRequired = less.minEthForFold();
+        uint256 minEthRequired = less.minEthForWindow();
         console.log("Strategy ETH Balance:", ethBalance);
         console.log("Minimum ETH Required:", minEthRequired);
-        console.log("Can Create Fold:", less.canCreateFold());
+        console.log("Can Create Fold:", less.canCreateWindow());
 
         if (ethBalance >= minEthRequired) {
             console.log("Strategy has sufficient balance for fold creation");
@@ -119,23 +120,23 @@ contract LessForkTest is Test {
     }
 
     /**
-     * @notice Test that createFold reverts when strategy has insufficient ETH
-     * @dev Uses vm.deal to drain strategy balance below minEthForFold
+     * @notice Test that createWindow reverts when strategy has insufficient ETH
+     * @dev Uses vm.deal to drain strategy balance below minEthForWindow
      */
     function test_Fork_RevertInsufficientStrategyBalance() public {
-        uint256 minRequired = less.minEthForFold();
+        uint256 minRequired = less.minEthForWindow();
         console.log("Minimum ETH required:", minRequired);
 
         // Drain strategy balance to below minimum
         vm.deal(STRATEGY, minRequired - 1);
         console.log("Strategy balance set to:", STRATEGY.balance);
 
-        // Verify canCreateFold returns false
-        assertFalse(less.canCreateFold(), "canCreateFold should be false");
+        // Verify canCreateWindow returns false
+        assertFalse(less.canCreateWindow(), "canCreateWindow should be false");
 
         // Attempt to create fold should revert
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.createFold();
+        less.createWindow();
 
         console.log("Correctly reverted with InsufficientStrategyBalance");
     }
@@ -144,19 +145,19 @@ contract LessForkTest is Test {
      * @notice Test that mint reverts when no window and strategy has insufficient ETH
      */
     function test_Fork_MintRevertInsufficientStrategyBalance() public {
-        uint256 minRequired = less.minEthForFold();
+        uint256 minRequired = less.minEthForWindow();
 
         // Drain strategy balance
         vm.deal(STRATEGY, minRequired - 1);
 
         // No window active, strategy can't create fold due to low balance
         assertFalse(less.isWindowActive());
-        assertFalse(less.canCreateFold());
+        assertFalse(less.canCreateWindow());
 
         // Mint should revert (it tries to auto-create fold but can't)
         vm.prank(alice);
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         console.log("Mint correctly reverted when strategy balance insufficient");
     }
@@ -177,14 +178,14 @@ contract LessForkTest is Test {
 
         // Check if strategy has minimum ETH balance required
         uint256 ethBalance = STRATEGY.balance;
-        uint256 minEthRequired = less.minEthForFold();
+        uint256 minEthRequired = less.minEthForWindow();
         console.log("Strategy ETH Balance:", ethBalance);
         console.log("Minimum ETH Required:", minEthRequired);
         
         if (ethBalance < minEthRequired) {
             console.log("Strategy balance is below minimum threshold - cannot create fold");
             vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-            less.createFold();
+            less.createWindow();
             return;
         }
 
@@ -195,14 +196,14 @@ contract LessForkTest is Test {
 
         // Try to create a fold - this calls processTokenTwap on the strategy
         // It may still fail if there's no ETH in ethToTwap
-        try less.createFold() {
+        try less.createWindow() {
             console.log("Fold created successfully!");
-            assertEq(less.currentFoldId(), 1);
+            assertEq(less.windowCount(), 1);
             assertTrue(less.isWindowActive());
         } catch Error(string memory reason) {
-            console.log("createFold reverted:", reason);
+            console.log("createWindow reverted:", reason);
         } catch (bytes memory lowLevelData) {
-            console.log("createFold reverted with low-level error");
+            console.log("createWindow reverted with low-level error");
             console.logBytes(lowLevelData);
         }
     }
@@ -218,20 +219,16 @@ contract LessForkTest is Test {
             _prepareStrategyForTwap(1 ether);
 
             // Create fold - this calls real processTokenTwap!
-            less.createFold();
+            less.createWindow();
             console.log("Created fold", i);
-
-            Less.Fold memory fold = less.getFold(i);
-            console.log("  Block hash:");
-            console.logBytes32(fold.blockHash);
-            console.log("  Window ends:", fold.endTime);
+            console.log("  Window duration:", less.timeUntilWindowCloses());
 
             // Mint some tokens
             vm.prank(alice);
-            less.mint{value: MINT_PRICE}();
+            less.mint{value: MINT_PRICE}(1);
 
             vm.prank(bob);
-            less.mint{value: MINT_PRICE}();
+            less.mint{value: MINT_PRICE}(1);
 
             uint256 lastToken = less.totalSupply();
             console.log("  Tokens minted:", lastToken);
@@ -244,12 +241,12 @@ contract LessForkTest is Test {
         // Check final state
         console.log("");
         console.log("=== Final State ===");
-        console.log("Total folds:", less.currentFoldId());
+        console.log("Total folds:", less.windowCount());
         console.log("Total tokens:", less.totalSupply());
         console.log("Payout balance:", payout.balance);
 
         // Verify all folds were created
-        assertEq(less.currentFoldId(), 3, "Should have 3 folds");
+        assertEq(less.windowCount(), 3, "Should have 3 folds");
         assertEq(less.totalSupply(), 6, "Should have 6 tokens");
 
         // Verify a token URI works
@@ -269,13 +266,13 @@ contract LessForkTest is Test {
         for (uint256 fold = 1; fold <= 2; fold++) {
             // Prepare and create fold with real strategy
             _prepareStrategyForTwap(1 ether);
-            less.createFold();
+            less.createWindow();
 
             for (uint256 m = 0; m < 3; m++) {
                 address minter = address(uint160(1000 + fold * 10 + m));
                 vm.deal(minter, 1 ether);
                 vm.prank(minter);
-                less.mint{value: MINT_PRICE}();
+                less.mint{value: MINT_PRICE}(1);
 
                 seeds[idx++] = less.getSeed(less.totalSupply());
             }
@@ -303,23 +300,18 @@ contract LessForkTest is Test {
     function test_Fork_OutputMetadata() public {
         // Prepare and create fold with real strategy
         _prepareStrategyForTwap(1 ether);
-        less.createFold();
+        less.createWindow();
 
         vm.prank(alice);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         console.log("=== Token 1 Full Data ===");
         Less.TokenData memory data = less.getTokenData(1);
-        Less.Fold memory fold = less.getFold(data.foldId);
 
         console.log("Token ID: 1");
-        console.log("Fold ID:", data.foldId);
+        console.log("Fold ID:", data.windowId);
         console.log("Seed:");
-        console.logBytes32(less.getSeed(1));
-        console.log("Block Hash:");
-        console.logBytes32(fold.blockHash);
-        console.log("Window Start:", fold.startTime);
-        console.log("Window End:", fold.endTime);
+        console.logBytes32(data.seed);
 
         // Check strategy state after real TWAP
         IRecursiveStrategy strategy = IRecursiveStrategy(STRATEGY);
@@ -352,7 +344,7 @@ contract LessForkTest is Test {
         assertEq(ethToTwap, 1 ether);
 
         // Create fold (calls real processTokenTwap)
-        less.createFold();
+        less.createWindow();
 
         // Check dead address balance after
         uint256 deadBalanceAfter = IERC20(STRATEGY).balanceOf(DEAD);
@@ -364,14 +356,12 @@ contract LessForkTest is Test {
         assertTrue(tokensBurned > 0, "Tokens should be burned to dead address");
 
         // Verify fold was created successfully
-        assertEq(less.currentFoldId(), 1, "Fold should be created");
+        assertEq(less.windowCount(), 1, "Fold should be created");
         assertTrue(less.isWindowActive(), "Window should be active");
 
-        Less.Fold memory fold = less.getFold(1);
         console.log("");
         console.log("Fold created successfully!");
-        console.log("Block hash:");
-        console.logBytes32(fold.blockHash);
+        console.log("Window count:", less.windowCount());
     }
 }
 

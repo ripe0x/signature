@@ -12,57 +12,52 @@ import {ILessRenderer} from "./ILessRenderer.sol";
 /// @title Less
 /// @author less.art
 /// @notice ERC721 collection tied to RecursiveStrategy burn events
-/// @dev Each fold event opens a time-limited mint window; one mint per address per fold.
-///      The contract integrates with RecursiveStrategy to trigger token burns, and each
-///      burn event creates a new "fold" - a time-limited window during which users can mint.
-///      Each address can only mint once per fold, creating scarcity tied to burn frequency.
+/// @dev Each burn event opens a time-limited mint window. The contract integrates with
+///      RecursiveStrategy to trigger token burns, and each burn creates a new window
+///      during which users can mint. Scarcity is tied to burn frequency.
 contract Less is ERC721, Ownable, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Data for each fold event / mint window
-    /// @dev Stored when createFold() is called, immutable after creation
-    /// @param startTime Unix timestamp when the mint window opens
+    /// @notice Data for each mint window
+    /// @dev Stored when createWindow() is called, immutable after creation
     /// @param endTime Unix timestamp when the mint window closes
-    /// @param blockHash Hash of the block before fold creation, used for seed generation
-    struct Fold {
-        uint64 startTime;
+    struct Window {
         uint64 endTime;
-        bytes32 blockHash;
     }
 
     /// @notice Per-token data stored on mint
     /// @dev Immutable after minting
-    /// @param foldId Which fold this token belongs to (1-indexed)
+    /// @param windowId Which window this token belongs to (1-indexed)
+    /// @param seed Deterministic seed for generative art, derived from mint block hash
     struct TokenData {
-        uint64 foldId;
+        uint64 windowId;
+        bytes32 seed;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when a new fold is created via createFold()
-    /// @param foldId The unique identifier for this fold (1-indexed)
+    /// @notice Emitted when a new window is created via createWindow()
+    /// @param windowId The unique identifier for this window (1-indexed)
     /// @param startTime Unix timestamp when minting opens
     /// @param endTime Unix timestamp when minting closes
-    /// @param blockHash Hash of the previous block, used for seed entropy
-    event FoldCreated(
-        uint256 indexed foldId,
+    event WindowCreated(
+        uint256 indexed windowId,
         uint64 startTime,
-        uint64 endTime,
-        bytes32 blockHash
+        uint64 endTime
     );
 
     /// @notice Emitted when a token is minted
     /// @param tokenId The newly minted token's ID
-    /// @param foldId The fold during which this token was minted
+    /// @param windowId The window during which this token was minted
     /// @param minter Address that minted the token
     /// @param seed The deterministic seed assigned to this token
     event Minted(
         uint256 indexed tokenId,
-        uint256 indexed foldId,
+        uint256 indexed windowId,
         address indexed minter,
         bytes32 seed
     );
@@ -79,43 +74,44 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @param newRenderer The new renderer contract address
     event RendererUpdated(address newRenderer);
 
-    /// @notice Emitted when the minimum ETH threshold for fold creation is updated
+    /// @notice Emitted when the minimum ETH threshold for window creation is updated
     /// @param newMinEth The new minimum ETH balance required in the strategy
-    event MinEthForFoldUpdated(uint256 newMinEth);
+    event MinEthForWindowUpdated(uint256 newMinEth);
+
+    /// @notice Emitted when the mint window duration is updated
+    /// @param newWindowDuration The new window duration in seconds
+    event WindowDurationUpdated(uint256 newWindowDuration);
+
+    /// @notice Emitted when ETH is withdrawn from the contract
+    /// @param recipient The address that received the funds
+    /// @param amount The amount of ETH withdrawn
+    event Withdrawn(address indexed recipient, uint256 amount);
+
+    /// @notice Emitted when minting is paused or unpaused
+    /// @param paused True if minting is now paused, false if unpaused
+    event MintingPausedChanged(bool paused);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when attempting to create a fold while a mint window is still active
+    /// @notice Thrown when attempting to create a window while one is still active
     error MintWindowActive();
 
-    /// @notice Thrown when attempting to mint outside of an active mint window
-    error NoActiveMintWindow();
+    /// @notice Thrown when quantity is zero
+    error InvalidQuantity();
 
-    /// @notice Thrown when an address attempts to mint more than once per fold
-    error AlreadyMintedThisFold();
+    /// @notice Thrown when msg.value doesn't match the required mint price
+    error IncorrectPayment();
 
-    /// @notice Thrown when msg.value is less than the required mint price
-    error InsufficientPayment();
+    /// @notice Thrown when an address parameter is invalid (zero address)
+    error InvalidAddress();
 
-    /// @notice Thrown when setting payout recipient to the zero address
-    error InvalidPayoutRecipient();
-
-    /// @notice Thrown when strategy ETH balance is below minEthForFold threshold
+    /// @notice Thrown when strategy ETH balance is below minEthForWindow threshold
     error InsufficientStrategyBalance();
 
-    /// @notice Thrown when deploying with a zero address strategy
-    error InvalidStrategyAddress();
-
-    /// @notice Thrown when deploying with a zero address owner
-    error InvalidOwner();
-
-    /// @notice Thrown when setting renderer to the zero address
-    error InvalidRenderer();
-
-    /// @notice Thrown when querying a fold that doesn't exist
-    error FoldDoesNotExist();
+    /// @notice Thrown when minting is paused
+    error MintingPaused();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -124,11 +120,11 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Reference to the RecursiveStrategy token
     IRecursiveStrategy public immutable strategy;
 
-    /// @notice Duration of each mint window (read from strategy at deployment)
-    uint256 public immutable windowDuration;
+    /// @notice Duration of each mint window in seconds
+    uint256 public windowDuration;
 
-    /// @notice Current fold ID (starts at 0, incremented on each fold)
-    uint256 public currentFoldId;
+    /// @notice Total number of windows created
+    uint256 public windowCount;
 
     /// @notice Total number of tokens minted
     uint256 public totalSupply;
@@ -142,44 +138,49 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice External renderer contract for tokenURI
     address public renderer;
 
-    /// @notice Minimum ETH balance required in strategy contract to create a fold
-    uint256 public minEthForFold;
+    /// @notice Minimum ETH balance required in strategy contract to create a window
+    uint256 public minEthForWindow;
 
-    /// @notice Mapping of fold ID to fold data
-    mapping(uint256 => Fold) public folds;
+    /// @notice Whether minting is currently paused
+    bool public mintingPaused;
+
+    /// @notice Mapping of window ID to window data
+    mapping(uint256 => Window) internal _windows;
 
     /// @notice Mapping of token ID to token data
-    mapping(uint256 => TokenData) public tokenData;
+    mapping(uint256 => TokenData) internal _tokenData;
 
-    /// @notice Tracks which addresses have minted for each fold
-    /// @dev foldId => minter => hasMinted
-    mapping(uint256 => mapping(address => bool)) public hasMintedFold;
+    /// @notice Tracks how many times each address has minted for each window
+    /// @dev windowId => minter => mintCount
+    mapping(uint256 => mapping(address => uint256)) internal _mintCountPerWindow;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initializes the Less NFT contract
-    /// @dev Sets immutable strategy reference and windowDuration from strategy's timeBetweenBurn
+    /// @dev Sets immutable strategy reference and configurable windowDuration
     /// @param _strategy Address of the RecursiveStrategy token
     /// @param _mintPrice Initial mint price in wei
     /// @param _payoutRecipient Initial recipient for mint payments
     /// @param _owner Contract owner
+    /// @param _windowDuration Duration of each mint window in seconds
     constructor(
         address _strategy,
         uint256 _mintPrice,
         address _payoutRecipient,
-        address _owner
+        address _owner,
+        uint256 _windowDuration
     ) {
-        if (_strategy == address(0)) revert InvalidStrategyAddress();
-        if (_payoutRecipient == address(0)) revert InvalidPayoutRecipient();
-        if (_owner == address(0)) revert InvalidOwner();
+        if (_strategy == address(0)) revert InvalidAddress();
+        if (_payoutRecipient == address(0)) revert InvalidAddress();
+        if (_owner == address(0)) revert InvalidAddress();
 
         strategy = IRecursiveStrategy(_strategy);
-        windowDuration = IRecursiveStrategy(_strategy).timeBetweenBurn();
+        windowDuration = _windowDuration;
         mintPrice = _mintPrice;
         payoutRecipient = _payoutRecipient;
-        minEthForFold = 0.25 ether;
+        minEthForWindow = 0.25 ether;
 
         _initializeOwner(_owner);
     }
@@ -219,28 +220,23 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           FOLD MANAGEMENT
+                           WINDOW MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates a new fold by triggering a burn on the strategy
+    /// @notice Creates a new window by triggering a burn on the strategy
     /// @dev Anyone can call this; will revert if a mint window is active, strategy balance is insufficient, or strategy burn fails.
-    ///      Note: mint() will automatically create a fold if needed, so this function is optional.
-    function createFold() external nonReentrant {
+    ///      Note: mint() will automatically create a window if needed, so this function is optional.
+    function createWindow() external nonReentrant {
         if (_isWindowActive()) revert MintWindowActive();
-        _createFold();
+        _createWindow();
     }
 
-    /// @notice Internal function to create a new fold
-    /// @dev Checks balance, triggers strategy burn, and records fold data
-    function _createFold() internal {
+    /// @notice Internal function to create a new window
+    /// @dev Checks balance, triggers strategy burn, and records window data
+    function _createWindow() internal {
         // Check strategy has minimum ETH balance required
-        if (address(strategy).balance < minEthForFold)
+        if (address(strategy).balance < minEthForWindow)
             revert InsufficientStrategyBalance();
-
-        // Capture previous block's hash for seed entropy
-        // Note: blockhash(0) returns bytes32(0) if called at block 1 - unlikely on mainnet/Base
-        // but would result in zero entropy for first fold if it somehow occurred
-        bytes32 blockHash = blockhash(block.number - 1);
 
         // Trigger the burn on the strategy
         // This will revert if:
@@ -250,20 +246,16 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         // can call processTokenTwap (via distributor whitelist or similar)
         strategy.processTokenTwap();
 
-        // Increment fold ID (starts at 1)
-        currentFoldId++;
+        // Increment window ID (starts at 1)
+        windowCount++;
 
-        // Record fold data
+        // Record window data
         uint64 startTime = uint64(block.timestamp);
         uint64 endTime = startTime + uint64(windowDuration);
 
-        folds[currentFoldId] = Fold({
-            startTime: startTime,
-            endTime: endTime,
-            blockHash: blockHash
-        });
+        _windows[windowCount] = Window({endTime: endTime});
 
-        emit FoldCreated(currentFoldId, startTime, endTime, blockHash);
+        emit WindowCreated(windowCount, startTime, endTime);
     }
 
     /// @notice Check if there is currently an active mint window
@@ -272,24 +264,15 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         return _isWindowActive();
     }
 
-    /// @notice Get the current active fold ID
-    /// @return The active fold ID, or 0 if no mint window is currently active
-    function activeFoldId() external view returns (uint256) {
-        if (_isWindowActive()) {
-            return currentFoldId;
-        }
-        return 0;
-    }
-
-    /// @notice Check if a fold can be created
-    /// @dev Returns true only if: no active window, strategy balance >= minEthForFold, and TWAP delay met.
-    ///      Note: This view function mirrors the conditions that would cause _createFold() to revert.
+    /// @notice Check if a window can be created
+    /// @dev Returns true only if: no active window, strategy balance >= minEthForWindow, and TWAP delay met.
+    ///      Note: This view function mirrors the conditions that would cause _createWindow() to revert.
     ///      If the strategy's processTokenTwap() revert conditions ever diverge from timeUntilFundsMoved(),
-    ///      this function could return true when createFold() would actually fail.
-    /// @return True if createFold() would likely succeed, false otherwise
-    function canCreateFold() external view returns (bool) {
+    ///      this function could return true when createWindow() would actually fail.
+    /// @return True if createWindow() would likely succeed, false otherwise
+    function canCreateWindow() external view returns (bool) {
         if (_isWindowActive()) return false;
-        if (address(strategy).balance < minEthForFold) return false;
+        if (address(strategy).balance < minEthForWindow) return false;
         return strategy.timeUntilFundsMoved() == 0;
     }
 
@@ -297,56 +280,53 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @return Seconds until the window closes, or 0 if no window is active
     function timeUntilWindowCloses() external view returns (uint256) {
         if (!_isWindowActive()) return 0;
-        return folds[currentFoldId].endTime - block.timestamp;
+        return _windows[windowCount].endTime - block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////
                               MINTING
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Mint a token for the current active fold
-    /// @dev One mint per address per fold; requires payment >= mintPrice (excess refunded).
-    ///      If no window is active but one can be created, automatically creates a new fold.
-    function mint() external payable nonReentrant {
-        // If no active window, try to create a new fold
+    /// @notice Mint tokens for the current active window with exponential pricing
+    /// @dev Price escalates per wallet per window: price(n) = mintPrice * 1.5^(n-1)
+    ///      where n is the nth mint for this wallet in this window.
+    ///      If no window is active but one can be created, automatically creates a new window.
+    /// @param quantity Number of tokens to mint (must be >= 1)
+    function mint(uint256 quantity) external payable nonReentrant {
+        if (mintingPaused) revert MintingPaused();
+        if (quantity == 0) revert InvalidQuantity();
+
+        // If no active window, try to create a new one
         if (!_isWindowActive()) {
-            _createFold();
+            _createWindow();
         }
 
-        uint256 foldId = currentFoldId;
+        uint256 windowId = windowCount;
+        uint256 previousMints = _mintCountPerWindow[windowId][msg.sender];
 
-        // Check not already minted this fold
-        if (hasMintedFold[foldId][msg.sender]) revert AlreadyMintedThisFold();
+        // Calculate total cost with exponential pricing
+        uint256 totalCost = _calculateMintCost(previousMints, quantity);
 
-        // Check payment
-        if (msg.value < mintPrice) revert InsufficientPayment();
+        // Check payment (exact amount required)
+        if (msg.value != totalCost) revert IncorrectPayment();
 
-        // Calculate refund if overpaid
-        uint256 refundAmount = msg.value - mintPrice;
+        // Update mint count for this window
+        _mintCountPerWindow[windowId][msg.sender] = previousMints + quantity;
 
-        // Mark as minted for this fold
-        hasMintedFold[foldId][msg.sender] = true;
+        // Mint tokens - seed derived from mint block hash for unpredictability
+        uint256 startTokenId = totalSupply + 1;
+        totalSupply += quantity;
+        bytes32 blockHash = blockhash(block.number - 1);
 
-        // Generate token ID and increment supply
-        uint256 tokenId = ++totalSupply;
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = startTokenId + i;
+            bytes32 seed = keccak256(abi.encodePacked(blockHash, tokenId));
+            _tokenData[tokenId] = TokenData({windowId: uint64(windowId), seed: seed});
+            _mint(msg.sender, tokenId);
 
-        // Store token data (seed is computed on-demand via getSeed)
-        tokenData[tokenId] = TokenData({foldId: uint64(foldId)});
-
-        // Mint the token
-        _mint(msg.sender, tokenId);
-
-        // Forward payment to payout recipient
-        SafeTransferLib.forceSafeTransferETH(payoutRecipient, mintPrice);
-
-        // Refund excess payment if any
-        if (refundAmount > 0) {
-            SafeTransferLib.forceSafeTransferETH(msg.sender, refundAmount);
+            emit Minted(tokenId, windowId, msg.sender, seed);
         }
-
-        // Compute seed for event emission
-        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-        emit Minted(tokenId, foldId, msg.sender, seed);
+        // ETH accumulates in contract; owner withdraws via withdraw()
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -354,32 +334,45 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get the seed for a token
-    /// @dev Seed is computed on-demand from the fold's blockHash and tokenId
     /// @param tokenId The token ID to query
     /// @return The deterministic seed used for this token's generative art
     function getSeed(uint256 tokenId) external view returns (bytes32) {
         if (!_exists(tokenId)) revert TokenDoesNotExist();
-        uint256 foldId = tokenData[tokenId].foldId;
-        return keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-    }
-
-    /// @notice Get full fold data
-    /// @dev Reverts if the fold ID doesn't exist (foldId must be >= 1 and <= currentFoldId)
-    /// @param foldId The fold ID to query
-    /// @return The Fold struct containing startTime, endTime, and blockHash
-    function getFold(uint256 foldId) external view returns (Fold memory) {
-        if (foldId == 0 || foldId > currentFoldId) revert FoldDoesNotExist();
-        return folds[foldId];
+        return _tokenData[tokenId].seed;
     }
 
     /// @notice Get full token data
     /// @param tokenId The token ID to query
-    /// @return The TokenData struct containing foldId
+    /// @return The TokenData struct containing windowId and seed
     function getTokenData(
         uint256 tokenId
     ) external view returns (TokenData memory) {
         if (!_exists(tokenId)) revert TokenDoesNotExist();
-        return tokenData[tokenId];
+        return _tokenData[tokenId];
+    }
+
+    /// @notice Get the number of mints a user has made in the current window
+    /// @param user The address to check
+    /// @return The number of mints for this user in the current window (0 if no active window)
+    function getMintCount(address user) external view returns (uint256) {
+        if (windowCount == 0) return 0;
+        return _mintCountPerWindow[windowCount][user];
+    }
+
+    /// @notice Get the total cost for a user to mint a specific quantity
+    /// @dev Calculates the sum of exponentially escalating prices
+    /// @param user The address to check
+    /// @param quantity The number of tokens to mint
+    /// @return The total cost in wei
+    function getMintCost(
+        address user,
+        uint256 quantity
+    ) external view returns (uint256) {
+        if (quantity == 0) return 0;
+        uint256 previousMints = windowCount > 0
+            ? _mintCountPerWindow[windowCount][user]
+            : 0;
+        return _calculateMintCost(previousMints, quantity);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -396,7 +389,7 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Update the payout recipient
     /// @param _payoutRecipient New recipient address
     function setPayoutRecipient(address _payoutRecipient) external onlyOwner {
-        if (_payoutRecipient == address(0)) revert InvalidPayoutRecipient();
+        if (_payoutRecipient == address(0)) revert InvalidAddress();
         payoutRecipient = _payoutRecipient;
         emit PayoutRecipientUpdated(_payoutRecipient);
     }
@@ -404,16 +397,38 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Update the renderer contract
     /// @param _renderer New renderer address
     function setRenderer(address _renderer) external onlyOwner {
-        if (_renderer == address(0)) revert InvalidRenderer();
+        if (_renderer == address(0)) revert InvalidAddress();
         renderer = _renderer;
         emit RendererUpdated(_renderer);
     }
 
-    /// @notice Update the minimum ETH balance required to create a fold
-    /// @param _minEthForFold New minimum ETH amount in wei
-    function setMinEthForFold(uint256 _minEthForFold) external onlyOwner {
-        minEthForFold = _minEthForFold;
-        emit MinEthForFoldUpdated(_minEthForFold);
+    /// @notice Update the minimum ETH balance required to create a window
+    /// @param _minEthForWindow New minimum ETH amount in wei
+    function setMinEthForWindow(uint256 _minEthForWindow) external onlyOwner {
+        minEthForWindow = _minEthForWindow;
+        emit MinEthForWindowUpdated(_minEthForWindow);
+    }
+
+    /// @notice Update the mint window duration
+    /// @param _windowDuration New window duration in seconds
+    function setWindowDuration(uint256 _windowDuration) external onlyOwner {
+        windowDuration = _windowDuration;
+        emit WindowDurationUpdated(_windowDuration);
+    }
+
+    /// @notice Pause or unpause minting
+    /// @param _paused True to pause minting, false to unpause
+    function setMintingPaused(bool _paused) external onlyOwner {
+        mintingPaused = _paused;
+        emit MintingPausedChanged(_paused);
+    }
+
+    /// @notice Withdraw accumulated ETH to the payout recipient
+    /// @dev Only callable by owner. Sends entire contract balance to payoutRecipient.
+    function withdraw() external onlyOwner {
+        uint256 balance = address(this).balance;
+        SafeTransferLib.forceSafeTransferETH(payoutRecipient, balance);
+        emit Withdrawn(payoutRecipient, balance);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -421,15 +436,40 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Check if there is an active mint window
-    /// @dev Window is active when currentFoldId > 0 and current time is within [startTime, endTime)
-    ///      Note: Uses exclusive end (< endTime). At exactly endTime, window is inactive but a new
-    ///      fold may not be immediately creatable due to TWAP delay - this creates a brief limbo
-    ///      period which is expected behavior.
+    /// @dev Window is active when windowCount > 0 and current time is before endTime
+    ///      Note: At exactly endTime, window is inactive but a new window may not be
+    ///      immediately creatable due to TWAP delay - this creates a brief limbo period.
     /// @return True if minting is currently allowed, false otherwise
     function _isWindowActive() internal view returns (bool) {
-        if (currentFoldId == 0) return false;
-        Fold storage fold = folds[currentFoldId];
-        return
-            block.timestamp >= fold.startTime && block.timestamp < fold.endTime;
+        if (windowCount == 0) return false;
+        return block.timestamp < _windows[windowCount].endTime;
+    }
+
+    /// @notice Calculate the total cost for minting with exponential pricing
+    /// @dev Uses integer math: 1.5 = 3/2, so 1.5^n = 3^n / 2^n
+    ///      For mints from (previousMints+1) to (previousMints+quantity):
+    ///      Total = mintPrice * 3^previousMints * (3^quantity - 2^quantity) / 2^(previousMints + quantity - 1)
+    ///      This is derived from the geometric series sum formula.
+    /// @param previousMints Number of mints already made by this user in this window
+    /// @param quantity Number of new mints
+    /// @return Total cost in wei
+    function _calculateMintCost(
+        uint256 previousMints,
+        uint256 quantity
+    ) internal view returns (uint256) {
+        // Special case: quantity = 1
+        // price = mintPrice * 1.5^previousMints = mintPrice * 3^previousMints / 2^previousMints
+        if (quantity == 1) {
+            return (mintPrice * (3 ** previousMints)) / (2 ** previousMints);
+        }
+
+        // General case: sum of geometric series
+        // Sum = mintPrice * 3^previousMints * (3^quantity - 2^quantity) / 2^(previousMints + quantity - 1)
+        uint256 pow3Prev = 3 ** previousMints;
+        uint256 pow3Qty = 3 ** quantity;
+        uint256 pow2Qty = 2 ** quantity;
+        uint256 pow2Denom = 2 ** (previousMints + quantity - 1);
+
+        return (mintPrice * pow3Prev * (pow3Qty - pow2Qty)) / pow2Denom;
     }
 }

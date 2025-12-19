@@ -9,31 +9,31 @@ import {ILessRenderer} from "../ILessRenderer.sol";
 /// @notice Mock Less contract for Twitter bot testing on Sepolia
 /// @dev Owner can freely start/stop mint windows without any strategy
 contract MockLessBot is ERC721, Ownable {
-    struct Fold {
+    struct Window {
         uint64 startTime;
         uint64 endTime;
         bytes32 blockHash;
     }
 
     struct TokenData {
-        uint64 foldId;
+        uint64 windowId;
     }
 
-    event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash);
-    event FoldEnded(uint256 indexed foldId);
-    event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed);
+    event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash);
+    event WindowEnded(uint256 indexed windowId);
+    event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed);
 
     error NoActiveMintWindow();
-    error AlreadyMintedThisFold();
+    error AlreadyMintedThisWindow();
     error InvalidRenderer();
 
-    uint256 public currentFoldId;
+    uint256 public windowCount;
     uint256 public totalSupply;
     address public renderer;
 
-    mapping(uint256 => Fold) public folds;
+    mapping(uint256 => Window) public windows;
     mapping(uint256 => TokenData) public tokenData;
-    mapping(uint256 => mapping(address => bool)) public hasMintedFold;
+    mapping(uint256 => mapping(address => bool)) public hasMintedWindow;
 
     constructor(address _owner) {
         _initializeOwner(_owner);
@@ -58,33 +58,33 @@ contract MockLessBot is ERC721, Ownable {
 
     /// @notice Start a new mint window (owner only)
     /// @param duration Duration in seconds (e.g., 180 for 3 minutes)
-    function startFold(uint256 duration) external onlyOwner {
+    function createWindow(uint256 duration) external onlyOwner {
         // End any active window first
         if (_isWindowActive()) {
-            folds[currentFoldId].endTime = uint64(block.timestamp);
-            emit FoldEnded(currentFoldId);
+            windows[windowCount].endTime = uint64(block.timestamp);
+            emit WindowEnded(windowCount);
         }
 
         bytes32 blockHash = blockhash(block.number - 1);
-        currentFoldId++;
+        windowCount++;
 
         uint64 startTime = uint64(block.timestamp);
         uint64 endTime = startTime + uint64(duration);
 
-        folds[currentFoldId] = Fold({
+        windows[windowCount] = Window({
             startTime: startTime,
             endTime: endTime,
             blockHash: blockHash
         });
 
-        emit FoldCreated(currentFoldId, startTime, endTime, blockHash);
+        emit WindowCreated(windowCount, startTime, endTime, blockHash);
     }
 
     /// @notice End the current mint window early (owner only)
-    function endFold() external onlyOwner {
+    function endWindow() external onlyOwner {
         if (_isWindowActive()) {
-            folds[currentFoldId].endTime = uint64(block.timestamp);
-            emit FoldEnded(currentFoldId);
+            windows[windowCount].endTime = uint64(block.timestamp);
+            emit WindowEnded(windowCount);
         }
     }
 
@@ -92,55 +92,55 @@ contract MockLessBot is ERC721, Ownable {
         return _isWindowActive();
     }
 
-    function activeFoldId() external view returns (uint256) {
-        return _isWindowActive() ? currentFoldId : 0;
+    function activeWindowId() external view returns (uint256) {
+        return _isWindowActive() ? windowCount : 0;
     }
 
     function timeUntilWindowCloses() external view returns (uint256) {
         if (!_isWindowActive()) return 0;
-        return folds[currentFoldId].endTime - block.timestamp;
+        return windows[windowCount].endTime - block.timestamp;
     }
 
-    /// @notice Mint a token (free, one per address per fold)
+    /// @notice Mint a token (free, one per address per window)
     function mint() external {
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 foldId = currentFoldId;
-        if (hasMintedFold[foldId][msg.sender]) revert AlreadyMintedThisFold();
+        uint256 windowId = windowCount;
+        if (hasMintedWindow[windowId][msg.sender]) revert AlreadyMintedThisWindow();
 
-        hasMintedFold[foldId][msg.sender] = true;
+        hasMintedWindow[windowId][msg.sender] = true;
         uint256 tokenId = ++totalSupply;
-        tokenData[tokenId] = TokenData({foldId: uint64(foldId)});
+        tokenData[tokenId] = TokenData({windowId: uint64(windowId)});
 
         _mint(msg.sender, tokenId);
 
-        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-        emit Minted(tokenId, foldId, msg.sender, seed);
+        bytes32 seed = keccak256(abi.encodePacked(windows[windowId].blockHash, tokenId));
+        emit Minted(tokenId, windowId, msg.sender, seed);
     }
 
-    /// @notice Owner mint to any address (bypasses one-per-fold limit)
+    /// @notice Owner mint to any address (bypasses one-per-window limit)
     function mintTo(address to) external onlyOwner {
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 foldId = currentFoldId;
+        uint256 windowId = windowCount;
         uint256 tokenId = ++totalSupply;
-        tokenData[tokenId] = TokenData({foldId: uint64(foldId)});
+        tokenData[tokenId] = TokenData({windowId: uint64(windowId)});
 
         _mint(to, tokenId);
 
-        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-        emit Minted(tokenId, foldId, to, seed);
+        bytes32 seed = keccak256(abi.encodePacked(windows[windowId].blockHash, tokenId));
+        emit Minted(tokenId, windowId, to, seed);
     }
 
     // ILess interface methods
     function getSeed(uint256 tokenId) external view returns (bytes32) {
         if (!_exists(tokenId)) revert TokenDoesNotExist();
-        uint256 foldId = tokenData[tokenId].foldId;
-        return keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
+        uint256 windowId = tokenData[tokenId].windowId;
+        return keccak256(abi.encodePacked(windows[windowId].blockHash, tokenId));
     }
 
-    function getFold(uint256 foldId) external view returns (Fold memory) {
-        return folds[foldId];
+    function getWindow(uint256 windowId) external view returns (Window memory) {
+        return windows[windowId];
     }
 
     function getTokenData(uint256 tokenId) external view returns (TokenData memory) {
@@ -162,8 +162,8 @@ contract MockLessBot is ERC721, Ownable {
     }
 
     function _isWindowActive() internal view returns (bool) {
-        if (currentFoldId == 0) return false;
-        Fold storage fold = folds[currentFoldId];
-        return block.timestamp >= fold.startTime && block.timestamp < fold.endTime;
+        if (windowCount == 0) return false;
+        Window storage window = windows[windowCount];
+        return block.timestamp >= window.startTime && block.timestamp < window.endTime;
     }
 }

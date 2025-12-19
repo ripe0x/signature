@@ -8,7 +8,7 @@ import {Base64} from "solady/utils/Base64.sol";
 
 /// @dev Mock strategy for preview generation
 contract MockStrategy {
-    uint256 public timeBetweenBurn = 30 minutes;
+    uint256 public timeBetweenBurn = 90 minutes;
     uint256 public lastBurn;
     uint256 public totalSupply = 1_000_000_000 ether;
 
@@ -122,9 +122,10 @@ contract GeneratePreviewScript is Script {
 
         Less less = new Less(
             address(strategy),
-            0.01 ether,
+            0.001 ether,
             address(this),
-            address(this)
+            address(this),
+            90 minutes
         );
 
         LessRenderer renderer = new LessRenderer(
@@ -151,13 +152,13 @@ contract GeneratePreviewScript is Script {
 
         for (uint256 fold = 1; fold <= numFolds; fold++) {
             vm.roll(block.number + 1);
-            less.createFold();
+            less.createWindow();
 
             // Mint one token per fold
             address minter = address(uint160(0x1000 + fold));
             vm.deal(minter, 1 ether);
             vm.prank(minter);
-            less.mint{value: 0.01 ether}();
+            less.mint{value: 0.001 ether}(1);
 
             uint256 tokenId = less.totalSupply();
             bytes32 seed = less.getSeed(tokenId);
@@ -174,7 +175,7 @@ contract GeneratePreviewScript is Script {
             console.log("");
 
             // Fast forward for next fold
-            vm.warp(block.timestamp + 31 minutes);
+            vm.warp(block.timestamp + 91 minutes);
         }
 
         console.log("=== Preview HTML (Token 1) ===");

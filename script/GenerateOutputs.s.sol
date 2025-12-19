@@ -93,13 +93,13 @@ contract GenerateOutputsScript is Script {
 
             // Get token data
             bytes32 seed = less.getSeed(tokenId);
-            uint256 foldId = less.getTokenData(tokenId).foldId;
+            uint256 windowId = less.getTokenData(tokenId).windowId;
 
             // Get tokenURI
             string memory uri = less.tokenURI(tokenId);
 
             console.log("--- Token", tokenId, "---");
-            console.log("Fold ID:", foldId);
+            console.log("Fold ID:", windowId);
             console.logBytes32(seed);
             console.log("TokenURI:");
             console.log(uri);
@@ -141,12 +141,12 @@ contract GenerateOutputsScript is Script {
                 if (!success) {
                     (bool sent, ) = strategyAddress.call{value: 0.5 ether}("");
                     // If that also fails, the strategy might need ETH from other sources
-                    // For testing, we'll continue and let createFold handle the error
+                    // For testing, we'll continue and let createWindow handle the error
                 }
 
                 // Create the fold (triggers strategy burn)
                 // This will revert if strategy doesn't have ETH
-                less.createFold();
+                less.createWindow();
                 foldCount++;
                 console.log("  Fold created, window active");
             }
@@ -156,7 +156,7 @@ contract GenerateOutputsScript is Script {
             vm.deal(minter, mintPrice * 2); // Give minter enough ETH
 
             vm.prank(minter);
-            less.mint{value: mintPrice}();
+            less.mint{value: mintPrice}(1);
 
             tokensMinted++;
             console.log("  Minted token", tokensMinted);

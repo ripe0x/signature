@@ -1,5 +1,5 @@
 {
-  "generated": "2025-12-17T21:27:34.566Z",
+  "generated": "2025-12-19T14:47:26.031Z",
   "description": "Auto-generated trait expectations from fold-core.js",
   "seeds": [
     {
@@ -119,7 +119,7 @@
       "seedNum": 658561652,
       "traits": {
         "foldStrategy": "Vertical",
-        "renderMode": "Normal",
+        "renderMode": "Binary",
         "drawDirection": "Right to Left",
         "paletteStrategy": "Value",
         "colorCount": 2,
@@ -131,12 +131,220 @@
       }
     },
     {
-      "hex": "0x2c7f82be9ed0d66a4306e3eba78b7b32f9ebc677eb2d993d59ecbfd28275bc3c",
-      "seedNum": 2010110951,
+      "hex": "0xaabb6699ddec23b280798061dc9602d79f8aa63b3c08807273f4e227713241b8",
+      "seedNum": 862122216,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x31915d72750642e823e3f3fa40d0b06e9c8c6679513c37ecec92806a1f31494e",
+      "seedNum": 1479081421,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x65ba347b70e7e0160a92e236622a0ad847ce240b652eb3077baf8e7112b02365",
+      "seedNum": 1012680974,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xa3b31b3b2246c1ce9426e3edb728d37d7645c9fab9711eabc06717b674443f67",
+      "seedNum": 1772943430,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xcb479356ca3037ab128cf3cfe4e8a1e9b9000982225fd4f32e51b8f91a48067c",
+      "seedNum": 1623154267,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x30aa6ebe3f58da6871e6134bd2ef39197e1390476298dd6218f083ced5726dbe",
+      "seedNum": 548255717,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xd9d61eb81fcf4f6417a09abaeadfece8044964b5e464abd96a1fcdef437222f2",
+      "seedNum": 1400605911,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xea3985c81884b5a73c7e1c69c73af66929e444c6939bb12db3f9b2d2fe50581c",
+      "seedNum": 1828176186,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x014c0cc7a5828294ef030768b39c17ef3c3a1d1c669ea7cc2693cf29375c3e8d",
+      "seedNum": 672832547,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb80742b2810565f8e8cff85bf38854ff1d100a0fd5e530eea64ddf2c030c7fb7",
+      "seedNum": 1897130847,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x13644664c9a960a441a2e710b2e0e4d4bf4e2d12ae643ec9867f704f700d2265",
+      "seedNum": 1886514541,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x3d2a7cf5420b8944c58a2b4cc7a1238c4c9ea8ac4d70f079d11afaa7853d7084",
+      "seedNum": 1012957999,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x76a4f2822f22d97ab69463653719ec0ee272d10a629e93b75d93889a3354d839",
+      "seedNum": 476888704,
       "traits": {
         "foldStrategy": "Grid",
         "renderMode": "Sparse",
         "drawDirection": "Alternate",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb66e1648c52d5b51ee9d8fa59141aa6454b932c972d17085e6a7cd549bcdfc94",
+      "seedNum": 839485413,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
         "paletteStrategy": "Complement",
         "colorCount": 3,
         "isMonochrome": false,
@@ -147,47 +355,15 @@
       }
     },
     {
-      "hex": "0x53c37b3eef61391ab4cfa27cd7eb750743b7945c674d034fddac78edc36fba02",
-      "seedNum": 384315289,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x4b9295b7aad5718aff3dbe7a66d652380b97cf4aa1a0e4c10ddbb92071531f98",
-      "seedNum": 1106943226,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x84d274e49fa09bff3ba5b3a53845f0f47ee7f06ddecd00e4e2b2bec7c7d7b836",
-      "seedNum": 692422090,
+      "hex": "0x886174a55565a317bd30c42ff08d41456197958c475dbf18c983a3958bb1806e",
+      "seedNum": 1713933411,
       "traits": {
         "foldStrategy": "Radial",
         "renderMode": "Inverted",
         "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
         "paperType": "Standard",
         "hasPaperGrain": false,
         "hasCreaseLines": false,
@@ -195,254 +371,14 @@
       }
     },
     {
-      "hex": "0x2e7e79bc8bf0f9140d2281b7b4357bff0ef0065d912dc0d2a982754591649b43",
-      "seedNum": 1760423053,
+      "hex": "0x8f87509a596d8ca0cb80705599832f481b40b4fafa9a8bc9d9148feb9d490b34",
+      "seedNum": 2021404118,
       "traits": {
         "foldStrategy": "Vertical",
         "renderMode": "Binary",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x1d62f1a4c3c50410ef5d41db6928bfba7715fedbda2fcae24586e760abd88bff",
-      "seedNum": 2123032409,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8fd0f0a17383902822a31b6b9636682a20fe02bf7a397d91713d121a176e71f8",
-      "seedNum": 321220973,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6fe31952fa2b1f4d95b888b3930820447307268c6409dde09707a65bad511e0a",
-      "seedNum": 1508987380,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Checkerboard",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2cf3082138b303c2d26a447eef5d752c5f522bb337b42135166c67fb62e3e343",
-      "seedNum": 312022021,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x9830e784f9bedf6e47f53be423f876a87e44799c48480d0e3f20edea5e0229b4",
-      "seedNum": 706784890,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc40f1c5212fefd062261f22592eb5dc9ae560fd631a56368761a101dc5af4e81",
-      "seedNum": 454899117,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc6af92e1437b26d65630539e4f229c637b70d4b7228b7338dcfc2d430dd17fe9",
-      "seedNum": 1356483739,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc37556a7bb97b4a1b977f44724d107f8b69b2fc51fe6050a260f5587a9ed971e",
-      "seedNum": 1115841011,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd07909cc0406ed357337cfc89d44929161d88ebf4f29471cd699a3b109a739f4",
-      "seedNum": 620298448,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x404663752768c0fd9206f864f6c2f474c5a9ec989deead246eb7330a42f709b0",
-      "seedNum": 670402536,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6c92d48d4b473155fd35be1251ebb50a35044605cdc401846e336dc122cbb5eb",
-      "seedNum": 611113585,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x64d054a4ba1cc600b0d4e2cd022bf056d447eebb6b0d759e37f9e7c6bbbc966f",
-      "seedNum": 62746443,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Binary",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc98d567da25bd7c2e35ee68b0817238e9955fdb0a4b2cbfb20111697b12a2d91",
-      "seedNum": 896959680,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x25d1d64cb13d062d3df67e0cd83875a212f2142f1963daae900794f92944f20d",
-      "seedNum": 2095100614,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Checkerboard",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe27431159b1fa4cb5053a5f16c62339decb85dbd833c7de54ad5b4c4cf833427",
-      "seedNum": 1611138809,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Inverted",
         "drawDirection": "Center",
         "paletteStrategy": "Complement",
-        "colorCount": 2,
+        "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Standard",
         "hasPaperGrain": true,
@@ -451,108 +387,28 @@
       }
     },
     {
-      "hex": "0xc0d70a0c1822d0346d13a69d2ed9490b547c06b8c2dd9164741d7588a4107e39",
-      "seedNum": 433120335,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0c485c4ef7d84cf2abd96dd08fbe7d20606e34dd0a8c780afd154caae7d7fe15",
-      "seedNum": 275318160,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa75e306c85d38c8d4b1a6ce4fdd42f8cf751905f5198edc3ccfcd3a1c639929d",
-      "seedNum": 1418718568,
+      "hex": "0xcde6bd264bfd179afdeef4de42be0c04ddf9cb9563adccdc4abb8e343fd4fd82",
+      "seedNum": 1741328873,
       "traits": {
         "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
         "paletteStrategy": "Value",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe98b41edf2635d0c0a43b6030af7f7b49049183464e22ec6102c5e3272b8be4d",
-      "seedNum": 1165615339,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xea3b43ee20ef9f9a55389daad35ff1536cffc2ee65ad67e006ce7c3f804dd678",
-      "seedNum": 1969629049,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Clash",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x1b67d9d4ae34b8595ccc76b2ad2ca52f5ca660571f540752cc0f622448322b12",
-      "seedNum": 1694788610,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
         "paperType": "Standard",
-        "hasPaperGrain": false,
+        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x09038fd97a7d4b23b32e9e46995099b0a75ca6c2cfd0b327937ea89147a1cb4f",
-      "seedNum": 210004694,
+      "hex": "0x82366dd9357a68ccba14adcec1a8dff85922689317bcdbf1bc50fbdbb43d1aea",
+      "seedNum": 971457664,
       "traits": {
-        "foldStrategy": "Clustered",
+        "foldStrategy": "Grid",
         "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
+        "drawDirection": "Diagonal",
         "paletteStrategy": "Complement",
         "colorCount": 3,
         "isMonochrome": false,
@@ -563,46 +419,334 @@
       }
     },
     {
-      "hex": "0x80bd7ff6730cf19d6fff797aa77a584077e8e9010399754d0a77a572db57f8cf",
-      "seedNum": 1955066251,
+      "hex": "0x1025084063e3e47a215c3c62ab78e6a71d4751033f94336ad5fed7e00c839ab9",
+      "seedNum": 70120699,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdfbb9a2fffce521151663799bd6dbd6061e757d2a6e1f4dee739f22ea56babb9",
+      "seedNum": 1061521012,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x3ab31509e3657d52a11f62f6a6680e9961115233efa7481eaf4be002a2917551",
+      "seedNum": 1489741670,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x87be3b7efb9484f9681e0a46144db7d66c21cd50162fb3a58ed33115a866be43",
+      "seedNum": 185662457,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x7b877ecd8aba1e7f534e26e45b79ddbc29deb931914640358290ba0f2fb81ae3",
+      "seedNum": 29957148,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xbfc3cfc46fc48bf534d0c7a2725baad6121d753ee9270e0c243a10b55285b5bd",
+      "seedNum": 1867262848,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x243fded3a3588383f0f5eccf458ac19596b710de26304a42479ef23aad5563dd",
+      "seedNum": 1809334570,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x54158e67bee3b0ed40d53cc2a4ddc77af2e08d300e7f905a161b73cf8aa40587",
+      "seedNum": 1729023421,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xc48f79fa3ba46526137a3b6242538bdfe6396989ccab3ac839dabbdc8f7c4a4a",
+      "seedNum": 1153653021,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x0fda743bdbf7f662139d766ef09187c45457640c2d8d79699b768574946bcb9e",
+      "seedNum": 2074926809,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x178d7957d1d120f2bd0b129757215424e2670103c3c68b7f88817bb1bdc79eeb",
+      "seedNum": 15471522,
       "traits": {
         "foldStrategy": "Clustered",
         "renderMode": "Sparse",
         "drawDirection": "Random Mid",
         "paletteStrategy": "Temperature",
-        "colorCount": 2,
+        "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4efa440ba6a2a72df33233c1468049b40a78aed6d049e8d07e2bb9b4025c698e",
+      "seedNum": 1150758725,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x76e85a38c45a088706d89e5a7982c4a4502e1c92d77a918c803a8e992fb68e2c",
-      "seedNum": 841661690,
+      "hex": "0x8876e78c7a607eb302f0bca2845708257fbbd404b56e1a2590533986adc5dfa0",
+      "seedNum": 189681102,
       "traits": {
-        "foldStrategy": "Radial",
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x974a98b7352a5b8d65f5e4a5c6bf95549d3c492c7cdd2d9318be2d178fa410b5",
+      "seedNum": 1673497853,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x9133bd0c19e5063260dad35490b8791368c302979f43188448e22dc9bac6cca1",
+      "seedNum": 1011646540,
+      "traits": {
+        "foldStrategy": "Diagonal",
         "renderMode": "Inverted",
         "drawDirection": "Alternate",
         "paletteStrategy": "Monochrome",
         "colorCount": 2,
         "isMonochrome": true,
         "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6d3ca27a0209b0a571a69e63bccaaef743c65a38c9f6a958a845a3d917a2156a",
+      "seedNum": 1552086426,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x2187028232b5cbb247b306a965cece6c47af4a8c3d057424a6b65bb13f8db27e",
-      "seedNum": 1975767222,
+      "hex": "0x029edb37c9679c426d69f4f5474df336282f60b1a8cec08f563000cfebbf1fbf",
+      "seedNum": 1319457457,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x60dea3a6c7b8eb0767d627a9ba57e555cf9c6f340b1a77772d9c7667462fae24",
+      "seedNum": 158741078,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x18989026cfb5db3e4f443547f8ba9c1c759fe8f33f18029eb0ea48a42e056868",
+      "seedNum": 15137676,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xcdef1143f0b32a35c33ad6fcd9d3b6743c1e54ef447cc93c04750590d743b27e",
+      "seedNum": 210848960,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x331dff87649d61f8812cf66716e33a6db28b8582c87470bda2cc7ab8f0e460d6",
+      "seedNum": 1255760135,
       "traits": {
         "foldStrategy": "Vertical",
         "renderMode": "Binary",
         "drawDirection": "Center",
         "paletteStrategy": "Value",
-        "colorCount": 2,
+        "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Standard",
         "hasPaperGrain": false,
@@ -611,206 +755,14 @@
       }
     },
     {
-      "hex": "0xa338cfa56b0256f059ddcfed95b872aeba0021f6c5a295de580f5560792e7c59",
-      "seedNum": 829683261,
+      "hex": "0xb6de31d9fa3d31e1f10ea3bdbb3583a9691813e54113b137171d6ea3089ef9c9",
+      "seedNum": 1744410007,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
         "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xaa8fe989a425b82c1eb74ec19ff1abf504268cb4a29f5e07d7c875a847296758",
-      "seedNum": 2034600769,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe7553b61b05dfc26331c566be462d677c7ab0192bf17b4e9fe008cea3fad0484",
-      "seedNum": 2131260140,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8f81e7935c7f1e8cb1b62063e3bc0ff94f08cfad5520361051bddada1b841e82",
-      "seedNum": 2072178100,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xf0f39009ebe5789b6deb445a1956a7ae14c9dc948988194916d91f746622a8d3",
-      "seedNum": 1305254066,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
         "paletteStrategy": "Clash",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa23d2841b662eaac34d38bc24c5f69e3ee80239d8fcbac73d9a213d63120b878",
-      "seedNum": 2061318961,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
         "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3839160b9597eca839f3528fc2fc275a10aeb5dfa17928fe8a58ad8890f42376",
-      "seedNum": 101324992,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": true,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x075b299a218459046114eaa31e038c28b68d9b8a7bf171470caf61fe61f424df",
-      "seedNum": 809151544,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x02d72bbd072d6d0ea28eda9adb90390b875d2571955acafe166cc5bcbfe14362",
-      "seedNum": 215729288,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe0c51cd7c1bbc6eb53995071687bbeedf8b673886ccb8cb5ee5d2dfe76bca5b1",
-      "seedNum": 54919326,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xdd26e4465cac074db7096c3fab85d96a8d42e7813aa8c34f2f1d7568e917b205",
-      "seedNum": 385470429,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x093417f9628be2232d6a2bae12e5f5c5226dad72149fae5e4d27f4b6042a3d0d",
-      "seedNum": 1962152469,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6ef0925b5016793b1398eafad12f2c3db1c7dd457a2af1deb70fe100e04b3cab",
-      "seedNum": 771202547,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
         "isMonochrome": false,
         "paperType": "Resistant",
         "hasPaperGrain": true,
@@ -819,14 +771,14 @@
       }
     },
     {
-      "hex": "0xd9f249109ae2774b47ebc2b4e7197cc7312d7b7e9eaebdb211e9303184210f3f",
-      "seedNum": 1321666927,
+      "hex": "0xe4295e2f967708bde62334322ec2d1870e83bf84c2ed2d24667686ac0490020b",
+      "seedNum": 1590281503,
       "traits": {
         "foldStrategy": "Clustered",
         "renderMode": "Dense",
         "drawDirection": "Checkerboard",
         "paletteStrategy": "Value",
-        "colorCount": 2,
+        "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
         "hasPaperGrain": false,
@@ -835,47 +787,111 @@
       }
     },
     {
-      "hex": "0xc3474d360cf67b67dc3156e3707840b1025efb6ec98571d4cc678f02b80bd31a",
-      "seedNum": 327488982,
+      "hex": "0x0bd9f33100f813235b01bc6302ddaed93a9fce4027ee5721e2750955db338674",
+      "seedNum": 413923717,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xbdc1e2399b688fce192eafab289da89f8731195e0208832e46cabe989536acda",
+      "seedNum": 384586820,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xa5d598e11fe5c0a3dca0f2ec3aeb30e548e393bb28ebe080db0159542c99d649",
+      "seedNum": 1804661351,
       "traits": {
         "foldStrategy": "Grid",
         "renderMode": "Sparse",
         "drawDirection": "Diagonal",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x07e2017a92138fd4f34412fa0fc2aba1d25676f5b4cd170896c85d4e8a610c84",
+      "seedNum": 567775945,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xefa178db361c7dfc898d22e47fb629f7099589f2030b511e59bc638bf102903c",
+      "seedNum": 358576054,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
         "paletteStrategy": "Complement",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x1e5232da3ca67a2a885f572a6daa220887a4a23cc4c68dd0b518636065ccf661",
-      "seedNum": 2034950110,
+      "hex": "0xb5bdaccaefbdde4d3922367d10ff26e4f38ae54d959544ab97c758c1340bca98",
+      "seedNum": 1530476517,
       "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xbab09fbca47ff3845c50a7e423a4dcab90ce95bb94b36d4336ac21ee11d345a0",
-      "seedNum": 434189056,
-      "traits": {
-        "foldStrategy": "Grid",
+        "foldStrategy": "Clustered",
         "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
         "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x673d8fa22f5cf41ce772cc9ef7d4f59aa4d6db0e89dd3c27186fc4d17c172b09",
+      "seedNum": 2111312737,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
         "paperType": "Standard",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
@@ -883,29 +899,13 @@
       }
     },
     {
-      "hex": "0x619b4469172945b8791ce449fc80a6264dd6253fd5814d484f20b2b17b577816",
-      "seedNum": 1516228235,
+      "hex": "0x33f3a4edbaf8a0a905776a2b36724522ac08d4becdf7d626f32f8f15f7346ec4",
+      "seedNum": 585099909,
       "traits": {
         "foldStrategy": "Random",
         "renderMode": "Dense",
         "drawDirection": "Left to Right",
         "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe7f3918cc9a8da479e1cc6e6de39fda215a44bb5685f960d64aaf205843546ce",
-      "seedNum": 428866916,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Value",
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
@@ -915,29 +915,13 @@
       }
     },
     {
-      "hex": "0x976a9d7d226a02af996381178bdf26a0812e7a761d417b59652514523d8270c2",
-      "seedNum": 1363099051,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xcecef14831cb688422bfe2c6e6aa85d21019f3d49bd17b113fd4143197af042d",
-      "seedNum": 1332300567,
+      "hex": "0xa9bde0e7f5d0f8f2725791f8b11070c5f786ec24df63470b1c5e202f0ff8dd32",
+      "seedNum": 1229765316,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
         "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
+        "paletteStrategy": "Value",
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Resistant",
@@ -947,8 +931,24 @@
       }
     },
     {
-      "hex": "0x664d81470e35ca73c02659d1562a6a540489218ce621e8ddd256c665876ccffa",
-      "seedNum": 1523633410,
+      "hex": "0xe2035fb88ae19d1edf7e80c19cec545a48dffbc9419a893fa69cca7fc82eb8ae",
+      "seedNum": 1323850898,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x8225477a67d9ada3842071603242c300d0afae3dc781af454d81db3b9611de43",
+      "seedNum": 1814314137,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
@@ -963,43 +963,571 @@
       }
     },
     {
-      "hex": "0x1452a30cc587a5131c550f7e82fcac588399b4fd0e7d5e01aad2f51fb843fda3",
-      "seedNum": 1848437548,
+      "hex": "0x003adf38699d3d264d14791706ac68e39178f52d94dd72f1f1533df576fc2883",
+      "seedNum": 1779628950,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1b12ed726eeba7867c63afbb1b69ce68b415a613dd8f85a5d24ca2365f5cf92e",
+      "seedNum": 621904491,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x65aa8726f39a35c04e80c09984d8e19e8b34ca670cb820c406b963e7199e4ba5",
+      "seedNum": 1055867919,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb2a6a1f3bbaacd94f479cae274e63239758e42e9fd4871b1c7ec7495eb605127",
+      "seedNum": 553128318,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x421cee895fdf1880995ae59387b5bd961d861a5e496d82e7848e0e465bc9eb92",
+      "seedNum": 1679357331,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdf4def2092f7432cb41e3797a2a5973151f809241cc888a7be5cba9041da2df1",
+      "seedNum": 1368596848,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xa30ef08221004bdf9fb5c667d73076d6ae3a3cd5decbf6ab3c8646c4e4e194ed",
+      "seedNum": 1730030821,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x73b24af76ea6234d63981f4c0c4681298eeabcb1a2fe4fc01aa24ddfedbac925",
+      "seedNum": 1443543357,
       "traits": {
         "foldStrategy": "Clustered",
         "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb427c52785f481c382f77002708e369040987bd1bb93b3c69e2ee1e5679ff4bf",
+      "seedNum": 1849953300,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x46e656bf525131468915c1272b1fd9a62b6341c8ece7f803114be83f438fab77",
+      "seedNum": 1612570309,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdc8c84098206f2c971e6b4a0d174b019008ec5b0b95734bf380fba88b6979716",
+      "seedNum": 991951583,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xab58da02cfa17037aa6541aa91681a698734381fcbadb2ac0c749bea7dc6d45e",
+      "seedNum": 642982975,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x62661537b4fdec7823728836276fce6f541724195e0dd2af8caffa750ced8078",
+      "seedNum": 2043287272,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xf8747a9d5a950980970ce3a39634201e46f2420d51e5c31dd1f566d4c9bd06ab",
+      "seedNum": 1266548414,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1e4fe8736914aa8c0f5a85b2470cf0405801512e3fdb452695c795a4f83b6511",
+      "seedNum": 632585075,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xfe02689ab46fee16c3cda5f5fac1229b09452b6c39cafa7ea0d28828f7e23899",
+      "seedNum": 812957519,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdc9704596c372fa1bc59fd608d1bf90fbbcf23000c3049297e985b5bee84ed1a",
+      "seedNum": 627390551,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x8ce59aa304ba36759e60ae113ad60232e7e93707c17434ae665bf1ec8809e758",
+      "seedNum": 512060349,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x041bc1a49064a98bff4bf68c5dcc77bf74074e69f09e8dfe65f1386c5a9d3189",
+      "seedNum": 412888276,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1af88180c0f944aa5cd57b0a092faf189d59252674ed56c424acba81c19a92cd",
+      "seedNum": 1995065259,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x0f5e11ed1a8a8cb5fe1baca4718b8a22ccde478be73032c9519c4578a9f4c256",
+      "seedNum": 960934031,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x212212d861444145e440e0109cc584b0165da39f8945f00a3f1f3adf524b4eff",
+      "seedNum": 596141814,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x022e063babfc9ca2f66d331c83c6272fae2812dbcd6b5f9c08cab40cd205d60d",
+      "seedNum": 811116825,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x252ffd64589adc3a234b27129a2aa4a2bcca7193a7036bbb91e8c7d8b7869645",
+      "seedNum": 586864387,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x51f94ad7af2a53e1256bc76c024cc5277fbbb484bcf2c4e0214dfd2d6178c511",
+      "seedNum": 1394403729,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xa4d522366ae3946a98826be818ebd4c14030d612368e0dfa9f455f1de447ee1c",
+      "seedNum": 881711321,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x9a03b36f4c08c83047fa213ea6326c6a465b62e445292fe705998dda744dca2d",
+      "seedNum": 1060625,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x3c1e0d25338a50f70c0e9b54ed1aaa305caac3867b02fb85ea28dee715190692",
+      "seedNum": 734423874,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6b330f4673b101a7e0f82a6c0c34f44a3c16a58daaa352c27e49b532ad937dbf",
+      "seedNum": 1243029557,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x237fafeac97aa2a5c3660226d6ba43a7eb182dd8ca8d552cde4e7f8d34d1fe1b",
+      "seedNum": 276431483,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x27439bba1515ee927eaca44373c123cd955b2907e572b17c925791127858b341",
+      "seedNum": 1671243270,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x5f272469e1b1e85a1a63cc4e6cfd4b48141c3c8e510ddb89e61704dcef0a9ea0",
+      "seedNum": 536883503,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
         "drawDirection": "Random Mid",
         "paletteStrategy": "Complement",
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
-        "hasPaperGrain": true,
+        "hasPaperGrain": false,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0xd5c16a10b8c37abbdd32e35194047974b80e65d0165a12102f40462e696438bf",
-      "seedNum": 1682329311,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xcf60f553fbe85b012ee49f22d83a35ffd8586d0dd6b0be32b22f3fcd1515a1c3",
-      "seedNum": 447366572,
+      "hex": "0x2f87edb992706757c370bda9b723367cb391a435e46b9c96eda98ed02612cf2a",
+      "seedNum": 1904231114,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xeb5b509695bb585ef4e0d11ff9a9d514c683f7fc9a501b5301da432175c0647b",
+      "seedNum": 1819408782,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6813382b5ca00b7d160cabae235953335739495d80d7eaeda1f7fcc45148288a",
+      "seedNum": 751205333,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4c1997ad01e05a2105a84d9afdb42b2825af116883a49317b6a5ea4a4448af5c",
+      "seedNum": 437487996,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
         "drawDirection": "Right to Left",
         "paletteStrategy": "Value",
         "colorCount": 2,
@@ -1011,8 +1539,200 @@
       }
     },
     {
-      "hex": "0x7a5f37b28fb9956b3cafeb8cd972d7e96fd526d8d3fa7fe084f0fc11f9327593",
-      "seedNum": 74974418,
+      "hex": "0x218bade767868ce19d8e48df1ea76c340cf854717b3e6688e5fd13528d743770",
+      "seedNum": 714991792,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdb4712e271cf2da73f3808370f5b70fc6306756a63c0eacdc3ac54e54f900740",
+      "seedNum": 677204847,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x9f7c0eafc839491a748932a476f3437bb3d4cab1ee7bfc11b79b1e984c22a567",
+      "seedNum": 120678012,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x7aa17b4d8a01ef3e4c2413c34b4249310f3fd7ddf0c50f4a6ad9302725d4fcd8",
+      "seedNum": 2135221722,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb6120083532c2b43c28514ba661e03a6788f36c081bd49bad2633d2fae844149",
+      "seedNum": 1062218828,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x072256a893397ac1ae67c8a58e0b30711144359c39cd6baa4b0e3e5df56dc009",
+      "seedNum": 561915922,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x0bb2cded751523ed3bd5b4043094f7c03c385609bf3f23102e00ceed0dbc410a",
+      "seedNum": 209371080,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x55e61aafeeb2ae6c93804fd06ca036fc4ad91c63448b2bf62ceb3ffa954d47a0",
+      "seedNum": 444523469,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x413c742be8a47f34f7bfe10328ad20d6c6803a0c144e0d6785b1cdb63f129e94",
+      "seedNum": 1797089164,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xab1991a70fea65a7b3566f10a1df1a78594413f2f7e85bcb456d86dc47884a3b",
+      "seedNum": 1713211639,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4e2c9313289945800dcbd6a95dff9518d1667118fefc46ae3746ca539c2aac15",
+      "seedNum": 1156737959,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdd98ef92e146527f1b7312fefdbcac20a3e3cd874fa0b1a9374406927a4acf16",
+      "seedNum": 477639080,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6deec3197fb7bceecc4f3e5badae3a3304593afbec032f6013959079d95a3b00",
+      "seedNum": 1536508706,
       "traits": {
         "foldStrategy": "Radial",
         "renderMode": "Inverted",
@@ -1027,8 +1747,296 @@
       }
     },
     {
-      "hex": "0xa632d9b099be6c02e3e612c2dc1f442b788390da81ff237b3be1fd884b6eba96",
-      "seedNum": 1713643365,
+      "hex": "0xa177ee323dbf1b0394c96ef6ccf61b47573628babe9e36c4f9415dd1180569c2",
+      "seedNum": 11466602,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xef92d92cb578c7e68145f119493154f3e47879f47631afe646dd7ac8d7f05910",
+      "seedNum": 345930307,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x32e3c1ca40abe3a2b7f746e517ccf58f3f761b89d6f5187e6bad9eaf48530e65",
+      "seedNum": 645097271,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xfbabe9f29fda40985bc171afbcec115ad0202bb1f72dc0d0019ef1a6aea13e96",
+      "seedNum": 389158017,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xc75e3f007327ef0bae744a4af251580aff7fc5ec79bf2e7fdfcd7085f30dd609",
+      "seedNum": 31747343,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x84fb558a0123cc795afbf528c6f786ee0827f4293b3385195d3d63c405d00037",
+      "seedNum": 186283919,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x8ab9f1e91a3241f2597283596b470de626cbc3fd8f6f358cdb3827abed67b6e5",
+      "seedNum": 799417798,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x7dc771f4630ae401af1629502c3cd181c6a158fff805c3a7ed53a6176c1c2510",
+      "seedNum": 1587136491,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x8568abe4767c9384ddabf8f8ad0bbc8dbb4d0b6d9196f27dfa7aeecc12b69963",
+      "seedNum": 21883727,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x70b398b511907490de93fb62dd14e0b095b09859ab0fb1b7a97339a79af46c88",
+      "seedNum": 1928832507,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xd9d5e2beb349cf09672bef3aa432bdde902bdfe6f6d1eff98f5758f71c414093",
+      "seedNum": 1727370377,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x018fa65d7919f477cdef24175143bdeb27014da01f3b5a2c199032140923e3a8",
+      "seedNum": 2084127025,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x822e7195cddede584dda16c3629a42e9a1ff924badc035b83edbe89492a80304",
+      "seedNum": 1379647877,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xf348e199b18e2234c114c897848509f0efe9da040873bd7a278f47ae5affbe86",
+      "seedNum": 404743531,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xaa854569e3334130ccc4206d11158512be9cf193c98e6bf19a916f819c775a35",
+      "seedNum": 943574022,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xd9ba34fe8c9c2c25da25ae86e196d3cedbf2a202939ed2e5b57a744bdd38316f",
+      "seedNum": 1074828837,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x63bf01f04c1cdcac3a4c68f3a1dcc4a98a2948d8218f984ba914e3d08c0704ea",
+      "seedNum": 328917134,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xcd64fac93e6c0cb7f70e3a1077cc510fadf6b560ba52c77ab4b212b3cf72a35f",
+      "seedNum": 1496711756,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x7ee888ae8b343a0a04257b43f8a993b0195109391c3433e7d2c5809b28496dc9",
+      "seedNum": 151341929,
       "traits": {
         "foldStrategy": "Vertical",
         "renderMode": "Binary",
@@ -1043,15 +2051,31 @@
       }
     },
     {
-      "hex": "0x8639c5167bd465332f499a38ca6b0415b3b7d8d9e2ed140f135c46cf248f6369",
-      "seedNum": 138932066,
+      "hex": "0x1e753fea69f6c9b2e9acf5e7ba1338c47322cfb968ed83e411fda1187ceec249",
+      "seedNum": 652298631,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xaacdaa5b32afcddc6754378934d24970321810789032791928a8f9eb3100344e",
+      "seedNum": 139141781,
       "traits": {
         "foldStrategy": "Diagonal",
         "renderMode": "Inverted",
         "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
         "paperType": "Standard",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
@@ -1059,40 +2083,24 @@
       }
     },
     {
-      "hex": "0x20db006a847a6c62a0c295279a0ad2e7cb875d9c80d3827c81487d115b42d029",
-      "seedNum": 1177578807,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6121306f38969656c7372a6794819b741eb1caa14191039901871cf581b8f779",
-      "seedNum": 2061039413,
+      "hex": "0xea57573bd5aa8e959be063835fabbe4f6258245f315fd94053d21e7e2e59417c",
+      "seedNum": 710491408,
       "traits": {
         "foldStrategy": "Radial",
-        "renderMode": "Sparse",
+        "renderMode": "Inverted",
         "drawDirection": "Alternate",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
         "paperType": "Standard",
-        "hasPaperGrain": false,
+        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x633b422727a1b8b43f6df609df8faf594069ca0b157c745044fb6578ec575260",
-      "seedNum": 1847082243,
+      "hex": "0x9bf75c26282fc0a479e8aa6d434d61961e958c7999a53abe5549463322bc3489",
+      "seedNum": 1612609778,
       "traits": {
         "foldStrategy": "Random",
         "renderMode": "Dense",
@@ -1107,13 +2115,253 @@
       }
     },
     {
-      "hex": "0x8715389d414f0f5e56ce68d91314f267dffc44cef51a8bd425827f5ce74e0a48",
-      "seedNum": 1333362842,
+      "hex": "0x274b05a4e6b8b84c020fd7d0641e726631677c86f2d4bbac42d2a7935f63c1b0",
+      "seedNum": 894354326,
       "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Binary",
-        "drawDirection": "Center",
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xfa62a44edde9235b7157bb40430ec928e454e5e3df9161cbb6f011b31e224d07",
+      "seedNum": 1387162620,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
         "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x5881e034ddbaf43185de8c6e3ebd62fc9d8dd8f7f577ed8824fd8bc7c692e4c2",
+      "seedNum": 247379100,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xf6e4e97508a1084c0ad045b04205ca96fb1d0f5a44e49d547a44c09edd7b5599",
+      "seedNum": 1986714425,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x5688b88840a7742f81e360ae0c2c5f2fc41d49a0f6376d871dc271665ad8177f",
+      "seedNum": 1840833856,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x081eee07a244d5a67de2ae38bcc75a4348de99da377d986384318284c6054c64",
+      "seedNum": 847425973,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x378f6bef0e6400f9f8b8bb2a593d3bcdebea73db2c4bbf73a0736881c7d616ef",
+      "seedNum": 2105727191,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x5cd97dea1384c8a0d0a1c64d5c8d122ffe104f2c57d1d1e92d736a078c4b18e8",
+      "seedNum": 1295500405,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x33a8d3237b1d312848e022b38d78055245f9667a4a5fcd7213a684951359a106",
+      "seedNum": 1651431279,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x3e31ea30a65785785fc0b68b406da2919173bfe795d59eeb63546f2cfb5f5cbf",
+      "seedNum": 582703578,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4b366f407a82bbd9e40860af27bce0478673d781282d763a2e5445bad6f224f0",
+      "seedNum": 284138075,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x848b5c25e3755ff8a3ccd80e67615044ce0ee51e5e8a162e222ffdb5965e95dc",
+      "seedNum": 1821120581,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x547de6d627a6eef0d12ac6d816f9331799a1e219c95b454b284afbd459361aa1",
+      "seedNum": 1352842397,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x721dcd37a87a1aaa2ce91c9ae369b4323eed5d1cce30fa179dbe0296f3ab4ec8",
+      "seedNum": 213234971,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xbf1822da844bee0c68a706b85a308e8561485d2dbfdbf702eae56a983b919d98",
+      "seedNum": 41694148,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x58aa88a3059a21039ffcf51e6d22a638f9b8e7870bc56433c4f20d9b2cc48951",
+      "seedNum": 921645642,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Standard",
@@ -1123,8 +2371,664 @@
       }
     },
     {
-      "hex": "0x6fd06dde7adce68f07ba695ee8c77e485a8ff32c369eab2a581f954c64fdac22",
-      "seedNum": 1518191181,
+      "hex": "0xa7dcf24ed581fb24a3dde9d484f971d6e3b626b1582aab6e01a1429c75e47da1",
+      "seedNum": 624680900,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6b29b1426f138c4117303534770eca109c4812d0cdc71b335b60a89d48033742",
+      "seedNum": 1164373703,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x43cde6dcf7d9a910d9395824d936a1e35114c0389829fa4df7f7e432a66459f4",
+      "seedNum": 2138404554,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xe3d999f54b339bc62aee865554e46645c8f3d28049ca61f8da66c908d156192b",
+      "seedNum": 317116340,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x003c32448740e97676e873c4629a74aaf21ea8a300da8761b4786c17213133f5",
+      "seedNum": 129584639,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xc3e01281f27c5501f7e4d102a4decec94fcd23c100099b43f8d0e4166f6947c6",
+      "seedNum": 2050783751,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x9b0f4e1f28a9cc4f19f4ff5dc7c42133d325218872a474f9408bf3995f2a215d",
+      "seedNum": 1590192271,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xb29d79f0f34f9f22c74e8c9156ac98bdc9aad94da12bce54934b4e6bf2310aea",
+      "seedNum": 1485476614,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x2b201a859ab0fdc1b2f74522cd0e16ff2c5c047bdfe6290b7832ad7da64dff42",
+      "seedNum": 1894855372,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Checkerboard",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xbfa6602ec60d67dcad49676652b1fa0fcaa56f7796f261bd7284956a2a2c7c50",
+      "seedNum": 1163536444,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x8818a82a58bc3218b48bbcbb923464c9519f3eb7fbc3851b01042ecf4609f472",
+      "seedNum": 1760395886,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xd48a26609e4d4c18ffc7b6d60a096d2751e29e2ae86c5d5cdc40c1e2fc8a7578",
+      "seedNum": 1197578460,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1294d51f5667dc659110c4f1d38e901bc8f0b7578f74e6ab22f662228aaaeaf7",
+      "seedNum": 2073134755,
+      "traits": {
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xfb919e83a6aa76abc6f1f7549c5e1387943f2d4f2044be22ff35453fe19ff268",
+      "seedNum": 500020150,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xfb23941eecf5574b341dae8cbdf342f0e826a7ccb5cd104a3276a3091425183d",
+      "seedNum": 1664909196,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xcb8bf0581485c9e096fb723c466a16e7ad37d53d4b72cc5819a9e7d3973471ea",
+      "seedNum": 731753107,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x7ee5f9cffb2d466e996bbff9ebe4d7e20430c243fb349f5a04866a85218ad65b",
+      "seedNum": 2029599247,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x614a7ad38eebc3ebaa68e4e3ff31d30723b0b47c44233d3ccacb6093e3b4ce52",
+      "seedNum": 1367390611,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x67a491da955cb0a5e3638617cd3372ccc443a278089ba87f02890d2dd4df90a1",
+      "seedNum": 1688589403,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xecf9d647ae57df95b107d72589ded203e9284136e05392f598d3ee27abf8b243",
+      "seedNum": 139168808,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xdaa62e7f1a1ec4751694fdcacb6e2a7134d2d272de0f58aa13b3e744e4d4d0da",
+      "seedNum": 1332420982,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xc399e57c6644616996a2efdd21fd9191fc7431f49611d507b779bba0e2c2c405",
+      "seedNum": 1836592228,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Clash",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xd4acf1b81b497fbceef4a7324e417ceb959005c043c63a9e0b52c6ead52e04b9",
+      "seedNum": 1151558447,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1559944b7653ba18266be88ffe0780624838a43d9cabc0a0bb8d2f5595fe5c48",
+      "seedNum": 554099375,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x75893a676cef3d1e92123512de8b3c054fa99db0c9d122af9192074560088f59",
+      "seedNum": 1476506094,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x78ff8548252ae07df9b82f34d23ddc26c68808fe730d2afe455272b28dd8b489",
+      "seedNum": 388623119,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4c69f32adbda12698098aa71c0f5aadb15e23df4fe1fa90045fbe907bce0b5b2",
+      "seedNum": 1957558463,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x087d9279fe354e1e896699ce59d21f8a4ccb55c640d7c99d216362c8291c6fe5",
+      "seedNum": 254833426,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Value",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xc580688cfa836fd1662fc6eff5b7e3ab500b30214dd0410832f640d6fd1ee198",
+      "seedNum": 92553454,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x2839db932bd79aef62c8931af6c6eb6f08941cbc68e6a7bc548e23684bb19dcb",
+      "seedNum": 2085310997,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x0123a1809df98dd46c348266620db486a092467fd28646599a8efc88da765e7e",
+      "seedNum": 541118677,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x6b3de13da136defa97f037da7b5fb637ae92641118d744dbad3690cf20160bc8",
+      "seedNum": 2008195446,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4d1867c27d3473ba7fd203a27f2253c0d201e9b3e3362dba199863183d35e72e",
+      "seedNum": 392512320,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Complement",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x62c54a049aa190fce1214fac79d86fb8639b750d7103bf7e9fe8895ff3209017",
+      "seedNum": 1613505798,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1319ce02ef3eddb02313761510e1d700f6754e1e64fbb4db8f7c87b44bca2555",
+      "seedNum": 359823798,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x1c58134093653a12a37c0eef77413d82bd03eb38968f31f5ee86e48787f86063",
+      "seedNum": 1276469395,
+      "traits": {
+        "foldStrategy": "Vertical",
+        "renderMode": "Binary",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x94e8bb2a0435eda4b6896cb0c674b357cbe09894caed163ce4a305f438618725",
+      "seedNum": 772236282,
+      "traits": {
+        "foldStrategy": "Clustered",
+        "renderMode": "Sparse",
+        "drawDirection": "Random Mid",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Absorbent",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x76e211b383b8a8da43ecbf7681a1ac0ab026d41b50b5155d163c32856ef411e0",
+      "seedNum": 1904004162,
+      "traits": {
+        "foldStrategy": "Grid",
+        "renderMode": "Sparse",
+        "drawDirection": "Diagonal",
+        "paletteStrategy": "Temperature",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x59fe316e5489d9bee9904be1dde9f2a172a5eb77ee7083caf6f54ce1ac035d9e",
+      "seedNum": 143015068,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0xa083425bb54e7f1366a1fdca66390aba9ccf173358bcb323485dfec3cf7550cd",
+      "seedNum": 1985283020,
+      "traits": {
+        "foldStrategy": "Radial",
+        "renderMode": "Inverted",
+        "drawDirection": "Alternate",
+        "paletteStrategy": "Monochrome",
+        "colorCount": 2,
+        "isMonochrome": true,
+        "paperType": "Standard",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x11f0a695c92dc17c53e84e12d16d67c2b51b0c830bf078062f47498167e6a2cf",
+      "seedNum": 1829703335,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Clash",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x57e4afa08d906c4577fad178ef17c03908502d297f7cefd79bd02082e646658b",
+      "seedNum": 1029294983,
       "traits": {
         "foldStrategy": "Clustered",
         "renderMode": "Dense",
@@ -1133,900 +3037,84 @@
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x269e35b854fc31b251b7784aa6dca071700dccd8d500deaed8e62800be534c10",
-      "seedNum": 574135587,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8e4bb627f99e2533e83304821b6613f015d3b72de74fe4919995c79c1de3bef5",
-      "seedNum": 372609413,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3901323540bcd46203dd74179741d098f7a53b270fe2ee5de55235b78c2d93c2",
-      "seedNum": 851392717,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8d4ac98d069dd2573be14122a355bd8c34ac2e56762a6dd4273471a38f4931ba",
-      "seedNum": 557016435,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x4b01da80346eb7add00170a8dd3a3cdeb7c8bb00d560a9ea1fd125b398b9aab1",
-      "seedNum": 1249012910,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x5289e4b1e934c6b3d63c1e9ff8ea14c8482507da186a74998b097dd855a6e58d",
-      "seedNum": 239636504,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3bc3ba9ebc364ce975d5409f1299f2f3231333654a5fd898a3b31e958ba745ac",
-      "seedNum": 868074023,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa305ee38822582f2adb8b470a6c9258aa318157d83a38adce20d02bf9525dfb8",
-      "seedNum": 1211195237,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x01c2edc1c52d45ac5e346620e391d24baaad5c5e88e32e18b68a80171ecf8928",
-      "seedNum": 1219698991,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x572398d281f58c4d3558506700a3b995ca1915db82d2650f950401e36e1cbbb1",
-      "seedNum": 809287155,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6ab46020fdb69a0a4997f9dfd175b34f750ed8138658205ecc6be8f5325e35a4",
-      "seedNum": 1394563661,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xff6d70c2b5dcd492f36c4e2e628473d9dcdae698a9108f173ed23f9235a3fe9d",
-      "seedNum": 884454939,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa2530620510141f4bafb1c77cd05df2adffef22aae4d90188a705e2e5a498547",
-      "seedNum": 363286071,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x73392da50525fa903b71f09ba14bf5f40fbb10e625649a72045220c9bc43a9f4",
-      "seedNum": 1805145563,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xce0351fdc9b37e7d26aa22b799e66bf17d60588ad5496f375d649c3d5e4aaaeb",
-      "seedNum": 1706697339,
+      "hex": "0x916cf8e8859271c9d8c82ebdd17f655885f0b5c33df910bb8365b82eccee4d6c",
+      "seedNum": 678192028,
       "traits": {
         "foldStrategy": "Vertical",
         "renderMode": "Binary",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb41c0e053a01e38e9eacc834da4ac1a60d30ff952bab19215dfcf21091f3aaec",
-      "seedNum": 574226331,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
         "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0a9de281bd5027a8c47bcb51f85fe39c3f87c73855c0c0841458fa48a1e25530",
-      "seedNum": 1384901803,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb663aff8ef81449a26e259ccc4a4640e918772deadc2792279ad908cc8f5c531",
-      "seedNum": 1548264590,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb3427d16328dde9de7e52b64d186f82cdbf81e6928894f07b792a091d4611db0",
-      "seedNum": 420665548,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa14820a3bafbc1f7bb4b93333b4979a065e60c27cf6fc5bb73bf58a447579c4a",
-      "seedNum": 2106327872,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xcad26e192de280437faac54106441e3f31cfc023cf54b4743df9e26c31657385",
-      "seedNum": 1132944504,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
         "paletteStrategy": "Clash",
         "colorCount": 2,
         "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x7f91994aa27edbf09247423265f6554a58ab41b249c1b58532d02cad1127ac5e",
-      "seedNum": 564268679,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3a035cfacc8274682870f65713491903031bf1949079da294a1a2266f29807cb",
-      "seedNum": 1082732126,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2e91b45640d5fe4cc76647ee2f47f3129250d019414f1e6dc53b45b99131b8ea",
-      "seedNum": 502884089,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x06fc59e1c83967a0f559d7b21518a2b948581fadedf4ba3dc645d553835a301b",
-      "seedNum": 1446124387,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xfd8b0da8c3c63e63b7ec165049c0e7e05dd60954a7e48c9a008230d62946a227",
-      "seedNum": 1054628280,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc21c6047c3e9b7e1813e4603a778303a634fa34d0efca1415018e8b5be0acbad",
-      "seedNum": 1210218611,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x4ce548313ba5becd1fa5ad4f6e716321a7c874c37336ebc46e5867fd707101cf",
-      "seedNum": 1433423664,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x959fc16f0363029a76cc2d24747a447fbffac3403a43af56da3087c039715183",
-      "seedNum": 782402938,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x81769ac43a2e27d40d3c5a9b69b3443cd4d7fa2feceb6faa62f7faa17996833e",
-      "seedNum": 1025203550,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Binary",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x36878756676e17637e3402d6dc16b6ddebf5c62bde83ca322f199efbb294516d",
-      "seedNum": 1417487888,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x5606f1d77e69c835c79cd36a7334db54a63d61fee2985f1f2a6d75797055f9a3",
-      "seedNum": 712485861,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Clash",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd8985d3335e0a245c895d0cd36aa2c238195a684717f83dd0b74b1f0627ac5a3",
-      "seedNum": 1729191086,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd040460424e9fd4787e7fc06eefe4b3288e5cc45e68ca2d7e4c4d9fbdffe5350",
-      "seedNum": 1164609874,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x55b2c79d7f4194f91964f0d3d336823c856bf9fdcc997686b777415472ea69e7",
-      "seedNum": 715596853,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xdccb0458ac82084056a83b71fc3300091993423b13dd7c6ce642e647d0240013",
-      "seedNum": 1712853236,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
         "paperType": "Resistant",
         "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe5497fafdd1504d4939c3936d4e98f5da488188765fcf6e60f11b075e5ecf86d",
-      "seedNum": 665322551,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd9bcfb77f47ab492cfbdc50cb128747b96c0e3a5d4d205825ad6cb3ad631a76a",
-      "seedNum": 670346117,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xcf6e9351493bd2435b80b1e2f6a48a78bfbdf02193fe386a250a30272cda6d4b",
-      "seedNum": 1746467048,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x57ade36236f8fe94862c51c988bce6b12d05afa161d11abc9a22221fc115c289",
-      "seedNum": 1716831577,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6ce43d189409200898244c590cfbf7d56ead391e82920a4e4c074004a42891f5",
-      "seedNum": 1842453050,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x85c6804cb77483f47c7146a2ddfc343b80c2aa346d5346876492d6993195bc64",
-      "seedNum": 1124172943,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x62198ff68f030f79a30c94021455385c36173a5594172e76b512c629f8749121",
-      "seedNum": 1396060007,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xcc477817375088b48156907528ffe1e75af3cff9e60f0e38306f14ba77b52342",
-      "seedNum": 1340045541,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd5504b601cc7a765b5d6c2b0165e0f4dc168520a2ee35677141ff71e2f2b20b1",
-      "seedNum": 1198013992,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xceda91cf0e758f5ce8f40d0f44d599eb24e2195dd8c8e43ecd7be0a3ce55f4be",
-      "seedNum": 740995837,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xffff3b418afc428fbc978c45d3b81ddd06c1fbed87856f2c113a748367a00afe",
-      "seedNum": 184203542,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2da7f4b567dcf4703490f495836eddbee667b409f3b933c2ba8de24059f7099c",
-      "seedNum": 1127013851,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe7403d65aa72b39c0dbfa6a36a5beee10066f4a30ab094c42caf34628e3965e9",
-      "seedNum": 2029203050,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x32e8b45c287c7e4e6456556a7983130c99a006c956e0e7473e5c6db3dff85c50",
-      "seedNum": 239986439,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8376e6aeefe7729666739139e7564e1fafa501c5ec9bed0aac1879dfe3517b7d",
-      "seedNum": 1993687029,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xccce7a9cbbac292dcc2396b3eca899153fd867305a4536903a448f51a14394e6",
-      "seedNum": 1430855273,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x107ea6e4db0051b1bf58a5fa78a5d2355e377862ec57a2d41f8c6bc133714edd",
-      "seedNum": 2080219002,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": true
       }
     },
     {
-      "hex": "0x039ff89af4f21870de8e5226a8c06cdf00656616bfdff7f9aab5eecde5640f84",
-      "seedNum": 2083654053,
+      "hex": "0xcb49947c80cbddc2a8500cd75fc675010dece80317485af0f3ed4076369e37f2",
+      "seedNum": 392103614,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x4d2ee0d2992e7817593265c60e613c0f1b66f49944c7d119fc643412e69bf0bf",
+      "seedNum": 864827837,
+      "traits": {
+        "foldStrategy": "Horizontal",
+        "renderMode": "Normal",
+        "drawDirection": "Right to Left",
+        "paletteStrategy": "Temperature",
+        "colorCount": 2,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x927ddd0edec72f2f7511fa0e63629ea1508db7485a9a9c7f91dc8773e0e6b2b0",
+      "seedNum": 63105359,
       "traits": {
         "foldStrategy": "Diagonal",
         "renderMode": "Inverted",
         "drawDirection": "Center",
         "paletteStrategy": "Complement",
-        "colorCount": 3,
+        "colorCount": 2,
         "isMonochrome": false,
         "paperType": "Standard",
-        "hasPaperGrain": false,
+        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x4a207c5b7607285b47829e20e8d02d7b18d936b972f9ac081d199309fdbf0496",
-      "seedNum": 172499219,
+      "hex": "0x5da529e8a258ab7495e8e8ac0605ca158baf7954a76c00392a83a601c711b271",
+      "seedNum": 1570963270,
       "traits": {
         "foldStrategy": "Random",
         "renderMode": "Normal",
         "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
+        "paletteStrategy": "Temperature",
         "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0ba73cd24ae24d3e3a83b7b7d187a9ae1417cb78f50a544011d51387ccc41486",
-      "seedNum": 1647363810,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Resistant",
         "hasPaperGrain": false,
@@ -2035,344 +3123,40 @@
       }
     },
     {
-      "hex": "0xbf1a41c348a6e2f22f2af011387d51a659300e54569e92dc7b75187435724ca9",
-      "seedNum": 1188783739,
+      "hex": "0xb228402bf9b7cbdad4522154761b097398074af9a0f413514794cbc0cd1a6a47",
+      "seedNum": 1577602100,
       "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x1da6bea4773debddf95cb9e95e64cfea81c41099d72035e34c394bca960af157",
-      "seedNum": 847997222,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
+        "foldStrategy": "Random",
+        "renderMode": "Dense",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x16b2b6f0448ef99e875aa940db9fd34ce934afbb6ad8d5c99311d5835275a37e",
-      "seedNum": 1911842686,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
+        "paperType": "Absorbent",
         "hasPaperGrain": false,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x8ac6faa6017c5c2ebab80eecffedc631435f8f8e3a58db78a34a6ab2286b19a1",
-      "seedNum": 386552188,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xfb76ff13231ed6939871b67dd21f974aced118efb29b24fcdfeac183561190f1",
-      "seedNum": 437048509,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x1629250b3195302b0f218efbf2adc3fac83f790dc478021b8b4471529c2654aa",
-      "seedNum": 1575451201,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2b0cdfa063e4a0a20968cd80bbc5e557fc8afc8bcccbce9a1c3922a753a08499",
-      "seedNum": 972972003,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x99bdb1f32c74f6e069110ef1050afd6283594323acb81b2e41fce871915202a1",
-      "seedNum": 1609587400,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd4e6670badea85edcd7b0e867c095f543e28135152399f8c12e2ff4c0ace93b7",
-      "seedNum": 1471632391,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8d5f365f86d50fe6ec3e220e39e33519a5bbf316ee1b130fd192f6271807a706",
-      "seedNum": 563313831,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x046b9023d464003ad0885887c603e20ade4a143275da8b27102df289bb5bf2c8",
-      "seedNum": 1564156033,
+      "hex": "0x8292d94ee269ddc03bf2246965c44eef3124e19b0e250d525dd573d9275d3aae",
+      "seedNum": 1737461855,
       "traits": {
         "foldStrategy": "Grid",
         "renderMode": "Sparse",
         "drawDirection": "Diagonal",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2807bdfc48bff8e6dee6b0103650607001d20a93121b50569dbf81959e664298",
-      "seedNum": 416249055,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3c9f465b6a371e61e296c181c8beab426b274c013a8d85c0c3b1f7314e2e475c",
-      "seedNum": 1668655896,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd0c6a96bdc8d9cd7806cccd67a827bebfa1e24e294940d03ebce8a066acae9dd",
-      "seedNum": 2115694513,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x3aa9c4c2c331a764ddb3dc900329cf1eff66405cbd42a040edcb69e688990f1c",
-      "seedNum": 948252906,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc34b3eecf353de3d52e6550a094df6a339fe2ea4f76315fb635c96af6b9c1320",
-      "seedNum": 2045402137,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6e0f4d7c54e99667d719a6ebc7a7bbb0dcb4eea9587a2cee8e34251d41094f28",
-      "seedNum": 822620513,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6266eb4c9a263a65fadbc9082473276e1c60ecc8700fc2d7fc393cc8a0723d5a",
-      "seedNum": 1593053439,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
         "paletteStrategy": "Temperature",
         "colorCount": 2,
         "isMonochrome": false,
         "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x7749f4d0582f75b9874cd4e48fb3148b14231ffc668e1f59ce28357ec331df5b",
-      "seedNum": 1187209051,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x17704c054338429f44400292f03c3e3931a7588cac37000989bac7330de17400",
-      "seedNum": 1914231465,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
         "hasPaperGrain": false,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x52adc5ef7a5350e9fb05884d4f3a57c4798a0b4abd88698fdce0b3a16199659c",
-      "seedNum": 531553481,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x13c51250ce24fb98e89bc11745ddde7a5d031400ebcd68a90269166e51232139",
-      "seedNum": 1974411321,
+      "hex": "0x2461975f7cb92caabeafcb9fe3a1ead5f2fbb6027ffed301ca08d6f5c2442469",
+      "seedNum": 1165777769,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
@@ -2387,328 +3171,40 @@
       }
     },
     {
-      "hex": "0x7607b35ca6b68095a66ed28242aa3f226439cc9876febe801cde6367acabf8a4",
-      "seedNum": 314959696,
+      "hex": "0x063607123c82e5241d504a9b85b919094427586d02cbdd3665237cccd881a137",
+      "seedNum": 1223619400,
       "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x9df103250ec434f5837a2f30726618de1c8fd44ef5e202fe6affd92bf4c8ebe7",
-      "seedNum": 1252408129,
-      "traits": {
-        "foldStrategy": "Random",
+        "foldStrategy": "Horizontal",
         "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x250cc93ac32eadb9cbc313b59e58204d028b3c201a152458c1e391c89f57097c",
-      "seedNum": 222838831,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x39406bdfbf5dbb5bdd1277e111ba199289353eb331213902a4ffa95a0f50778b",
-      "seedNum": 836670235,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x40482101a10c6806bf058f573c0eba35d2c96bf2145703ed854a14709a7bca8d",
-      "seedNum": 563915274,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
+        "drawDirection": "Right to Left",
         "paletteStrategy": "Clash",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Absorbent",
+        "paperType": "Resistant",
         "hasPaperGrain": false,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x2a8d2a18d007a78891b38de7e576b9536b2113a0726dcae78ac9761936b78b95",
-      "seedNum": 622984122,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x69c09e463e53be7ab47dde4835394671203e23f45d85b51fd512c7677d0ddce6",
-      "seedNum": 299170568,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Checkerboard",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x7cecc3a179abbb0346ab25b5cb5cd2081e46dd2e5734411d670f94067fc0efc0",
-      "seedNum": 1938113095,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb2f0105ec33b0ab3f2e5d669b850bffc994209a496e482a6af6c304196dad48d",
-      "seedNum": 689646451,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x65b7b4960a124565a140c13efc07797835934b7d929e59ebbc2f846f8c1a1eae",
-      "seedNum": 1434562194,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0ae3d9c658483b80f7069c3356d35c2d59a454ed166cf03b166eb06cc9707671",
-      "seedNum": 1846537996,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Sparse",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xabfae81a1fa2eed92358c98d0636489204c7f62647f594f050c742d61c1fb201",
-      "seedNum": 2006499087,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xbcf16e430e7e2a24bf1f2023b82861f897990cdff83486a9d57811ba6f44d171",
-      "seedNum": 140576429,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x489e7f154f522c0a76995a1ee514a733517ffca66a2b2b1abde75d320321600c",
-      "seedNum": 1619995189,
+      "hex": "0x128a084545b3c9663bcaab24cd2f041bbae1eeffcd8b4746ce4e76e5ad910886",
+      "seedNum": 1791482352,
       "traits": {
         "foldStrategy": "Horizontal",
         "renderMode": "Normal",
         "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
+        "paletteStrategy": "Temperature",
         "colorCount": 2,
         "isMonochrome": false,
         "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe77ded79ef2e076fb76dd72c3af7403db1040905dc3bea1eb82b2f62e7c7df5e",
-      "seedNum": 1042932326,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x76670018178c33a2700a8a96e5278f06bd35a458356c970838ea3e793909b998",
-      "seedNum": 73020372,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x56e7d4c56c46ed07718d2e5e2161cdce1fd1f47892406afb73e0adc6d797ed63",
-      "seedNum": 437687955,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x39c826ae131b3e6bfa73cdc4b32489680c5617a3cd86cb2d3ba14e411c7181ad",
-      "seedNum": 111905736,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x1b0f78dc8f0897ffaa67faf2a754404c8489f8bf73daf7b026e4cc02d3b05108",
-      "seedNum": 1160219064,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x826859b33d5760d75bdc4aafeef77f06aab91c535c4ba36c91c6cfa9a08f2519",
-      "seedNum": 1109922879,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2c0d0112f205ada08ad17b0a78fe6d5805996f7c98dcb6ad66f13549797b61f7",
-      "seedNum": 1243590598,
+      "hex": "0xa738a35cafcd1c2e7b94e686ed2ed664aedeb3b63803ac7420cc593d419ad7a3",
+      "seedNum": 2118017769,
       "traits": {
         "foldStrategy": "Vertical",
         "renderMode": "Binary",
@@ -2717,46 +3213,14 @@
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Standard",
-        "hasPaperGrain": true,
+        "hasPaperGrain": false,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0xa0bf55b5689d94692e99135f8697ef7f1cdfdceee45b92654dcc0bc520c90b44",
-      "seedNum": 706494422,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Normal",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2c05b722613fc471912dc7a23f62dc62b5bde320633137c725fdcc30093f5544",
-      "seedNum": 961229494,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa9b94f67ec3b1497b751be4871d1e5c52daade58bee3c9930c5e2d336779cf9f",
-      "seedNum": 1068348265,
+      "hex": "0x384d1a2d1a4e83dc46df693729f56b453911854f094da2fa0bff83939361f042",
+      "seedNum": 183023671,
       "traits": {
         "foldStrategy": "Diagonal",
         "renderMode": "Inverted",
@@ -2771,312 +3235,56 @@
       }
     },
     {
-      "hex": "0x5173367080fbf5c117c20ac87c78951fbc855beea2bd7e63cebeba43e119dac3",
-      "seedNum": 602038947,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Binary",
-        "drawDirection": "Center",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xfaf34987e64ede17ff3349bd39edc6dcb11a8a38e1827e186809afb22ec6df11",
-      "seedNum": 1547006250,
+      "hex": "0xaf8d39c202ef6b8083fdcf3a05684792ed46e926689e43ba868c4c5f75e341c6",
+      "seedNum": 1644814086,
       "traits": {
         "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xa027c8deb04a8278cf318e0600dc1b370809628e1b8a41b6f16238d7b8bfbd61",
-      "seedNum": 1889145911,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x595febb2d0251b9bab899469198d9251d15089219c2a5e11d68ee10e505f8988",
-      "seedNum": 48558850,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xd3e77628e6704beb7057fcca38c8bb06c3f3cd8f7a78b826045e5fa11185a782",
-      "seedNum": 239024192,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x9067db33617d755b61d7bbcc2112adc086cdb21a351cac0abf792c879f30340e",
-      "seedNum": 38611908,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x255bd0f9c23b3b5c6c1d1eb7fd87d0812c74669a76768d7ac091e2461a4e4106",
-      "seedNum": 217242960,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x96c748dc7631c26c696023f7ddc21908ce98c8e86d15197fea200e8d3a9fe190",
-      "seedNum": 599807015,
-      "traits": {
-        "foldStrategy": "Horizontal",
         "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x4d8f3c3dfe901674fbce73cb6a939e3e8a80394ecd1eca462fec92e83ed002c5",
-      "seedNum": 430870257,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe3d31982277f598df10e26403609a5e8418ab2d78beb3ca35c0d64c891a404e8",
-      "seedNum": 1864731796,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x808d2ecefdb53af76e40c5aada2c49346d6cffdb1cb876bb82668c7068fc0923",
-      "seedNum": 2127534230,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0f9dc4868000840b22a38558792b783f10a82a6ba2e7511add89627a3b72334d",
-      "seedNum": 524029208,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x262f733257b4f9b1500aa63edc0124dd35411fd8049d9244b559a543bf385cd6",
-      "seedNum": 605282326,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2dfa0d3f5574d9e27803b6e3fb24cb4b1c7c341fe4cac2afd3d58a4bf15ac082",
-      "seedNum": 828961889,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Random Mid",
-        "paletteStrategy": "Clash",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xc934fc002c7053b3fe48f918e464603422e472f77df695385a689378676beac3",
-      "seedNum": 1054493622,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xfd748d5ffffa8c6f127e36ab58947c00431e37d9fa31c90ac9ef2c303519533d",
-      "seedNum": 2061739826,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
-        "drawDirection": "Left to Right",
-        "paletteStrategy": "Complement",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2421c21d845c3d9bce264750d580437a76b8c9141fd48065ee39c2e37573715e",
-      "seedNum": 1285538262,
-      "traits": {
-        "foldStrategy": "Radial",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x0208f8f7dc03cc738f49c59dca31834379706e514b2751693cd600a5a0be3f9b",
-      "seedNum": 1612037730,
-      "traits": {
-        "foldStrategy": "Clustered",
-        "renderMode": "Dense",
-        "drawDirection": "Checkerboard",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x59f208feff75568668bef09df158d35d1113a8b54f184ef3b370ab1cf42ba7f6",
-      "seedNum": 861497477,
-      "traits": {
-        "foldStrategy": "Random",
-        "renderMode": "Dense",
         "drawDirection": "Left to Right",
         "paletteStrategy": "Value",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Absorbent",
+        "paperType": "Resistant",
         "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }
     },
     {
-      "hex": "0x49b1fe3f03dc01be09bd834561eaaf457e886eb6bfef0387d0814febf0bf2ac8",
-      "seedNum": 390069821,
+      "hex": "0x0214a11ce8cf425d2cb238cbfc4b9363b1fbb2f1a390104b4c4bd12fa594696e",
+      "seedNum": 1828226198,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Complement",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": true,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x299ccc4e5503421830cb0e1fcdafb22d4e664cbafd1b54c54b74f91b8010f9ae",
+      "seedNum": 675076789,
+      "traits": {
+        "foldStrategy": "Random",
+        "renderMode": "Normal",
+        "drawDirection": "Left to Right",
+        "paletteStrategy": "Value",
+        "colorCount": 3,
+        "isMonochrome": false,
+        "paperType": "Resistant",
+        "hasPaperGrain": false,
+        "hasCreaseLines": false,
+        "hasHitCounts": false
+      }
+    },
+    {
+      "hex": "0x510a161af7d094830c57ec41e9fc8a2edbdde9852dcffc5365306a7afea709e3",
+      "seedNum": 434421946,
       "traits": {
         "foldStrategy": "Radial",
         "renderMode": "Inverted",
@@ -3091,189 +3299,13 @@
       }
     },
     {
-      "hex": "0xa29dd80fcfae1f7b355d30bc80c95d8fe233e973b3eeb6b1452e923a806c35bd",
-      "seedNum": 350867357,
+      "hex": "0x653a1d674d4a43c2f04e43cf97ba4f69dc564671a0ea909e4aed71bd13168aac",
+      "seedNum": 398360210,
       "traits": {
         "foldStrategy": "Grid",
         "renderMode": "Sparse",
         "drawDirection": "Diagonal",
         "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xf47bffc72a4b50772a9b78718a309579700179af2a6afdb3c1b7fb45f6bd6440",
-      "seedNum": 323178505,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x2b30a8452e93243274d59e09cf46d6677ec4f597c523102081d43f7f4385c3c1",
-      "seedNum": 83129533,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x9155ac521aa93208bf0ba75143b7540ca349e3926966199429f9f2e7e9e3370d",
-      "seedNum": 1028950702,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Temperature",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x70d3f4048b1c8c114afd6ca746c82c37bd86e09295bd4e10c3a570d96648437c",
-      "seedNum": 1824814107,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb69a494f730c79dfc256631357e35117324d02d93c7b83f4f1b9f5cf1f0eb0d4",
-      "seedNum": 1614875776,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xb6a7b4cc64a0517490ae1c92f046594ca6139f8ba659e271b7e8875233c02433",
-      "seedNum": 1374665487,
-      "traits": {
-        "foldStrategy": "Vertical",
-        "renderMode": "Normal",
-        "drawDirection": "Center",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xe4b254c9b3a58356f52fa721edcab6437c6bf9feb216ecca64aaf61eca1be347",
-      "seedNum": 2097818860,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Alternate",
-        "paletteStrategy": "Monochrome",
-        "colorCount": 2,
-        "isMonochrome": true,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x42ebb120706ba70257e0d81db6db442b13318a34004dfc6d94370fac6f3e47ec",
-      "seedNum": 1984104771,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xee1dbcabef01e267e0ab4d4f45a3b5c791d30c1f40cc899d237365384c0b8939",
-      "seedNum": 1262312386,
-      "traits": {
-        "foldStrategy": "Diagonal",
-        "renderMode": "Inverted",
-        "drawDirection": "Center",
-        "paletteStrategy": "Temperature",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Standard",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x804cc9de7eae5eb698b26ac5769306981db3dfbfd546870437a20c8a5e4fe047",
-      "seedNum": 2135421556,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Complement",
-        "colorCount": 2,
-        "isMonochrome": false,
-        "paperType": "Absorbent",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x6b384591fe48368c15b91de7dcb9d5b851aa4811f205b7bbe453dab11fb9a65b",
-      "seedNum": 1421394353,
-      "traits": {
-        "foldStrategy": "Grid",
-        "renderMode": "Sparse",
-        "drawDirection": "Diagonal",
-        "paletteStrategy": "Temperature",
         "colorCount": 3,
         "isMonochrome": false,
         "paperType": "Absorbent",
@@ -3283,49 +3315,17 @@
       }
     },
     {
-      "hex": "0xf1de096d01e8bf15495f7265a06590c2fd2ed53980940d6d2a625c0c3b48c21f",
-      "seedNum": 1705300466,
+      "hex": "0xa8bdd3b229203cd6724b609e8ab1269600b3eb9df3286b41e7b736f492be4bd8",
+      "seedNum": 2057036860,
       "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
+        "foldStrategy": "Diagonal",
+        "renderMode": "Inverted",
+        "drawDirection": "Center",
+        "paletteStrategy": "Temperature",
         "colorCount": 3,
         "isMonochrome": false,
-        "paperType": "Resistant",
+        "paperType": "Standard",
         "hasPaperGrain": false,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0x8a868bb4c43f0f491f1f64dce93cb0c59e82b75a00a83d11d36d6f5b2c1fe2c0",
-      "seedNum": 1498162868,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Value",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
-        "hasCreaseLines": false,
-        "hasHitCounts": false
-      }
-    },
-    {
-      "hex": "0xfb8a860dcefc297860b7fd71e2bd6055fc17da68146c23e1a646b82663febeb4",
-      "seedNum": 1175532951,
-      "traits": {
-        "foldStrategy": "Horizontal",
-        "renderMode": "Normal",
-        "drawDirection": "Right to Left",
-        "paletteStrategy": "Clash",
-        "colorCount": 3,
-        "isMonochrome": false,
-        "paperType": "Resistant",
-        "hasPaperGrain": true,
         "hasCreaseLines": false,
         "hasHitCounts": false
       }

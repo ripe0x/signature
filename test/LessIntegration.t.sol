@@ -11,18 +11,14 @@ import {LessRenderer} from "../contracts/LessRenderer.sol";
  * @dev Simulates ETH accumulation, TWAP delays, and supply reduction
  */
 contract RealisticMockStrategy {
-    uint256 public timeBetweenBurn = 30 minutes;
+    uint256 public timeBetweenBurn = 90 minutes;
     uint256 public lastBurn;
     uint256 public totalSupply = 1_000_000_000 ether;
 
     uint256 public ethToTwap;
-    uint256 public twapDelayInBlocks = 1;
-    uint256 public lastTwapBlock;
-
     uint256 public burnCount;
 
     error NoETHToTwap();
-    error TwapDelayNotMet();
 
     constructor() {
         // Start with some ETH ready for TWAP
@@ -30,6 +26,7 @@ contract RealisticMockStrategy {
     }
 
     function timeUntilFundsMoved() external view returns (uint256) {
+        if (lastBurn == 0) return 0; // Never burned yet
         if (block.timestamp <= lastBurn + timeBetweenBurn) {
             return (lastBurn + timeBetweenBurn) - block.timestamp;
         }
@@ -39,7 +36,6 @@ contract RealisticMockStrategy {
     /// @notice Simulates the real processTokenTwap behavior
     function processTokenTwap() external {
         if (ethToTwap == 0) revert NoETHToTwap();
-        if (block.number < lastTwapBlock + twapDelayInBlocks) revert TwapDelayNotMet();
 
         // Simulate burning - reduce supply by ~0.1-1%
         uint256 burnAmount = totalSupply / 1000; // 0.1%
@@ -49,7 +45,6 @@ contract RealisticMockStrategy {
         uint256 twapAmount = ethToTwap > 0.1 ether ? 0.1 ether : ethToTwap;
         ethToTwap -= twapAmount;
 
-        lastTwapBlock = block.number;
         lastBurn = block.timestamp;
         burnCount++;
     }
@@ -92,7 +87,7 @@ contract MockScriptyBuilder {
         pure
         returns (string memory)
     {
-        return "PGh0bWw+PC9odG1sPg==";
+        return "data:text/html;base64,PGh0bWw+PC9odG1sPg==";
     }
 }
 
@@ -109,14 +104,14 @@ contract LessIntegrationTest is Test {
     address public owner = makeAddr("owner");
     address public payout = makeAddr("payout");
 
-    uint256 public constant MINT_PRICE = 0.01 ether;
+    uint256 public constant MINT_PRICE = 0.001 ether;
 
     function setUp() public {
         strategy = new RealisticMockStrategy();
         scriptyBuilder = new MockScriptyBuilder();
 
         vm.startPrank(owner);
-        less = new Less(address(strategy), MINT_PRICE, payout, owner);
+        less = new Less(address(strategy), MINT_PRICE, payout, owner, 90 minutes);
         renderer = new LessRenderer(
             LessRenderer.RendererConfig({
                 less: address(less),
@@ -161,11 +156,12 @@ contract LessIntegrationTest is Test {
             // Advance block for unique blockhash
             vm.roll(block.number + 5);
 
-            // Add some ETH to strategy to enable next TWAP
+            // Give strategy ETH balance and add to ethToTwap
+            vm.deal(address(strategy), 0.5 ether);
             strategy.addETH{value: 0.5 ether}();
 
             // Create fold
-            less.createFold();
+            less.createWindow();
 
             (uint256 supply, uint256 eth, uint256 lastBurn, uint256 burns) = strategy.getState();
 
@@ -179,19 +175,19 @@ contract LessIntegrationTest is Test {
                 address minter = address(uint160(userCounter++));
                 vm.deal(minter, 1 ether);
                 vm.prank(minter);
-                less.mint{value: MINT_PRICE}();
+                less.mint{value: MINT_PRICE}(1);
             }
 
             console.log("  Minted:", mintsPerFold[f], "tokens");
             console.log("  Total supply:", less.totalSupply());
 
             // Fast forward past window
-            vm.warp(block.timestamp + 31 minutes);
+            vm.warp(block.timestamp + 91 minutes);
         }
 
         console.log("");
         console.log("=== Final Results ===");
-        console.log("Total folds:", less.currentFoldId());
+        console.log("Total folds:", less.windowCount());
         console.log("Total tokens minted:", less.totalSupply());
         console.log("Payout received:", payout.balance / 1e15, "finney");
 
@@ -215,18 +211,18 @@ contract LessIntegrationTest is Test {
             vm.roll(block.number + 3);
             vm.deal(address(strategy), 0.5 ether);
             strategy.addETH{value: 0.2 ether}();
-            less.createFold();
+            less.createWindow();
 
             for (uint256 m = 0; m < 5; m++) {
                 address minter = address(uint160(userCounter++));
                 vm.deal(minter, 1 ether);
                 vm.prank(minter);
-                less.mint{value: MINT_PRICE}();
+                less.mint{value: MINT_PRICE}(1);
 
                 seeds[tokenIdx++] = less.getSeed(less.totalSupply());
             }
 
-            vm.warp(block.timestamp + 31 minutes);
+            vm.warp(block.timestamp + 91 minutes);
         }
 
         // Analyze seed distribution
@@ -263,7 +259,7 @@ contract LessIntegrationTest is Test {
     function test_SameFoldDifferentSeeds() public {
         vm.deal(address(strategy), 1 ether);
         strategy.addETH{value: 1 ether}();
-        less.createFold();
+        less.createWindow();
 
         // Mint 10 tokens in same fold
         bytes32[] memory seeds = new bytes32[](10);
@@ -271,7 +267,7 @@ contract LessIntegrationTest is Test {
             address minter = address(uint160(3000 + i));
             vm.deal(minter, 1 ether);
             vm.prank(minter);
-            less.mint{value: MINT_PRICE}();
+            less.mint{value: MINT_PRICE}(1);
             seeds[i] = less.getSeed(i + 1);
         }
 
@@ -293,37 +289,31 @@ contract LessIntegrationTest is Test {
      * @notice Output metadata for visual inspection
      */
     function test_OutputSampleMetadata() public {
-        vm.deal(address(strategy), 1 ether);
-        strategy.addETH{value: 1 ether}();
-
         // Create a few folds
         for (uint256 f = 0; f < 3; f++) {
             vm.roll(block.number + 10);
-            less.createFold();
+            vm.deal(address(strategy), 0.5 ether);
+            strategy.addETH{value: 0.5 ether}();
+            less.createWindow();
 
             address minter = address(uint160(4000 + f));
             vm.deal(minter, 1 ether);
             vm.prank(minter);
-            less.mint{value: MINT_PRICE}();
+            less.mint{value: MINT_PRICE}(1);
 
-            vm.warp(block.timestamp + 31 minutes);
-            strategy.addETH{value: 0.5 ether}();
+            vm.warp(block.timestamp + 91 minutes);
         }
 
         console.log("=== Token Metadata Samples ===");
 
         for (uint256 t = 1; t <= 3; t++) {
             Less.TokenData memory data = less.getTokenData(t);
-            Less.Fold memory fold = less.getFold(data.foldId);
 
             console.log("");
             console.log("--- Token", t, "---");
-            console.log("Fold ID:", data.foldId);
+            console.log("Fold ID:", data.windowId);
             console.log("Seed:");
-            console.logBytes32(less.getSeed(t));
-            console.log("Block Hash:");
-            console.logBytes32(fold.blockHash);
-            console.log("Window:", fold.startTime, "-", fold.endTime);
+            console.logBytes32(data.seed);
 
             string memory uri = less.tokenURI(t);
             console.log("URI length:", bytes(uri).length);
@@ -336,18 +326,18 @@ contract LessIntegrationTest is Test {
     function test_FoldFailsWhenStrategyNotReady() public {
         // First need ETH to create a fold
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         // Strategy now has no ETH
         (,uint256 eth,,) = strategy.getState();
 
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         vm.roll(block.number + 10);
 
         // This should fail because no ETH to TWAP
         if (eth == 0) {
             vm.expectRevert(RealisticMockStrategy.NoETHToTwap.selector);
-            less.createFold();
+            less.createWindow();
         }
     }
 }

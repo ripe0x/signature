@@ -7,11 +7,12 @@ import {LessRenderer} from "../contracts/LessRenderer.sol";
 
 /// @dev Mock strategy for visual testing
 contract MockStrategy {
-    uint256 public timeBetweenBurn = 30 minutes;
+    uint256 public timeBetweenBurn = 90 minutes;
     uint256 public lastBurn;
     uint256 public totalSupply = 1_000_000_000 ether;
 
     function timeUntilFundsMoved() external view returns (uint256) {
+        if (lastBurn == 0) return 0; // Never burned yet - ready immediately
         if (block.timestamp <= lastBurn + timeBetweenBurn) {
             return (lastBurn + timeBetweenBurn) - block.timestamp;
         }
@@ -23,6 +24,8 @@ contract MockStrategy {
         // Simulate supply reduction each burn
         totalSupply = totalSupply * 99 / 100;
     }
+
+    receive() external payable {}
 }
 
 /// @dev Inline scripty builder that returns actual HTML with seed injection
@@ -87,7 +90,7 @@ contract InlineScriptyBuilder {
 
         html = abi.encodePacked(html, "</body></html>");
 
-        return _base64Encode(html);
+        return string(abi.encodePacked("data:text/html;base64,", _base64Encode(html)));
     }
 
     function _base64Encode(bytes memory data) internal pure returns (string memory) {
@@ -146,7 +149,7 @@ contract LessVisualTest is Test {
 
         vm.startPrank(owner);
 
-        less = new Less(address(strategy), 0.01 ether, payout, owner);
+        less = new Less(address(strategy), 0.001 ether, payout, owner, 90 minutes);
 
         renderer = new LessRenderer(
             LessRenderer.RendererConfig({
@@ -176,14 +179,10 @@ contract LessVisualTest is Test {
             // Create a new fold
             vm.roll(block.number + 1);
             vm.deal(address(strategy), 0.5 ether);
-            less.createFold();
+            less.createWindow();
 
             emit log_named_uint("=== Fold", fold);
-
-            Less.Fold memory foldData = less.getFold(fold);
-            emit log_named_bytes32("  Block Hash", foldData.blockHash);
-            emit log_named_uint("  Window Start", foldData.startTime);
-            emit log_named_uint("  Window End", foldData.endTime);
+            emit log_named_uint("  Window Duration", less.timeUntilWindowCloses());
             emit log_named_uint("  Strategy Supply", strategy.totalSupply() / 1e18);
 
             // Mint tokens for this fold
@@ -191,7 +190,7 @@ contract LessVisualTest is Test {
                 address minter = address(uint160(100 + fold * 10 + m));
                 vm.deal(minter, 1 ether);
                 vm.prank(minter);
-                less.mint{value: 0.01 ether}();
+                less.mint{value: 0.001 ether}(1);
 
                 uint256 tokenId = less.totalSupply();
                 bytes32 seed = less.getSeed(tokenId);
@@ -201,7 +200,7 @@ contract LessVisualTest is Test {
             }
 
             // Fast forward past window for next fold
-            vm.warp(block.timestamp + 31 minutes);
+            vm.warp(block.timestamp + 91 minutes);
         }
 
         // Output some token URIs
@@ -229,25 +228,21 @@ contract LessVisualTest is Test {
     function test_SingleTokenOutput() public {
         // Create fold and mint
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         address minter = address(0x1234);
         vm.deal(minter, 1 ether);
         vm.prank(minter);
-        less.mint{value: 0.01 ether}();
+        less.mint{value: 0.001 ether}(1);
 
         // Get all the data
         uint256 tokenId = 1;
         Less.TokenData memory tokenData = less.getTokenData(tokenId);
-        Less.Fold memory fold = less.getFold(tokenData.foldId);
 
         emit log("=== Token Data ===");
         emit log_named_uint("Token ID", tokenId);
-        emit log_named_uint("Fold ID", tokenData.foldId);
-        emit log_named_bytes32("Seed", less.getSeed(tokenId));
-        emit log_named_bytes32("Block Hash", fold.blockHash);
-        emit log_named_uint("Window Start", fold.startTime);
-        emit log_named_uint("Window End", fold.endTime);
+        emit log_named_uint("Fold ID", tokenData.windowId);
+        emit log_named_bytes32("Seed", tokenData.seed);
 
         emit log("=== Full Token URI ===");
         string memory uri = less.tokenURI(tokenId);

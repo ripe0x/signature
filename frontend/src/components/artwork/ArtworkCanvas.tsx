@@ -17,7 +17,7 @@ export function ArtworkCanvas({
   seed,
   foldCount,
   width = 600,
-  height = 750,
+  height = 848, // A4 aspect ratio (1:√2) - 600 * √2 ≈ 848
   className,
   showLoading = true,
   onClick,

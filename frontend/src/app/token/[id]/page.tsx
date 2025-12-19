@@ -2,9 +2,8 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArtworkDetail } from '@/components/artwork/ArtworkDetail';
 import { useToken } from '@/hooks/useToken';
-import { truncateAddress, formatTimestamp } from '@/lib/utils';
+import { truncateAddress } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function TokenPage() {
@@ -13,11 +12,10 @@ export default function TokenPage() {
 
   const {
     id,
-    foldId,
+    windowId,
     seed,
-    seedNumber,
     owner,
-    fold,
+    metadata,
     isLoading,
     error,
   } = useToken(tokenId);
@@ -69,16 +67,28 @@ export default function TokenPage() {
           </Link>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
-            {/* Artwork */}
+            {/* Artwork - use iframe for full interactivity (Shift+L, Shift+F, etc.) */}
             <div>
-              <ArtworkDetail seed={seedNumber} />
+              {metadata?.animation_url ? (
+                <iframe
+                  src={metadata.animation_url}
+                  className="w-full aspect-[1/1.414] block bg-background"
+                  style={{ border: 'none' }}
+                  sandbox="allow-scripts"
+                  title="On-chain artwork"
+                />
+              ) : (
+                <div className="w-full aspect-[1/1.414] bg-muted/10 flex items-center justify-center text-xs text-muted">
+                  loading...
+                </div>
+              )}
             </div>
 
             {/* Details */}
             <div className="space-y-8">
               <div>
                 <h1 className="text-3xl mb-2">LESS #{id}</h1>
-                <p className="text-muted">fold {foldId}</p>
+                <p className="text-muted">window {windowId}</p>
               </div>
 
               {/* Concept */}
@@ -99,8 +109,8 @@ export default function TokenPage() {
                   </div>
 
                   <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-muted">fold</span>
-                    <span>{foldId}</span>
+                    <span className="text-muted">window</span>
+                    <span>{windowId}</span>
                   </div>
 
                   {owner && (
@@ -122,19 +132,6 @@ export default function TokenPage() {
                     <span className="font-mono text-xs">{seed.slice(0, 18)}...</span>
                   </div>
 
-                  {fold && (
-                    <>
-                      <div className="flex justify-between py-2 border-b border-border">
-                        <span className="text-muted">window opened</span>
-                        <span>{formatTimestamp(Number(fold.startTime))}</span>
-                      </div>
-
-                      <div className="flex justify-between py-2 border-b border-border">
-                        <span className="text-muted">window closed</span>
-                        <span>{formatTimestamp(Number(fold.endTime))}</span>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 

@@ -13,7 +13,7 @@ export interface TokenStats {
 
   // NFT stats
   nftsMinted: number;
-  foldCount: number;
+  windowCount: number;
 }
 
 export function useTokenStats() {
@@ -66,11 +66,11 @@ export function useTokenStats() {
     },
   });
 
-  // Current fold ID
-  const { data: currentFoldId } = useReadContract({
+  // Current window count
+  const { data: windowCount } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
-    functionName: 'currentFoldId',
+    functionName: 'windowCount',
     query: {
       refetchInterval: 10000,
     },
@@ -95,6 +95,6 @@ export function useTokenStats() {
     timeUntilNextBurn,
     timeBetweenBurns: timeBetweenBurn ? Number(timeBetweenBurn) : 1800,
     nftsMinted: nftSupply ? Number(nftSupply) : 0,
-    foldCount: currentFoldId ? Number(currentFoldId) : 0,
+    windowCount: windowCount ? Number(windowCount) : 0,
   };
 }

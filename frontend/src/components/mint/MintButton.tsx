@@ -4,36 +4,38 @@ import { Button } from '@/components/ui/Button';
 import { formatEth } from '@/lib/utils';
 
 interface MintButtonProps {
-  price: bigint;
+  totalCost: bigint;
+  quantity: number;
   canMint: boolean;
   isPending: boolean;
   isConfirming: boolean;
-  hasMinted: boolean;
   isConnected: boolean;
   onMint: () => void;
   label?: string;
 }
 
 export function MintButton({
-  price,
+  totalCost,
+  quantity,
   canMint,
   isPending,
   isConfirming,
-  hasMinted,
   isConnected,
   onMint,
   label,
 }: MintButtonProps) {
   const getButtonText = () => {
     if (!isConnected) return 'connect wallet';
-    if (hasMinted) return 'already minted this fold';
     if (isPending) return 'confirm in wallet...';
     if (isConfirming) return 'minting...';
     if (label) return label;
-    return `mint for ${formatEth(price)} ETH`;
+    if (quantity === 1) {
+      return `mint for ${formatEth(totalCost)} ETH`;
+    }
+    return `mint ${quantity} for ${formatEth(totalCost)} ETH`;
   };
 
-  const isDisabled = !canMint || hasMinted || isPending || isConfirming;
+  const isDisabled = !canMint || isPending || isConfirming;
 
   return (
     <Button

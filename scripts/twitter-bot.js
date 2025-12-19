@@ -3,7 +3,7 @@
 /**
  * Twitter Bot for Mint Window Announcements
  *
- * Monitors the Less contract for FoldCreated events and tweets announcements
+ * Monitors the Less contract for WindowCreated events and tweets announcements
  * when new mint windows open.
  *
  * Usage:
@@ -84,13 +84,13 @@ function logWarn(message) {
   log(`⚠ ${message}`, "yellow");
 }
 
-// State persistence - tracks processed folds, mints, and last block
+// State persistence - tracks processed windows, mints, and last block
 function loadState() {
   try {
     if (existsSync(stateFile)) {
       const data = JSON.parse(readFileSync(stateFile, "utf-8"));
       return {
-        processedFolds: new Set(data.processedFolds || []),
+        processedWindows: new Set(data.processedWindows || data.processedFolds || []),
         processedMints: new Set(data.processedMints || []),
         lastBlock: BigInt(data.lastBlock || 0),
       };
@@ -99,16 +99,16 @@ function loadState() {
     logWarn(`Failed to load state file: ${error.message}`);
   }
   return {
-    processedFolds: new Set(),
+    processedWindows: new Set(),
     processedMints: new Set(),
     lastBlock: 0n,
   };
 }
 
-function saveState(processedFolds, processedMints, lastBlock) {
+function saveState(processedWindows, processedMints, lastBlock) {
   try {
     const data = {
-      processedFolds: Array.from(processedFolds),
+      processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
       lastBlock: lastBlock.toString(),
       updatedAt: new Date().toISOString(),
@@ -423,8 +423,8 @@ function formatMinutesRemaining(seconds) {
   return minutes;
 }
 
-// Format tweet message for FoldCreated
-function formatTweet(foldId, startTime, endTime, burnData = null) {
+// Format tweet message for WindowCreated
+function formatTweet(windowId, startTime, endTime, burnData = null) {
   const now = Math.floor(Date.now() / 1000);
   const timeRemaining = Math.max(0, Number(endTime) - now);
   const minutesLeft = formatMinutesRemaining(timeRemaining);
@@ -436,7 +436,7 @@ function formatTweet(foldId, startTime, endTime, burnData = null) {
 ${burnData.amountBurned} $LESS bought and burned
 ${burnData.supplyRemaining}% supply remaining
 
-LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
+LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
 
 ${MINT_URL}`;
   }
@@ -448,7 +448,7 @@ ${MINT_URL}`;
 
 ${burnData.supplyRemaining}% total supply remaining
 
-LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
+LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
 
 
 ${MINT_URL}`;
@@ -458,7 +458,7 @@ ${MINT_URL}`;
   return `new LESS window opened
 
 
- LESS is open to mint for the next ${minutesLeft} minutes for fold #${foldId}
+ LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
 
 
 ${MINT_URL}`;
@@ -573,18 +573,18 @@ async function postTestTweetNow() {
   }
 }
 
-// Run test mode - simulate a FoldCreated event
+// Run test mode - simulate a WindowCreated event
 async function runTestMode() {
-  logInfo("Running in TEST MODE - simulating a FoldCreated event");
+  logInfo("Running in TEST MODE - simulating a WindowCreated event");
   console.log();
 
   // Simulate event data
   const now = Math.floor(Date.now() / 1000);
-  const testFoldId = 42;
+  const testWindowId = 42;
   const testStartTime = now;
-  const testEndTime = now + 3600; // 1 hour from now
+  const testEndTime = now + 5400; // 90 minutes from now
 
-  logInfo(`Simulated event: Fold #${testFoldId}`);
+  logInfo(`Simulated event: Window #${testWindowId}`);
   logInfo(`  Start time: ${new Date(testStartTime * 1000).toISOString()}`);
   logInfo(`  End time: ${new Date(testEndTime * 1000).toISOString()}`);
   console.log();
@@ -606,7 +606,7 @@ async function runTestMode() {
 
   // Format and display the tweet
   const tweetMessage = formatTweet(
-    testFoldId,
+    testWindowId,
     testStartTime,
     testEndTime,
     burnData
@@ -644,11 +644,11 @@ async function runTestMintMode() {
   logSuccess("Test mint completed!");
 }
 
-// Generate a preview seed for a fold (deterministic based on fold parameters)
-function generatePreviewSeed(foldId, strategyBlock, startTime) {
-  // Create a deterministic seed from fold parameters
-  // This mimics how the contract generates seeds but uses fold-level data
-  const data = `fold-${foldId}-${strategyBlock}-${startTime}`;
+// Generate a preview seed for a window (deterministic based on window parameters)
+function generatePreviewSeed(windowId, strategyBlock, startTime) {
+  // Create a deterministic seed from window parameters
+  // This mimics how the contract generates seeds but uses window-level data
+  const data = `window-${windowId}-${strategyBlock}-${startTime}`;
   let hash = 0;
   for (let i = 0; i < data.length; i++) {
     const char = data.charCodeAt(i);
@@ -660,29 +660,29 @@ function generatePreviewSeed(foldId, strategyBlock, startTime) {
   return `0x${hex}${hex}${hex}${hex}`;
 }
 
-// Process a single FoldCreated event
+// Process a single WindowCreated event
 async function processEvent(
   log,
-  processedFolds,
+  processedWindows,
   twitterClient,
   contractAddress,
   client,
   abi
 ) {
   try {
-    const foldId = log.args.foldId;
+    const windowId = log.args.windowId;
     const startTime = log.args.startTime;
     const endTime = log.args.endTime;
     const strategyBlock = log.args.strategyBlock;
 
     // Skip if already processed
-    if (processedFolds.has(Number(foldId))) {
-      logInfo(`Skipping already processed fold #${foldId}`);
+    if (processedWindows.has(Number(windowId))) {
+      logInfo(`Skipping already processed window #${windowId}`);
       return;
     }
 
     logInfo(
-      `Detected FoldCreated event: foldId=${foldId}, startTime=${startTime}, endTime=${endTime}`
+      `Detected WindowCreated event: windowId=${windowId}, startTime=${startTime}, endTime=${endTime}`
     );
 
     // Fetch burn data (if available)
@@ -690,7 +690,7 @@ async function processEvent(
 
     // Format and post tweet (no image for window open)
     const tweetMessage = formatTweet(
-      Number(foldId),
+      Number(windowId),
       Number(startTime),
       Number(endTime),
       burnData
@@ -701,7 +701,7 @@ async function processEvent(
 
     if (tweetId) {
       logSuccess(`Tweet posted successfully! Tweet ID: ${tweetId}`);
-      processedFolds.add(Number(foldId));
+      processedWindows.add(Number(windowId));
     } else {
       logError("Failed to post tweet");
     }
@@ -744,7 +744,7 @@ async function resolveEns(address) {
 async function processMintEvent(log, processedMints, twitterClient) {
   try {
     const tokenId = log.args.tokenId;
-    const foldId = log.args.foldId;
+    const windowId = log.args.windowId;
     const minter = log.args.minter;
     const seed = log.args.seed;
 
@@ -755,7 +755,7 @@ async function processMintEvent(log, processedMints, twitterClient) {
     }
 
     logInfo(
-      `Detected Minted event: tokenId=${tokenId}, foldId=${foldId}, minter=${minter}, seed=${seed}`
+      `Detected Minted event: tokenId=${tokenId}, windowId=${windowId}, minter=${minter}, seed=${seed}`
     );
 
     // Resolve ENS or use truncated address
@@ -840,16 +840,16 @@ async function runBot() {
 
   // Load persisted state
   const state = loadState();
-  const processedFolds = state.processedFolds;
+  const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
   if (rescanMode) {
     logInfo("Rescan mode: ignoring saved lastBlock, will scan from lookback");
   }
-  if (processedFolds.size > 0) {
+  if (processedWindows.size > 0) {
     logInfo(
-      `Loaded ${processedFolds.size} previously processed folds from state`
+      `Loaded ${processedWindows.size} previously processed windows from state`
     );
   }
   if (processedMints.size > 0) {
@@ -896,22 +896,22 @@ async function runBot() {
           `Scanning for missed events from block ${fromBlock} to ${currentBlock}...`
         );
 
-        // Scan for missed FoldCreated events
-        const missedFoldLogs = await client.getLogs({
+        // Scan for missed WindowCreated events
+        const missedWindowLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            "event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
+            "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
           ),
           fromBlock,
           toBlock: currentBlock,
         });
 
-        if (missedFoldLogs.length > 0) {
-          logInfo(`Found ${missedFoldLogs.length} FoldCreated events`);
-          for (const log of missedFoldLogs) {
+        if (missedWindowLogs.length > 0) {
+          logInfo(`Found ${missedWindowLogs.length} WindowCreated events`);
+          for (const log of missedWindowLogs) {
             await processEvent(
               log,
-              processedFolds,
+              processedWindows,
               twitterClient,
               contractAddress,
               client,
@@ -924,7 +924,7 @@ async function runBot() {
         const missedMintLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            "event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)"
+            "event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed)"
           ),
           fromBlock,
           toBlock: currentBlock,
@@ -937,29 +937,29 @@ async function runBot() {
           }
         }
 
-        if (missedFoldLogs.length === 0 && missedMintLogs.length === 0) {
+        if (missedWindowLogs.length === 0 && missedMintLogs.length === 0) {
           logInfo("No missed events found");
         }
       }
 
       // Update last processed block
       lastProcessedBlock = currentBlock;
-      saveState(processedFolds, processedMints, lastProcessedBlock);
+      saveState(processedWindows, processedMints, lastProcessedBlock);
 
       // Reset retry count on successful connection
       retryCount = 0;
 
-      // Watch for new FoldCreated events
-      const unwatchFolds = client.watchEvent({
+      // Watch for new WindowCreated events
+      const unwatchWindows = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          "event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
+          "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
             await processEvent(
               log,
-              processedFolds,
+              processedWindows,
               twitterClient,
               contractAddress,
               client,
@@ -967,12 +967,12 @@ async function runBot() {
             );
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(processedFolds, processedMints, lastProcessedBlock);
+              saveState(processedWindows, processedMints, lastProcessedBlock);
             }
           }
         },
         onError: (error) => {
-          logError(`FoldCreated watcher error: ${error.message}`);
+          logError(`WindowCreated watcher error: ${error.message}`);
         },
       });
 
@@ -980,14 +980,14 @@ async function runBot() {
       const unwatchMints = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          "event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed)"
+          "event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed)"
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
             await processMintEvent(log, processedMints, twitterClient);
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(processedFolds, processedMints, lastProcessedBlock);
+              saveState(processedWindows, processedMints, lastProcessedBlock);
             }
           }
         },
@@ -998,12 +998,12 @@ async function runBot() {
 
       // Combined unwatch function
       unwatch = () => {
-        unwatchFolds();
+        unwatchWindows();
         unwatchMints();
       };
 
       logSuccess(
-        "Bot is running and monitoring for FoldCreated and Minted events..."
+        "Bot is running and monitoring for WindowCreated and Minted events..."
       );
       logInfo("Press Ctrl+C to stop");
 
@@ -1011,7 +1011,7 @@ async function runBot() {
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
-        saveState(processedFolds, processedMints, lastProcessedBlock);
+        saveState(processedWindows, processedMints, lastProcessedBlock);
         logSuccess("State saved. Bot stopped.");
         process.exit(0);
       };
@@ -1026,7 +1026,7 @@ async function runBot() {
           try {
             const block = await client.getBlockNumber();
             logInfo(
-              `Heartbeat: block ${block}, processed ${processedFolds.size} folds, ${processedMints.size} mints`
+              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints`
             );
           } catch (error) {
             clearInterval(healthCheck);

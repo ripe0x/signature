@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fold Size Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .info {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #666;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 12px;
+      border-radius: 4px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .info.hidden {
+      display: none;
+    }
+    .controls {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .controls.hidden {
+      display: none;
+    }
+    .controls input {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #333;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      width: 180px;
+    }
+    .controls input:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .controls button {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #333;
+      color: #888;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .controls button:hover {
+      border-color: #666;
+      color: #fff;
+    }
+    .controls button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .help {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #444;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .help.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div class="info" id="info"></div>
+  <div class="controls" id="controls">
+    <input type="text" id="seedInput" placeholder="Enter seed...">
+    <button id="goBtn">Go</button>
+    <button id="randomBtn">Random</button>
+    <button id="gifBtn">GIF</button>
+  </div>
+  <div class="help" id="help">Space: new | H: hide | Shift+F: overlays | Shift+A: animate | Shift+L: lines | Esc: stop</div>
+
+  <script type="module">
+    import {
+      generateAllParams,
+      renderWithState,
+      setupKeyboardFeatures,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+    } from './web/fold-core.js';
+
+    const canvas = document.getElementById('canvas');
+    const info = document.getElementById('info');
+    const controls = document.getElementById('controls');
+    const help = document.getElementById('help');
+    const seedInput = document.getElementById('seedInput');
+    const goBtn = document.getElementById('goBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const gifBtn = document.getElementById('gifBtn');
+
+    let currentSeed = null;
+    let currentOutput = null;
+    let generatingGif = false;
+
+    function randomSeed() {
+      return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    }
+
+    function generateOutput(seed, foldCount = null) {
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+      const actualFoldCount = foldCount !== null ? foldCount : params.folds;
+      return {
+        seed,
+        params,
+        foldCount: actualFoldCount,
+      };
+    }
+
+    function render() {
+      if (!currentOutput) return;
+
+      const padding = 60;
+      const winW = window.innerWidth - padding;
+      const winH = window.innerHeight - padding;
+
+      const scaleW = winW / REFERENCE_WIDTH;
+      const scaleH = winH / REFERENCE_HEIGHT;
+      const scale = Math.min(scaleW, scaleH);
+
+      const displayW = Math.floor(REFERENCE_WIDTH * scale);
+      const displayH = Math.floor(REFERENCE_HEIGHT * scale);
+
+      canvas.style.width = displayW + 'px';
+      canvas.style.height = displayH + 'px';
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(displayW * dpr);
+      canvas.height = Math.round(displayH * dpr);
+
+      renderWithState(canvas, currentOutput, {
+        width: canvas.width,
+        height: canvas.height,
+      });
+
+      updateInfo();
+    }
+
+    function updateInfo() {
+      if (!currentOutput) return;
+      const dims = getDimensions();
+      const dpr = window.devicePixelRatio || 1;
+      info.textContent = `${Math.round(dims.width/dpr)}×${Math.round(dims.height/dpr)} (${dims.width}×${dims.height}px) | Folds: ${currentOutput.foldCount} | Seed: ${currentSeed}`;
+    }
+
+    function setSeed(seed) {
+      currentSeed = seed;
+      currentOutput = generateOutput(currentSeed);
+      seedInput.value = currentSeed;
+      render();
+    }
+
+    function newRandom() {
+      setSeed(randomSeed());
+    }
+
+    function getDimensions() {
+      const dpr = window.devicePixelRatio || 1;
+      const padding = 60;
+      const winW = window.innerWidth - padding;
+      const winH = window.innerHeight - padding;
+      const scaleW = winW / REFERENCE_WIDTH;
+      const scaleH = winH / REFERENCE_HEIGHT;
+      const scale = Math.min(scaleW, scaleH);
+      const displayW = Math.floor(REFERENCE_WIDTH * scale);
+      const displayH = Math.floor(REFERENCE_HEIGHT * scale);
+      return {
+        width: Math.round(displayW * dpr),
+        height: Math.round(displayH * dpr),
+      };
+    }
+
+    // GIF Generation
+    async function generateGif() {
+      if (generatingGif || !currentOutput) return;
+
+      generatingGif = true;
+      gifBtn.disabled = true;
+      gifBtn.textContent = 'Loading...';
+
+      try {
+        // Load gif.js if not already loaded
+        if (!window.GIF) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        const GIF = window.GIF;
+        const maxFrames = 200;
+        const foldCount = currentOutput.foldCount;
+
+        // Calculate frame skip to stay under maxFrames
+        const frameSkip = Math.max(1, Math.ceil(foldCount / maxFrames));
+        const frameFolds = [];
+        for (let f = 0; f <= foldCount; f += frameSkip) {
+          frameFolds.push(f);
+        }
+        // Ensure we include the final fold count
+        if (frameFolds[frameFolds.length - 1] !== foldCount) {
+          frameFolds.push(foldCount);
+        }
+
+        // GIF size (max 1200px height, aim for <20MB)
+        const maxHeight = 1200;
+        const scale = Math.min(1, maxHeight / REFERENCE_HEIGHT);
+        const gifWidth = Math.round(REFERENCE_WIDTH * scale);
+        const gifHeight = Math.round(REFERENCE_HEIGHT * scale);
+
+        let gifOptions = {
+          workers: 2,
+          quality: 10,
+          width: gifWidth,
+          height: gifHeight,
+          repeat: 0,
+        };
+
+        // Load worker
+        try {
+          if (!window._gifWorkerBlobUrl) {
+            const workerResponse = await fetch(
+              'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+            );
+            const workerText = await workerResponse.text();
+            const blob = new Blob([workerText], { type: 'application/javascript' });
+            window._gifWorkerBlobUrl = URL.createObjectURL(blob);
+          }
+          gifOptions.workerScript = window._gifWorkerBlobUrl;
+        } catch (workerError) {
+          gifOptions.workers = 0;
+        }
+
+        const gif = new GIF(gifOptions);
+        const totalFrames = frameFolds.length;
+
+        // Create a temporary canvas for GIF frames
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = gifWidth;
+        frameCanvas.height = gifHeight;
+        const frameCtx = frameCanvas.getContext('2d');
+
+        for (let i = 0; i < frameFolds.length; i++) {
+          const fold = frameFolds[i];
+
+          gifBtn.textContent = `${Math.round((i / totalFrames) * 100)}%`;
+
+          // Render frame with lines-only mode
+          renderWithState(canvas, currentOutput, {
+            width: REFERENCE_WIDTH,
+            height: REFERENCE_HEIGHT,
+            foldOverride: fold,
+            linesOnly: true,
+            isAnimating: true,
+          });
+
+          // Draw to frame canvas at GIF size
+          frameCtx.drawImage(canvas, 0, 0, gifWidth, gifHeight);
+
+          // Calculate delay - faster at start, slower at end
+          const progress = i / totalFrames;
+          const delay = Math.round(50 + progress * 50); // 50-100ms
+
+          gif.addFrame(frameCtx, { copy: true, delay });
+
+          // Yield to UI
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        gif.on('finished', (blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `fold-${currentSeed}-lines.gif`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          generatingGif = false;
+          gifBtn.disabled = false;
+          gifBtn.textContent = 'GIF';
+
+          // Re-render at original state
+          render();
+        });
+
+        gif.on('progress', (p) => {
+          gifBtn.textContent = `${Math.round(p * 100)}%`;
+        });
+
+        gifBtn.textContent = 'Encoding...';
+        gif.render();
+
+      } catch (err) {
+        console.error('GIF generation failed:', err);
+        alert('GIF generation failed: ' + err.message);
+        generatingGif = false;
+        gifBtn.disabled = false;
+        gifBtn.textContent = 'GIF';
+      }
+    }
+
+    // Event listeners
+    window.addEventListener('resize', render);
+
+    goBtn.addEventListener('click', () => {
+      const val = seedInput.value.trim();
+      if (val) {
+        const seed = parseInt(val, 10);
+        if (!isNaN(seed)) {
+          setSeed(seed);
+        }
+      }
+    });
+
+    seedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        goBtn.click();
+      }
+    });
+
+    randomBtn.addEventListener('click', newRandom);
+    gifBtn.addEventListener('click', generateGif);
+
+    document.addEventListener('keydown', (e) => {
+      // Ignore if typing in input
+      if (e.target === seedInput) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        newRandom();
+      } else if (e.code === 'KeyH') {
+        info.classList.toggle('hidden');
+        controls.classList.toggle('hidden');
+        help.classList.toggle('hidden');
+      }
+    });
+
+    // Set up keyboard features from fold-core (Shift+F, Shift+A, Shift+L, Escape)
+    setupKeyboardFeatures(canvas, () => currentOutput, {
+      getDimensions,
+      onRender: updateInfo,
+    });
+
+    // Initial render
+    newRandom();
+  </script>
+</body>
+</html>

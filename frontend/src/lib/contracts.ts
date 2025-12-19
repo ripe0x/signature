@@ -3,7 +3,7 @@ const USE_TESTNET = true; // TODO: Set to false for mainnet launch
 
 // Contract addresses - Sepolia Testnet
 const TESTNET_CONTRACTS = {
-  LESS_NFT: '0xEC7c87FD313546B96741FC24AC2236f181e49CF2' as `0x${string}`,
+  LESS_NFT: '0x8755aaC64b0C0af73f8484BB2550ceD2509b25aE' as `0x${string}`,
   LESS_STRATEGY: '0x0000000000000000000000000000000000000000' as `0x${string}`,
 } as const;
 
@@ -46,7 +46,7 @@ export const SAMPLE_SEEDS = [
 export const LESS_NFT_ABI = [
   // Read functions
   {
-    name: 'currentFoldId',
+    name: 'windowCount',
     type: 'function',
     stateMutability: 'view',
     inputs: [],
@@ -74,13 +74,6 @@ export const LESS_NFT_ABI = [
     outputs: [{ type: 'bool' }],
   },
   {
-    name: 'activeFoldId',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
     name: 'timeUntilWindowCloses',
     type: 'function',
     stateMutability: 'view',
@@ -88,17 +81,24 @@ export const LESS_NFT_ABI = [
     outputs: [{ type: 'uint256' }],
   },
   {
-    name: 'hasMintedFold',
+    name: 'getMintCount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'getMintCost',
     type: 'function',
     stateMutability: 'view',
     inputs: [
-      { name: 'foldId', type: 'uint256' },
       { name: 'user', type: 'address' },
+      { name: 'quantity', type: 'uint256' },
     ],
-    outputs: [{ type: 'bool' }],
+    outputs: [{ type: 'uint256' }],
   },
   {
-    name: 'canCreateFold',
+    name: 'canCreateWindow',
     type: 'function',
     stateMutability: 'view',
     inputs: [],
@@ -116,18 +116,7 @@ export const LESS_NFT_ABI = [
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: 'tokenId', type: 'uint256' }],
-    outputs: [{ name: 'foldId', type: 'uint64' }],
-  },
-  {
-    name: 'getFold',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'foldId', type: 'uint256' }],
-    outputs: [
-      { name: 'startTime', type: 'uint64' },
-      { name: 'endTime', type: 'uint64' },
-      { name: 'blockHash', type: 'bytes32' },
-    ],
+    outputs: [{ name: 'windowId', type: 'uint64' }],
   },
   {
     name: 'ownerOf',
@@ -155,11 +144,11 @@ export const LESS_NFT_ABI = [
     name: 'mint',
     type: 'function',
     stateMutability: 'payable',
-    inputs: [],
+    inputs: [{ name: 'quantity', type: 'uint256' }],
     outputs: [],
   },
   {
-    name: 'createFold',
+    name: 'createWindow',
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [],
@@ -167,13 +156,12 @@ export const LESS_NFT_ABI = [
   },
   // Events
   {
-    name: 'FoldCreated',
+    name: 'WindowCreated',
     type: 'event',
     inputs: [
-      { name: 'foldId', type: 'uint256', indexed: true },
+      { name: 'windowId', type: 'uint256', indexed: true },
       { name: 'startTime', type: 'uint64', indexed: false },
       { name: 'endTime', type: 'uint64', indexed: false },
-      { name: 'blockHash', type: 'bytes32', indexed: false },
     ],
   },
   {
@@ -181,7 +169,7 @@ export const LESS_NFT_ABI = [
     type: 'event',
     inputs: [
       { name: 'tokenId', type: 'uint256', indexed: true },
-      { name: 'foldId', type: 'uint256', indexed: true },
+      { name: 'windowId', type: 'uint256', indexed: true },
       { name: 'minter', type: 'address', indexed: true },
       { name: 'seed', type: 'bytes32', indexed: false },
     ],

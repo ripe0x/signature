@@ -61,10 +61,13 @@ export function parseDataUri(dataUri: string): unknown {
 }
 
 // Convert hex seed to number for artwork generation
+// Must match hexSeedToNumber in fold-core.js exactly
 export function seedToNumber(seed: `0x${string}`): number {
-  // Take first 8 bytes and convert to number
-  const truncated = seed.slice(0, 18); // 0x + 16 hex chars = 8 bytes
-  return parseInt(truncated, 16);
+  // Take first 8 bytes of hex (16 chars after 0x) and convert to number
+  const hex = seed.replace(/^0x/, '').slice(0, 16);
+  // Use BigInt for large numbers, then convert to safe integer range
+  const bigNum = BigInt('0x' + hex);
+  return Number(bigNum % BigInt(2147483647));
 }
 
 // Class name helper

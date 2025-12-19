@@ -578,7 +578,7 @@ async function stepVerify(network, addresses) {
 
       if (!network.useMockLess) {
         const constructorArgs = execSync(
-          `cast abi-encode "constructor(address,uint256,address,address)" ${env.STRATEGY_ADDRESS} ${env.MINT_PRICE || "10000000000000000"} ${env.PAYOUT_RECIPIENT} ${env.OWNER_ADDRESS}`,
+          `cast abi-encode "constructor(address,uint256,address,address)" ${env.STRATEGY_ADDRESS} ${env.MINT_PRICE || "1000000000000000"} ${env.PAYOUT_RECIPIENT} ${env.OWNER_ADDRESS}`,
           { encoding: "utf-8", cwd: rootDir }
         ).trim();
         cmd += ` --constructor-args ${constructorArgs}`;

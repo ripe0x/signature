@@ -4,9 +4,9 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FoldCoreModule = any;
 
-// Constants
+// Constants - must match fold-core.js exactly
 export const REFERENCE_WIDTH = 1200;
-export const REFERENCE_HEIGHT = 1500;
+export const REFERENCE_HEIGHT = 1697; // A4 aspect ratio (1:√2)
 export const DRAWING_MARGIN = 50;
 
 // Load fold-core dynamically

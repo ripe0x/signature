@@ -14,7 +14,7 @@ export function TokenPanel() {
     timeUntilNextBurn,
     timeBetweenBurns,
     nftsMinted,
-    foldCount,
+    windowCount,
   } = useTokenStats();
 
   const formattedSupply = IS_PRE_LAUNCH
@@ -69,9 +69,9 @@ export function TokenPanel() {
             </div>
 
             <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">burn events</div>
+              <div className="text-xs text-muted mb-1">mint windows</div>
               <div className="text-xl tabular-nums">
-                {IS_PRE_LAUNCH ? "—" : foldCount}
+                {IS_PRE_LAUNCH ? "—" : windowCount}
               </div>
             </div>
 

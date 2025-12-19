@@ -17,8 +17,8 @@ function generateRandom() {
 }
 
 export default function HomePage() {
-  const { isActive, foldId } = useMintWindow();
-  const { nftsMinted, foldCount } = useTokenStats();
+  const { isActive, windowId } = useMintWindow();
+  const { nftsMinted, windowCount } = useTokenStats();
 
   const [heroSeed, setHeroSeed] = useState(42069);
   const [heroFoldCount, setHeroFoldCount] = useState(100);
@@ -44,10 +44,10 @@ export default function HomePage() {
         setHeroFoldCount(foldCount);
       }, 8000);
       return () => clearInterval(interval);
-    } else if (isActive && foldId > 0) {
-      setHeroSeed(foldId * 1000000 + Date.now() % 1000);
+    } else if (isActive && windowId > 0) {
+      setHeroSeed(windowId * 1000000 + Date.now() % 1000);
     }
-  }, [mounted, isActive, foldId]);
+  }, [mounted, isActive, windowId]);
 
   const loadNew = useCallback(() => {
     const { seed, foldCount } = generateRandom();
@@ -74,7 +74,7 @@ export default function HomePage() {
                 />
                 {!IS_PRE_LAUNCH && isActive && (
                   <div className="absolute top-4 left-4 px-3 py-1.5 bg-foreground text-background text-xs">
-                    live / fold #{foldId}
+                    live / window #{windowId}
                   </div>
                 )}
               </div>
@@ -101,8 +101,8 @@ export default function HomePage() {
                     <div className="text-2xl">{nftsMinted}</div>
                   </div>
                   <div>
-                    <div className="text-muted mb-1">folds</div>
-                    <div className="text-2xl">{foldCount}</div>
+                    <div className="text-muted mb-1">windows</div>
+                    <div className="text-2xl">{windowCount}</div>
                   </div>
                 </div>
               )}

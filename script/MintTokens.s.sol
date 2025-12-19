@@ -21,7 +21,7 @@ contract MintTokensScript is Script {
             
             // Impersonate minter and mint
             vm.startPrank(minter);
-            less.mint{value: mintPrice}();
+            less.mint{value: mintPrice}(1);
             vm.stopPrank();
             
             console.log("Minted token", less.totalSupply());

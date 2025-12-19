@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { useMintWindow } from '@/hooks/useMintWindow';
 import { useTokenStats } from '@/hooks/useTokenStats';
@@ -9,7 +10,7 @@ import { CountdownTimer } from './CountdownTimer';
 import { MintButton } from './MintButton';
 import { CONTRACTS, CHAIN_ID } from '@/lib/contracts';
 import { formatCountdown, formatEth, getAddressUrl, getTxUrl, seedToNumber } from '@/lib/utils';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 // Progress bar for balance to threshold
 function BalanceProgress({ current, threshold }: { current: number; threshold: number }) {
@@ -36,23 +37,220 @@ function BalanceProgress({ current, threshold }: { current: number; threshold: n
   );
 }
 
-// Recent mints grouped by fold
+// Helper for BigInt exponentiation (works around TS target limitations)
+function bigIntPow(base: bigint, exp: number): bigint {
+  let result = BigInt(1);
+  for (let i = 0; i < exp; i++) {
+    result = result * base;
+  }
+  return result;
+}
+
+// Quantity selector component
+function QuantitySelector({
+  quantity,
+  setQuantity,
+  basePrice,
+  totalCost,
+  mintCount,
+}: {
+  quantity: number;
+  setQuantity: (q: number) => void;
+  basePrice: bigint;
+  totalCost: bigint;
+  mintCount: number;
+}) {
+  const decrease = () => setQuantity(Math.max(1, quantity - 1));
+  const increase = () => setQuantity(quantity + 1);
+
+  // Calculate price breakdown for display
+  const priceBreakdown = useMemo(() => {
+    const items: { n: number; price: bigint }[] = [];
+    for (let i = 0; i < quantity; i++) {
+      const n = mintCount + i;
+      // price(n+1) = basePrice * 1.5^n = basePrice * 3^n / 2^n
+      const pow3 = bigIntPow(BigInt(3), n);
+      const pow2 = bigIntPow(BigInt(2), n);
+      const price = (basePrice * pow3) / pow2;
+      items.push({ n: n + 1, price });
+    }
+    return items;
+  }, [basePrice, mintCount, quantity]);
+
+  return (
+    <div className="space-y-4">
+      {/* Quantity controls */}
+      <div className="flex items-center justify-center gap-4">
+        <button
+          onClick={decrease}
+          disabled={quantity <= 1}
+          className="w-10 h-10 border border-border hover:bg-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          −
+        </button>
+        <span className="text-2xl font-mono w-12 text-center">{quantity}</span>
+        <button
+          onClick={increase}
+          className="w-10 h-10 border border-border hover:bg-border transition-colors"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Price breakdown */}
+      {quantity > 1 && (
+        <div className="text-xs text-muted space-y-1">
+          {priceBreakdown.map(({ n, price }) => (
+            <div key={n} className="flex justify-between">
+              <span>mint #{n}</span>
+              <span>{formatEth(price)} ETH</span>
+            </div>
+          ))}
+          <div className="flex justify-between pt-1 border-t border-border text-foreground">
+            <span>total</span>
+            <span>{formatEth(totalCost)} ETH</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pricing info component
+function PricingInfo({
+  basePrice,
+  mintCount,
+  isLoading,
+}: {
+  basePrice: bigint;
+  mintCount: number;
+  isLoading?: boolean;
+}) {
+  return (
+    <div className="text-xs text-muted space-y-2">
+      {mintCount > 0 && (
+        <p className="text-foreground">
+          you've minted {mintCount} this window
+        </p>
+      )}
+      <p>
+        {isLoading ? (
+          <span className="animate-pulse">loading price...</span>
+        ) : (
+          <>starts at {formatEth(basePrice)} ETH, increases 1.5x per mint. resets each window.</>
+        )}
+      </p>
+    </div>
+  );
+}
+
+// Loading placeholder for minting
+function MintingPlaceholder({ count }: { count: number }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="inline-block px-3 py-1 bg-foreground/10 text-foreground text-sm mb-4 animate-pulse">
+          minting {count} token{count > 1 ? 's' : ''}...
+        </div>
+      </div>
+      <div className={count === 1 ? '' : 'grid grid-cols-2 gap-4'}>
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-border animate-pulse"
+            style={{ aspectRatio: '4/5' }}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-sm text-muted">generating...</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Grid of minted tokens
+function MintedTokensGrid({
+  tokens,
+  txHash,
+  onMintMore,
+}: {
+  tokens: { id: number; windowId: number; seed: `0x${string}` }[];
+  txHash?: `0x${string}`;
+  onMintMore: () => void;
+}) {
+  const isSingle = tokens.length === 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm mb-4">
+          minted {tokens.length} token{tokens.length > 1 ? 's' : ''} successfully!
+        </div>
+      </div>
+      <div className={isSingle ? '' : 'grid grid-cols-2 gap-4'}>
+        {tokens.map((token) => (
+          <Link
+            key={token.id}
+            href={`/token/${token.id}`}
+            className="block space-y-2 group"
+          >
+            <div className="relative overflow-hidden">
+              <ArtworkCanvas
+                seed={seedToNumber(token.seed)}
+                foldCount={token.windowId}
+                width={isSingle ? 400 : 200}
+                height={isSingle ? 500 : 250}
+                className="transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
+            </div>
+            <div className="text-xs text-center text-muted group-hover:text-foreground transition-colors">
+              LESS #{token.id}
+            </div>
+          </Link>
+        ))}
+      </div>
+      <div className="text-center space-y-2">
+        {txHash && (
+          <a
+            href={getTxUrl(txHash, CHAIN_ID)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted hover:text-foreground"
+          >
+            view transaction →
+          </a>
+        )}
+        <button
+          onClick={onMintMore}
+          className="block w-full mt-4 px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-colors"
+        >
+          mint more
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Recent mints grouped by window
 function RecentMints() {
   const { tokens, total, isLoading } = useCollection(0);
 
-  // Group tokens by foldId
-  const groupedByFold = useMemo(() => {
-    const groups: { [foldId: number]: typeof tokens } = {};
+  // Group tokens by windowId
+  const groupedByWindow = useMemo(() => {
+    const groups: { [windowId: number]: typeof tokens } = {};
     tokens.forEach(token => {
-      if (!groups[token.foldId]) {
-        groups[token.foldId] = [];
+      if (!groups[token.windowId]) {
+        groups[token.windowId] = [];
       }
-      groups[token.foldId].push(token);
+      groups[token.windowId].push(token);
     });
-    // Sort by fold ID descending (most recent first)
+    // Sort by window ID descending (most recent first)
     return Object.entries(groups)
       .sort(([a], [b]) => Number(b) - Number(a))
-      .map(([foldId, tokens]) => ({ foldId: Number(foldId), tokens }));
+      .map(([windowId, tokens]) => ({ windowId: Number(windowId), tokens }));
   }, [tokens]);
 
   if (isLoading) {
@@ -68,19 +266,30 @@ function RecentMints() {
   return (
     <div className="space-y-8">
       <h2 className="text-lg text-center">recent mints</h2>
-      {groupedByFold.map(({ foldId, tokens }) => (
-        <div key={foldId} className="space-y-4">
-          <div className="text-sm text-muted">fold #{foldId}</div>
+      {groupedByWindow.map(({ windowId, tokens }) => (
+        <div key={windowId} className="space-y-4">
+          <div className="text-sm text-muted">window #{windowId}</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {tokens.map(token => (
-              <div key={token.id} className="space-y-2">
-                <ArtworkCanvas
-                  seed={seedToNumber(token.seed)}
-                  width={200}
-                  height={250}
-                />
-                <div className="text-xs text-center text-muted">#{token.id}</div>
-              </div>
+              <Link
+                key={token.id}
+                href={`/token/${token.id}`}
+                className="block space-y-2 group"
+              >
+                <div className="relative overflow-hidden">
+                  <ArtworkCanvas
+                    seed={seedToNumber(token.seed)}
+                    foldCount={token.windowId}
+                    width={200}
+                    height={250}
+                    className="transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
+                </div>
+                <div className="text-xs text-center text-muted group-hover:text-foreground transition-colors">
+                  LESS #{token.id}
+                </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -93,12 +302,16 @@ export function MintWindow() {
   const { isConnected } = useAccount();
   const {
     isActive,
-    foldId,
+    windowId,
     timeRemaining,
-    price,
-    hasMinted,
-    canCreateFold,
+    basePrice,
+    isPriceLoading,
+    totalCost,
+    mintCount,
+    canCreateWindow,
     windowDuration,
+    quantity,
+    setQuantity,
     mint,
     canMint,
     isMintPending,
@@ -106,87 +319,94 @@ export function MintWindow() {
     isConfirmed,
     mintError,
     mintTxHash,
+    mintedQuantity,
     resetMint,
   } = useMintWindow();
 
-  const { foldCount } = useTokenStats();
+  const { windowCount } = useTokenStats();
 
-  // Get the most recent token for showing artwork on confirmation
-  const { tokens } = useCollection(0);
-  const latestToken = tokens[0];
+  // Get the most recent tokens for showing artwork on confirmation
+  const { tokens, refetch: refetchTokens } = useCollection(0);
+
+  // Get the newly minted tokens (most recent N tokens where N = mintedQuantity)
+  const mintedTokens = useMemo(() => {
+    if (!mintedQuantity || mintedQuantity === 0) return [];
+    return tokens.slice(0, mintedQuantity);
+  }, [tokens, mintedQuantity]);
+
+  // Refetch tokens when mint is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      refetchTokens();
+    }
+  }, [isConfirmed, refetchTokens]);
 
   const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT, CHAIN_ID);
 
-  // Count mints in current fold
-  const mintsThisFold = tokens.filter(t => t.foldId === foldId).length;
+  // Count mints in current window
+  const mintsThisWindow = tokens.filter(t => t.windowId === windowId).length;
+
+  // Handle mint with current quantity
+  const handleMint = () => {
+    mint(quantity);
+  };
 
   // STATE 1: Window is open
   if (isActive) {
     return (
       <div className="space-y-12">
         {/* Header */}
-        <div className="text-center space-y-4">
+        <div className="text-center">
           <h1 className="text-3xl">mint LESS</h1>
-          <div className="inline-block px-4 py-2 bg-foreground text-background text-sm">
-            fold #{foldId} — window open
-          </div>
-          <p className="text-sm text-muted">
-            {mintsThisFold} minted this window
-          </p>
         </div>
 
         {/* Countdown */}
-        <CountdownTimer seconds={timeRemaining} label="time remaining" />
+        <div className="text-center space-y-2">
+          <CountdownTimer seconds={timeRemaining} label={`window #${windowId} closes in`} />
+          <p className="text-sm text-muted">{mintsThisWindow} minted</p>
+        </div>
 
         {/* Mint Section */}
         <div className="max-w-md mx-auto space-y-6">
-          {/* Show artwork only after successful mint */}
-          {isConfirmed && latestToken && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm mb-4">
-                  minted successfully!
-                </div>
-              </div>
-              <ArtworkCanvas
-                seed={seedToNumber(latestToken.seed)}
-                width={400}
-                height={500}
-              />
-              <div className="text-center space-y-2">
-                <p className="text-sm">LESS #{latestToken.id}</p>
-                {mintTxHash && (
-                  <a
-                    href={getTxUrl(mintTxHash, CHAIN_ID)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted hover:text-foreground"
-                  >
-                    view transaction →
-                  </a>
-                )}
-              </div>
-            </div>
+          {/* Show loading placeholders during confirmation */}
+          {isConfirming && mintedQuantity > 0 && (
+            <MintingPlaceholder count={mintedQuantity} />
           )}
 
-          {/* Mint button - hide after confirmed */}
-          {!isConfirmed && (
-            <div className="text-center space-y-4">
+          {/* Show minted tokens grid after successful mint */}
+          {isConfirmed && mintedTokens.length > 0 && (
+            <MintedTokensGrid
+              tokens={mintedTokens}
+              txHash={mintTxHash}
+              onMintMore={() => {
+                resetMint();
+                setQuantity(1);
+              }}
+            />
+          )}
+
+          {/* Mint controls - hide during confirming and after confirmed */}
+          {!isConfirming && !isConfirmed && (
+            <div className="text-center space-y-6">
+              {/* Quantity selector */}
+              <QuantitySelector
+                quantity={quantity}
+                setQuantity={setQuantity}
+                basePrice={basePrice}
+                totalCost={totalCost}
+                mintCount={mintCount}
+              />
+
+              {/* Mint button */}
               <MintButton
-                price={price}
+                totalCost={totalCost}
+                quantity={quantity}
                 canMint={canMint}
                 isPending={isMintPending}
                 isConfirming={isConfirming}
-                hasMinted={hasMinted}
                 isConnected={isConnected}
-                onMint={mint}
+                onMint={handleMint}
               />
-
-              {hasMinted && (
-                <p className="text-sm text-muted">
-                  you have already minted this fold
-                </p>
-              )}
 
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">
@@ -206,94 +426,86 @@ export function MintWindow() {
             </div>
           )}
 
-          {/* Info */}
-          <div className="text-xs text-muted text-center space-y-2 pt-4 border-t border-border">
-            <p>mint price: {formatEth(price, 2)} ETH</p>
-            <p>one mint per wallet per window</p>
-            <a
-              href={contractUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block hover:text-foreground"
-            >
-              view contract →
-            </a>
+          {/* Pricing info */}
+          <div className="pt-4 border-t border-border">
+            <PricingInfo
+              basePrice={basePrice}
+              mintCount={mintCount}
+              isLoading={isPriceLoading}
+            />
+            <div className="mt-4 text-center">
+              <a
+                href={contractUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted hover:text-foreground"
+              >
+                view contract →
+              </a>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // STATE 2: Window closed but threshold met - can create fold
-  if (canCreateFold) {
-    const nextFoldId = foldCount + 1;
+  // STATE 2: Window closed but threshold met - can create window
+  if (canCreateWindow) {
+    const nextWindowId = windowCount + 1;
 
     return (
       <div className="space-y-12">
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-3xl">mint LESS</h1>
-          <div className="inline-block px-4 py-2 border border-foreground text-sm">
-            fold #{nextFoldId} — ready to open
-          </div>
           <p className="text-sm text-muted">
-            threshold reached — mint to open the window
+            window #{nextWindowId} — ready to open
           </p>
-        </div>
-
-        {/* Faded countdown placeholder */}
-        <div className="text-center opacity-40">
-          <div className="text-sm text-muted mb-2">window duration</div>
-          <div className="text-4xl font-mono">{formatCountdown(windowDuration)}</div>
-          <p className="text-xs text-muted mt-2">timer starts when window opens</p>
         </div>
 
         {/* Mint Section */}
         <div className="max-w-md mx-auto space-y-6">
-          {/* Show artwork after successful mint */}
-          {isConfirmed && latestToken && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm mb-4">
-                  window opened + minted!
-                </div>
-              </div>
-              <ArtworkCanvas
-                seed={seedToNumber(latestToken.seed)}
-                width={400}
-                height={500}
-              />
-              <div className="text-center space-y-2">
-                <p className="text-sm">LESS #{latestToken.id}</p>
-                {mintTxHash && (
-                  <a
-                    href={getTxUrl(mintTxHash, CHAIN_ID)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted hover:text-foreground"
-                  >
-                    view transaction →
-                  </a>
-                )}
-              </div>
-            </div>
+          {/* Show loading placeholders during confirmation */}
+          {isConfirming && mintedQuantity > 0 && (
+            <MintingPlaceholder count={mintedQuantity} />
+          )}
+
+          {/* Show minted tokens grid after successful mint */}
+          {isConfirmed && mintedTokens.length > 0 && (
+            <MintedTokensGrid
+              tokens={mintedTokens}
+              txHash={mintTxHash}
+              onMintMore={() => {
+                resetMint();
+                setQuantity(1);
+              }}
+            />
           )}
 
           {/* Mint button - opens window and mints */}
-          {!isConfirmed && (
-            <div className="text-center space-y-4">
+          {!isConfirming && !isConfirmed && (
+            <div className="text-center space-y-6">
+              {/* Quantity selector */}
+              <QuantitySelector
+                quantity={quantity}
+                setQuantity={setQuantity}
+                basePrice={basePrice}
+                totalCost={totalCost}
+                mintCount={mintCount}
+              />
+
               <MintButton
-                price={price}
+                totalCost={totalCost}
+                quantity={quantity}
                 canMint={isConnected && !isMintPending && !isConfirming}
                 isPending={isMintPending}
                 isConfirming={isConfirming}
-                hasMinted={false}
                 isConnected={isConnected}
-                onMint={mint}
+                onMint={handleMint}
               />
 
               <p className="text-xs text-muted">
-                minting opens the window for others to mint
+                first mint triggers buy + burn and opens the window
               </p>
 
               {mintError && (
@@ -314,26 +526,31 @@ export function MintWindow() {
             </div>
           )}
 
-          {/* Info */}
-          <div className="text-xs text-muted text-center space-y-2 pt-4 border-t border-border">
-            <p>mint price: {formatEth(price, 2)} ETH</p>
-            <p>one mint per wallet per window</p>
-            <a
-              href={contractUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block hover:text-foreground"
-            >
-              view contract →
-            </a>
+          {/* Pricing info */}
+          <div className="pt-4 border-t border-border">
+            <PricingInfo
+              basePrice={basePrice}
+              mintCount={mintCount}
+              isLoading={isPriceLoading}
+            />
+            <div className="mt-4 text-center">
+              <a
+                href={contractUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted hover:text-foreground"
+              >
+                view contract →
+              </a>
+            </div>
           </div>
         </div>
 
         {/* Stats */}
         <div className="flex justify-center text-sm">
           <div className="text-center">
-            <div className="text-muted mb-1">total folds</div>
-            <div className="text-2xl">{foldCount}</div>
+            <div className="text-muted mb-1">total windows</div>
+            <div className="text-2xl">{windowCount}</div>
           </div>
         </div>
       </div>
@@ -362,8 +579,9 @@ export function MintWindow() {
               and a <strong className="text-foreground">1-hour mint window</strong> opens.
             </p>
             <p>
-              during the window, each wallet can mint one unique piece.
-              your artwork is generated from the burn transaction data.
+              during the window, mint as many as you like — but price escalates
+              <strong className="text-foreground"> 1.5x per mint</strong> per wallet.
+              pricing resets each window.
             </p>
           </div>
         </div>
@@ -375,8 +593,8 @@ export function MintWindow() {
       {/* Stats */}
       <div className="flex justify-center text-sm">
         <div className="text-center">
-          <div className="text-muted mb-1">total folds</div>
-          <div className="text-2xl">{foldCount}</div>
+          <div className="text-muted mb-1">total windows</div>
+          <div className="text-2xl">{windowCount}</div>
         </div>
       </div>
 

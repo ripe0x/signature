@@ -12,22 +12,16 @@ export interface TokenAttribute {
   value: string | number;
 }
 
-// Fold data from contract
-export interface Fold {
-  startTime: bigint;
-  endTime: bigint;
-  blockHash: `0x${string}`;
-}
-
 // Token data from contract
 export interface TokenData {
-  foldId: bigint;
+  windowId: bigint;
+  seed: `0x${string}`;
 }
 
 // Combined token info
 export interface Token {
   id: number;
-  foldId: number;
+  windowId: number;
   seed: `0x${string}`;
   owner: `0x${string}`;
   metadata?: TokenMetadata;
@@ -36,18 +30,18 @@ export interface Token {
 // Mint window state
 export interface MintWindowState {
   isActive: boolean;
-  foldId: number;
+  windowId: number;
   timeRemaining: number;
   price: bigint;
   hasMinted: boolean;
-  canCreateFold: boolean;
+  canCreateWindow: boolean;
 }
 
 // Strategy token stats
 export interface TokenStats {
   tokenSupply: bigint;
   nftsMinted: number;
-  foldCount: number;
+  windowCount: number;
   lastBurnTime: number;
   timeUntilNextBurn: number;
 }

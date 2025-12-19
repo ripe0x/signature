@@ -33,16 +33,6 @@ export const CHAR_LIGHT_LEFT_OFFSET = 0.05; // ░ is offset 5% to the left
 // Pure CGA with Albers-inspired contrast logic.
 // No brown (muddy), no grays (uncommitted mid-values).
 
-export function rgbToHex(r, g, b) {
-  return (
-    "#" +
-    [r, g, b]
-      .map((x) => x.toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase()
-  );
-}
-
 export function getLuminance(r, g, b) {
   const rNorm = r / 255;
   const gNorm = g / 255;
@@ -271,16 +261,6 @@ export function pickRandom(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-export function pickBiased(rng, arr, bias) {
-  const idx = Math.floor(rng() * arr.length);
-  if (bias === "start") {
-    return arr[Math.floor(idx * rng())];
-  } else if (bias === "end") {
-    return arr[arr.length - 1 - Math.floor((arr.length - 1 - idx) * rng())];
-  }
-  return arr[idx];
-}
-
 // Weighted random selection from pool using weights object
 function pickWeighted(rng, pool, weights) {
   const roll = rng();
@@ -296,13 +276,6 @@ function pickWeighted(rng, pool, weights) {
 }
 
 // ============ HSL UTILITIES ============
-
-export function hexToRgba(hex, opacity) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
 
 export function hslToHex(h, s, l) {
   s /= 100;
@@ -592,24 +565,6 @@ export function getDivisors(n, min, max) {
   return divisors;
 }
 
-export function snapToDivisor(value, n, min, max) {
-  const divisors = getDivisors(n, min, max);
-  if (divisors.length === 0) return value;
-
-  let closest = divisors[0];
-  let minDist = Math.abs(value - closest);
-
-  for (const d of divisors) {
-    const dist = Math.abs(value - d);
-    if (dist < minDist) {
-      minDist = dist;
-      closest = d;
-    }
-  }
-
-  return closest;
-}
-
 export function generateCellDimensions(width, height, padding, seed) {
   // Resolution-independent layout:
   // Work entirely in reference coordinates so a given seed produces the same
@@ -696,11 +651,11 @@ export function generateRenderMode(seed) {
   const rng = seededRandom(seed + 5555);
   const roll = rng();
 
-  // normal 35%, binary 5%, inverted 25%, sparse 17.5%, dense 17.5%
-  if (roll < 0.35) return "normal";
-  if (roll < 0.4) return "binary";
-  if (roll < 0.65) return "inverted";
-  if (roll < 0.825) return "sparse";
+  // normal 25%, binary 16.67%, inverted 25%, sparse 16.67%, dense 16.67%
+  if (roll < 0.25) return "normal";
+  if (roll < 0.4167) return "binary";
+  if (roll < 0.6667) return "inverted";
+  if (roll < 0.8333) return "sparse";
   return "dense";
 }
 
@@ -741,9 +696,21 @@ export function generateOverlapInfo(seed) {
 }
 
 // Generate gap ratio info for a given seed and cell dimensions
-export function generateGapInfo(seed, cellWidth, cellHeight, innerWidth, innerHeight) {
+export function generateGapInfo(
+  seed,
+  cellWidth,
+  cellHeight,
+  innerWidth,
+  innerHeight
+) {
   // Run the gap calculation to get actual values
-  const grid = calculateGridWithGaps(seed, cellWidth, cellHeight, innerWidth, innerHeight);
+  const grid = calculateGridWithGaps(
+    seed,
+    cellWidth,
+    cellHeight,
+    innerWidth,
+    innerHeight
+  );
 
   const colGapRatio = grid.colGap / grid.cellWidth;
   const rowGapRatio = grid.rowGap / grid.cellHeight;
@@ -954,11 +921,8 @@ export function generatePaperProperties(seed) {
   // Range: 0.1 to 0.9
   const absorbency = 0.1 + rng() * 0.8;
 
-  // Intersection threshold: minimum combined weight for an intersection to register
-  // Low = everything shows, High = only strong crossings appear
-  // Range: 0.0 to 0.5
-  // DISABLED for now - always 0
-  const intersectionThreshold = 0; // rng() * 0.5;
+  // Intersection threshold (disabled - always 0)
+  const intersectionThreshold = 0;
 
   // Angle affinity: preferred crease angle (null = no preference)
   // Creases aligned with affinity are stronger
@@ -1004,21 +968,40 @@ export function getPaperDescription(props) {
   return `${absDesc}/${threshDesc}/${affinityDesc}`;
 }
 
-// Scale absorbency based on grid density
-// Small cells = many cells = sparse intersections per cell, so increase absorbency
-// Large cells = few cells = dense intersections per cell, so keep absorbency as-is or lower
-const REFERENCE_CELL_COUNT = 2500; // Tuned for typical large-cell outputs
-
+// Scale absorbency based on grid density (currently disabled, returns unmodified props)
 export function scaleAbsorbencyForGrid(paperProps, cols, rows) {
-  // Scaling disabled for now - return unmodified props
   return paperProps;
+}
 
-  // Original scaling logic (disabled):
-  // if (!paperProps) return paperProps;
-  // const cellCount = cols * rows;
-  // const cellScaleFactor = Math.sqrt(cellCount / REFERENCE_CELL_COUNT);
-  // const scaledAbsorbency = Math.min(0.95, paperProps.absorbency * cellScaleFactor);
-  // return { ...paperProps, absorbency: scaledAbsorbency };
+// ============ MARGIN VARIANTS ============
+// Margin size affects the whitespace border around the drawing area.
+// Most pieces have full margin, with rarer variants having reduced/no margin.
+
+// Margin multipliers (applied to DRAWING_MARGIN base of 145)
+export const MARGIN_FULL = 1.0; // 145px - standard ~12% margin
+export const MARGIN_HALF = 0.5; // ~72px - reduced margin
+export const MARGIN_QUARTER = 0.25; // ~36px - minimal margin
+export const MARGIN_NONE = 0; // 0px - edge-to-edge (bleed)
+
+export function generateMarginSize(seed) {
+  const rng = seededRandom(seed + 7777);
+  const roll = rng() * 100;
+
+  // Distribution: 50% full, 25% half, 20% quarter, 5% none
+  if (roll < 50) {
+    return { multiplier: MARGIN_FULL, name: "Full" };
+  } else if (roll < 75) {
+    return { multiplier: MARGIN_HALF, name: "Half" };
+  } else if (roll < 95) {
+    return { multiplier: MARGIN_QUARTER, name: "Quarter" };
+  } else {
+    return { multiplier: MARGIN_NONE, name: "Bleed" };
+  }
+}
+
+// Get the actual margin in reference coordinates
+export function getMarginValue(marginInfo) {
+  return Math.round(DRAWING_MARGIN * marginInfo.multiplier);
 }
 
 // ============ GAP CALCULATION ============
@@ -1046,55 +1029,12 @@ export function calculateGridWithGaps(
   cellWidth,
   cellHeight,
   innerWidth,
-  innerHeight,
-  gapOverrides = null // { colGapRatio, rowGapRatio } - if provided, forces specific gap ratios
+  innerHeight
 ) {
   const gapRng = seededRandom(seed + 12345);
 
-  // TODO: Remove gapOverrides parameter after gap ratio testing is complete
-  // If overrides provided, use those directly (for testing purposes)
-  if (gapOverrides) {
-    const { colGapRatio = 0, rowGapRatio = 0 } = gapOverrides;
-    const colGap = cellWidth * colGapRatio;
-    const rowGap = cellHeight * rowGapRatio;
-
-    const colStride = cellWidth + colGap;
-    const rowStride = cellHeight + rowGap;
-
-    // Calculate grid dimensions with forced gaps
-    const cols =
-      colStride > 0
-        ? Math.max(1, Math.floor((innerWidth + colGap) / colStride))
-        : 1;
-    const rows =
-      rowStride > 0
-        ? Math.max(1, Math.floor((innerHeight + rowGap) / rowStride))
-        : 1;
-
-    // Calculate actual grid size and centering offset
-    const actualGridWidth = cols * cellWidth + (cols - 1) * colGap;
-    const actualGridHeight = rows * cellHeight + (rows - 1) * rowGap;
-    const gridOffsetX = (innerWidth - actualGridWidth) / 2;
-    const gridOffsetY = (innerHeight - actualGridHeight) / 2;
-
-    return {
-      cols,
-      rows,
-      cellWidth,
-      cellHeight,
-      colGap,
-      rowGap,
-      strideX: colStride,
-      strideY: rowStride,
-      gridOffsetX: Math.max(0, gridOffsetX),
-      gridOffsetY: Math.max(0, gridOffsetY),
-      actualGridWidth,
-      actualGridHeight,
-    };
-  }
-
   // 40% chance of having any gaps at all
-  const useGaps = gapRng() < 0.4;
+  const useGaps = gapRng() < 0.6;
 
   let useColGaps = false;
   let useRowGaps = false;
@@ -1122,7 +1062,7 @@ export function calculateGridWithGaps(
   }
 
   // Negative ratios that work well (not too extreme)
-  const NEGATIVE_RATIOS = [-1/16, -1/8, -1/4, -1/2];
+  const NEGATIVE_RATIOS = [-1 / 16, -1 / 8, -1 / 4, -1 / 2];
 
   const getWeightedGapRatios = (forceNegative) => {
     if (forceNegative) {
@@ -1132,7 +1072,7 @@ export function calculateGridWithGaps(
     // Positive ratios (indices 5-11): 1/64 through 1.0
     const ratios = ALLOWED_GAP_RATIOS.slice(5, 12);
     // 25% chance to include 2x positive gap
-    if (gapRng() < 0.25) {
+    if (gapRng() < 0.1) {
       ratios.push(ALLOWED_GAP_RATIOS[12]); // 2x
     }
     return ratios;
@@ -1148,7 +1088,8 @@ export function calculateGridWithGaps(
 
   // If forcing negative, randomly pick one and calculate grid directly
   if (forceNegativeCol) {
-    const randomRatio = NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
+    const randomRatio =
+      NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
     const gap = refCellWidth * randomRatio;
     const stride = refCellWidth + gap;
     if (stride > 0) {
@@ -1200,7 +1141,8 @@ export function calculateGridWithGaps(
 
   // If forcing negative, randomly pick one and calculate grid directly
   if (forceNegativeRow) {
-    const randomRatio = NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
+    const randomRatio =
+      NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
     const gap = refCellHeight * randomRatio;
     const stride = refCellHeight + gap;
     if (stride > 0) {
@@ -1371,44 +1313,6 @@ export function segmentIntersect(a1, a2, b1, b2) {
   return null;
 }
 
-export function clipToRect(point, dir, w, h) {
-  const edges = [
-    { p: { x: 0, y: 0 }, d: { x: 1, y: 0 }, max: w },
-    { p: { x: w, y: 0 }, d: { x: 0, y: 1 }, max: h },
-    { p: { x: 0, y: h }, d: { x: 1, y: 0 }, max: w },
-    { p: { x: 0, y: 0 }, d: { x: 0, y: 1 }, max: h },
-  ];
-
-  const hits = [];
-
-  for (const edge of edges) {
-    const cross = dir.x * edge.d.y - dir.y * edge.d.x;
-    if (Math.abs(cross) < 0.0001) continue;
-
-    const dp = V.sub(edge.p, point);
-    const t = (dp.x * edge.d.y - dp.y * edge.d.x) / cross;
-    const hit = V.add(point, V.scale(dir, t));
-
-    const edgeT = V.dot(V.sub(hit, edge.p), edge.d);
-    if (edgeT >= -0.001 && edgeT <= edge.max + 0.001) {
-      hit.x = Math.max(0, Math.min(w, hit.x));
-      hit.y = Math.max(0, Math.min(h, hit.y));
-
-      if (!hits.some((h) => V.dist(h, hit) < 0.5)) {
-        hits.push(hit);
-      }
-    }
-  }
-
-  if (hits.length >= 2) {
-    hits.sort(
-      (a, b) => V.dot(V.sub(a, point), dir) - V.dot(V.sub(b, point), dir)
-    );
-    return { p1: hits[0], p2: hits[hits.length - 1] };
-  }
-  return null;
-}
-
 // ============ POLYGON UTILITIES ============
 
 export function polygonUnionAlongCrease(poly1, poly2, creaseP1, creaseP2) {
@@ -1549,51 +1453,7 @@ export function reflectPolygon(polygon, lineP1, lineP2) {
   return polygon.map((p) => reflectPoint(p, lineP1, lineP2));
 }
 
-export function polygonBounds(polygon) {
-  if (polygon.length === 0) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity;
-  for (const p of polygon) {
-    minX = Math.min(minX, p.x);
-    minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x);
-    maxY = Math.max(maxY, p.y);
-  }
-  return { minX, minY, maxX, maxY };
-}
-
-export function normalizePolygon(
-  polygon,
-  targetWidth,
-  targetHeight,
-  padding = 0
-) {
-  if (polygon.length < 3) return polygon;
-
-  const bounds = polygonBounds(polygon);
-  const w = bounds.maxX - bounds.minX;
-  const h = bounds.maxY - bounds.minY;
-
-  if (w < 0.001 || h < 0.001) return polygon;
-
-  const availW = targetWidth - padding * 2;
-  const availH = targetHeight - padding * 2;
-  const scale = Math.min(availW / w, availH / h);
-
-  const centerX = (bounds.minX + bounds.maxX) / 2;
-  const centerY = (bounds.minY + bounds.maxY) / 2;
-  const targetCenterX = targetWidth / 2;
-  const targetCenterY = targetHeight / 2;
-
-  return polygon.map((p) => ({
-    x: (p.x - centerX) * scale + targetCenterX,
-    y: (p.y - centerY) * scale + targetCenterY,
-  }));
-}
-
-export function polygonAreaSigned(polygon) {
+function polygonAreaSigned(polygon) {
   if (polygon.length < 3) return 0;
   let area = 0;
   for (let i = 0; i < polygon.length; i++) {
@@ -1602,10 +1462,6 @@ export function polygonAreaSigned(polygon) {
     area -= polygon[j].x * polygon[i].y;
   }
   return area / 2;
-}
-
-export function polygonArea(polygon) {
-  return Math.abs(polygonAreaSigned(polygon));
 }
 
 export function polygonIntersection(subject, clip) {
@@ -1678,58 +1534,6 @@ export function ensureCCW(polygon) {
   return polygon;
 }
 
-export function clipLineToPolygon(lineP1, lineP2, polygon) {
-  if (polygon.length < 3) return null;
-
-  let tMin = 0;
-  let tMax = 1;
-
-  const dx = lineP2.x - lineP1.x;
-  const dy = lineP2.y - lineP1.y;
-
-  for (let i = 0; i < polygon.length; i++) {
-    const edgeP1 = polygon[i];
-    const edgeP2 = polygon[(i + 1) % polygon.length];
-
-    const nx = edgeP2.y - edgeP1.y;
-    const ny = edgeP1.x - edgeP2.x;
-
-    const wx = lineP1.x - edgeP1.x;
-    const wy = lineP1.y - edgeP1.y;
-
-    const denom = nx * dx + ny * dy;
-    const numer = -(nx * wx + ny * wy);
-
-    if (Math.abs(denom) < 0.0001) {
-      if (numer < 0) return null;
-    } else {
-      const t = numer / denom;
-      if (denom < 0) {
-        tMin = Math.max(tMin, t);
-      } else {
-        tMax = Math.min(tMax, t);
-      }
-      if (tMin > tMax) return null;
-    }
-  }
-
-  return {
-    p1: { x: lineP1.x + tMin * dx, y: lineP1.y + tMin * dy },
-    p2: { x: lineP1.x + tMax * dx, y: lineP1.y + tMax * dy },
-  };
-}
-
-export function polygonEdges(polygon) {
-  const edges = [];
-  for (let i = 0; i < polygon.length; i++) {
-    edges.push({
-      p1: polygon[i],
-      p2: polygon[(i + 1) % polygon.length],
-    });
-  }
-  return edges;
-}
-
 export function weightedRandomIndex(weights, rng) {
   const total = weights.reduce((a, b) => a + b, 0);
   if (total <= 0) return 0;
@@ -1797,16 +1601,6 @@ function getCreaseAngle(p1, p2) {
   if (angle < 0) angle += 180;
   if (angle >= 180) angle -= 180;
   return angle;
-}
-
-// Check if two edges are opposite
-function areOppositeEdges(e1, e2) {
-  return Math.abs(e1 - e2) === 2;
-}
-
-// Check if two edges are adjacent
-function areAdjacentEdges(e1, e2) {
-  return Math.abs(e1 - e2) === 1 || Math.abs(e1 - e2) === 3;
 }
 
 // Pick anchor point for a crease
@@ -2747,7 +2541,6 @@ export function renderToCanvas({
   showCreaseLines = false,
   fontFamily = FONT_STACK,
   linesOnlyMode = false,
-  gapOverrides = null, // TODO: Remove after gap ratio testing - { colGapRatio, rowGapRatio }
 }) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -2773,8 +2566,7 @@ export function renderToCanvas({
     cellWidth,
     cellHeight,
     refInnerWidth,
-    refInnerHeight,
-    gapOverrides // TODO: Remove after gap ratio testing
+    refInnerHeight
   );
   const { cols, rows, strideX, strideY, gridOffsetX, gridOffsetY } = grid;
   const refCellWidth = grid.cellWidth;
@@ -2877,8 +2669,6 @@ export function renderToCanvas({
   // Size font to fit cell height (with 14% vertical overflow accounted for)
   const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK; // 1.14
   const fontSize = actualCellHeight / glyphHeightRatio;
-  const sizeCategory =
-    fontSize > 350 ? "large" : fontSize > 100 ? "medium" : "small";
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textBaseline = "top";
 
@@ -2894,18 +2684,6 @@ export function renderToCanvas({
   const charBottomOverflowDark = fontSize * CHAR_BOTTOM_OVERFLOW_DARK;
   const charBottomOverflowOther = fontSize * CHAR_BOTTOM_OVERFLOW_OTHER;
   const charLightLeftOffset = fontSize * CHAR_LIGHT_LEFT_OFFSET;
-
-  // For compatibility with existing code that uses charMetrics
-  const charMetrics = {
-    " ": { width: charWidth },
-    "░": {
-      width: charWidth,
-      leftOffset: charLightLeftOffset,
-      bottomOverflow: charBottomOverflowOther,
-    },
-    "▒": { width: charWidth, bottomOverflow: charBottomOverflowOther },
-    "▓": { width: charWidth, bottomOverflow: charBottomOverflowDark },
-  };
 
   const thresholds = calculateAdaptiveThresholds(intersectionWeight);
 
@@ -2957,7 +2735,7 @@ export function renderToCanvas({
   // Determine overlap pattern based on seed
   // 50% no overlap, then for overlaps: 75%/95% are 20% total, rest split remaining 30%
   const overlapRng = seededRandom(seed + 11111);
-  const hasOverlap = overlapRng() >= 0.5; // 50% chance of any overlap
+  const hasOverlap = overlapRng() >= 0.65; // 50% chance of any overlap
 
   // Overlap factors and their weights when overlap is enabled
   // [factor, cumulative probability]: 1.0=none, 0.95=5%, 0.75=25%, 0.5=50%, 0.25=75%, 0.05=95%
@@ -2966,8 +2744,9 @@ export function renderToCanvas({
     const roll = overlapRng();
     // 10% each for 5%, 25%, 50% overlap (30% total) -> 60% of the 50% overlap chance
     // 10% each for 75%, 95% overlap (20% total) -> 40% of the 50% overlap chance
-    if (roll < 0.2) return 0.95; // 5% overlap
-    if (roll < 0.4) return 0.75; // 25% overlap
+    if (roll < 0.1) return 0.95; // 5% overlap
+    if (roll < 0.2) return 0.75; // 25% overlap
+    if (roll < 0.3) return 0.65; // 35% overlap
     if (roll < 0.6) return 0.5; // 50% overlap
     if (roll < 0.8) return 0.25; // 75% overlap
     return 0.05; // 95% overlap
@@ -3020,7 +2799,7 @@ export function renderToCanvas({
 
   // Shadow/offset effect - rare (10% chance)
   const shadowRng = seededRandom(seed + 22222);
-  const hasShadowEffect = shadowRng() < 0.1;
+  const hasShadowEffect = shadowRng() < 0.25;
   const baseOffsetX = Math.round(2 + shadowRng() * 2) * scaleX; // 2-4px
   const baseOffsetY = Math.round(1 + shadowRng() * 2) * scaleY; // 1-3px
   const shadowAlpha = hasShadowEffect ? 0.4 + shadowRng() * 0.3 : 0; // 40-70% opacity
@@ -3471,16 +3250,32 @@ export function renderToCanvas({
   }
 
   if (showCreases) {
-    ctx.strokeStyle = "#ff00ff";
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.7;
+    // Use same contrast-aware line color as linesOnlyMode
+    const hexToLum = (hex) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return getLuminance(r, g, b);
+    };
+    const bgLum = hexToLum(bgColor);
+    const textLum = hexToLum(textColor);
+    const accentLum = hexToLum(accentColor);
+    const lineColor =
+      Math.abs(bgLum - textLum) > Math.abs(bgLum - accentLum)
+        ? textColor
+        : accentColor;
+
+    const lineWidth = 2 * scaleX;
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = lineWidth;
+    ctx.globalAlpha = 1;
+    ctx.lineCap = "round";
     for (const crease of activeCreases) {
       ctx.beginPath();
       ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
       ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
   }
 
   if (showPaperShape) {
@@ -3563,31 +3358,30 @@ export function renderToCanvas({
     }
   }
 
-  // Draw intersection points (same pink as crease lines, transparent inside)
-  // Skip if linesOnlyMode already drew them
-  if (
-    showIntersections &&
-    !linesOnlyMode &&
-    activeIntersections &&
-    activeIntersections.length > 0
-  ) {
-    ctx.strokeStyle = "#ff00ff";
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.7;
-    const radius = 3;
-    for (const intersection of activeIntersections) {
-      ctx.beginPath();
-      ctx.arc(
-        offsetX + intersection.x,
-        offsetY + intersection.y,
-        radius,
-        0,
-        Math.PI * 2
-      );
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
+  // Intersection point circles disabled for now
+  // if (
+  //   showIntersections &&
+  //   !linesOnlyMode &&
+  //   activeIntersections &&
+  //   activeIntersections.length > 0
+  // ) {
+  //   ctx.strokeStyle = textColor;
+  //   ctx.lineWidth = 1.5;
+  //   ctx.globalAlpha = 0.5;
+  //   const radius = 3;
+  //   for (const intersection of activeIntersections) {
+  //     ctx.beginPath();
+  //     ctx.arc(
+  //       offsetX + intersection.x,
+  //       offsetY + intersection.y,
+  //       radius,
+  //       0,
+  //       Math.PI * 2
+  //     );
+  //     ctx.stroke();
+  //   }
+  //   ctx.globalAlpha = 1;
+  // }
 
   // Compile settings info for display
   const settings = {
@@ -3605,6 +3399,7 @@ export function renderToCanvas({
   };
 
   return {
+    canvas,
     dataUrl: canvas.toDataURL("image/png"),
     settings,
   };
@@ -3761,8 +3556,9 @@ function hexSeedToNumber(hexSeed) {
 // Calculate optimal canvas dimensions based on screen size while maintaining A4 aspect ratio
 function getOptimalDimensions() {
   const dpr = window.devicePixelRatio || 1;
-  const screenW = window.innerWidth;
-  const screenH = window.innerHeight;
+  // Use fallback dimensions if window size is 0 (e.g., iframe not yet laid out)
+  const screenW = window.innerWidth || REFERENCE_WIDTH;
+  const screenH = window.innerHeight || REFERENCE_HEIGHT;
 
   // Maintain A4 aspect ratio (1:√2, width:height)
   const aspectRatio = 1 / Math.sqrt(2);
@@ -3777,6 +3573,10 @@ function getOptimalDimensions() {
     width = screenW;
     height = Math.floor(width / aspectRatio);
   }
+
+  // Ensure minimum dimensions to avoid 0-size canvas errors
+  width = Math.max(width, 100);
+  height = Math.max(height, 141);
 
   // Scale up by device pixel ratio for crisp rendering on high-DPI screens
   // This makes art look sharp on retina displays and future high-res screens
@@ -3809,6 +3609,123 @@ let _secretAnimating = false;
 let _secretAnimationFold = 0;
 let _secretAnimationMode = null; // 'full' | 'lines-only'
 let _secretAnimationTimer = null;
+let _keyboardFeaturesCleanup = null;
+
+/**
+ * Set up keyboard features for any canvas/state combination
+ * Shift+F: Toggle fold lines and intersection points
+ * Shift+A: Animate from 0 to current fold count (full render)
+ * Shift+L: Animate from 0 to current fold count (lines only)
+ * Escape: Cancel animation
+ *
+ * @param {HTMLCanvasElement} canvas - Target canvas element
+ * @param {Function} getState - Function that returns current state {seed, foldCount, params}
+ * @param {Object} options - Optional settings
+ * @param {Function} options.onRender - Called after each render (optional)
+ * @param {Function} options.getDimensions - Function returning {width, height} for render (optional)
+ * @returns {Function} Cleanup function to remove event listeners
+ */
+export function setupKeyboardFeatures(canvas, getState, options = {}) {
+  const { onRender, getDimensions } = options;
+
+  // Clean up any previous setup
+  if (_keyboardFeaturesCleanup) {
+    _keyboardFeaturesCleanup();
+  }
+
+  function render(foldOverride, linesOnly, isAnimating) {
+    const state = getState();
+    if (!state) return;
+
+    const dims = getDimensions ? getDimensions() : {};
+    renderWithState(canvas, state, {
+      foldOverride,
+      linesOnly,
+      isAnimating,
+      width: dims.width,
+      height: dims.height,
+    });
+
+    if (onRender) onRender();
+  }
+
+  function runAnimation() {
+    const state = getState();
+    if (!_secretAnimating || !state || _secretAnimationFold > state.foldCount) {
+      stopAnimation();
+      return;
+    }
+    const isLinesOnly = _secretAnimationMode === "lines-only";
+    render(_secretAnimationFold, isLinesOnly, true);
+    _secretAnimationFold++;
+    _secretAnimationTimer = setTimeout(runAnimation, 50);
+  }
+
+  function startAnimation(mode) {
+    _secretAnimating = true;
+    _secretAnimationFold = 0;
+    _secretAnimationMode = mode;
+    runAnimation();
+  }
+
+  function stopAnimation() {
+    _secretAnimating = false;
+    _secretAnimationMode = null;
+    if (_secretAnimationTimer) {
+      clearTimeout(_secretAnimationTimer);
+      _secretAnimationTimer = null;
+    }
+  }
+
+  function handleKeydown(e) {
+    const state = getState();
+    if (!state) return;
+
+    // Shift+F: Toggle fold lines overlay
+    if (e.shiftKey && e.key === "F") {
+      e.preventDefault();
+      _secretShowFoldLines = !_secretShowFoldLines;
+      if (!_secretAnimating) {
+        render();
+      }
+    }
+
+    // Shift+A: Start full animation
+    if (e.shiftKey && e.key === "A") {
+      e.preventDefault();
+      if (_secretAnimating) {
+        stopAnimation();
+      }
+      startAnimation("full");
+    }
+
+    // Shift+L: Start lines-only animation
+    if (e.shiftKey && e.key === "L") {
+      e.preventDefault();
+      if (_secretAnimating) {
+        stopAnimation();
+      }
+      startAnimation("lines-only");
+    }
+
+    // Escape: Cancel animation
+    if (e.key === "Escape" && _secretAnimating) {
+      e.preventDefault();
+      stopAnimation();
+    }
+  }
+
+  document.addEventListener("keydown", handleKeydown);
+
+  // Return cleanup function
+  _keyboardFeaturesCleanup = () => {
+    document.removeEventListener("keydown", handleKeydown);
+    stopAnimation();
+    _keyboardFeaturesCleanup = null;
+  };
+
+  return _keyboardFeaturesCleanup;
+}
 
 /**
  * Unified render function for both on-chain and preview contexts
@@ -3830,7 +3747,6 @@ export function renderWithState(canvas, state, options = {}) {
     width,
     height,
     showOverlays: showOverlaysOverride,
-    gapOverrides = null, // TODO: Remove after gap ratio testing - { colGapRatio, rowGapRatio }
   } = options;
 
   // Use provided dimensions or calculate optimal ones
@@ -3851,7 +3767,11 @@ export function renderWithState(canvas, state, options = {}) {
       ? linesOnly
       : linesOnly || _secretShowFoldLines;
 
-  const { dataUrl, settings } = renderToCanvas({
+  const {
+    canvas: srcCanvas,
+    dataUrl,
+    settings,
+  } = renderToCanvas({
     folds: actualFolds,
     seed: state.seed,
     outputWidth: dims.renderWidth,
@@ -3870,46 +3790,26 @@ export function renderWithState(canvas, state, options = {}) {
     showCreases: showOverlays,
     showIntersections: showOverlays,
     linesOnlyMode: linesOnly,
-    gapOverrides, // TODO: Remove after gap ratio testing
   });
 
-  // Update settings display if info element exists
-  const infoEl = document.getElementById("info");
-  if (infoEl) {
-    const colGapStr = formatGap(settings.grid.colGap, state.params.cells.cellW);
-    const rowGapStr = formatGap(settings.grid.rowGap, state.params.cells.cellH);
-    const parts = [
-      `${settings.grid.cols}×${settings.grid.rows}`,
-      `dir:${settings.drawDirection}`,
-      `strategy:${settings.foldStrategy}`,
-    ];
-    if (colGapStr !== "none") parts.push(`col:${colGapStr}`);
-    if (rowGapStr !== "none") parts.push(`row:${rowGapStr}`);
-    if (settings.multiColor) parts.push("multiColor");
-    if (settings.showCreaseLines) parts.push("creaseLines");
-    infoEl.textContent = parts.join(" | ");
-  }
+  // Draw synchronously from the rendered canvas
+  const ctx = canvas.getContext("2d");
+  // Set canvas internal resolution (matches renderToCanvas output)
+  canvas.width = srcCanvas.width;
+  canvas.height = srcCanvas.height;
+  // Set CSS size to fit screen (use provided dims or calculated)
+  canvas.style.width = dims.width + "px";
+  canvas.style.height = dims.height + "px";
+  // Draw directly from source canvas
+  ctx.drawImage(srcCanvas, 0, 0);
 
-  const img = new Image();
-  img.onload = () => {
-    const ctx = canvas.getContext("2d");
-    // Set canvas internal resolution (includes internal 2x from renderToCanvas)
-    canvas.width = dims.renderWidth * 2;
-    canvas.height = dims.renderHeight * 2;
-    // Set CSS size to fit screen (use provided dims or calculated)
-    canvas.style.width = dims.width + "px";
-    canvas.style.height = dims.height + "px";
-    // Draw at full resolution
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    // Trigger scaling callback if defined
-    if (
-      typeof window !== "undefined" &&
-      typeof window.scaleCanvas === "function"
-    ) {
-      window.scaleCanvas();
-    }
-  };
-  img.src = dataUrl;
+  // Trigger scaling callback if defined
+  if (
+    typeof window !== "undefined" &&
+    typeof window.scaleCanvas === "function"
+  ) {
+    window.scaleCanvas();
+  }
 
   return { dataUrl, settings };
 }
@@ -4001,81 +3901,8 @@ export async function initOnChain() {
       }, 150)
     );
 
-    // Secret keyboard features
-    // Shift+F: Toggle fold lines and intersection points
-    // Shift+A: Animate from 0 to current fold count (full render)
-    // Shift+L: Animate from 0 to current fold count (lines only)
-    // Escape: Cancel animation
-    function runSecretAnimation() {
-      if (!_secretAnimating || _secretAnimationFold > foldCount) {
-        stopSecretAnimation();
-        return;
-      }
-      const isLinesOnly = _secretAnimationMode === "lines-only";
-      renderOnChain(
-        canvas,
-        _onChainState,
-        _secretAnimationFold,
-        isLinesOnly,
-        true
-      );
-      _secretAnimationFold++;
-      _secretAnimationTimer = setTimeout(runSecretAnimation, 50);
-    }
-
-    function startSecretAnimation(mode) {
-      _secretAnimating = true;
-      _secretAnimationFold = 0;
-      _secretAnimationMode = mode;
-      runSecretAnimation();
-    }
-
-    function stopSecretAnimation() {
-      _secretAnimating = false;
-      _secretAnimationMode = null;
-      if (_secretAnimationTimer) {
-        clearTimeout(_secretAnimationTimer);
-        _secretAnimationTimer = null;
-      }
-      // Leave canvas at last rendered state (don't reset)
-    }
-
-    document.addEventListener("keydown", (e) => {
-      if (!_onChainState) return;
-
-      // Shift+F: Toggle fold lines overlay
-      if (e.shiftKey && e.key === "F") {
-        e.preventDefault();
-        _secretShowFoldLines = !_secretShowFoldLines;
-        if (!_secretAnimating) {
-          renderOnChain(canvas, _onChainState);
-        }
-      }
-
-      // Shift+A: Start full animation
-      if (e.shiftKey && e.key === "A") {
-        e.preventDefault();
-        if (_secretAnimating) {
-          stopSecretAnimation();
-        }
-        startSecretAnimation("full");
-      }
-
-      // Shift+L: Start lines-only animation
-      if (e.shiftKey && e.key === "L") {
-        e.preventDefault();
-        if (_secretAnimating) {
-          stopSecretAnimation();
-        }
-        startSecretAnimation("lines-only");
-      }
-
-      // Escape: Cancel animation
-      if (e.key === "Escape" && _secretAnimating) {
-        e.preventDefault();
-        stopSecretAnimation();
-      }
-    });
+    // Set up keyboard features (Shift+F, Shift+A, Shift+L, Escape)
+    setupKeyboardFeatures(canvas, () => _onChainState);
   }
 }
 

@@ -21,6 +21,7 @@ import {
   generateRareCreaseLines,
   generateRareHitCounts,
   generateDrawDirection,
+  generateMarginSize,
 } from '../../web/fold-core.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -291,9 +292,6 @@ function generateSolidityTest(fixtures) {
   lines.push('    function getDrawDirection(bytes32 seed) external pure returns (string memory) {');
   lines.push('        return _getDrawDirection(seed);');
   lines.push('    }');
-  lines.push('    function getPalette(bytes32 seed) external pure returns (string memory, uint8, bool) {');
-  lines.push('        return _getPalette(seed);');
-  lines.push('    }');
   lines.push('    function getPaperType(bytes32 seed) external pure returns (string memory) {');
   lines.push('        return _getPaperType(seed);');
   lines.push('    }');
@@ -348,20 +346,6 @@ function generateSolidityTest(fixtures) {
   lines.push('    }');
   lines.push('');
 
-  // Generate test for palette
-  lines.push('    function test_Palette() public view {');
-  lines.push('        string memory strat;');
-  lines.push('        uint8 count;');
-  lines.push('        bool mono;');
-  for (const fixture of fixtures.seeds) {
-    lines.push(`        (strat, count, mono) = harness.getPalette(${fixture.hex});`);
-    lines.push(`        assertEq(strat, "${fixture.traits.paletteStrategy}");`);
-    lines.push(`        assertEq(count, ${fixture.traits.colorCount});`);
-    lines.push(`        assertEq(mono, ${fixture.traits.isMonochrome});`);
-  }
-  lines.push('    }');
-  lines.push('');
-
   // Generate test for paperType
   lines.push('    function test_PaperType() public view {');
   for (const fixture of fixtures.seeds) {
@@ -395,16 +379,6 @@ function generateSolidityTest(fixtures) {
   lines.push('');
 
   // Special seeds tests
-  if (fixtures.specialSeeds.monochrome) {
-    lines.push('    function test_SpecialSeed_Monochrome() public view {');
-    lines.push(`        (string memory strat, uint8 count, bool mono) = harness.getPalette(${fixtures.specialSeeds.monochrome});`);
-    lines.push('        assertEq(strat, "Monochrome");');
-    lines.push('        assertEq(count, 2);');
-    lines.push('        assertTrue(mono);');
-    lines.push('    }');
-    lines.push('');
-  }
-
   if (fixtures.specialSeeds.creaseLines) {
     lines.push('    function test_SpecialSeed_CreaseLines() public view {');
     lines.push(`        assertTrue(harness.hasCreaseLines(${fixtures.specialSeeds.creaseLines}));`);

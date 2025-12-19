@@ -180,6 +180,7 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
       levelColors: params.levelColors,
       foldStrategy: params.foldStrategy,
       paperProperties: params.paperProperties,
+      margin: params.margin,
     });
 
     const img = new Image();

@@ -2,34 +2,59 @@
 
 import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 
 export interface MintWindowState {
   isActive: boolean;
-  foldId: number;
+  windowId: number;
   timeRemaining: number;
-  price: bigint;
-  hasMinted: boolean;
-  canCreateFold: boolean;
+  basePrice: bigint;
+  nextMintPrice: bigint;
+  mintCount: number;
+  multiplier: number;
+  canCreateWindow: boolean;
   windowDuration: number;
+}
+
+// Helper for BigInt exponentiation (works around TS target limitations)
+function bigIntPow(base: bigint, exp: number): bigint {
+  let result = BigInt(1);
+  for (let i = 0; i < exp; i++) {
+    result = result * base;
+  }
+  return result;
+}
+
+// Calculate price multiplier: 1.5^n = 3^n / 2^n
+function calculateMultiplier(mintCount: number): number {
+  return Math.pow(3, mintCount) / Math.pow(2, mintCount);
+}
+
+// Calculate next mint price: basePrice * 1.5^mintCount
+function calculateNextMintPrice(basePrice: bigint, mintCount: number): bigint {
+  const pow3 = bigIntPow(BigInt(3), mintCount);
+  const pow2 = bigIntPow(BigInt(2), mintCount);
+  return (basePrice * pow3) / pow2;
 }
 
 export function useMintWindow() {
   const { address, isConnected } = useAccount();
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [mintedQuantity, setMintedQuantity] = useState(0);
 
-  // Read current fold ID
-  const { data: currentFoldId } = useReadContract({
+  // Read current window count
+  const { data: windowCount, refetch: refetchWindowCount } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
-    functionName: 'currentFoldId',
+    functionName: 'windowCount',
     query: {
       refetchInterval: 5000,
     },
   });
 
   // Read if window is active
-  const { data: isWindowActive } = useReadContract({
+  const { data: isWindowActive, refetch: refetchWindowActive } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'isWindowActive',
@@ -49,8 +74,8 @@ export function useMintWindow() {
     },
   });
 
-  // Read mint price
-  const { data: mintPrice } = useReadContract({
+  // Read base mint price
+  const { data: basePrice, isLoading: isPriceLoading } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'mintPrice',
@@ -63,28 +88,48 @@ export function useMintWindow() {
     functionName: 'windowDuration',
   });
 
-  // Check if user has minted this fold
-  const { data: hasMinted } = useReadContract({
+  // Get user's mint count in current window
+  const { data: mintCount, refetch: refetchMintCount } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
-    functionName: 'hasMintedFold',
-    args: currentFoldId && address ? [currentFoldId, address] : undefined,
+    functionName: 'getMintCount',
+    args: address ? [address] : undefined,
     query: {
-      enabled: !!currentFoldId && !!address,
+      enabled: !!address,
       refetchInterval: 5000,
     },
   });
 
-  // Check if fold can be created
-  const { data: canCreateFold } = useReadContract({
+  // Get total cost for minting the selected quantity (authoritative from contract)
+  const { data: totalCost, refetch: refetchTotalCost } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
-    functionName: 'canCreateFold',
+    functionName: 'getMintCost',
+    args: address ? [address, BigInt(quantity)] : undefined,
+    query: {
+      enabled: !!address && quantity > 0,
+      refetchInterval: 5000,
+    },
+  });
+
+  // Check if window can be created
+  const { data: canCreateWindow } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'canCreateWindow',
     query: {
       enabled: !isWindowActive,
       refetchInterval: 5000,
     },
   });
+
+  // Calculate multiplier and next mint price from mintCount (computed client-side)
+  const mintCountNum = mintCount ? Number(mintCount) : 0;
+  const multiplier = useMemo(() => calculateMultiplier(mintCountNum), [mintCountNum]);
+  const nextMintPrice = useMemo(
+    () => basePrice ? calculateNextMintPrice(basePrice, mintCountNum) : BigInt(0),
+    [basePrice, mintCountNum]
+  );
 
   // Countdown timer
   useEffect(() => {
@@ -112,34 +157,65 @@ export function useMintWindow() {
     hash: mintTxHash,
   });
 
-  const mint = useCallback(async () => {
-    if (!mintPrice) return;
+  // Refetch data after successful mint
+  useEffect(() => {
+    if (isConfirmed) {
+      refetchMintCount();
+      refetchTotalCost();
+      refetchWindowCount();
+      refetchWindowActive();
+    }
+  }, [isConfirmed, refetchMintCount, refetchTotalCost, refetchWindowCount, refetchWindowActive]);
+
+  const mint = useCallback(async (mintQuantity: number = 1) => {
+    if (!address) return;
+
+    // Track how many we're minting for UI feedback
+    setMintedQuantity(mintQuantity);
+
+    // For connected users, use the contract's getMintCost
+    // For the actual transaction, we need to calculate or use totalCost
+    const value = totalCost ?? basePrice ?? BigInt(0);
 
     writeContract({
       address: CONTRACTS.LESS_NFT,
       abi: LESS_NFT_ABI,
       functionName: 'mint',
-      value: mintPrice,
+      args: [BigInt(mintQuantity)],
+      value,
     });
-  }, [writeContract, mintPrice]);
+  }, [writeContract, address, totalCost, basePrice]);
 
   const canMint = Boolean(
     isConnected &&
-    isWindowActive &&
-    !hasMinted &&
+    (isWindowActive || canCreateWindow) &&
     !isMintPending &&
     !isConfirming
   );
 
+  // Wrap resetMint to also clear mintedQuantity
+  const handleResetMint = useCallback(() => {
+    setMintedQuantity(0);
+    resetMint();
+  }, [resetMint]);
+
   return {
     // State
     isActive: !!isWindowActive,
-    foldId: currentFoldId ? Number(currentFoldId) : 0,
+    windowId: windowCount ? Number(windowCount) : 0,
     timeRemaining,
-    price: mintPrice ?? BigInt(0),
-    hasMinted: !!hasMinted,
-    canCreateFold: !!canCreateFold,
-    windowDuration: windowDuration ? Number(windowDuration) : 1800,
+    basePrice: basePrice ?? BigInt(0),
+    isPriceLoading,
+    nextMintPrice: nextMintPrice || basePrice || BigInt(0),
+    totalCost: totalCost ?? BigInt(0),
+    mintCount: mintCountNum,
+    multiplier,
+    canCreateWindow: !!canCreateWindow,
+    windowDuration: windowDuration ? Number(windowDuration) : 5400,
+
+    // Quantity
+    quantity,
+    setQuantity,
 
     // Mint
     mint,
@@ -149,6 +225,7 @@ export function useMintWindow() {
     isConfirmed: !!isConfirmed,
     mintError: mintError as Error | null,
     mintTxHash,
-    resetMint,
+    mintedQuantity,
+    resetMint: handleResetMint,
   };
 }

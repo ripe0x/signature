@@ -4,20 +4,20 @@ import { useReadContract, useReadContracts } from 'wagmi';
 import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 import { parseDataUri } from '@/lib/utils';
 import type { TokenMetadata } from '@/types';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 const BATCH_SIZE = 20;
 
 export interface CollectionToken {
   id: number;
-  foldId: number;
+  windowId: number;
   seed: `0x${string}`;
   metadata?: TokenMetadata;
 }
 
 export function useCollection(page = 0) {
   // Get total supply
-  const { data: totalSupply } = useReadContract({
+  const { data: totalSupply, refetch: refetchSupply, error: supplyError, isLoading: isLoadingSupply } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'totalSupply',
@@ -25,6 +25,11 @@ export function useCollection(page = 0) {
       refetchInterval: 10000,
     },
   });
+
+  // Debug: log any errors
+  if (supplyError) {
+    console.error('Error fetching totalSupply:', supplyError);
+  }
 
   const total = totalSupply ? Number(totalSupply) : 0;
 
@@ -43,7 +48,7 @@ export function useCollection(page = 0) {
   }, [total, page]);
 
   // Batch read token data
-  const { data: tokenDataResults, isLoading: isLoadingData } = useReadContracts({
+  const { data: tokenDataResults, isLoading: isLoadingData, refetch: refetchData } = useReadContracts({
     contracts: tokenIds.map((id) => ({
       address: CONTRACTS.LESS_NFT,
       abi: LESS_NFT_ABI,
@@ -56,7 +61,7 @@ export function useCollection(page = 0) {
   });
 
   // Batch read seeds
-  const { data: seedResults, isLoading: isLoadingSeeds } = useReadContracts({
+  const { data: seedResults, isLoading: isLoadingSeeds, refetch: refetchSeeds } = useReadContracts({
     contracts: tokenIds.map((id) => ({
       address: CONTRACTS.LESS_NFT,
       abi: LESS_NFT_ABI,
@@ -69,7 +74,7 @@ export function useCollection(page = 0) {
   });
 
   // Batch read tokenURIs
-  const { data: uriResults, isLoading: isLoadingURIs } = useReadContracts({
+  const { data: uriResults, isLoading: isLoadingURIs, refetch: refetchURIs } = useReadContracts({
     contracts: tokenIds.map((id) => ({
       address: CONTRACTS.LESS_NFT,
       abi: LESS_NFT_ABI,
@@ -86,7 +91,21 @@ export function useCollection(page = 0) {
     if (!tokenIds.length) return [];
 
     return tokenIds.map((id, index) => {
-      const tokenData = tokenDataResults?.[index]?.result;
+      // getTokenData returns windowId - handle both direct bigint and object formats
+      const tokenDataResult = tokenDataResults?.[index]?.result;
+      let windowId = 0;
+      if (tokenDataResult !== undefined && tokenDataResult !== null) {
+        // Could be bigint directly or {windowId: bigint} object depending on viem version
+        if (typeof tokenDataResult === 'bigint') {
+          windowId = Number(tokenDataResult);
+        } else if (typeof tokenDataResult === 'object' && 'windowId' in tokenDataResult) {
+          windowId = Number((tokenDataResult as { windowId: bigint }).windowId);
+        } else {
+          // Fallback: try to convert whatever it is
+          windowId = Number(tokenDataResult);
+        }
+      }
+
       const seedResult = seedResults?.[index]?.result as `0x${string}` | undefined;
       const uriResult = uriResults?.[index]?.result as string | undefined;
 
@@ -96,16 +115,22 @@ export function useCollection(page = 0) {
 
       return {
         id,
-        foldId: tokenData ? Number(tokenData) : 0,
+        windowId: isNaN(windowId) ? 0 : windowId,
         seed: seedResult ?? '0x0',
         metadata,
       };
     });
   }, [tokenIds, tokenDataResults, seedResults, uriResults]);
 
-  const isLoading = isLoadingData || isLoadingSeeds || isLoadingURIs;
+  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || isLoadingURIs;
   const hasMore = total > (page + 1) * BATCH_SIZE;
   const totalPages = Math.ceil(total / BATCH_SIZE);
+
+  // Combined refetch function
+  const refetch = useCallback(async () => {
+    await refetchSupply();
+    await Promise.all([refetchData(), refetchSeeds(), refetchURIs()]);
+  }, [refetchSupply, refetchData, refetchSeeds, refetchURIs]);
 
   return {
     tokens,
@@ -114,5 +139,6 @@ export function useCollection(page = 0) {
     hasMore,
     page,
     totalPages,
+    refetch,
   };
 }

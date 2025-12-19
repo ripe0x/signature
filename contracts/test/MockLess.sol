@@ -3,41 +3,43 @@ pragma solidity ^0.8.26;
 
 /// @title MockLess
 /// @notice Mock of the Less NFT contract for testing LessRenderer on testnets
-/// @dev Simulates the fold/mint window pattern of the real Less contract
+/// @dev Simulates the mint window pattern with exponential pricing
 contract MockLess {
-    struct Fold {
+    struct Window {
         uint64 startTime;
         uint64 endTime;
         bytes32 blockHash;
     }
 
     struct TokenData {
-        uint64 foldId;
+        uint64 windowId;
+        bytes32 seed;
     }
 
     address public owner;
     address public renderer;
 
-    uint256 public currentFoldId;
+    uint256 public windowCount;
     uint256 public totalSupply;
-    uint256 public windowDuration = 1 hours; // Default 1 hour windows
+    uint256 public windowDuration = 90 minutes; // Default 90 minute windows
+    uint256 public mintPrice = 0.001 ether; // Base mint price
 
-    mapping(uint256 => Fold) public folds;
+    mapping(uint256 => Window) public windows;
     mapping(uint256 => TokenData) public tokenData;
     mapping(uint256 => address) private _owners;
-    mapping(uint256 => bytes32) private _seeds; // Cache computed seeds
-    mapping(uint256 => mapping(address => bool)) public hasMintedFold;
+    mapping(uint256 => mapping(address => uint256)) public mintCountPerWindow;
 
-    event FoldCreated(uint256 indexed foldId, uint64 startTime, uint64 endTime, bytes32 blockHash);
-    event FoldClosed(uint256 indexed foldId);
-    event Minted(uint256 indexed tokenId, uint256 indexed foldId, address indexed minter, bytes32 seed);
+    event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash);
+    event WindowClosed(uint256 indexed windowId);
+    event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed);
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
     error NoActiveMintWindow();
-    error AlreadyMintedThisFold();
+    error InvalidQuantity();
+    error IncorrectPayment();
     error MintWindowActive();
     error TokenDoesNotExist();
-    error FoldDoesNotExist();
+    error WindowDoesNotExist();
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -48,115 +50,129 @@ contract MockLess {
         owner = msg.sender;
     }
 
-    // ============ Fold Management ============
+    // ============ Window Management ============
 
-    /// @notice Open a new fold/mint window
-    /// @dev Creates a new fold with the current block hash as entropy
-    function openFold() external onlyOwner {
+    /// @notice Open a new mint window
+    /// @dev Creates a new window with the current block hash as entropy
+    function createWindow() external onlyOwner {
         if (_isWindowActive()) revert MintWindowActive();
 
-        currentFoldId++;
+        windowCount++;
 
         uint64 startTime = uint64(block.timestamp);
         uint64 endTime = startTime + uint64(windowDuration);
         bytes32 blockHash = blockhash(block.number - 1);
 
-        folds[currentFoldId] = Fold({
+        windows[windowCount] = Window({
             startTime: startTime,
             endTime: endTime,
             blockHash: blockHash
         });
 
-        emit FoldCreated(currentFoldId, startTime, endTime, blockHash);
+        emit WindowCreated(windowCount, startTime, endTime, blockHash);
     }
 
-    /// @notice Open a fold with a custom block hash (for testing specific seeds)
-    function openFoldWithHash(bytes32 _blockHash) external onlyOwner {
+    /// @notice Open a window with a custom block hash (for testing specific seeds)
+    function createWindowWithHash(bytes32 _blockHash) external onlyOwner {
         if (_isWindowActive()) revert MintWindowActive();
 
-        currentFoldId++;
+        windowCount++;
 
         uint64 startTime = uint64(block.timestamp);
         uint64 endTime = startTime + uint64(windowDuration);
 
-        folds[currentFoldId] = Fold({
+        windows[windowCount] = Window({
             startTime: startTime,
             endTime: endTime,
             blockHash: _blockHash
         });
 
-        emit FoldCreated(currentFoldId, startTime, endTime, _blockHash);
+        emit WindowCreated(windowCount, startTime, endTime, _blockHash);
     }
 
-    /// @notice Close the current fold early
-    function closeFold() external onlyOwner {
-        if (currentFoldId == 0) revert FoldDoesNotExist();
+    /// @notice Close the current window early
+    function closeWindow() external onlyOwner {
+        if (windowCount == 0) revert WindowDoesNotExist();
 
         // Set endTime to now to close the window
-        folds[currentFoldId].endTime = uint64(block.timestamp);
+        windows[windowCount].endTime = uint64(block.timestamp);
 
-        emit FoldClosed(currentFoldId);
+        emit WindowClosed(windowCount);
     }
 
-    /// @notice Set the window duration for new folds
+    /// @notice Set the window duration for new windows
     function setWindowDuration(uint256 _duration) external onlyOwner {
         windowDuration = _duration;
     }
 
+    /// @notice Set the base mint price
+    function setMintPrice(uint256 _mintPrice) external onlyOwner {
+        mintPrice = _mintPrice;
+    }
+
     // ============ Minting ============
 
-    /// @notice Mint a token during an active fold window
-    function mint() external {
+    /// @notice Mint tokens during an active window with exponential pricing
+    /// @param quantity Number of tokens to mint
+    function mint(uint256 quantity) external payable {
+        if (quantity == 0) revert InvalidQuantity();
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 foldId = currentFoldId;
+        uint256 windowId = windowCount;
+        uint256 previousMints = mintCountPerWindow[windowId][msg.sender];
 
-        if (hasMintedFold[foldId][msg.sender]) revert AlreadyMintedThisFold();
+        // Calculate total cost with exponential pricing
+        uint256 totalCost = _calculateMintCost(previousMints, quantity);
 
-        hasMintedFold[foldId][msg.sender] = true;
+        if (msg.value != totalCost) revert IncorrectPayment();
 
-        uint256 tokenId = ++totalSupply;
+        // Update mint count
+        mintCountPerWindow[windowId][msg.sender] = previousMints + quantity;
 
-        tokenData[tokenId] = TokenData({foldId: uint64(foldId)});
-        _owners[tokenId] = msg.sender;
+        // Mint tokens
+        uint256 startTokenId = totalSupply + 1;
+        totalSupply += quantity;
+        bytes32 blockHash = windows[windowId].blockHash;
 
-        // Compute and cache the seed
-        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-        _seeds[tokenId] = seed;
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = startTokenId + i;
+            bytes32 seed = keccak256(abi.encodePacked(blockHash, tokenId));
+            tokenData[tokenId] = TokenData({windowId: uint64(windowId), seed: seed});
+            _owners[tokenId] = msg.sender;
 
-        emit Transfer(address(0), msg.sender, tokenId);
-        emit Minted(tokenId, foldId, msg.sender, seed);
+            emit Transfer(address(0), msg.sender, tokenId);
+            emit Minted(tokenId, windowId, msg.sender, seed);
+        }
+        // ETH accumulates in contract; owner withdraws via withdraw()
     }
 
     /// @notice Mint to a specific address (owner only, for testing)
-    function mintTo(address to) external onlyOwner {
+    function mintTo(address to, uint256 quantity) external onlyOwner {
+        if (quantity == 0) revert InvalidQuantity();
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 foldId = currentFoldId;
-        uint256 tokenId = ++totalSupply;
+        uint256 windowId = windowCount;
 
-        tokenData[tokenId] = TokenData({foldId: uint64(foldId)});
-        _owners[tokenId] = to;
+        uint256 startTokenId = totalSupply + 1;
+        totalSupply += quantity;
+        bytes32 blockHash = windows[windowId].blockHash;
 
-        bytes32 seed = keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
-        _seeds[tokenId] = seed;
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = startTokenId + i;
+            bytes32 seed = keccak256(abi.encodePacked(blockHash, tokenId));
+            tokenData[tokenId] = TokenData({windowId: uint64(windowId), seed: seed});
+            _owners[tokenId] = to;
 
-        emit Transfer(address(0), to, tokenId);
-        emit Minted(tokenId, foldId, to, seed);
+            emit Transfer(address(0), to, tokenId);
+            emit Minted(tokenId, windowId, to, seed);
+        }
     }
 
     // ============ View Functions (ILess interface for LessRenderer) ============
 
     function getSeed(uint256 tokenId) external view returns (bytes32) {
         if (_owners[tokenId] == address(0)) revert TokenDoesNotExist();
-
-        // Return cached seed or compute it
-        if (_seeds[tokenId] != bytes32(0)) {
-            return _seeds[tokenId];
-        }
-
-        uint256 foldId = tokenData[tokenId].foldId;
-        return keccak256(abi.encodePacked(folds[foldId].blockHash, tokenId));
+        return tokenData[tokenId].seed;
     }
 
     function getTokenData(uint256 tokenId) external view returns (TokenData memory) {
@@ -164,9 +180,9 @@ contract MockLess {
         return tokenData[tokenId];
     }
 
-    function getFold(uint256 foldId) external view returns (Fold memory) {
-        if (foldId == 0 || foldId > currentFoldId) revert FoldDoesNotExist();
-        return folds[foldId];
+    function getWindow(uint256 windowId) external view returns (Window memory) {
+        if (windowId == 0 || windowId > windowCount) revert WindowDoesNotExist();
+        return windows[windowId];
     }
 
     function strategy() external pure returns (address) {
@@ -177,23 +193,55 @@ contract MockLess {
         return _isWindowActive();
     }
 
-    function activeFoldId() external view returns (uint256) {
+    function activeWindowId() external view returns (uint256) {
         if (_isWindowActive()) {
-            return currentFoldId;
+            return windowCount;
         }
         return 0;
     }
 
     function timeUntilWindowCloses() external view returns (uint256) {
         if (!_isWindowActive()) return 0;
-        Fold storage fold = folds[currentFoldId];
-        if (block.timestamp >= fold.endTime) return 0;
-        return fold.endTime - block.timestamp;
+        Window storage window = windows[windowCount];
+        if (block.timestamp >= window.endTime) return 0;
+        return window.endTime - block.timestamp;
     }
 
-    function canCreateFold() external view returns (bool) {
+    function canCreateWindow() external view returns (bool) {
         // On testnet, just check if no active window
         return !_isWindowActive();
+    }
+
+    /// @notice Get the number of mints a user has made in the current window
+    function getMintCount(address user) external view returns (uint256) {
+        if (windowCount == 0) return 0;
+        return mintCountPerWindow[windowCount][user];
+    }
+
+    /// @notice Get the price for a user's next single mint in the current window
+    function getNextMintPrice(address user) external view returns (uint256) {
+        uint256 previousMints = windowCount > 0
+            ? mintCountPerWindow[windowCount][user]
+            : 0;
+        return _calculateMintCost(previousMints, 1);
+    }
+
+    /// @notice Get the total cost for a user to mint a specific quantity
+    function getMintCost(address user, uint256 quantity) external view returns (uint256) {
+        if (quantity == 0) return 0;
+        uint256 previousMints = windowCount > 0
+            ? mintCountPerWindow[windowCount][user]
+            : 0;
+        return _calculateMintCost(previousMints, quantity);
+    }
+
+    /// @notice Get the price multiplier for a user's next mint (scaled by 1e18)
+    function getPriceMultiplier(address user) external view returns (uint256) {
+        uint256 previousMints = windowCount > 0
+            ? mintCountPerWindow[windowCount][user]
+            : 0;
+        // 1.5^n = 3^n / 2^n, scaled by 1e18
+        return (1e18 * (3 ** previousMints)) / (2 ** previousMints);
     }
 
     function ownerOf(uint256 tokenId) external view returns (address) {
@@ -226,11 +274,39 @@ contract MockLess {
         owner = newOwner;
     }
 
+    /// @notice Withdraw ETH from the contract (for testing)
+    function withdraw() external onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+
     // ============ Internal ============
 
     function _isWindowActive() internal view returns (bool) {
-        if (currentFoldId == 0) return false;
-        Fold storage fold = folds[currentFoldId];
-        return block.timestamp >= fold.startTime && block.timestamp < fold.endTime;
+        if (windowCount == 0) return false;
+        Window storage window = windows[windowCount];
+        return block.timestamp >= window.startTime && block.timestamp < window.endTime;
     }
+
+    /// @notice Calculate the total cost for minting with exponential pricing
+    /// @dev Uses integer math: 1.5 = 3/2, so 1.5^n = 3^n / 2^n
+    function _calculateMintCost(
+        uint256 previousMints,
+        uint256 quantity
+    ) internal view returns (uint256) {
+        // Special case: quantity = 1
+        if (quantity == 1) {
+            return (mintPrice * (3 ** previousMints)) / (2 ** previousMints);
+        }
+
+        // General case: sum of geometric series
+        uint256 pow3Prev = 3 ** previousMints;
+        uint256 pow3Qty = 3 ** quantity;
+        uint256 pow2Qty = 2 ** quantity;
+        uint256 pow2Denom = 2 ** (previousMints + quantity - 1);
+
+        return (mintPrice * pow3Prev * (pow3Qty - pow2Qty)) / pow2Denom;
+    }
+
+    // Allow contract to receive ETH
+    receive() external payable {}
 }

@@ -8,7 +8,7 @@ import {ERC721} from "solady/tokens/ERC721.sol";
 
 /// @dev Mock RecursiveStrategy for testing
 contract MockStrategy {
-    uint256 public timeBetweenBurn = 30 minutes;
+    uint256 public timeBetweenBurn = 90 minutes;
     uint256 public lastBurn;
     uint256 public totalSupply = 1_000_000_000 ether;
     bool public shouldRevert;
@@ -73,7 +73,7 @@ contract MockScriptyBuilder {
         pure
         returns (string memory)
     {
-        return "PGh0bWw+PC9odG1sPg=="; // base64 of "<html></html>"
+        return "data:text/html;base64,PGh0bWw+PC9odG1sPg=="; // base64 of "<html></html>"
     }
 }
 
@@ -88,7 +88,7 @@ contract LessTest is Test {
     address public user1 = address(0x3);
     address public user2 = address(0x4);
 
-    uint256 public constant MINT_PRICE = 0.01 ether;
+    uint256 public constant MINT_PRICE = 0.001 ether;
 
     function setUp() public {
         strategy = new MockStrategy();
@@ -96,7 +96,7 @@ contract LessTest is Test {
 
         vm.startPrank(owner);
 
-        less = new Less(address(strategy), MINT_PRICE, payout, owner);
+        less = new Less(address(strategy), MINT_PRICE, payout, owner, 90 minutes);
 
         renderer = new LessRenderer(
             LessRenderer.RendererConfig({
@@ -121,102 +121,99 @@ contract LessTest is Test {
     function test_InitialState() public view {
         assertEq(less.name(), "LESS");
         assertEq(less.symbol(), "LESS");
-        assertEq(less.currentFoldId(), 0);
+        assertEq(less.windowCount(), 0);
         assertEq(less.totalSupply(), 0);
         assertEq(less.mintPrice(), MINT_PRICE);
         assertEq(less.payoutRecipient(), payout);
-        assertEq(less.windowDuration(), 30 minutes);
-        assertEq(less.minEthForFold(), 0.25 ether);
+        assertEq(less.windowDuration(), 90 minutes);
+        assertEq(less.minEthForWindow(), 0.25 ether);
     }
 
     function test_CreateFold() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
-        assertEq(less.currentFoldId(), 1);
+        assertEq(less.windowCount(), 1);
         assertTrue(less.isWindowActive());
-
-        Less.Fold memory fold = less.getFold(1);
-        assertEq(fold.startTime, block.timestamp);
-        assertEq(fold.endTime, block.timestamp + 30 minutes);
-        assertEq(fold.blockHash, blockhash(block.number - 1));
+        // Window endTime is now + windowDuration
+        assertEq(less.timeUntilWindowCloses(), 90 minutes);
     }
 
     function test_CreateFold_RevertIfWindowActive() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
         vm.expectRevert(Less.MintWindowActive.selector);
-        less.createFold();
+        less.createWindow();
     }
 
     function test_CreateFold_AfterWindowEnds() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
 
         // Balance should still be sufficient
-        assertTrue(address(strategy).balance >= less.minEthForFold());
+        assertTrue(address(strategy).balance >= less.minEthForWindow());
         
-        less.createFold();
-        assertEq(less.currentFoldId(), 2);
+        less.createWindow();
+        assertEq(less.windowCount(), 2);
         assertTrue(less.isWindowActive());
     }
 
     function test_CreateFold_RevertInsufficientStrategyBalance() public {
         // Don't send ETH to strategy - balance is 0
         assertEq(address(strategy).balance, 0);
-        assertLt(address(strategy).balance, less.minEthForFold());
+        assertLt(address(strategy).balance, less.minEthForWindow());
 
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.createFold();
+        less.createWindow();
     }
 
     function test_CreateFold_RevertBalanceBelowThreshold() public {
         // Send ETH but below the minimum threshold
         vm.deal(address(strategy), 0.1 ether); // Below 0.25 ETH minimum
-        assertLt(address(strategy).balance, less.minEthForFold());
+        assertLt(address(strategy).balance, less.minEthForWindow());
 
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.createFold();
+        less.createWindow();
     }
 
     function test_CreateFold_SucceedsWithExactThreshold() public {
         // Send exactly the minimum required ETH
         vm.deal(address(strategy), 0.25 ether);
-        assertEq(address(strategy).balance, less.minEthForFold());
+        assertEq(address(strategy).balance, less.minEthForWindow());
 
-        less.createFold();
-        assertEq(less.currentFoldId(), 1);
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
         assertTrue(less.isWindowActive());
     }
 
     function test_CreateFold_SucceedsAboveThreshold() public {
         // Send more than the minimum required ETH
         vm.deal(address(strategy), 1 ether);
-        assertGt(address(strategy).balance, less.minEthForFold());
+        assertGt(address(strategy).balance, less.minEthForWindow());
 
-        less.createFold();
-        assertEq(less.currentFoldId(), 1);
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
         assertTrue(less.isWindowActive());
     }
 
     function test_CreateFold_WaitForThresholdAfterWindow() public {
         // Start with sufficient balance
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
 
         // Simulate balance dropping below threshold (e.g., from a previous burn)
@@ -224,9 +221,9 @@ contract LessTest is Test {
         // the behavior when balance is below threshold
         
         // If balance is still sufficient, can create immediately
-        if (address(strategy).balance >= less.minEthForFold()) {
-            less.createFold();
-            assertEq(less.currentFoldId(), 2);
+        if (address(strategy).balance >= less.minEthForWindow()) {
+            less.createWindow();
+            assertEq(less.windowCount(), 2);
         }
     }
 
@@ -234,7 +231,7 @@ contract LessTest is Test {
         // Initially no active window and no ETH - cannot create
         assertFalse(less.isWindowActive());
         assertEq(address(strategy).balance, 0);
-        assertFalse(less.canCreateFold());
+        assertFalse(less.canCreateWindow());
     }
 
     function test_CanCreateFold_WithSufficientBalance() public {
@@ -242,31 +239,31 @@ contract LessTest is Test {
         vm.deal(address(strategy), 0.5 ether);
         
         assertFalse(less.isWindowActive());
-        assertTrue(address(strategy).balance >= less.minEthForFold());
-        assertTrue(less.canCreateFold());
+        assertTrue(address(strategy).balance >= less.minEthForWindow());
+        assertTrue(less.canCreateWindow());
     }
 
     function test_CanCreateFold_RevertWhenWindowActive() public {
         // Send sufficient ETH and create a fold
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
         
         assertTrue(less.isWindowActive());
-        assertFalse(less.canCreateFold()); // Cannot create when window is active
+        assertFalse(less.canCreateWindow()); // Cannot create when window is active
     }
 
     function test_CanCreateFold_AfterWindowWithSufficientBalance() public {
         // Send sufficient ETH and create a fold
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
         
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
         
         // If balance is still sufficient, can create
-        if (address(strategy).balance >= less.minEthForFold()) {
-            assertTrue(less.canCreateFold());
+        if (address(strategy).balance >= less.minEthForWindow()) {
+            assertTrue(less.canCreateWindow());
         }
     }
 
@@ -274,18 +271,18 @@ contract LessTest is Test {
         // This test verifies the scenario where window closes but balance is below threshold
         // Start with exactly the threshold
         vm.deal(address(strategy), 0.25 ether);
-        less.createFold();
+        less.createWindow();
         
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
         
         // If balance is still at threshold, can create
-        // In a real scenario, if balance dropped below, canCreateFold would return false
-        if (address(strategy).balance >= less.minEthForFold()) {
-            assertTrue(less.canCreateFold());
+        // In a real scenario, if balance dropped below, canCreateWindow would return false
+        if (address(strategy).balance >= less.minEthForWindow()) {
+            assertTrue(less.canCreateWindow());
         } else {
-            assertFalse(less.canCreateFold());
+            assertFalse(less.canCreateWindow());
         }
     }
 
@@ -294,48 +291,48 @@ contract LessTest is Test {
         
         // Step 1: Cannot create when balance is insufficient
         assertEq(address(strategy).balance, 0);
-        assertFalse(less.canCreateFold());
+        assertFalse(less.canCreateWindow());
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.createFold();
+        less.createWindow();
         
         // Step 2: Send ETH to meet threshold
         vm.deal(address(strategy), 0.3 ether);
-        assertTrue(address(strategy).balance >= less.minEthForFold());
-        assertTrue(less.canCreateFold());
+        assertTrue(address(strategy).balance >= less.minEthForWindow());
+        assertTrue(less.canCreateWindow());
         
         // Step 3: Can create fold now
-        less.createFold();
-        assertEq(less.currentFoldId(), 1);
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
         assertTrue(less.isWindowActive());
         
         // Step 4: Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
         
         // Step 5: Balance still sufficient, can create immediately
-        assertTrue(address(strategy).balance >= less.minEthForFold());
-        assertTrue(less.canCreateFold());
-        less.createFold();
-        assertEq(less.currentFoldId(), 2);
+        assertTrue(address(strategy).balance >= less.minEthForWindow());
+        assertTrue(less.canCreateWindow());
+        less.createWindow();
+        assertEq(less.windowCount(), 2);
     }
 
     function test_SetMinEthForFold() public {
         vm.startPrank(owner);
 
         uint256 newMin = 0.5 ether;
-        less.setMinEthForFold(newMin);
-        assertEq(less.minEthForFold(), newMin);
+        less.setMinEthForWindow(newMin);
+        assertEq(less.minEthForWindow(), newMin);
 
         // Verify old threshold no longer works
         vm.deal(address(strategy), 0.25 ether); // Old minimum
-        assertLt(address(strategy).balance, less.minEthForFold());
+        assertLt(address(strategy).balance, less.minEthForWindow());
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.createFold();
+        less.createWindow();
 
         // Verify new threshold works
         vm.deal(address(strategy), 0.5 ether); // New minimum
-        less.createFold();
-        assertEq(less.currentFoldId(), 1);
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
 
         vm.stopPrank();
     }
@@ -344,7 +341,7 @@ contract LessTest is Test {
         vm.startPrank(user1);
 
         vm.expectRevert();
-        less.setMinEthForFold(0.5 ether);
+        less.setMinEthForWindow(0.5 ether);
 
         vm.stopPrank();
     }
@@ -353,17 +350,17 @@ contract LessTest is Test {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
-        assertEq(less.getTokenData(1).foldId, 1);
+        assertEq(less.getTokenData(1).windowId, 1);
         assertTrue(less.getSeed(1) != bytes32(0));
-        assertEq(payout.balance, MINT_PRICE);
+        assertEq(address(less).balance, MINT_PRICE); // ETH accumulates in contract
     }
 
     function test_Mint_RevertInsufficientStrategyBalance() public {
@@ -371,150 +368,148 @@ contract LessTest is Test {
         vm.deal(user1, 1 ether);
         vm.prank(user1);
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
     }
 
     function test_Mint_AutoCreatesFold() public {
         // Strategy has sufficient ETH, but no fold exists yet
         vm.deal(address(strategy), 0.5 ether);
-        assertEq(less.currentFoldId(), 0);
+        assertEq(less.windowCount(), 0);
         assertFalse(less.isWindowActive());
 
         // Mint should auto-create a fold
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         // Verify fold was created and token was minted
-        assertEq(less.currentFoldId(), 1);
+        assertEq(less.windowCount(), 1);
         assertTrue(less.isWindowActive());
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
-        assertEq(less.getTokenData(1).foldId, 1);
+        assertEq(less.getTokenData(1).windowId, 1);
     }
 
     function test_Mint_AutoCreatesFoldAfterWindowExpires() public {
         // Create first fold and mint
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         assertFalse(less.isWindowActive());
 
         // Second user mints - should auto-create fold 2
         vm.deal(user2, 1 ether);
         vm.prank(user2);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         // Verify fold 2 was created
-        assertEq(less.currentFoldId(), 2);
+        assertEq(less.windowCount(), 2);
         assertTrue(less.isWindowActive());
         assertEq(less.totalSupply(), 2);
-        assertEq(less.getTokenData(2).foldId, 2);
+        assertEq(less.getTokenData(2).windowId, 2);
     }
 
-    function test_Mint_RevertAlreadyMinted() public {
+    function test_Mint_MultipleSameUser() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
-        
-        less.createFold();
 
-        vm.deal(user1, 1 ether);
+        less.createWindow();
+
+        vm.deal(user1, 10 ether);
         vm.startPrank(user1);
-        less.mint{value: MINT_PRICE}();
 
-        vm.expectRevert(Less.AlreadyMintedThisFold.selector);
-        less.mint{value: MINT_PRICE}();
+        // First mint costs MINT_PRICE
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.totalSupply(), 1);
+        assertEq(less.getMintCount(user1), 1);
+
+        // Second mint costs MINT_PRICE * 1.5
+        uint256 secondMintPrice = (MINT_PRICE * 3) / 2; // 0.015 ETH
+        less.mint{value: secondMintPrice}(1);
+        assertEq(less.totalSupply(), 2);
+        assertEq(less.getMintCount(user1), 2);
+
+        // Third mint costs MINT_PRICE * 1.5^2
+        uint256 thirdMintPrice = (MINT_PRICE * 9) / 4; // 0.0225 ETH
+        less.mint{value: thirdMintPrice}(1);
+        assertEq(less.totalSupply(), 3);
+        assertEq(less.getMintCount(user1), 3);
+
         vm.stopPrank();
     }
 
-    function test_Mint_RevertInsufficientPayment() public {
+    function test_Mint_RevertIncorrectPayment_Under() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
-        
-        less.createFold();
+
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        vm.expectRevert(Less.InsufficientPayment.selector);
-        less.mint{value: MINT_PRICE - 1}();
+        vm.expectRevert(Less.IncorrectPayment.selector);
+        less.mint{value: MINT_PRICE - 1}(1);
     }
 
-    function test_Mint_RefundsExcessPayment() public {
+    function test_Mint_RevertIncorrectPayment_Over() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
-        
-        less.createFold();
+
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
-        uint256 excessAmount = 0.005 ether;
-        uint256 totalSent = MINT_PRICE + excessAmount;
-        
-        uint256 balanceBefore = user1.balance;
-        uint256 payoutBalanceBefore = payout.balance;
-        
         vm.prank(user1);
-        less.mint{value: totalSent}();
-        
-        uint256 balanceAfter = user1.balance;
-        uint256 payoutBalanceAfter = payout.balance;
-        
-        // User should have received excess refunded
-        assertEq(balanceAfter, balanceBefore - totalSent + excessAmount);
-        // Payout should only receive exact mint price
-        assertEq(payoutBalanceAfter, payoutBalanceBefore + MINT_PRICE);
-        // Verify token was minted
-        assertEq(less.totalSupply(), 1);
-        assertEq(less.ownerOf(1), user1);
+        // Excess payment should now revert (no refunds)
+        vm.expectRevert(Less.IncorrectPayment.selector);
+        less.mint{value: MINT_PRICE + 1}(1);
     }
 
-    function test_Mint_ExactPaymentNoRefund() public {
+    function test_Mint_ExactPayment_AccumulatesInContract() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
-        
-        less.createFold();
+
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         uint256 balanceBefore = user1.balance;
-        uint256 payoutBalanceBefore = payout.balance;
-        
+        uint256 contractBalanceBefore = address(less).balance;
+
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
-        
-        uint256 balanceAfter = user1.balance;
-        uint256 payoutBalanceAfter = payout.balance;
-        
+        less.mint{value: MINT_PRICE}(1);
+
         // User should have paid exactly the mint price
-        assertEq(balanceAfter, balanceBefore - MINT_PRICE);
-        // Payout should receive exact mint price
-        assertEq(payoutBalanceAfter, payoutBalanceBefore + MINT_PRICE);
+        assertEq(user1.balance, balanceBefore - MINT_PRICE);
+        // ETH should accumulate in contract (not sent to payout)
+        assertEq(address(less).balance, contractBalanceBefore + MINT_PRICE);
+        // Payout recipient should have received nothing yet
+        assertEq(payout.balance, 0);
     }
 
     function test_Mint_MultipleUsersPerFold() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.deal(user2, 1 ether);
 
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         vm.prank(user2);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         assertEq(less.totalSupply(), 2);
         assertEq(less.ownerOf(1), user1);
         assertEq(less.ownerOf(2), user2);
-        assertEq(less.getTokenData(1).foldId, 1);
-        assertEq(less.getTokenData(2).foldId, 1);
+        assertEq(less.getTokenData(1).windowId, 1);
+        assertEq(less.getTokenData(2).windowId, 1);
     }
 
     function test_Mint_SameUserDifferentFolds() public {
@@ -522,38 +517,38 @@ contract LessTest is Test {
         vm.deal(address(strategy), 0.5 ether);
         
         // Fold 1
-        less.createFold();
+        less.createWindow();
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         // Fast forward and create fold 2
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
         
         // Ensure balance is still sufficient (in real scenario might need to top up)
-        if (address(strategy).balance < less.minEthForFold()) {
-            vm.deal(address(strategy), less.minEthForFold());
+        if (address(strategy).balance < less.minEthForWindow()) {
+            vm.deal(address(strategy), less.minEthForWindow());
         }
         
-        less.createFold();
+        less.createWindow();
 
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         assertEq(less.totalSupply(), 2);
-        assertEq(less.getTokenData(1).foldId, 1);
-        assertEq(less.getTokenData(2).foldId, 2);
+        assertEq(less.getTokenData(1).windowId, 1);
+        assertEq(less.getTokenData(2).windowId, 2);
     }
 
     function test_TokenURI() public {
         // Send ETH to strategy to meet minimum requirement
         vm.deal(address(strategy), 0.5 ether);
         
-        less.createFold();
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         string memory uri = less.tokenURI(1);
         assertTrue(bytes(uri).length > 0);
@@ -583,8 +578,8 @@ contract LessTest is Test {
         assertEq(less.renderer(), newRenderer);
 
         uint256 newMinEth = 0.5 ether;
-        less.setMinEthForFold(newMinEth);
-        assertEq(less.minEthForFold(), newMinEth);
+        less.setMinEthForWindow(newMinEth);
+        assertEq(less.minEthForWindow(), newMinEth);
 
         vm.stopPrank();
     }
@@ -602,36 +597,112 @@ contract LessTest is Test {
         less.setRenderer(address(0x6));
 
         vm.expectRevert();
-        less.setMinEthForFold(0.5 ether);
+        less.setMinEthForWindow(0.5 ether);
 
         vm.stopPrank();
     }
 
+    function test_Withdraw() public {
+        // Send ETH to strategy and mint some tokens
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Contract should have accumulated ETH
+        assertEq(address(less).balance, MINT_PRICE);
+        uint256 payoutBalanceBefore = payout.balance;
+
+        // Owner withdraws
+        vm.prank(owner);
+        less.withdraw();
+
+        // Contract balance should be 0
+        assertEq(address(less).balance, 0);
+        // Payout recipient should have received the funds
+        assertEq(payout.balance, payoutBalanceBefore + MINT_PRICE);
+    }
+
+    function test_Withdraw_RevertNonOwner() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Non-owner tries to withdraw
+        vm.prank(user1);
+        vm.expectRevert();
+        less.withdraw();
+    }
+
+    function test_Withdraw_Event() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        vm.prank(owner);
+        vm.expectEmit(true, false, false, true);
+        emit Less.Withdrawn(payout, MINT_PRICE);
+        less.withdraw();
+    }
+
+    function test_Withdraw_MultipleMintsBeforeWithdraw() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Multiple users mint
+        vm.deal(user1, 1 ether);
+        vm.deal(user2, 1 ether);
+
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        vm.prank(user2);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Contract should have accumulated 2x mint price
+        assertEq(address(less).balance, MINT_PRICE * 2);
+
+        // Owner withdraws all at once
+        vm.prank(owner);
+        less.withdraw();
+
+        assertEq(address(less).balance, 0);
+        assertEq(payout.balance, MINT_PRICE * 2);
+    }
+
     function test_Constructor_RevertInvalidStrategy() public {
-        vm.expectRevert(Less.InvalidStrategyAddress.selector);
-        new Less(address(0), MINT_PRICE, payout, owner);
+        vm.expectRevert(Less.InvalidAddress.selector);
+        new Less(address(0), MINT_PRICE, payout, owner, 90 minutes);
     }
 
     function test_Constructor_RevertInvalidOwner() public {
-        vm.expectRevert(Less.InvalidOwner.selector);
-        new Less(address(strategy), MINT_PRICE, payout, address(0));
+        vm.expectRevert(Less.InvalidAddress.selector);
+        new Less(address(strategy), MINT_PRICE, payout, address(0), 90 minutes);
     }
 
     function test_Constructor_RevertInvalidPayoutRecipient() public {
-        vm.expectRevert(Less.InvalidPayoutRecipient.selector);
-        new Less(address(strategy), MINT_PRICE, address(0), owner);
+        vm.expectRevert(Less.InvalidAddress.selector);
+        new Less(address(strategy), MINT_PRICE, address(0), owner, 90 minutes);
     }
 
     function test_SetRenderer_RevertZeroAddress() public {
         vm.startPrank(owner);
-        vm.expectRevert(Less.InvalidRenderer.selector);
+        vm.expectRevert(Less.InvalidAddress.selector);
         less.setRenderer(address(0));
         vm.stopPrank();
     }
 
     function test_SetPayoutRecipient_RevertZeroAddress() public {
         vm.startPrank(owner);
-        vm.expectRevert(Less.InvalidPayoutRecipient.selector);
+        vm.expectRevert(Less.InvalidAddress.selector);
         less.setPayoutRecipient(address(0));
         vm.stopPrank();
     }
@@ -642,31 +713,31 @@ contract LessTest is Test {
 
         // No active window, sufficient balance, but TWAP delay not met
         assertFalse(less.isWindowActive());
-        assertTrue(address(strategy).balance >= less.minEthForFold());
+        assertTrue(address(strategy).balance >= less.minEthForWindow());
 
         // Mock the strategy to report TWAP delay not met
         strategy.setMockTimeUntilFundsMoved(100); // 100 seconds until ready
 
-        // canCreateFold should return false because TWAP delay not met
-        assertFalse(less.canCreateFold());
+        // canCreateWindow should return false because TWAP delay not met
+        assertFalse(less.canCreateWindow());
 
         // Now clear the mock and verify it returns true
         strategy.clearMockTimeUntilFundsMoved();
-        assertTrue(less.canCreateFold());
+        assertTrue(less.canCreateWindow());
     }
 
     function test_TokenURI_RevertWhenRendererNotSet() public {
         // Deploy a new Less without setting renderer
-        Less lessNoRenderer = new Less(address(strategy), MINT_PRICE, payout, owner);
+        Less lessNoRenderer = new Less(address(strategy), MINT_PRICE, payout, owner, 90 minutes);
 
         // Send ETH and create fold
         vm.deal(address(strategy), 0.5 ether);
-        lessNoRenderer.createFold();
+        lessNoRenderer.createWindow();
 
         // Mint a token
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        lessNoRenderer.mint{value: MINT_PRICE}();
+        lessNoRenderer.mint{value: MINT_PRICE}(1);
 
         // tokenURI should revert when calling address(0)
         vm.expectRevert();
@@ -683,56 +754,9 @@ contract LessTest is Test {
         less.getTokenData(999);
     }
 
-    function test_GetFold_RevertFoldIdZero() public {
-        vm.expectRevert(Less.FoldDoesNotExist.selector);
-        less.getFold(0);
-    }
-
-    function test_GetFold_RevertNonExistentFold() public {
-        // No folds created yet
-        vm.expectRevert(Less.FoldDoesNotExist.selector);
-        less.getFold(1);
-
-        // Create a fold
-        vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
-
-        // Fold 1 exists now
-        Less.Fold memory fold = less.getFold(1);
-        assertTrue(fold.startTime > 0);
-
-        // Fold 2 doesn't exist
-        vm.expectRevert(Less.FoldDoesNotExist.selector);
-        less.getFold(2);
-    }
-
     function test_TokenURI_RevertNonExistentToken() public {
         vm.expectRevert(ERC721.TokenDoesNotExist.selector);
         less.tokenURI(999);
-    }
-
-    function test_ActiveFoldId_ReturnsZeroWhenNoWindow() public view {
-        // No fold created yet
-        assertEq(less.activeFoldId(), 0);
-    }
-
-    function test_ActiveFoldId_ReturnsFoldIdWhenWindowActive() public {
-        vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
-
-        assertTrue(less.isWindowActive());
-        assertEq(less.activeFoldId(), 1);
-    }
-
-    function test_ActiveFoldId_ReturnsZeroAfterWindowExpires() public {
-        vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
-
-        // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
-
-        assertFalse(less.isWindowActive());
-        assertEq(less.activeFoldId(), 0);
     }
 
     function test_TimeUntilWindowCloses_ReturnsZeroWhenNoWindow() public view {
@@ -741,41 +765,40 @@ contract LessTest is Test {
 
     function test_TimeUntilWindowCloses_ReturnsTimeRemaining() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
-        // Just created, should be ~30 minutes remaining
+        // Just created, should be ~90 minutes remaining
         uint256 timeLeft = less.timeUntilWindowCloses();
-        assertEq(timeLeft, 30 minutes);
+        assertEq(timeLeft, 90 minutes);
 
         // Fast forward 10 minutes
         vm.warp(block.timestamp + 10 minutes);
         timeLeft = less.timeUntilWindowCloses();
-        assertEq(timeLeft, 20 minutes);
+        assertEq(timeLeft, 80 minutes);
 
         // Fast forward to 1 second before end
-        vm.warp(block.timestamp + 20 minutes - 1);
+        vm.warp(block.timestamp + 80 minutes - 1);
         timeLeft = less.timeUntilWindowCloses();
         assertEq(timeLeft, 1);
     }
 
     function test_TimeUntilWindowCloses_ReturnsZeroAfterExpiry() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         // Fast forward past window
-        vm.warp(block.timestamp + 31 minutes);
+        vm.warp(block.timestamp + 91 minutes);
 
         assertEq(less.timeUntilWindowCloses(), 0);
     }
 
     function test_Mint_AtExactWindowEnd_CreatesNewFold() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        uint256 windowStart = block.timestamp;
+        less.createWindow();
 
-        Less.Fold memory fold = less.getFold(1);
-
-        // Warp to exactly the end time
-        vm.warp(fold.endTime);
+        // Warp to exactly the end time (windowStart + windowDuration)
+        vm.warp(windowStart + 90 minutes);
 
         // Should not be active at endTime (uses < not <=)
         assertFalse(less.isWindowActive());
@@ -783,22 +806,21 @@ contract LessTest is Test {
         // Minting at window end should auto-create fold 2
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         // Verify fold 2 was created
-        assertEq(less.currentFoldId(), 2);
+        assertEq(less.windowCount(), 2);
         assertTrue(less.isWindowActive());
-        assertEq(less.getTokenData(1).foldId, 2); // Token 1 is in fold 2
+        assertEq(less.getTokenData(1).windowId, 2); // Token 1 is in fold 2
     }
 
     function test_Mint_RevertAtWindowEnd_InsufficientBalance() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
-
-        Less.Fold memory fold = less.getFold(1);
+        uint256 windowStart = block.timestamp;
+        less.createWindow();
 
         // Warp to exactly the end time
-        vm.warp(fold.endTime);
+        vm.warp(windowStart + 90 minutes);
 
         // Remove ETH from strategy (simulate it was used in the burn)
         vm.deal(address(strategy), 0.1 ether); // Below threshold
@@ -809,23 +831,22 @@ contract LessTest is Test {
         vm.deal(user1, 1 ether);
         vm.prank(user1);
         vm.expectRevert(Less.InsufficientStrategyBalance.selector);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
     }
 
     function test_Mint_SucceedsJustBeforeWindowEnd() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
-
-        Less.Fold memory fold = less.getFold(1);
+        uint256 windowStart = block.timestamp;
+        less.createWindow();
 
         // Warp to 1 second before end time
-        vm.warp(fold.endTime - 1);
+        vm.warp(windowStart + 90 minutes - 1);
 
         assertTrue(less.isWindowActive());
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
 
         assertEq(less.totalSupply(), 1);
     }
@@ -837,21 +858,21 @@ contract LessTest is Test {
         strategy.setShouldRevert(true);
 
         vm.expectRevert("Strategy: cannot burn yet");
-        less.createFold();
+        less.createWindow();
     }
 
-    function test_Event_FoldCreated() public {
+    function test_Event_WindowCreated() public {
         vm.deal(address(strategy), 0.5 ether);
 
         vm.expectEmit(true, false, false, true);
-        emit Less.FoldCreated(1, uint64(block.timestamp), uint64(block.timestamp + 30 minutes), blockhash(block.number - 1));
+        emit Less.WindowCreated(1, uint64(block.timestamp), uint64(block.timestamp + 90 minutes));
 
-        less.createFold();
+        less.createWindow();
     }
 
     function test_Event_Minted() public {
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         vm.deal(user1, 1 ether);
         vm.prank(user1);
@@ -860,7 +881,7 @@ contract LessTest is Test {
         vm.expectEmit(true, true, true, false);
         emit Less.Minted(1, 1, user1, bytes32(0));
 
-        less.mint{value: MINT_PRICE}();
+        less.mint{value: MINT_PRICE}(1);
     }
 
     function test_Event_MintPriceUpdated() public {
@@ -895,13 +916,13 @@ contract LessTest is Test {
         vm.stopPrank();
     }
 
-    function test_Event_MinEthForFoldUpdated() public {
+    function test_Event_MinEthForWindowUpdated() public {
         vm.startPrank(owner);
 
         vm.expectEmit(false, false, false, true);
-        emit Less.MinEthForFoldUpdated(0.5 ether);
+        emit Less.MinEthForWindowUpdated(0.5 ether);
 
-        less.setMinEthForFold(0.5 ether);
+        less.setMinEthForWindow(0.5 ether);
         vm.stopPrank();
     }
 
@@ -911,14 +932,143 @@ contract LessTest is Test {
         less.setMintPrice(0);
 
         vm.deal(address(strategy), 0.5 ether);
-        less.createFold();
+        less.createWindow();
 
         // Should be able to mint for free
         vm.prank(user1);
-        less.mint{value: 0}();
+        less.mint{value: 0}(1);
 
         assertEq(less.totalSupply(), 1);
         assertEq(less.ownerOf(1), user1);
+    }
+
+    function test_Mint_RevertZeroQuantity() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        vm.expectRevert(Less.InvalidQuantity.selector);
+        less.mint{value: MINT_PRICE}(0);
+    }
+
+    function test_Mint_MultipleQuantity() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 10 ether);
+
+        // Mint 3 tokens at once
+        // Cost = MINT_PRICE * (1 + 1.5 + 2.25) = MINT_PRICE * 4.75
+        // = MINT_PRICE * 3^0/2^0 + MINT_PRICE * 3^1/2^1 + MINT_PRICE * 3^2/2^2
+        // = MINT_PRICE * (1 + 3/2 + 9/4) = MINT_PRICE * (4 + 6 + 9) / 4 = MINT_PRICE * 19/4
+        uint256 totalCost = less.getMintCost(user1, 3);
+        assertEq(totalCost, (MINT_PRICE * 19) / 4);
+
+        vm.prank(user1);
+        less.mint{value: totalCost}(3);
+
+        assertEq(less.totalSupply(), 3);
+        assertEq(less.ownerOf(1), user1);
+        assertEq(less.ownerOf(2), user1);
+        assertEq(less.ownerOf(3), user1);
+        assertEq(less.getMintCount(user1), 3);
+    }
+
+    function test_GetMintCount() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // No fold yet, should return 0
+        assertEq(less.getMintCount(user1), 0);
+
+        less.createWindow();
+        assertEq(less.getMintCount(user1), 0);
+
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        assertEq(less.getMintCount(user1), 1);
+
+        vm.prank(user1);
+        less.mint{value: (MINT_PRICE * 3) / 2}(1);
+
+        assertEq(less.getMintCount(user1), 2);
+    }
+
+    function test_MintCount_ResetsPerFold() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        assertEq(less.getMintCount(user1), 1);
+
+        // Fast forward and create new fold
+        vm.warp(block.timestamp + 91 minutes);
+        less.createWindow();
+
+        // Mint count in current fold (2) should be 0
+        assertEq(less.getMintCount(user1), 0);
+
+        // User can mint at base price again
+        assertEq(less.getMintCost(user1, 1), MINT_PRICE);
+    }
+
+    function test_Mint_IncorrectPaymentForMultiple() public {
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 10 ether);
+
+        // Try to mint 3 with only enough for 1
+        vm.prank(user1);
+        vm.expectRevert(Less.IncorrectPayment.selector);
+        less.mint{value: MINT_PRICE}(3);
+    }
+
+    function test_Mint_OneFirst_ThenMoreLater() public {
+        // This tests the scenario: user mints 1, then comes back to mint more
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.deal(user1, 10 ether);
+        vm.startPrank(user1);
+
+        // Step 1: Mint 1 token at base price
+        assertEq(less.getMintCount(user1), 0);
+        assertEq(less.getMintCost(user1, 1), MINT_PRICE);
+
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.totalSupply(), 1);
+        assertEq(less.getMintCount(user1), 1);
+
+        // Step 2: User comes back - verify pricing reflects their previous mint
+        assertEq(less.getMintCount(user1), 1);
+        assertEq(less.getMintCost(user1, 1), (MINT_PRICE * 3) / 2); // 1.5x
+
+        // getMintCost for 2 more should be: 1.5x + 2.25x = 3.75x base
+        // = MINT_PRICE * (3/2 + 9/4) = MINT_PRICE * (6/4 + 9/4) = MINT_PRICE * 15/4
+        uint256 costForTwoMore = less.getMintCost(user1, 2);
+        assertEq(costForTwoMore, (MINT_PRICE * 15) / 4);
+
+        // Step 3: Mint 2 more tokens
+        less.mint{value: costForTwoMore}(2);
+        assertEq(less.totalSupply(), 3);
+        assertEq(less.getMintCount(user1), 3);
+
+        // All tokens belong to user1
+        assertEq(less.ownerOf(1), user1);
+        assertEq(less.ownerOf(2), user1);
+        assertEq(less.ownerOf(3), user1);
+
+        // Step 4: Verify next price is now 3.375x (1.5^3)
+        // 1.5^3 = 27/8
+        assertEq(less.getMintCost(user1, 1), (MINT_PRICE * 27) / 8);
+
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -935,10 +1085,8 @@ contract LessTest is Test {
 
         renderer.setMetadata(newName, newDesc, newImage, newLink);
 
-        assertEq(renderer.collectionName(), newName);
+        // description is the only public metadata field
         assertEq(renderer.description(), newDesc);
-        assertEq(renderer.collectionImage(), newImage);
-        assertEq(renderer.externalLink(), newLink);
 
         vm.stopPrank();
     }
@@ -989,10 +1137,8 @@ contract LessTest is Test {
     }
 
     function test_Renderer_ConstructorMetadataValues() public view {
-        assertEq(renderer.collectionName(), "LESS");
+        // description is the only public metadata field
         assertTrue(bytes(renderer.description()).length > 0);
-        assertEq(renderer.collectionImage(), "https://example.com/less/collection.png");
-        assertEq(renderer.externalLink(), "https://less.art");
     }
 
     function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {
