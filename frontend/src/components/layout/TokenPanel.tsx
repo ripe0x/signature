@@ -92,14 +92,14 @@ export function TokenPanel() {
               <div className="text-xl tabular-nums">{formattedSupply}</div>
             </div>
 
-            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">holders</div>
-              <div className="text-xl tabular-nums">
-                {IS_TOKEN_LIVE && holderCount !== null
-                  ? holderCount.toLocaleString()
-                  : "—"}
+            {IS_TOKEN_LIVE && holderCount !== null && (
+              <div>
+                <div className="text-xs text-muted mb-1">holders</div>
+                <div className="text-xl tabular-nums">
+                  {holderCount.toLocaleString()}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
               <div className="text-xs text-muted mb-1">buyback balance</div>
