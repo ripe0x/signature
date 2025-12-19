@@ -156,6 +156,14 @@ export function TokenPanel() {
               dexscreener →
             </a>
             <a
+              href={`https://etherscan.io/token/${CONTRACTS.LESS_STRATEGY}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-muted hover:text-foreground transition-colors"
+            >
+              etherscan →
+            </a>
+            <a
               href="https://docs.nftstrategy.fun/strategy-types/recursive-strategies"
               target="_blank"
               rel="noopener noreferrer"
