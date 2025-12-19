@@ -2,28 +2,41 @@
 
 import { useState } from "react";
 import { useTokenStats } from "@/hooks/useTokenStats";
-import { formatCountdown, formatTimestamp } from "@/lib/utils";
 import { formatEther } from "viem";
-import { IS_PRE_LAUNCH } from "@/lib/contracts";
+import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
 
 export function TokenPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const {
     tokenSupply,
-    lastBurnTime,
-    timeUntilNextBurn,
-    timeBetweenBurns,
+    buybackBalance,
+    burnCount,
+    tokenPrice,
+    holderCount,
     nftsMinted,
     windowCount,
   } = useTokenStats();
 
-  const formattedSupply = IS_PRE_LAUNCH
-    ? "—"
-    : tokenSupply > 0
-    ? parseFloat(formatEther(tokenSupply)).toLocaleString(undefined, {
-        maximumFractionDigits: 0,
-      })
-    : "—";
+  const formattedSupply =
+    IS_TOKEN_LIVE && tokenSupply > 0
+      ? parseFloat(formatEther(tokenSupply)).toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        })
+      : "—";
+
+  const formattedBuybackBalance =
+    IS_TOKEN_LIVE && buybackBalance > 0
+      ? parseFloat(formatEther(buybackBalance)).toFixed(3)
+      : "0";
+
+  const formattedPrice =
+    tokenPrice !== null
+      ? tokenPrice < 0.0001
+        ? tokenPrice.toExponential(2)
+        : tokenPrice < 1
+        ? tokenPrice.toFixed(6)
+        : tokenPrice.toFixed(4)
+      : "—";
 
   return (
     <>
@@ -33,7 +46,7 @@ export function TokenPanel() {
         className="fixed right-0 top-1/2 -translate-y-1/2 z-40 px-2 py-4 bg-foreground text-background text-xs writing-mode-vertical hover:bg-foreground/90 transition-colors hidden md:block"
         style={{ writingMode: "vertical-rl" }}
       >
-        {isOpen ? "close" : "token"}
+        {isOpen ? "close" : "$LESS"}
       </button>
 
       {/* Mobile Toggle */}
@@ -41,7 +54,7 @@ export function TokenPanel() {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-4 right-4 z-40 px-4 py-2 bg-foreground text-background text-xs md:hidden"
       >
-        {isOpen ? "close" : "token info"}
+        {isOpen ? "close" : "$LESS"}
       </button>
 
       {/* Panel */}
@@ -54,24 +67,61 @@ export function TokenPanel() {
           <div>
             <h2 className="text-lg mb-1">$LESS</h2>
             <p className="text-xs text-muted">recursive strategy token</p>
+            {IS_TOKEN_LIVE && (
+              <div className="mt-3 px-2 py-1 border border-foreground text-foreground text-xs inline-block">
+                live
+              </div>
+            )}
             {IS_PRE_LAUNCH && (
-              <div className="mt-3 px-2 py-1 border border-muted text-muted text-xs inline-block">
-                coming soon
+              <div className="mt-2 px-2 py-1 border border-muted text-muted text-xs inline-block">
+                nft coming soon
               </div>
             )}
           </div>
 
           {/* Stats */}
           <div className="space-y-6">
-            <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
+            {/* Token stats - show when token is live */}
+            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
+              <div className="text-xs text-muted mb-1">token price</div>
+              <div className="text-xl tabular-nums">${formattedPrice}</div>
+            </div>
+
+            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
               <div className="text-xs text-muted mb-1">token supply</div>
               <div className="text-xl tabular-nums">{formattedSupply}</div>
             </div>
 
-            <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">mint windows</div>
+            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
+              <div className="text-xs text-muted mb-1">holders</div>
               <div className="text-xl tabular-nums">
-                {IS_PRE_LAUNCH ? "—" : windowCount}
+                {IS_TOKEN_LIVE && holderCount !== null
+                  ? holderCount.toLocaleString()
+                  : "—"}
+              </div>
+            </div>
+
+            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
+              <div className="text-xs text-muted mb-1">buyback balance</div>
+              <div className="text-xl tabular-nums">
+                {formattedBuybackBalance} ETH
+              </div>
+            </div>
+
+            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
+              <div className="text-xs text-muted mb-1">
+                burn interval (when active)
+              </div>
+              <div className="text-sm">90 min</div>
+            </div>
+
+            {/* NFT stats - show when NFT is live */}
+            <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
+              <div className="text-xs text-muted mb-1">
+                burns / mint windows
+              </div>
+              <div className="text-xl tabular-nums">
+                {IS_PRE_LAUNCH ? "—" : burnCount}
               </div>
             </div>
 
@@ -81,53 +131,34 @@ export function TokenPanel() {
                 {IS_PRE_LAUNCH ? "—" : nftsMinted}
               </div>
             </div>
-
-            {!IS_PRE_LAUNCH && lastBurnTime > 0 && (
-              <div>
-                <div className="text-xs text-muted mb-1">last burn</div>
-                <div className="text-sm">{formatTimestamp(lastBurnTime)}</div>
-              </div>
-            )}
-
-            {!IS_PRE_LAUNCH && timeUntilNextBurn > 0 && (
-              <div>
-                <div className="text-xs text-muted mb-1">
-                  next burn possible in
-                </div>
-                <div className="text-xl tabular-nums font-mono">
-                  {formatCountdown(timeUntilNextBurn)}
-                </div>
-              </div>
-            )}
-
-            <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">burn interval</div>
-              <div className="text-sm">
-                {IS_PRE_LAUNCH ? "—" : formatCountdown(timeBetweenBurns)}
-              </div>
-            </div>
           </div>
 
           {/* Links */}
           <div
             className={`pt-6 border-t border-border space-y-3 ${
-              IS_PRE_LAUNCH ? "opacity-40 pointer-events-none" : ""
+              !IS_TOKEN_LIVE ? "opacity-40 pointer-events-none" : ""
             }`}
           >
             <a
-              href="#"
+              href={`https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block text-sm text-muted hover:text-foreground transition-colors"
             >
               trade token →
             </a>
             <a
-              href="#"
+              href={`https://dexscreener.com/ethereum/${CONTRACTS.LESS_STRATEGY}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block text-sm text-muted hover:text-foreground transition-colors"
             >
               dexscreener →
             </a>
             <a
-              href="#"
+              href="https://docs.nftstrategy.fun/strategy-types/recursive-strategies"
+              target="_blank"
+              rel="noopener noreferrer"
               className="block text-sm text-muted hover:text-foreground transition-colors"
             >
               strategy protocol docs →

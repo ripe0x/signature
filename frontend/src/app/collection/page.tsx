@@ -1,13 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { ArtworkCard } from '@/components/artwork/ArtworkCard';
-import { ArtworkCanvas } from '@/components/artwork/ArtworkCanvas';
-import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { useCollection, type CollectionToken } from '@/hooks/useCollection';
-import { IS_PRE_LAUNCH, SAMPLE_SEEDS } from '@/lib/contracts';
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { ArtworkCard } from "@/components/artwork/ArtworkCard";
+import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useCollection, type CollectionToken } from "@/hooks/useCollection";
+import {
+  IS_PRE_LAUNCH,
+  IS_TOKEN_LIVE,
+  SAMPLE_SEEDS,
+  CONTRACTS,
+} from "@/lib/contracts";
 
 interface WindowGroup {
   windowId: number;
@@ -29,23 +34,57 @@ function PreLaunchCollection() {
 
           {/* Coming Soon Notice */}
           <div className="mb-12 p-6 border border-border">
-            <div className="text-lg mb-2">not yet launched</div>
-            <p className="text-sm text-muted mb-4">
-              the collection will populate as the recursive token burns and mint windows open.
-              each piece will be tied to a specific burn event.
-            </p>
-            <Link href="/about">
-              <Button variant="outline" size="sm">
-                learn how it works
-              </Button>
-            </Link>
+            {IS_TOKEN_LIVE ? (
+              <>
+                <div className="text-lg mb-2">
+                  $LESS is live — nft coming soon
+                </div>
+                <p className="text-sm text-muted mb-4">
+                  the recursive token is trading. once the nft contract deploys,
+                  each burn will open a mint window and the collection will
+                  begin.
+                </p>
+                <div className="flex gap-3">
+                  <a
+                    href={`https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" size="sm">
+                      trade $LESS
+                    </Button>
+                  </a>
+                  <Link href="/about">
+                    <Button variant="outline" size="sm">
+                      learn how it works
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-lg mb-2">not yet launched</div>
+                <p className="text-sm text-muted mb-4">
+                  the collection will populate as the recursive token burns and
+                  mint windows open. each piece will be tied to a specific burn
+                  event.
+                </p>
+                <Link href="/about">
+                  <Button variant="outline" size="sm">
+                    learn how it works
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Sample Grid */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg">sample outputs</h2>
-              <span className="text-sm text-muted">not minted — for preview only</span>
+              <span className="text-sm text-muted">
+                not minted — for preview only
+              </span>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -131,7 +170,8 @@ function LiveCollection() {
           <div className="mb-12">
             <h1 className="text-2xl mb-2">collection</h1>
             <p className="text-sm text-muted">
-              {total} pieces across {windowGroups.length} window{windowGroups.length !== 1 ? 's' : ''}
+              {total} pieces across {windowGroups.length} window
+              {windowGroups.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -150,7 +190,8 @@ function LiveCollection() {
                 <div className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border">
                   <h2 className="text-lg">window {group.windowId}</h2>
                   <span className="text-sm text-muted">
-                    {group.tokens.length} piece{group.tokens.length !== 1 ? 's' : ''}
+                    {group.tokens.length} piece
+                    {group.tokens.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 

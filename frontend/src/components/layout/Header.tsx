@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
-import { IS_PRE_LAUNCH } from '@/lib/contracts';
+import { IS_PRE_LAUNCH, IS_TOKEN_LIVE } from '@/lib/contracts';
+
+// Token-only state: token is live but NFT isn't deployed yet
+const IS_TOKEN_ONLY = IS_TOKEN_LIVE && IS_PRE_LAUNCH;
 
 export function Header() {
   return (
@@ -25,28 +28,31 @@ export function Header() {
           </a>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8">
-          {!IS_PRE_LAUNCH && (
+        {/* Hide nav links in token-only state (landing page has all content) */}
+        {!IS_TOKEN_ONLY && (
+          <nav className="hidden md:flex items-center gap-8">
+            {!IS_PRE_LAUNCH && (
+              <Link
+                href="/collection"
+                className="text-sm text-muted hover:text-foreground transition-colors"
+              >
+                collection
+              </Link>
+            )}
             <Link
-              href="/collection"
+              href="/mint"
               className="text-sm text-muted hover:text-foreground transition-colors"
             >
-              collection
+              mint
             </Link>
-          )}
-          <Link
-            href="/mint"
-            className="text-sm text-muted hover:text-foreground transition-colors"
-          >
-            mint
-          </Link>
-          <Link
-            href="/about"
-            className="text-sm text-muted hover:text-foreground transition-colors"
-          >
-            about
-          </Link>
-        </nav>
+            <Link
+              href="/about"
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              about
+            </Link>
+          </nav>
+        )}
 
         <ConnectButton />
       </div>

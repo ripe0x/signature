@@ -1,5 +1,5 @@
 // Toggle test mode: set to true to use Sepolia testnet
-const USE_TESTNET = true; // TODO: Set to false for mainnet launch
+const USE_TESTNET = false; // Set to false for mainnet
 
 // Contract addresses - Sepolia Testnet
 const TESTNET_CONTRACTS = {
@@ -8,10 +8,9 @@ const TESTNET_CONTRACTS = {
 } as const;
 
 // Contract addresses - Ethereum Mainnet
-// TODO: Replace with actual deployed addresses
 const MAINNET_CONTRACTS = {
-  LESS_NFT: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-  LESS_STRATEGY: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+  LESS_NFT: '0x0000000000000000000000000000000000000000' as `0x${string}`, // TODO: Deploy NFT contract
+  LESS_STRATEGY: '0x9c2ca573009f181eac634c4d6e44a0977c24f335' as `0x${string}`, // Recursive token (live)
 } as const;
 
 export const CONTRACTS = USE_TESTNET ? TESTNET_CONTRACTS : MAINNET_CONTRACTS;
@@ -20,11 +19,14 @@ export const CHAIN_ID = USE_TESTNET ? 11155111 : 1; // Sepolia or Mainnet
 // Zero address for comparison
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-// Automatically detect pre-launch mode based on contract addresses
+// Token is live if strategy contract is deployed (for showing token stats)
+export const IS_TOKEN_LIVE = CONTRACTS.LESS_STRATEGY !== ZERO_ADDRESS;
+
+// NFT pre-launch: NFT contract not yet deployed (minting not available)
 // In testnet mode, only NFT address is required (no strategy on Sepolia)
 export const IS_PRE_LAUNCH = USE_TESTNET
   ? CONTRACTS.LESS_NFT === ZERO_ADDRESS
-  : CONTRACTS.LESS_NFT === ZERO_ADDRESS || CONTRACTS.LESS_STRATEGY === ZERO_ADDRESS;
+  : CONTRACTS.LESS_NFT === ZERO_ADDRESS;
 
 // Sample seeds for pre-launch preview
 export const SAMPLE_SEEDS = [

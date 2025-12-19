@@ -16,7 +16,7 @@ contract LaunchRecursive is Script {
     function run() external {
         string memory name = "LESS";
         string memory ticker = "LESS";
-        string memory metadata = "data:application/json;base64,eyJpbWFnZSI6ImlwZnM6Ly9iYWZrcmVpY2Jwb2Jzc3Jtb2V5N2J3d2lsYzVsdzVlYmFzaGl1aGNpY3d2b2g2NHB3cWF6YmIya3lzNCJ9";
+        string memory metadata = "data:application/json;base64,eyJpbWFnZSI6Imh0dHBzOi8vbGVzcy5yaXBlLnd0Zi9sZXNzLWxvZ28ucG5nIn0=";
 
         IStrategyPublicLauncher launcher = IStrategyPublicLauncher(LAUNCHER);
 

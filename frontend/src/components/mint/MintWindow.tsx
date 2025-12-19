@@ -201,7 +201,7 @@ function MintedTokensGrid({
                 seed={seedToNumber(token.seed)}
                 foldCount={token.windowId}
                 width={isSingle ? 400 : 200}
-                height={isSingle ? 500 : 250}
+                height={isSingle ? 566 : 283}
                 className="transition-transform duration-300 group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
@@ -281,7 +281,7 @@ function RecentMints() {
                     seed={seedToNumber(token.seed)}
                     foldCount={token.windowId}
                     width={200}
-                    height={250}
+                    height={283}
                     className="transition-transform duration-300 group-hover:scale-[1.02]"
                   />
                   <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
@@ -576,7 +576,7 @@ export function MintWindow() {
             <p>
               when the balance reaches <strong className="text-foreground">0.25 ETH</strong>,
               anyone can trigger a burn — the ETH buys and burns $LESS tokens,
-              and a <strong className="text-foreground">1-hour mint window</strong> opens.
+              and a <strong className="text-foreground">90-minute mint window</strong> opens.
             </p>
             <p>
               during the window, mint as many as you like — but price escalates

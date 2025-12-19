@@ -15,7 +15,7 @@ export function ArtworkGrid({ tokens, isLoading }: ArtworkGridProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="space-y-3">
-            <Skeleton className="aspect-[4/5]" />
+            <Skeleton className="aspect-[1/1.414]" />
             <Skeleton className="h-4 w-20" />
           </div>
         ))}

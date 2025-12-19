@@ -78,6 +78,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @param newMinEth The new minimum ETH balance required in the strategy
     event MinEthForWindowUpdated(uint256 newMinEth);
 
+    /// @notice Emitted when the strategy contract is updated by the owner
+    /// @param newStrategy The new strategy contract address
+    event StrategyUpdated(address newStrategy);
+
     /// @notice Emitted when the mint window duration is updated
     /// @param newWindowDuration The new window duration in seconds
     event WindowDurationUpdated(uint256 newWindowDuration);
@@ -90,6 +94,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Emitted when minting is paused or unpaused
     /// @param paused True if minting is now paused, false if unpaused
     event MintingPausedChanged(bool paused);
+
+    /// @notice Emitted when window creation is enabled or disabled
+    /// @param enabled True if window creation is now enabled, false if disabled
+    event WindowCreationEnabledChanged(bool enabled);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -113,12 +121,15 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Thrown when minting is paused
     error MintingPaused();
 
+    /// @notice Thrown when window creation is disabled
+    error WindowCreationDisabled();
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Reference to the RecursiveStrategy token
-    IRecursiveStrategy public immutable strategy;
+    IRecursiveStrategy public strategy;
 
     /// @notice Duration of each mint window in seconds
     uint256 public windowDuration;
@@ -143,6 +154,9 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Whether minting is currently paused
     bool public mintingPaused;
+
+    /// @notice Whether window creation is currently enabled
+    bool public windowCreationEnabled;
 
     /// @notice Mapping of window ID to window data
     mapping(uint256 => Window) internal _windows;
@@ -172,10 +186,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         address _owner,
         uint256 _windowDuration
     ) {
-        if (_strategy == address(0)) revert InvalidAddress();
         if (_payoutRecipient == address(0)) revert InvalidAddress();
         if (_owner == address(0)) revert InvalidAddress();
 
+        // Strategy can be zero address initially and set later via setStrategy()
         strategy = IRecursiveStrategy(_strategy);
         windowDuration = _windowDuration;
         mintPrice = _mintPrice;
@@ -224,9 +238,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Creates a new window by triggering a burn on the strategy
-    /// @dev Anyone can call this; will revert if a mint window is active, strategy balance is insufficient, or strategy burn fails.
+    /// @dev Anyone can call this; will revert if a mint window is active, window creation is disabled, strategy balance is insufficient, or strategy burn fails.
     ///      Note: mint() will automatically create a window if needed, so this function is optional.
     function createWindow() external nonReentrant {
+        if (!windowCreationEnabled) revert WindowCreationDisabled();
         if (_isWindowActive()) revert MintWindowActive();
         _createWindow();
     }
@@ -265,12 +280,13 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     }
 
     /// @notice Check if a window can be created
-    /// @dev Returns true only if: no active window, strategy balance >= minEthForWindow, and TWAP delay met.
+    /// @dev Returns true only if: window creation enabled, no active window, strategy balance >= minEthForWindow, and TWAP delay met.
     ///      Note: This view function mirrors the conditions that would cause _createWindow() to revert.
     ///      If the strategy's processTokenTwap() revert conditions ever diverge from timeUntilFundsMoved(),
     ///      this function could return true when createWindow() would actually fail.
     /// @return True if createWindow() would likely succeed, false otherwise
     function canCreateWindow() external view returns (bool) {
+        if (!windowCreationEnabled) return false;
         if (_isWindowActive()) return false;
         if (address(strategy).balance < minEthForWindow) return false;
         return strategy.timeUntilFundsMoved() == 0;
@@ -298,6 +314,7 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
         // If no active window, try to create a new one
         if (!_isWindowActive()) {
+            if (!windowCreationEnabled) revert WindowCreationDisabled();
             _createWindow();
         }
 
@@ -409,6 +426,14 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         emit MinEthForWindowUpdated(_minEthForWindow);
     }
 
+    /// @notice Update the strategy contract
+    /// @param _strategy New strategy address
+    function setStrategy(address _strategy) external onlyOwner {
+        if (_strategy == address(0)) revert InvalidAddress();
+        strategy = IRecursiveStrategy(_strategy);
+        emit StrategyUpdated(_strategy);
+    }
+
     /// @notice Update the mint window duration
     /// @param _windowDuration New window duration in seconds
     function setWindowDuration(uint256 _windowDuration) external onlyOwner {
@@ -421,6 +446,13 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     function setMintingPaused(bool _paused) external onlyOwner {
         mintingPaused = _paused;
         emit MintingPausedChanged(_paused);
+    }
+
+    /// @notice Enable or disable window creation
+    /// @param _enabled True to enable window creation, false to disable
+    function setWindowCreationEnabled(bool _enabled) external onlyOwner {
+        windowCreationEnabled = _enabled;
+        emit WindowCreationEnabledChanged(_enabled);
     }
 
     /// @notice Withdraw accumulated ETH to the payout recipient

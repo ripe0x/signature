@@ -1,15 +1,16 @@
 'use client';
 
-import { useReadContract } from 'wagmi';
-import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI } from '@/lib/contracts';
+import { useReadContract, useBalance } from 'wagmi';
+import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, IS_TOKEN_LIVE } from '@/lib/contracts';
 import { useEffect, useState } from 'react';
 
 export interface TokenStats {
   // Strategy token stats
   tokenSupply: bigint;
-  lastBurnTime: number;
-  timeUntilNextBurn: number;
-  timeBetweenBurns: number;
+  buybackBalance: bigint;
+  burnCount: number;
+  tokenPrice: number | null;
+  holderCount: number | null;
 
   // NFT stats
   nftsMinted: number;
@@ -17,7 +18,8 @@ export interface TokenStats {
 }
 
 export function useTokenStats() {
-  const [timeUntilNextBurn, setTimeUntilNextBurn] = useState(0);
+  const [tokenPrice, setTokenPrice] = useState<number | null>(null);
+  const [holderCount, setHolderCount] = useState<number | null>(null);
 
   // Strategy token supply
   const { data: tokenSupply } = useReadContract({
@@ -29,31 +31,13 @@ export function useTokenStats() {
     },
   });
 
-  // Last burn timestamp
-  const { data: lastBurn } = useReadContract({
+  // ETH balance available for buyback (contract's ETH balance)
+  const { data: balanceData } = useBalance({
     address: CONTRACTS.LESS_STRATEGY,
-    abi: STRATEGY_ABI,
-    functionName: 'lastBurn',
     query: {
-      refetchInterval: 30000,
+      refetchInterval: 10000,
+      enabled: IS_TOKEN_LIVE,
     },
-  });
-
-  // Time until funds can be moved (next burn)
-  const { data: timeUntilFundsMoved } = useReadContract({
-    address: CONTRACTS.LESS_STRATEGY,
-    abi: STRATEGY_ABI,
-    functionName: 'timeUntilFundsMoved',
-    query: {
-      refetchInterval: 5000,
-    },
-  });
-
-  // Time between burns
-  const { data: timeBetweenBurn } = useReadContract({
-    address: CONTRACTS.LESS_STRATEGY,
-    abi: STRATEGY_ABI,
-    functionName: 'timeBetweenBurn',
   });
 
   // NFT total supply
@@ -66,7 +50,7 @@ export function useTokenStats() {
     },
   });
 
-  // Current window count
+  // Current window count (also serves as burn count)
   const { data: windowCount } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
@@ -76,24 +60,60 @@ export function useTokenStats() {
     },
   });
 
-  // Countdown for next burn
+  // Fetch token price and holder count from DexScreener
   useEffect(() => {
-    if (timeUntilFundsMoved) {
-      setTimeUntilNextBurn(Number(timeUntilFundsMoved));
-    }
+    if (!IS_TOKEN_LIVE) return;
 
+    const fetchDexData = async () => {
+      try {
+        const response = await fetch(
+          `https://api.dexscreener.com/latest/dex/tokens/${CONTRACTS.LESS_STRATEGY}`
+        );
+        const data = await response.json();
+        if (data.pairs && data.pairs.length > 0) {
+          // Get the main pair (usually highest liquidity)
+          const mainPair = data.pairs[0];
+          setTokenPrice(parseFloat(mainPair.priceUsd) || null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch DEX data:', error);
+      }
+    };
+
+    // Fetch holder count from Etherscan (optional - may need API key)
+    const fetchHolderCount = async () => {
+      try {
+        // Using a public endpoint - may be rate limited
+        const response = await fetch(
+          `https://api.etherscan.io/api?module=token&action=tokenholdercount&contractaddress=${CONTRACTS.LESS_STRATEGY}`
+        );
+        const data = await response.json();
+        if (data.status === '1' && data.result) {
+          setHolderCount(parseInt(data.result, 10));
+        }
+      } catch (error) {
+        console.error('Failed to fetch holder count:', error);
+      }
+    };
+
+    fetchDexData();
+    fetchHolderCount();
+
+    // Refresh every 30 seconds
     const interval = setInterval(() => {
-      setTimeUntilNextBurn((prev) => Math.max(0, prev - 1));
-    }, 1000);
+      fetchDexData();
+      fetchHolderCount();
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [timeUntilFundsMoved]);
+  }, []);
 
   return {
     tokenSupply: tokenSupply ?? BigInt(0),
-    lastBurnTime: lastBurn ? Number(lastBurn) : 0,
-    timeUntilNextBurn,
-    timeBetweenBurns: timeBetweenBurn ? Number(timeBetweenBurn) : 1800,
+    buybackBalance: balanceData?.value ?? BigInt(0),
+    burnCount: windowCount ? Number(windowCount) : 0,
+    tokenPrice,
+    holderCount,
     nftsMinted: nftSupply ? Number(nftSupply) : 0,
     windowCount: windowCount ? Number(windowCount) : 0,
   };

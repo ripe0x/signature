@@ -114,6 +114,7 @@ contract LessTest is Test {
         );
 
         less.setRenderer(address(renderer));
+        less.setWindowCreationEnabled(true);
 
         vm.stopPrank();
     }
@@ -678,9 +679,41 @@ contract LessTest is Test {
         assertEq(payout.balance, MINT_PRICE * 2);
     }
 
-    function test_Constructor_RevertInvalidStrategy() public {
+    function test_Constructor_AllowsZeroStrategy() public {
+        // Zero address strategy is allowed - can be set later via setStrategy()
+        Less lessWithZeroStrategy = new Less(address(0), MINT_PRICE, payout, owner, 90 minutes);
+        assertEq(address(lessWithZeroStrategy.strategy()), address(0));
+    }
+
+    function test_SetStrategy() public {
+        // Deploy with zero strategy
+        Less lessWithZeroStrategy = new Less(address(0), MINT_PRICE, payout, owner, 90 minutes);
+        assertEq(address(lessWithZeroStrategy.strategy()), address(0));
+
+        // Set strategy as owner
+        vm.prank(owner);
+        lessWithZeroStrategy.setStrategy(address(strategy));
+        assertEq(address(lessWithZeroStrategy.strategy()), address(strategy));
+    }
+
+    function test_SetStrategy_RevertZeroAddress() public {
+        vm.prank(owner);
         vm.expectRevert(Less.InvalidAddress.selector);
-        new Less(address(0), MINT_PRICE, payout, owner, 90 minutes);
+        less.setStrategy(address(0));
+    }
+
+    function test_SetStrategy_RevertNonOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        less.setStrategy(address(strategy));
+    }
+
+    function test_SetStrategy_Event() public {
+        address newStrategy = makeAddr("newStrategy");
+        vm.expectEmit(true, true, true, true);
+        emit Less.StrategyUpdated(newStrategy);
+        vm.prank(owner);
+        less.setStrategy(newStrategy);
     }
 
     function test_Constructor_RevertInvalidOwner() public {
@@ -729,6 +762,10 @@ contract LessTest is Test {
     function test_TokenURI_RevertWhenRendererNotSet() public {
         // Deploy a new Less without setting renderer
         Less lessNoRenderer = new Less(address(strategy), MINT_PRICE, payout, owner, 90 minutes);
+
+        // Enable window creation
+        vm.prank(owner);
+        lessNoRenderer.setWindowCreationEnabled(true);
 
         // Send ETH and create fold
         vm.deal(address(strategy), 0.5 ether);
@@ -1139,6 +1176,194 @@ contract LessTest is Test {
     function test_Renderer_ConstructorMetadataValues() public view {
         // description is the only public metadata field
         assertTrue(bytes(renderer.description()).length > 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         WINDOW CREATION TOGGLE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_InitialState_WindowCreationDisabled() public {
+        // Create a fresh contract to verify default state
+        Less freshLess = new Less(address(strategy), MINT_PRICE, payout, owner, 90 minutes);
+        assertFalse(freshLess.windowCreationEnabled());
+    }
+
+    function test_SetWindowCreationEnabled() public {
+        vm.startPrank(owner);
+
+        // Disable window creation
+        less.setWindowCreationEnabled(false);
+        assertFalse(less.windowCreationEnabled());
+
+        // Re-enable window creation
+        less.setWindowCreationEnabled(true);
+        assertTrue(less.windowCreationEnabled());
+
+        vm.stopPrank();
+    }
+
+    function test_SetWindowCreationEnabled_RevertNonOwner() public {
+        vm.startPrank(user1);
+
+        vm.expectRevert();
+        less.setWindowCreationEnabled(false);
+
+        vm.stopPrank();
+    }
+
+    function test_Event_WindowCreationEnabledChanged() public {
+        vm.startPrank(owner);
+
+        vm.expectEmit(false, false, false, true);
+        emit Less.WindowCreationEnabledChanged(false);
+        less.setWindowCreationEnabled(false);
+
+        vm.expectEmit(false, false, false, true);
+        emit Less.WindowCreationEnabledChanged(true);
+        less.setWindowCreationEnabled(true);
+
+        vm.stopPrank();
+    }
+
+    function test_CreateWindow_RevertWhenDisabled() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Disable window creation
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // createWindow should revert
+        vm.expectRevert(Less.WindowCreationDisabled.selector);
+        less.createWindow();
+    }
+
+    function test_CreateWindow_SucceedsWhenReEnabled() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        vm.startPrank(owner);
+
+        // Disable then re-enable
+        less.setWindowCreationEnabled(false);
+        less.setWindowCreationEnabled(true);
+
+        vm.stopPrank();
+
+        // createWindow should succeed
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
+    }
+
+    function test_Mint_RevertWhenDisabledAndNoActiveWindow() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Disable window creation
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // mint should revert because no active window and can't create one
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        vm.expectRevert(Less.WindowCreationDisabled.selector);
+        less.mint{value: MINT_PRICE}(1);
+    }
+
+    function test_Mint_SucceedsWhenDisabledButWindowActive() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // First, create a window while enabled
+        less.createWindow();
+        assertTrue(less.isWindowActive());
+
+        // Now disable window creation
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Minting should still work because window is active
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        assertEq(less.totalSupply(), 1);
+        assertEq(less.ownerOf(1), user1);
+    }
+
+    function test_CanCreateWindow_FalseWhenDisabled() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Initially should be able to create
+        assertTrue(less.canCreateWindow());
+
+        // Disable window creation
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Now canCreateWindow should return false
+        assertFalse(less.canCreateWindow());
+    }
+
+    function test_CanCreateWindow_TrueWhenReEnabled() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        vm.startPrank(owner);
+
+        // Disable then re-enable
+        less.setWindowCreationEnabled(false);
+        assertFalse(less.canCreateWindow());
+
+        less.setWindowCreationEnabled(true);
+        assertTrue(less.canCreateWindow());
+
+        vm.stopPrank();
+    }
+
+    function test_Mint_AutoCreateWindowWhenReEnabled() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Should fail
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        vm.expectRevert(Less.WindowCreationDisabled.selector);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Re-enable
+        vm.prank(owner);
+        less.setWindowCreationEnabled(true);
+
+        // Now should auto-create window and mint
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        assertEq(less.windowCount(), 1);
+        assertEq(less.totalSupply(), 1);
+    }
+
+    function test_WindowCreationToggle_AfterWindowExpires() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Create first window
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
+
+        // Fast forward past window
+        vm.warp(block.timestamp + 91 minutes);
+        assertFalse(less.isWindowActive());
+
+        // Disable window creation
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Cannot create new window
+        vm.expectRevert(Less.WindowCreationDisabled.selector);
+        less.createWindow();
+
+        // Cannot mint (would need to create window)
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        vm.expectRevert(Less.WindowCreationDisabled.selector);
+        less.mint{value: MINT_PRICE}(1);
     }
 
     function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {

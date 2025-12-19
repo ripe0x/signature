@@ -136,7 +136,7 @@ export default function AboutPage() {
                   seed={sample.seed}
                   foldCount={sample.foldCount}
                   width={600}
-                  height={750}
+                  height={848}
                   onClick={loadNew}
                 />
                 <div className="mt-3 text-xs text-muted text-center">
@@ -152,7 +152,7 @@ export default function AboutPage() {
               <p className="text-sm leading-relaxed text-muted">
                 underneath this project is a{" "}
                 <Link
-                  href="https://www.nftstrategy.fun/"
+                  href="https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted hover:text-foreground transition-colors underline hover:no-underline"
