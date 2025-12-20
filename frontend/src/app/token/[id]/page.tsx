@@ -1,24 +1,18 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { useToken } from '@/hooks/useToken';
-import { truncateAddress } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useToken } from "@/hooks/useToken";
+import { truncateAddress } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 
 export default function TokenPage() {
   const params = useParams();
   const tokenId = parseInt(params.id as string, 10);
 
-  const {
-    id,
-    windowId,
-    seed,
-    owner,
-    metadata,
-    isLoading,
-    error,
-  } = useToken(tokenId);
+  const { id, windowId, seed, seedNumber, owner, metadata, isLoading, error } =
+    useToken(tokenId);
 
   if (isLoading) {
     return (
@@ -45,7 +39,10 @@ export default function TokenPage() {
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto text-center py-20">
             <p className="text-muted">token not found</p>
-            <Link href="/collection" className="text-sm mt-4 inline-block hover:underline">
+            <Link
+              href="/collection"
+              className="text-sm mt-4 inline-block hover:underline"
+            >
               ← back to collection
             </Link>
           </div>
@@ -66,36 +63,85 @@ export default function TokenPage() {
             ← collection
           </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
-            {/* Artwork - use iframe for full interactivity (Shift+L, Shift+F, etc.) */}
+          {/* Artwork - side by side comparison (full width) */}
+          <div className="grid grid-cols-3 gap-6 mb-12">
+            {/* Local render */}
             <div>
-              {metadata?.animation_url ? (
-                <iframe
-                  src={metadata.animation_url}
-                  className="w-full aspect-[1/1.414] block bg-background"
-                  style={{ border: 'none' }}
-                  sandbox="allow-scripts"
-                  title="On-chain artwork"
-                />
-              ) : (
-                <div className="w-full aspect-[1/1.414] bg-muted/10 flex items-center justify-center text-xs text-muted">
-                  loading...
-                </div>
-              )}
+              <div className="text-xs text-muted mb-2">local</div>
+              <div className="aspect-[1/1.414]">
+                {seedNumber > 0 ? (
+                  <ArtworkCanvas
+                    seed={seedNumber}
+                    foldCount={windowId}
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted/10 flex items-center justify-center text-xs text-muted">
+                    loading...
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* On-chain render */}
+            <div>
+              <div className="text-xs text-muted mb-2 flex justify-between items-center">
+                <span>on-chain</span>
+                {metadata?.animation_url && (
+                  <a
+                    href={metadata.animation_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-foreground transition-colors"
+                    title="Open fullscreen"
+                  >
+                    fullscreen →
+                  </a>
+                )}
+              </div>
+              <div className="aspect-[1/1.414]">
+                {metadata?.animation_url ? (
+                  <iframe
+                    src={metadata.animation_url}
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts"
+                    title="On-chain artwork"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted/10 flex items-center justify-center text-xs text-muted">
+                    loading...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Image API render */}
+            <div>
+              <div className="text-xs text-muted mb-2">image-api</div>
+              <div className="aspect-[1/1.414] bg-muted/10">
+                <img
+                  src={`https://fold-image-api.fly.dev/images/${id}`}
+                  alt={`LESS #${id}`}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
             {/* Details */}
             <div className="space-y-8">
               <div>
-                <h1 className="text-3xl mb-2">LESS #{id}</h1>
-                <p className="text-muted">window {windowId}</p>
+                <h1 className="text-3xl mb-2">LESS {id}</h1>
+                {/* <p className="text-muted">window {windowId}</p> */}
               </div>
 
               {/* Concept */}
               <div className="text-sm leading-relaxed text-muted border-l border-border pl-4">
-                this piece was generated from the compression points of a specific
-                burn event in the LESS recursive token. the folds that led here are
-                invisible. you only see where they collided.
+                this piece was generated from the compression points the
+                collective creases created during the burn events in the LESS
+                recursive token. the folds that led here are invisible. you only
+                see where they collided.
               </div>
 
               {/* Metadata */}
@@ -129,11 +175,33 @@ export default function TokenPage() {
 
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted">seed</span>
-                    <span className="font-mono text-xs">{seed.slice(0, 18)}...</span>
+                    <span className="font-mono text-xs">
+                      {seed.slice(0, 18)}...
+                    </span>
                   </div>
-
                 </div>
               </div>
+
+              {/* Token Attributes */}
+              {metadata?.attributes && metadata.attributes.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-sm text-muted">traits</h2>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {metadata.attributes.map((attr) => (
+                      <div
+                        key={attr.trait_type}
+                        className="border border-border p-3 space-y-1"
+                      >
+                        <div className="text-xs text-muted">
+                          {attr.trait_type}
+                        </div>
+                        <div className="text-sm">{attr.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* External Links */}
               <div className="flex gap-4 pt-4">

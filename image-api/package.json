@@ -8,7 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "copy-sketch": "cp ../web/fold-core.js public/fold-core.js"
+    "copy-core": "cp ../web/fold-core.js public/fold-core.js",
+    "deploy": "npm run copy-core && fly deploy"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -90,13 +90,12 @@ function TokenLiveLanding() {
                 </Button>
               </div>
             </div>
-            <div>
+            <div className="aspect-[1/1.414]">
               <ArtworkCanvas
                 seed={sample.seed}
                 foldCount={sample.foldCount}
-                width={600}
-                height={848}
                 onClick={loadNew}
+                className="w-full h-full"
               />
               <div className="mt-3 text-xs text-muted text-center">
                 {sample.foldCount} folds
@@ -289,13 +288,11 @@ function StandardHome() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Artwork */}
             <div className="order-1 lg:order-1">
-              <div className="relative max-w-lg mx-auto lg:max-w-none">
+              <div className="relative max-w-lg mx-auto lg:max-w-none aspect-[1/1.414]">
                 <ArtworkCanvas
                   seed={heroSeed}
                   foldCount={heroFoldCount}
-                  width={800}
-                  height={1131}
-                  className="w-full"
+                  className="w-full h-full"
                   onClick={IS_PRE_LAUNCH ? loadNew : undefined}
                 />
                 {!IS_PRE_LAUNCH && isActive && (

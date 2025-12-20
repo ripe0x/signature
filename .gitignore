@@ -9,6 +9,7 @@ frontend/.next/
 frontend/out/
 frontend/.vercel
 frontend/src/lib/fold-core.js
+image-api/public/fold-core.js
 
 # Environment files
 .env

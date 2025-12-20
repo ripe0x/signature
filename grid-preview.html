@@ -353,16 +353,17 @@
     }
 
     .modal-image {
-      width: 480px;
       background: #111;
       display: flex;
       align-items: center;
       justify-content: center;
+      max-height: 85vh;
+      overflow: hidden;
     }
 
     .modal-image canvas {
-      max-width: 100%;
-      max-height: 100%;
+      max-height: 85vh;
+      width: auto;
     }
 
     .modal-details {
@@ -639,7 +640,7 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-image">
-        <canvas id="modalCanvas" width="480" height="600"></canvas>
+        <canvas id="modalCanvas"></canvas>
       </div>
       <div class="modal-details">
         <h2 id="modalTitle">Fold #1</h2>
@@ -752,7 +753,7 @@
     // Render full size for modal using unified render function
     function renderFullSize(output) {
       currentModalOutput = output;
-      renderWithState(modalCanvas, output, { width: 480, height: 600 });
+      renderWithState(modalCanvas, output, { width: REFERENCE_WIDTH, height: REFERENCE_HEIGHT });
     }
 
     // Count traits
@@ -1204,8 +1205,8 @@
       }
       const isLinesOnly = secretAnimationMode === 'lines-only';
       renderWithState(modalCanvas, currentModalOutput, {
-        width: 480,
-        height: 600,
+        width: REFERENCE_WIDTH,
+        height: REFERENCE_HEIGHT,
         foldOverride: secretAnimationFold,
         linesOnly: isLinesOnly,
         isAnimating: true,
@@ -1254,8 +1255,8 @@
         secretShowFoldLines = !secretShowFoldLines;
         if (!secretAnimating) {
           renderWithState(modalCanvas, currentModalOutput, {
-            width: 480,
-            height: 600,
+            width: REFERENCE_WIDTH,
+            height: REFERENCE_HEIGHT,
             showOverlays: secretShowFoldLines,
           });
         }

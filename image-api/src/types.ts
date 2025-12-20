@@ -4,6 +4,7 @@ export interface RenderOptions {
   seed: string;
   width?: number;
   height?: number;
+  foldCount?: number;
 }
 
 export interface PooledPage {

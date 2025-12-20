@@ -25,9 +25,23 @@ const LESS_ABI = [
     type: 'function',
   },
   {
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    name: 'getTokenData',
+    outputs: [{ name: 'windowId', type: 'uint64' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
     inputs: [],
     name: 'totalSupply',
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ name: '', type: 'string' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -74,11 +88,11 @@ app.get('/api/render', async (req, res) => {
 
     const normalizedSeed = seed.startsWith('0x') ? seed : `0x${seed}`;
     const w = width ? parseInt(width as string, 10) : 1200;
-    const h = height ? parseInt(height as string, 10) : 1200;
+    const h = height ? parseInt(height as string, 10) : 1697;
 
     // Validate dimensions
-    if (w < 100 || w > 2000 || h < 100 || h > 2000) {
-      return res.status(400).json({ error: 'Dimensions must be between 100 and 2000' });
+    if (w < 100 || w > 4000 || h < 100 || h > 4000) {
+      return res.status(400).json({ error: 'Dimensions must be between 100 and 4000' });
     }
 
     // Check cache
@@ -147,12 +161,12 @@ app.get('/images/:tokenId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid token ID' });
     }
 
-    // Parse optional dimensions
+    // Parse optional dimensions (default to A4 ratio: 1200x1697)
     const width = req.query.width ? parseInt(req.query.width as string, 10) : 1200;
-    const height = req.query.height ? parseInt(req.query.height as string, 10) : 1200;
+    const height = req.query.height ? parseInt(req.query.height as string, 10) : 1697;
 
-    if (width < 100 || width > 2000 || height < 100 || height > 2000) {
-      return res.status(400).json({ error: 'Dimensions must be between 100 and 2000' });
+    if (width < 100 || width > 4000 || height < 100 || height > 4000) {
+      return res.status(400).json({ error: 'Dimensions must be between 100 and 4000' });
     }
 
     // Create viem client
@@ -162,43 +176,63 @@ app.get('/images/:tokenId', async (req, res) => {
       transport: http(RPC_URL),
     });
 
-    // Fetch seed from contract
-    const seed = await client.readContract({
+    // Fetch tokenURI from contract (contains animation_url with on-chain HTML)
+    const tokenURI = await client.readContract({
       address: CONTRACT_ADDRESS as `0x${string}`,
       abi: LESS_ABI,
-      functionName: 'getSeed',
+      functionName: 'tokenURI',
       args: [BigInt(tokenId)],
     });
 
-    if (!seed || seed === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-      return res.status(404).json({ error: 'Token not found or has no seed' });
+    if (!tokenURI) {
+      return res.status(404).json({ error: 'Token not found' });
     }
 
-    // Check cache using seed
-    const cached = await cache.get(seed, width, height);
+    // Parse tokenURI (data:application/json;base64,...)
+    const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+    if (!jsonMatch) {
+      return res.status(500).json({ error: 'Invalid tokenURI format' });
+    }
+
+    const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+    const animationUrl = metadata.animation_url;
+
+    if (!animationUrl) {
+      return res.status(500).json({ error: 'No animation_url in metadata' });
+    }
+
+    // Extract HTML from animation_url (data:text/html;base64,...)
+    const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+    if (!htmlMatch) {
+      return res.status(500).json({ error: 'Invalid animation_url format' });
+    }
+
+    const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+    // Check cache using tokenId + dimensions (since on-chain state determines output)
+    const cacheKey = `token-${tokenId}`;
+    const cached = await cache.get(cacheKey, width, height);
     if (cached) {
       res.set('Content-Type', 'image/png');
       res.set('X-Cache', 'HIT');
       res.set('X-Token-Id', tokenId.toString());
-      res.set('X-Seed', seed);
       res.set('X-Render-Time', `${Date.now() - startTime}ms`);
       return res.send(cached);
     }
 
-    // Render image
-    const imageBuffer = await renderer.render({
-      seed,
+    // Render image using the on-chain HTML directly
+    const imageBuffer = await renderer.renderHtml({
+      html: onChainHtml,
       width,
       height,
     });
 
     // Cache result
-    await cache.set(seed, width, height, imageBuffer);
+    await cache.set(cacheKey, width, height, imageBuffer);
 
     res.set('Content-Type', 'image/png');
     res.set('X-Cache', 'MISS');
     res.set('X-Token-Id', tokenId.toString());
-    res.set('X-Seed', seed);
     res.set('X-Render-Time', `${Date.now() - startTime}ms`);
     res.send(imageBuffer);
   } catch (error) {

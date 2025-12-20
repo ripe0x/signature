@@ -93,8 +93,6 @@ function PreLaunchCollection() {
                   <div className="relative aspect-[1/1.414] overflow-hidden bg-background">
                     <ArtworkCanvas
                       seed={seed}
-                      width={1200}
-                      height={1697}
                       className="w-full h-full"
                     />
                     <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />

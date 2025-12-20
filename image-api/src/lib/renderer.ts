@@ -7,7 +7,7 @@ import type { PooledPage, RenderOptions } from '../types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const POOL_SIZE = 3;
+const POOL_SIZE = 1;
 const RENDER_TIMEOUT = 30000;
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1697; // A4 aspect ratio (1:√2)
@@ -39,7 +39,6 @@ export class PlaywrightRenderer {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
       ],
     });
     console.log('Chromium browser launched');
@@ -89,14 +88,14 @@ export class PlaywrightRenderer {
   }
 
   async render(options: RenderOptions): Promise<Buffer> {
-    const { seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT } = options;
+    const { seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, foldCount } = options;
 
     const { page, poolIndex } = await this.acquirePage();
 
     try {
       await page.setViewportSize({ width, height });
 
-      const html = this.buildHTML(seed, width, height);
+      const html = this.buildHTML(seed, width, height, foldCount);
 
       // Navigate to blank first to clear state
       await page.goto('about:blank');
@@ -108,53 +107,49 @@ export class PlaywrightRenderer {
         { timeout: RENDER_TIMEOUT }
       );
 
-      // Capture canvas as PNG
+      // Take screenshot of the canvas element
       const canvas = await page.$('canvas');
       if (!canvas) throw new Error('Canvas not found');
-
-      const screenshot = await canvas.screenshot({ type: 'png' });
-      return screenshot;
+      return await canvas.screenshot({ type: 'png' });
     } finally {
       await this.releasePage(page, poolIndex);
     }
   }
 
-  private buildHTML(seed: string, width: number, height: number): string {
-    // Convert hex seed to number (use first 12 hex chars for safe integer)
-    const numericSeed = `parseInt("${seed}".slice(2, 14), 16)`;
+  private buildHTML(seed: string, width: number, height: number, foldCount?: number): string {
+    const foldCountScript = foldCount !== undefined ? `window.FOLD_COUNT = ${foldCount};` : '';
+    // Match on-chain HTML structure as closely as possible
+    // RENDER_COMPLETE is set by fold-core.js after rendering completes
+    // Set explicit dimensions to override window.innerWidth/Height in headless browser
+    return `<html><head><meta charset="utf-8"><meta name="viewport" content="width=${width},initial-scale=1"><style>html,body{margin:0;padding:0;width:${width}px;height:${height}px;overflow:hidden}</style><script>window.LESS_SEED="${seed}";${foldCountScript}window.RENDER_COMPLETE=false;window.innerWidth=${width};window.innerHeight=${height};</script></head><body><script>(()=>{${this.foldScript}})();</script></body></html>`;
+  }
 
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: ${width}px;
-      height: ${height}px;
-      overflow: hidden;
-      background: #000;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
-  <script>
-    window.SEED = ${numericSeed};
-    window.FOLD_COUNT = 50;
-    window.RENDER_COMPLETE = false;
-  </script>
-</head>
-<body>
-  <canvas id="c" width="${width}" height="${height}"></canvas>
-  <script>
-    ${this.foldScript}
+  // Render from on-chain HTML directly (animation_url content)
+  async renderHtml(options: { html: string; width?: number; height?: number }): Promise<Buffer> {
+    const { html, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT } = options;
 
-    // Signal render complete after fold-core runs
-    window.RENDER_COMPLETE = true;
-  </script>
-</body>
-</html>`;
+    const { page, poolIndex } = await this.acquirePage();
+
+    try {
+      await page.setViewportSize({ width, height });
+
+      // Navigate to blank first to clear state
+      await page.goto('about:blank');
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+      // Wait for render complete signal (set by fold-core.js)
+      await page.waitForFunction(
+        () => (window as any).RENDER_COMPLETE === true,
+        { timeout: RENDER_TIMEOUT }
+      );
+
+      // Take screenshot of the canvas element
+      const canvas = await page.$('canvas');
+      if (!canvas) throw new Error('Canvas not found');
+      return await canvas.screenshot({ type: 'png' });
+    } finally {
+      await this.releasePage(page, poolIndex);
+    }
   }
 
   getPoolStats(): { total: number; available: number; inUse: number } {

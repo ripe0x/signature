@@ -196,13 +196,11 @@ function MintedTokensGrid({
             href={`/token/${token.id}`}
             className="block space-y-2 group"
           >
-            <div className="relative overflow-hidden">
+            <div className="relative overflow-hidden aspect-[1/1.414]">
               <ArtworkCanvas
                 seed={seedToNumber(token.seed)}
                 foldCount={token.windowId}
-                width={isSingle ? 400 : 200}
-                height={isSingle ? 566 : 283}
-                className="transition-transform duration-300 group-hover:scale-[1.02]"
+                className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
             </div>
@@ -276,13 +274,11 @@ function RecentMints() {
                 href={`/token/${token.id}`}
                 className="block space-y-2 group"
               >
-                <div className="relative overflow-hidden">
+                <div className="relative overflow-hidden aspect-[1/1.414]">
                   <ArtworkCanvas
                     seed={seedToNumber(token.seed)}
                     foldCount={token.windowId}
-                    width={200}
-                    height={283}
-                    className="transition-transform duration-300 group-hover:scale-[1.02]"
+                    className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
                   />
                   <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
                 </div>

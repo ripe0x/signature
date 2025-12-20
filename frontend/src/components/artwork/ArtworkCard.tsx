@@ -29,8 +29,7 @@ export function ArtworkCard({ token, className }: ArtworkCardProps) {
           <ArtworkCanvas
             seed={seedNumber}
             foldCount={token.windowId}
-            width={1200}
-            height={1697}
+            animationUrl={token.metadata?.animation_url}
             className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : token.metadata?.animation_url ? (

@@ -448,16 +448,16 @@ contract LessRenderer is ILessRenderer, Ownable {
     }
 
     /// @notice Derives render mode from seed (matches JS generateRenderMode)
-    /// @dev normal 25%, binary 16.67%, inverted 25%, sparse 16.67%, dense 16.67%
+    /// @dev normal 40%, inverted 30%, binary 10%, sparse 10%, dense 10%
     function _getRenderMode(
         bytes32 seed
     ) internal pure returns (string memory) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 5555);
         uint256 roll = (state * 1000000) / 0x7fffffff;
-        if (roll < 250000) return "Normal";
-        if (roll < 416667) return "Binary";
-        if (roll < 666667) return "Inverted";
-        if (roll < 833334) return "Sparse";
+        if (roll < 400000) return "Normal";
+        if (roll < 700000) return "Inverted";
+        if (roll < 800000) return "Binary";
+        if (roll < 900000) return "Sparse";
         return "Dense";
     }
 

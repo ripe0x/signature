@@ -131,13 +131,12 @@ export default function AboutPage() {
               </div>
 
               {/* Right: Sample artwork - 1/3 width */}
-              <div className="lg:sticky lg:top-24 lg:self-start order-first lg:order-last">
+              <div className="lg:sticky lg:top-24 lg:self-start order-first lg:order-last aspect-[1/1.414]">
                 <ArtworkCanvas
                   seed={sample.seed}
                   foldCount={sample.foldCount}
-                  width={600}
-                  height={848}
                   onClick={loadNew}
+                  className="w-full h-full"
                 />
                 <div className="mt-3 text-xs text-muted text-center">
                   {sample.foldCount} folds

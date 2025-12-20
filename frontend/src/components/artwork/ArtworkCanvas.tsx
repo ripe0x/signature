@@ -6,8 +6,7 @@ import { cn } from '@/lib/utils';
 interface ArtworkCanvasProps {
   seed: number;
   foldCount?: number;
-  width?: number;
-  height?: number;
+  animationUrl?: string;
   className?: string;
   showLoading?: boolean;
   onClick?: () => void;
@@ -16,8 +15,7 @@ interface ArtworkCanvasProps {
 export function ArtworkCanvas({
   seed,
   foldCount,
-  width = 600,
-  height = 848, // A4 aspect ratio (1:√2) - 600 * √2 ≈ 848
+  animationUrl,
   className,
   showLoading = true,
   onClick,
@@ -25,9 +23,25 @@ export function ArtworkCanvas({
   const { canvasRef, isLoading, error } = useArtworkRenderer({
     seed,
     foldCount,
-    width,
-    height,
   });
+
+  // Fall back to animation_url iframe on error
+  if (error && animationUrl) {
+    return (
+      <div
+        className={cn('relative', onClick && 'cursor-pointer', className)}
+        onClick={onClick}
+      >
+        <iframe
+          src={animationUrl}
+          className="w-full h-full border-0"
+          style={{ aspectRatio: '1/1.414' }}
+          sandbox="allow-scripts"
+          title="On-chain artwork"
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -41,7 +55,7 @@ export function ArtworkCanvas({
           isLoading && showLoading && 'opacity-0'
         )}
         style={{
-          aspectRatio: `${width}/${height}`,
+          aspectRatio: '1/1.414', // A4 aspect ratio (1:√2)
           width: '100%',
         }}
       />
@@ -54,7 +68,7 @@ export function ArtworkCanvas({
         </div>
       )}
 
-      {error && (
+      {error && !animationUrl && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-background"
         >

@@ -85,12 +85,29 @@ function logWarn(message) {
 }
 
 // State persistence - tracks processed windows, mints, and last block
-function loadState() {
+// Clears state automatically if contract address changes
+function loadState(contractAddress) {
   try {
     if (existsSync(stateFile)) {
       const data = JSON.parse(readFileSync(stateFile, "utf-8"));
+
+      // Check if contract address changed - if so, start fresh
+      if (data.contractAddress && data.contractAddress !== contractAddress) {
+        logWarn(
+          `Contract address changed from ${data.contractAddress} to ${contractAddress}`
+        );
+        logInfo("Clearing state for new contract");
+        return {
+          processedWindows: new Set(),
+          processedMints: new Set(),
+          lastBlock: 0n,
+        };
+      }
+
       return {
-        processedWindows: new Set(data.processedWindows || data.processedFolds || []),
+        processedWindows: new Set(
+          data.processedWindows || data.processedFolds || []
+        ),
         processedMints: new Set(data.processedMints || []),
         lastBlock: BigInt(data.lastBlock || 0),
       };
@@ -105,9 +122,15 @@ function loadState() {
   };
 }
 
-function saveState(processedWindows, processedMints, lastBlock) {
+function saveState(
+  processedWindows,
+  processedMints,
+  lastBlock,
+  contractAddress
+) {
   try {
     const data = {
+      contractAddress,
       processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
       lastBlock: lastBlock.toString(),
@@ -124,15 +147,15 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Fetch image from image API
-async function fetchImage(seed) {
+// Fetch image from image API using token ID
+async function fetchImage(tokenId) {
   const imageApiUrl = process.env.IMAGE_API_URL;
   if (!imageApiUrl) {
     logWarn("IMAGE_API_URL not set, skipping image");
     return null;
   }
 
-  const url = `${imageApiUrl}/api/render?seed=${seed}`;
+  const url = `${imageApiUrl}/images/${tokenId}`;
   logInfo(`Fetching image from ${url}`);
 
   return new Promise((resolve) => {
@@ -436,7 +459,7 @@ function formatTweet(windowId, startTime, endTime, burnData = null) {
 ${burnData.amountBurned} $LESS bought and burned
 ${burnData.supplyRemaining}% supply remaining
 
-LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
+LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 ${MINT_URL}`;
   }
@@ -448,7 +471,7 @@ ${MINT_URL}`;
 
 ${burnData.supplyRemaining}% total supply remaining
 
-LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
+LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
 ${MINT_URL}`;
@@ -458,7 +481,7 @@ ${MINT_URL}`;
   return `new LESS window opened
 
 
- LESS is open to mint for the next ${minutesLeft} minutes for window #${windowId}
+ LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
 ${MINT_URL}`;
@@ -624,21 +647,52 @@ async function runTestMintMode() {
   // Simulate event data
   const testTokenId = 7;
   const testMinter = "0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c";
-  // Use a test seed
-  const testSeed =
-    "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
   logInfo(`Simulated event: Minted token #${testTokenId}`);
   logInfo(`  Minter: ${testMinter}`);
-  logInfo(`  Seed: ${testSeed}`);
   console.log();
 
-  // Fetch image using the seed
-  const imageBuffer = await fetchImage(testSeed);
+  // Fetch image using token ID (uses /images/:tokenId which fetches windowId for correct foldCount)
+  const imageBuffer = await fetchImage(testTokenId);
+
+  // Resolve ENS or use truncated address
+  const ensName = await resolveEns(testMinter);
+  const minterDisplay = ensName || truncateAddress(testMinter);
+
+  // Fetch remaining time in window (if contract is configured)
+  let minutesRemaining = null;
+  try {
+    const rpcUrl = getRpcUrl();
+    const contractAddress = getContractAddress();
+    const client = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+    const timeUntilClose = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "timeUntilWindowCloses",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "timeUntilWindowCloses",
+    });
+    minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
+    logInfo(`Time remaining in window: ${minutesRemaining} minutes`);
+  } catch (e) {
+    logWarn(`Could not fetch time remaining: ${e.message}`);
+  }
 
   // Format and display the tweet with image
-  const minterDisplay = truncateAddress(testMinter);
-  const tweetMessage = formatMintTweet(testTokenId, minterDisplay);
+  const tweetMessage = formatMintTweet(
+    testTokenId,
+    minterDisplay,
+    minutesRemaining
+  );
 
   await postTweet(null, tweetMessage, imageBuffer);
   logSuccess("Test mint completed!");
@@ -714,25 +768,38 @@ async function processEvent(
 }
 
 // Format mint tweet message
-function formatMintTweet(tokenId, minterDisplay) {
-  return `LESS #${tokenId} minted by ${minterDisplay}
+function formatMintTweet(
+  tokenId,
+  minterDisplay,
+  minutesRemaining = null,
+  windowId = null
+) {
+  const timeText =
+    minutesRemaining !== null && minutesRemaining > 0
+      ? `\n${minutesRemaining} minute${
+          minutesRemaining !== 1 ? "s" : ""
+        } remain in mint window ${windowId}`
+      : "";
+  return `LESS ${tokenId} minted by ${minterDisplay}${timeText}
 
-
-${MINT_URL}/${tokenId}`;
+${MINT_URL}/token/${tokenId}`;
 }
 
-// Resolve ENS name for an address (mainnet only)
+// Resolve ENS name for an address (always uses mainnet since ENS lives there)
 async function resolveEns(address) {
   try {
-    // Only try ENS on mainnet
-    if (network !== "mainnet") {
+    const mainnetRpc = process.env.MAINNET_RPC_URL;
+    if (!mainnetRpc) {
       return null;
     }
     const mainnetClient = createPublicClient({
       chain: mainnet,
-      transport: http(process.env.MAINNET_RPC_URL),
+      transport: http(mainnetRpc),
     });
     const ensName = await mainnetClient.getEnsName({ address });
+    if (ensName) {
+      logInfo(`Resolved ENS: ${address} -> ${ensName}`);
+    }
     return ensName;
   } catch (error) {
     logWarn(`ENS lookup failed: ${error.message}`);
@@ -741,7 +808,13 @@ async function resolveEns(address) {
 }
 
 // Process a Minted event
-async function processMintEvent(log, processedMints, twitterClient) {
+async function processMintEvent(
+  log,
+  processedMints,
+  twitterClient,
+  client,
+  contractAddress
+) {
   try {
     const tokenId = log.args.tokenId;
     const windowId = log.args.windowId;
@@ -762,11 +835,38 @@ async function processMintEvent(log, processedMints, twitterClient) {
     const ensName = await resolveEns(minter);
     const minterDisplay = ensName || truncateAddress(minter);
 
-    // Fetch image using the actual seed from the event
-    const imageBuffer = await fetchImage(seed);
+    // Fetch remaining time in window
+    let minutesRemaining = null;
+    try {
+      const timeUntilClose = await client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilWindowCloses",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilWindowCloses",
+      });
+      minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
+      logInfo(`Time remaining in window: ${minutesRemaining} minutes`);
+    } catch (e) {
+      logWarn(`Could not fetch time remaining: ${e.message}`);
+    }
+
+    // Fetch image using the token ID (uses /images/:tokenId which fetches windowId for correct foldCount)
+    const imageBuffer = await fetchImage(tokenId);
 
     // Format and post tweet with image
-    const tweetMessage = formatMintTweet(Number(tokenId), minterDisplay);
+    const tweetMessage = formatMintTweet(
+      Number(tokenId),
+      minterDisplay,
+      minutesRemaining,
+      windowId
+    );
 
     logInfo("Posting mint tweet...");
     const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
@@ -838,8 +938,8 @@ async function runBot() {
     logInfo("Twitter client skipped (dry-run mode)");
   }
 
-  // Load persisted state
-  const state = loadState();
+  // Load persisted state (auto-clears if contract address changed)
+  const state = loadState(contractAddress);
   const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
@@ -933,7 +1033,13 @@ async function runBot() {
         if (missedMintLogs.length > 0) {
           logInfo(`Found ${missedMintLogs.length} Minted events`);
           for (const log of missedMintLogs) {
-            await processMintEvent(log, processedMints, twitterClient);
+            await processMintEvent(
+              log,
+              processedMints,
+              twitterClient,
+              client,
+              contractAddress
+            );
           }
         }
 
@@ -944,7 +1050,12 @@ async function runBot() {
 
       // Update last processed block
       lastProcessedBlock = currentBlock;
-      saveState(processedWindows, processedMints, lastProcessedBlock);
+      saveState(
+        processedWindows,
+        processedMints,
+        lastProcessedBlock,
+        contractAddress
+      );
 
       // Reset retry count on successful connection
       retryCount = 0;
@@ -967,7 +1078,12 @@ async function runBot() {
             );
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(processedWindows, processedMints, lastProcessedBlock);
+              saveState(
+                processedWindows,
+                processedMints,
+                lastProcessedBlock,
+                contractAddress
+              );
             }
           }
         },
@@ -984,10 +1100,21 @@ async function runBot() {
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
-            await processMintEvent(log, processedMints, twitterClient);
+            await processMintEvent(
+              log,
+              processedMints,
+              twitterClient,
+              client,
+              contractAddress
+            );
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(processedWindows, processedMints, lastProcessedBlock);
+              saveState(
+                processedWindows,
+                processedMints,
+                lastProcessedBlock,
+                contractAddress
+              );
             }
           }
         },
@@ -1011,7 +1138,12 @@ async function runBot() {
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
-        saveState(processedWindows, processedMints, lastProcessedBlock);
+        saveState(
+          processedWindows,
+          processedMints,
+          lastProcessedBlock,
+          contractAddress
+        );
         logSuccess("State saved. Bot stopped.");
         process.exit(0);
       };

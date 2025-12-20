@@ -15,16 +15,19 @@ export class DiskCache {
     }
   }
 
-  private getCacheKey(seed: string, width: number, height: number): string {
-    // Use first 16 chars of seed for filename
-    const seedPrefix = seed.replace('0x', '').slice(0, 16);
-    return `${seedPrefix}-${width}x${height}.png`;
+  private getCacheKey(identifier: string, width: number, height: number, foldCount?: number): string {
+    // Use identifier as-is for token-based keys, or first 16 chars for seed-based keys
+    const keyPrefix = identifier.startsWith('token-')
+      ? identifier
+      : identifier.replace('0x', '').slice(0, 16);
+    const foldSuffix = foldCount !== undefined ? `-f${foldCount}` : '';
+    return `${keyPrefix}-${width}x${height}${foldSuffix}.png`;
   }
 
-  async get(seed: string, width: number, height: number): Promise<Buffer | null> {
+  async get(seed: string, width: number, height: number, foldCount?: number): Promise<Buffer | null> {
     if (!this.enabled) return null;
 
-    const key = this.getCacheKey(seed, width, height);
+    const key = this.getCacheKey(seed, width, height, foldCount);
     const filePath = join(this.cacheDir, key);
 
     if (existsSync(filePath)) {
@@ -34,10 +37,10 @@ export class DiskCache {
     return null;
   }
 
-  async set(seed: string, width: number, height: number, data: Buffer): Promise<void> {
+  async set(seed: string, width: number, height: number, data: Buffer, foldCount?: number): Promise<void> {
     if (!this.enabled) return;
 
-    const key = this.getCacheKey(seed, width, height);
+    const key = this.getCacheKey(seed, width, height, foldCount);
     const filePath = join(this.cacheDir, key);
 
     writeFileSync(filePath, data);
