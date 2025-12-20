@@ -20,6 +20,7 @@ import {
   generatePaperProperties,
   generateRareCreaseLines,
   generateRareHitCounts,
+  generateRareAnalyticsMode,
   generateDrawDirection,
   generateMarginSize,
 } from '../../web/fold-core.js';
@@ -125,6 +126,10 @@ function hasHitCounts(seedNum) {
   return generateRareHitCounts(seedNum);
 }
 
+function hasAnalyticsMode(seedNum) {
+  return generateRareAnalyticsMode(seedNum);
+}
+
 // ============ TEST SEEDS ============
 // Standard test seeds (full 256-bit hex strings like from keccak256)
 
@@ -158,6 +163,7 @@ function findSpecialSeeds() {
     monochrome: null,
     creaseLines: null,
     hitCounts: null,
+    analyticsMode: null,
     paperGrain: null,
   };
 
@@ -174,6 +180,9 @@ function findSpecialSeeds() {
     }
     if (!special.hitCounts && hasHitCounts(seedNum)) {
       special.hitCounts = hexSeed;
+    }
+    if (!special.analyticsMode && hasAnalyticsMode(seedNum)) {
+      special.analyticsMode = hexSeed;
     }
     if (!special.paperGrain && hasPaperGrain(seedNum)) {
       special.paperGrain = hexSeed;

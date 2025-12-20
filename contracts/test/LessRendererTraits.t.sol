@@ -49,6 +49,9 @@ contract LessRendererTraitsHarness is LessRenderer {
     function hasHitCounts(bytes32 seed) external pure returns (bool) {
         return _hasHitCounts(seed);
     }
+    function hasAnalyticsMode(bytes32 seed) external pure returns (bool) {
+        return _hasAnalyticsMode(seed);
+    }
 }
 
 contract LessRendererTraitsTest is Test {

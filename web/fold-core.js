@@ -3,7 +3,7 @@
 // This module has no React dependencies and can be used standalone
 
 // ============ GLOBAL CONSTANTS ============
-
+const FORCE_GRADIENT_MODE = false; // Toggle: force all outputs to use gradient mode
 export const CELL_MIN = 20;
 export const CELL_MAX = 600;
 export const CELL_ASPECT_MAX = 3;
@@ -651,12 +651,19 @@ export function generateRenderMode(seed) {
   const rng = seededRandom(seed + 5555);
   const roll = rng();
 
-  // normal 25%, binary 16.67%, inverted 25%, sparse 16.67%, dense 16.67%
-  if (roll < 0.25) return "normal";
-  if (roll < 0.4167) return "binary";
-  if (roll < 0.6667) return "inverted";
-  if (roll < 0.8333) return "sparse";
+  // normal 40%, inverted 30%, binary 10%, sparse 10%, dense 10%
+  if (roll < 0.4) return "normal";
+  if (roll < 0.7) return "inverted";
+  if (roll < 0.8) return "binary";
+  if (roll < 0.9) return "sparse";
   return "dense";
+}
+
+// Whether to show 10% opacity fill in empty cells (for binary/sparse/dense modes)
+// 30% chance to show empty cells in these modes
+export function generateShowEmptyCells(seed) {
+  const rng = seededRandom(seed + 5556);
+  return rng() < 0.3;
 }
 
 export function generateWeightRange(seed) {
@@ -882,6 +889,242 @@ export function generateMultiColorEnabled(seed) {
   return rng() < 0.25;
 }
 
+// ============ WEB-SAFE GRADIENT MODE ============
+// 25% of outputs use "gradient mode" where one CGA color anchors the piece
+// and other colors derive from it through web-safe interpolation space.
+
+// Gradient probability decreases with crease count - sparse pieces are more atmospheric,
+// dense pieces are more compressed. Uses exponential decay with floor.
+export function getGradientProbability(creaseCount) {
+  const maxProb = 0.35; // 35% at zero creases
+  const floorProb = 0.08; // 8% floor at high crease counts
+  const decay = 0.03; // decay rate
+  return floorProb + (maxProb - floorProb) * Math.exp(-decay * creaseCount);
+}
+
+export function generateGradientMode(seed, creaseCount = 0) {
+  if (FORCE_GRADIENT_MODE) return true;
+  const rng = seededRandom(seed + 77777);
+  const threshold = getGradientProbability(creaseCount);
+  return rng() < threshold;
+}
+
+// Anchor types for gradient mode:
+// - background: Pure CGA ground, derived text/accent (bold ground, soft marks)
+// - text: Pure CGA text, derived background/accent (soft ground, bold marks)
+// - accent: Pure CGA accent, derived background/text (soft everything, CGA pop)
+export function generateAnchorType(seed) {
+  const rng = seededRandom(seed + 88888);
+  const roll = rng();
+  if (roll < 0.5) return "background"; // 50%
+  if (roll < 0.85) return "text"; // 35%
+  return "accent"; // 15%
+}
+
+// Snap an RGB value to the nearest web-safe value (00, 33, 66, 99, CC, FF)
+function snapToWebSafe(value) {
+  const webSafeValues = [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff];
+  let closest = webSafeValues[0];
+  let minDist = Math.abs(value - closest);
+  for (const wsv of webSafeValues) {
+    const dist = Math.abs(value - wsv);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = wsv;
+    }
+  }
+  return closest;
+}
+
+// Convert RGB to web-safe hex color
+function rgbToWebSafeHex(r, g, b) {
+  const sr = snapToWebSafe(r);
+  const sg = snapToWebSafe(g);
+  const sb = snapToWebSafe(b);
+  return (
+    "#" +
+    sr.toString(16).padStart(2, "0").toUpperCase() +
+    sg.toString(16).padStart(2, "0").toUpperCase() +
+    sb.toString(16).padStart(2, "0").toUpperCase()
+  );
+}
+
+// Parse hex color to RGB components
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+// Calculate luminance of a hex color (0-1 range)
+function getLuminanceFromHex(hex) {
+  const rgb = hexToRgb(hex);
+  return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+}
+
+// Shift a color toward white or black by N web-safe steps
+// direction: 1 = toward white, -1 = toward black
+// steps: 1-3 (each step is 0x33 = 51 in RGB space)
+export function shiftTowardWebSafe(hexColor, direction, steps) {
+  const rgb = hexToRgb(hexColor);
+  const stepSize = 0x33; // 51 - one web-safe increment
+  const shift = direction * steps * stepSize;
+
+  // Apply shift and clamp to valid range
+  const r = Math.max(0, Math.min(255, rgb.r + shift));
+  const g = Math.max(0, Math.min(255, rgb.g + shift));
+  const b = Math.max(0, Math.min(255, rgb.b + shift));
+
+  return rgbToWebSafeHex(r, g, b);
+}
+
+// Derive a web-safe color from a CGA color by shifting through web-safe space
+// Considers contrast with the anchor color to ensure readability
+export function deriveWebSafeColor(seed, cgaColor, anchorColor, role) {
+  // Different offset per role to decorrelate
+  const roleOffset = role === "background" ? 11111 : role === "text" ? 22222 : 33333;
+  const rng = seededRandom(seed + roleOffset);
+
+  const colorLum = getLuminanceFromHex(cgaColor);
+  const anchorLum = getLuminanceFromHex(anchorColor);
+
+  // Determine shift direction based on role and contrast needs
+  let direction;
+  if (role === "background") {
+    // Background derivation: shift to create atmospheric ground
+    // Dark colors: mostly toward white (soft grays), sometimes toward black (deeper)
+    // Light colors: mostly toward black (muted), sometimes toward white (creams)
+    if (colorLum < 0.3) {
+      direction = rng() < 0.75 ? 1 : -1;
+    } else if (colorLum > 0.7) {
+      direction = rng() < 0.75 ? -1 : 1;
+    } else {
+      direction = rng() < 0.5 ? 1 : -1;
+    }
+  } else if (role === "text") {
+    // Text derivation: shift to create softer marks
+    // Consider anchor (background) luminance for contrast
+    if (anchorLum < 0.4) {
+      // Dark anchor: text should stay light or go lighter
+      direction = colorLum > 0.5 ? (rng() < 0.6 ? -1 : 1) : 1;
+    } else {
+      // Light anchor: text should stay dark or go darker
+      direction = colorLum < 0.5 ? (rng() < 0.6 ? 1 : -1) : -1;
+    }
+  } else {
+    // Accent derivation: shift for visual interest
+    direction = rng() < 0.5 ? 1 : -1;
+  }
+
+  // Steps: 1 step (subtle) 50%, 2 steps (moderate) 35%, 3 steps (strong) 15%
+  const stepRoll = rng();
+  const steps = stepRoll < 0.5 ? 1 : stepRoll < 0.85 ? 2 : 3;
+
+  const derived = shiftTowardWebSafe(cgaColor, direction, steps);
+
+  // Verify contrast - if too low, try opposite direction or more steps
+  const derivedLum = getLuminanceFromHex(derived);
+  const contrast = Math.abs(derivedLum - anchorLum);
+
+  if (role !== "accent" && contrast < 0.2) {
+    // Try opposite direction with more steps for better contrast
+    const opposite = shiftTowardWebSafe(cgaColor, -direction, steps + 1);
+    const oppositeLum = getLuminanceFromHex(opposite);
+    if (Math.abs(oppositeLum - anchorLum) > contrast) {
+      return opposite;
+    }
+  }
+
+  return derived;
+}
+
+// Build gradient mode palette with anchor concept
+// One CGA color stays pure, others derive through web-safe space
+export function buildGradientPalette(seed, cgaPalette, anchorType) {
+  const result = {
+    ...cgaPalette,
+    anchorType,
+    cgaBg: cgaPalette.bg,
+    cgaText: cgaPalette.text,
+    cgaAccent: cgaPalette.accent,
+  };
+
+  if (anchorType === "background") {
+    // Background is pure CGA, derive text and accent
+    result.bg = cgaPalette.bg; // Pure CGA anchor
+    result.text = deriveWebSafeColor(
+      seed,
+      cgaPalette.text,
+      cgaPalette.bg,
+      "text"
+    );
+    result.accent = deriveWebSafeColor(
+      seed + 1,
+      cgaPalette.accent,
+      cgaPalette.bg,
+      "accent"
+    );
+  } else if (anchorType === "text") {
+    // Text is pure CGA, derive background and accent
+    result.bg = deriveWebSafeColor(
+      seed,
+      cgaPalette.bg,
+      cgaPalette.text,
+      "background"
+    );
+    result.text = cgaPalette.text; // Pure CGA anchor
+    result.accent = deriveWebSafeColor(
+      seed + 1,
+      cgaPalette.accent,
+      cgaPalette.text,
+      "accent"
+    );
+  } else {
+    // Accent is pure CGA, derive background and text
+    result.bg = deriveWebSafeColor(
+      seed,
+      cgaPalette.bg,
+      cgaPalette.accent,
+      "background"
+    );
+    result.text = deriveWebSafeColor(
+      seed + 1,
+      cgaPalette.text,
+      result.bg,
+      "text"
+    );
+    result.accent = cgaPalette.accent; // Pure CGA anchor
+  }
+
+  return result;
+}
+
+// Generate 4 web-safe colors interpolating from background to mark
+// Level 0 is closest to background (used with ░ for lightest marks)
+// Level 3 is the mark color itself (used with ▓ for heaviest marks)
+// Works with any hex colors, not just CGA palette colors
+export function generateWebSafeGradientPalette(bgColor, textColor) {
+  const bgRgb = hexToRgb(bgColor);
+  const textRgb = hexToRgb(textColor);
+
+  // Interpolation steps from background toward mark
+  // We want: level 0 = subtle, level 1 = light, level 2 = medium, level 3 = mark
+  const steps = [0.25, 0.5, 0.75, 1.0];
+
+  const colors = steps.map((t) => {
+    // Linear interpolation in RGB space
+    const r = Math.round(bgRgb.r + (textRgb.r - bgRgb.r) * t);
+    const g = Math.round(bgRgb.g + (textRgb.g - bgRgb.g) * t);
+    const b = Math.round(bgRgb.b + (textRgb.b - bgRgb.b) * t);
+    return rgbToWebSafeHex(r, g, b);
+  });
+
+  return colors;
+}
+
 export function generateRareCellOutlines(seed) {
   const rng = seededRandom(seed + 7777);
   return rng() < 0.008;
@@ -894,6 +1137,11 @@ export function generateRareHitCounts(seed) {
 
 export function generateRareCreaseLines(seed) {
   const rng = seededRandom(seed + 9191);
+  return rng() < 0.008;
+}
+
+export function generateRareAnalyticsMode(seed) {
+  const rng = seededRandom(seed + 9393);
   return rng() < 0.008;
 }
 
@@ -1064,124 +1312,48 @@ export function calculateGridWithGaps(
   // Negative ratios that work well (not too extreme)
   const NEGATIVE_RATIOS = [-1 / 16, -1 / 8, -1 / 4, -1 / 2];
 
-  const getWeightedGapRatios = (forceNegative) => {
+  // Weighted gap selection: smaller gaps are more common
+  // Distribution: none 40%, tiny 25%, small 20%, medium 10%, large 5%
+  const pickWeightedGapRatio = (forceNegative) => {
     if (forceNegative) {
-      // Only return negative ratios - pick randomly
-      return NEGATIVE_RATIOS;
+      return NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
     }
-    // Positive ratios (indices 5-11): 1/64 through 1.0
-    const ratios = ALLOWED_GAP_RATIOS.slice(5, 12);
-    // 25% chance to include 2x positive gap
-    if (gapRng() < 0.1) {
-      ratios.push(ALLOWED_GAP_RATIOS[12]); // 2x
-    }
-    return ratios;
+    const roll = gapRng();
+    if (roll < 0.40) return 0;           // 40% no gap
+    if (roll < 0.525) return 1 / 64;     // 12.5% tiny
+    if (roll < 0.65) return 1 / 32;      // 12.5% tiny
+    if (roll < 0.75) return 1 / 16;      // 10% small
+    if (roll < 0.85) return 1 / 8;       // 10% small
+    if (roll < 0.90) return 1 / 4;       // 5% medium
+    if (roll < 0.95) return 1 / 2;       // 5% medium
+    if (roll < 0.98) return 1.0;         // 3% large
+    return 2.0;                          // 2% large
   };
 
   let refCellWidth = cellWidth;
   let refCellHeight = cellHeight;
 
-  // Calculate best column configuration
-  let bestCols = 1;
-  let bestColGap = 0;
-  let bestColFit = Infinity;
+  // Pick gap ratio and calculate column configuration
+  const colGapRatio = useColGaps ? pickWeightedGapRatio(forceNegativeCol) : 0;
+  const colGapCalc = refCellWidth * colGapRatio;
+  const colStride = refCellWidth + colGapCalc;
+  let bestCols = colStride > 0 ? Math.max(1, Math.floor((innerWidth + colGapCalc) / colStride)) : 1;
+  let bestColGap = bestCols > 1 ? colGapCalc : 0;
 
-  // If forcing negative, randomly pick one and calculate grid directly
-  if (forceNegativeCol) {
-    const randomRatio =
-      NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
-    const gap = refCellWidth * randomRatio;
-    const stride = refCellWidth + gap;
-    if (stride > 0) {
-      bestCols = Math.max(1, Math.floor((innerWidth + gap) / stride));
-      bestColGap = gap;
-    }
-  } else {
-    const colGapRatios = useColGaps ? getWeightedGapRatios(false) : [0];
-
-    for (const gapRatio of colGapRatios) {
-      const gap = refCellWidth * gapRatio;
-      const stride = refCellWidth + gap;
-      // Skip if stride <= 0 (would cause invalid calculations)
-      if (stride <= 0) continue;
-      const cols = Math.max(1, Math.floor((innerWidth + gap) / stride));
-
-      if (cols === 1) {
-        const cellW = Math.min(refCellWidth, innerWidth);
-        const fit = Math.abs(innerWidth - cellW);
-        if (fit < bestColFit) {
-          bestColFit = fit;
-          bestCols = 1;
-          bestColGap = 0;
-          refCellWidth = cellW;
-        }
-      } else {
-        const actualWidth = cols * refCellWidth + (cols - 1) * gap;
-        if (actualWidth <= innerWidth) {
-          const fit = Math.abs(innerWidth - actualWidth);
-          if (fit < bestColFit) {
-            bestColFit = fit;
-            bestCols = cols;
-            bestColGap = gap;
-          }
-        }
-      }
-    }
-
-    if (bestCols === 1 && refCellWidth < innerWidth) {
-      refCellWidth = innerWidth;
-      bestColGap = 0;
-    }
+  // Handle single column case
+  if (bestCols === 1 && refCellWidth < innerWidth) {
+    refCellWidth = innerWidth;
+    bestColGap = 0;
   }
 
-  // Calculate best row configuration
-  let bestRows = 1;
-  let bestRowGap = 0;
-  let bestRowFit = Infinity;
+  // Pick gap ratio and calculate row configuration
+  const rowGapRatio = useRowGaps ? pickWeightedGapRatio(forceNegativeRow) : 0;
+  const rowGapCalc = refCellHeight * rowGapRatio;
+  const rowStride = refCellHeight + rowGapCalc;
+  let bestRows = rowStride > 0 ? Math.max(1, Math.floor((innerHeight + rowGapCalc) / rowStride)) : 1;
+  let bestRowGap = bestRows > 1 ? rowGapCalc : 0;
 
-  // If forcing negative, randomly pick one and calculate grid directly
-  if (forceNegativeRow) {
-    const randomRatio =
-      NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
-    const gap = refCellHeight * randomRatio;
-    const stride = refCellHeight + gap;
-    if (stride > 0) {
-      bestRows = Math.max(1, Math.floor((innerHeight + gap) / stride));
-      bestRowGap = gap;
-    }
-  } else {
-    const rowGapRatios = useRowGaps ? getWeightedGapRatios(false) : [0];
-
-    for (const gapRatio of rowGapRatios) {
-      const gap = refCellHeight * gapRatio;
-      const stride = refCellHeight + gap;
-      // Skip if stride <= 0 (would cause invalid calculations)
-      if (stride <= 0) continue;
-      const rows = Math.max(1, Math.floor((innerHeight + gap) / stride));
-
-      if (rows === 1) {
-        const cellH = Math.min(refCellHeight, innerHeight);
-        const fit = Math.abs(innerHeight - cellH);
-        if (fit < bestRowFit) {
-          bestRowFit = fit;
-          bestRows = 1;
-          bestRowGap = 0;
-          refCellHeight = cellH;
-        }
-      } else {
-        const actualHeight = rows * refCellHeight + (rows - 1) * gap;
-        if (actualHeight <= innerHeight) {
-          const fit = Math.abs(innerHeight - actualHeight);
-          if (fit < bestRowFit) {
-            bestRowFit = fit;
-            bestRows = rows;
-            bestRowGap = gap;
-          }
-        }
-      }
-    }
-  }
-
+  // Handle single row case
   if (bestRows === 1 && refCellHeight < innerHeight) {
     refCellHeight = innerHeight;
     bestRowGap = 0;
@@ -1267,13 +1439,6 @@ export function seededRandom(seed) {
   };
 }
 
-export function hashSeed(seed, str) {
-  let hash = seed;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) || 1;
-}
 
 // ============ VECTOR MATH ============
 
@@ -2526,6 +2691,7 @@ export function renderToCanvas({
   cellWidth,
   cellHeight,
   renderMode,
+  showEmptyCells = false,
   multiColor,
   levelColors,
   foldStrategy = null,
@@ -2541,6 +2707,7 @@ export function renderToCanvas({
   showCreaseLines = false,
   fontFamily = FONT_STACK,
   linesOnlyMode = false,
+  analyticsMode = false,
 }) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -2559,6 +2726,26 @@ export function renderToCanvas({
   // Calculate inner dimensions accounting for padding and drawing margin
   const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
+
+  // Add background texture (edge to edge, scales consistently)
+  {
+    // Base size on reference dimensions (15px at 1200px width), then scale
+    const refTextureFontSize = 15;
+    const textureFontSize = refTextureFontSize * scaleX;
+    ctx.font = `${textureFontSize}px ${fontFamily}`;
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.1;
+    // Use established character dimensions for perfect tiling
+    const charWidth = textureFontSize * CHAR_WIDTH_RATIO;
+    const charHeight = textureFontSize * 1.13;
+    // Draw edge to edge
+    for (let y = 0; y < outputHeight + charHeight; y += charHeight) {
+      for (let x = 0; x < outputWidth + charWidth; x += charWidth) {
+        ctx.fillText("░", x, y + charHeight);
+      }
+    }
+    ctx.globalAlpha = 1.0;
+  }
 
   // Use gap calculation for grid layout
   const grid = calculateGridWithGaps(
@@ -2759,30 +2946,109 @@ export function renderToCanvas({
   const baseOverlapIndex = overlapIntervals.indexOf(baseOverlapFactor);
   const overlapVariation = Math.floor(overlapRng() * 3) + 1; // 1-3 steps of variation
 
+  // Sub-pattern mode: 0 = regular intervals, 1 = random selection, 2 = irregular
+  const overlapSubPattern = Math.floor(overlapRng() * 3);
+  // Variable interval: 1-4 (not always every 2)
+  const overlapInterval = Math.floor(overlapRng() * 4) + 1;
+  // Pre-generate random row/col/diag selections for random mode (indices 0-19 should cover most grids)
+  const randomRowSelection = [];
+  const randomColSelection = [];
+  const randomDiagSelection = [];
+  const rowSelectionProb = 0.3 + overlapRng() * 0.4; // 30-70% of rows get different overlap
+  const colSelectionProb = 0.3 + overlapRng() * 0.4; // independent probability for cols
+  const diagSelectionProb = 0.3 + overlapRng() * 0.4; // independent probability for diagonals
+  for (let i = 0; i < 20; i++) {
+    randomRowSelection.push(overlapRng() < rowSelectionProb);
+    randomColSelection.push(overlapRng() < colSelectionProb);
+    randomDiagSelection.push(overlapRng() < diagSelectionProb);
+  }
+  // Checkerboard random mode type: 0 = OR (either row or col), 1 = XOR (one but not both)
+  const checkerboardRandomMode = Math.floor(overlapRng() * 2);
+
+  // For inverted mode: 10% chance to limit weight=0 cells to single char (barcode look)
+  // 90% allow normal overlap on weight=0 cells (which are dark foreground in inverted)
+  const invertedSingleCharOnEmpty = overlapRng() < 0.10;
+
   // Function to get overlap factor for a cell based on pattern
   const getOverlapFactor = (row, col) => {
     if (!hasOverlap) return 1.0;
     let idx = baseOverlapIndex === -1 ? 0 : baseOverlapIndex;
+
     switch (overlapPatternType) {
       case 1: // row-based bands
-        idx =
-          (idx + Math.floor(row / 2) * overlapVariation) %
-          overlapIntervals.length;
+        if (overlapSubPattern === 1) {
+          // Random: only selected rows get different overlap
+          if (randomRowSelection[row % 20]) {
+            idx = (idx + overlapVariation) % overlapIntervals.length;
+          }
+        } else if (overlapSubPattern === 2) {
+          // Irregular: use row index directly for more chaos
+          idx = (idx + (row % 3) * overlapVariation) % overlapIntervals.length;
+        } else {
+          // Regular: bands at variable intervals
+          idx =
+            (idx + Math.floor(row / overlapInterval) * overlapVariation) %
+            overlapIntervals.length;
+        }
         break;
       case 2: // col-based bands
-        idx =
-          (idx + Math.floor(col / 2) * overlapVariation) %
-          overlapIntervals.length;
+        if (overlapSubPattern === 1) {
+          // Random: only selected cols get different overlap
+          if (randomColSelection[col % 20]) {
+            idx = (idx + overlapVariation) % overlapIntervals.length;
+          }
+        } else if (overlapSubPattern === 2) {
+          // Irregular: use col index directly for more chaos
+          idx = (idx + (col % 3) * overlapVariation) % overlapIntervals.length;
+        } else {
+          // Regular: bands at variable intervals
+          idx =
+            (idx + Math.floor(col / overlapInterval) * overlapVariation) %
+            overlapIntervals.length;
+        }
         break;
       case 3: // checkerboard
-        idx =
-          (idx + ((row + col) % 2) * overlapVariation) %
-          overlapIntervals.length;
+        if (overlapSubPattern === 1) {
+          // Random: OR or XOR based on checkerboardRandomMode
+          const rowSel = randomRowSelection[row % 20];
+          const colSel = randomColSelection[col % 20];
+          const selected = checkerboardRandomMode === 0
+            ? (rowSel || colSel)  // OR: either row or col selected
+            : (rowSel !== colSel); // XOR: one but not both
+          if (selected) {
+            idx = (idx + overlapVariation) % overlapIntervals.length;
+          }
+        } else if (overlapSubPattern === 2) {
+          // Irregular: use combined index with offset
+          idx =
+            (idx + ((row + col) % 3) * overlapVariation) %
+            overlapIntervals.length;
+        } else {
+          // Regular checkerboard
+          idx =
+            (idx + ((row + col) % 2) * overlapVariation) %
+            overlapIntervals.length;
+        }
         break;
       case 4: // diagonal stripes
-        idx =
-          (idx + Math.floor((row + col) / 2) * overlapVariation) %
-          overlapIntervals.length;
+        if (overlapSubPattern === 1) {
+          // Random: specific diagonals get different overlap (independent selection)
+          const diagIdx = (row + col) % 20;
+          if (randomDiagSelection[diagIdx]) {
+            idx = (idx + overlapVariation) % overlapIntervals.length;
+          }
+        } else if (overlapSubPattern === 2) {
+          // Irregular: variable diagonal widths
+          idx =
+            (idx + ((row + col) % 4) * overlapVariation) %
+            overlapIntervals.length;
+        } else {
+          // Regular: diagonals at variable intervals
+          idx =
+            (idx +
+              Math.floor((row + col) / overlapInterval) * overlapVariation) %
+            overlapIntervals.length;
+        }
         break;
       default: // uniform
         break;
@@ -2791,13 +3057,14 @@ export function renderToCanvas({
   };
 
   const getColorForLevel = (level, cellKey) => {
-    if (multiColor && levelColors) {
+    // Use level colors if available (from gradient mode or multi-color mode)
+    if (levelColors && levelColors.length > 0) {
       return levelColors[Math.min(level, 3)];
     }
     return textColor;
   };
 
-  // Shadow/offset effect - rare (10% chance)
+  // Shadow/offset effect - 25% chance
   const shadowRng = seededRandom(seed + 22222);
   const hasShadowEffect = shadowRng() < 0.25;
   const baseOffsetX = Math.round(2 + shadowRng() * 2) * scaleX; // 2-4px
@@ -2812,29 +3079,24 @@ export function renderToCanvas({
       y: direction !== 0 ? baseOffsetY : 0,
     };
   };
-  // Derive shadow color: use accent if available, otherwise shift hue from text color
-  // Ensure shadow is always brighter than text
+  // Shadow color: use accent if distinct, otherwise pick contrasting CGA color
   const getShadowColor = () => {
-    const textHsl = hexToHsl(textColor);
-    let shadowHsl;
-
     if (accentColor && accentColor !== textColor) {
-      shadowHsl = hexToHsl(accentColor);
-    } else {
-      // Generate accent from text color by shifting hue
-      shadowHsl = {
-        h: (textHsl.h + 180) % 360,
-        s: Math.min(100, textHsl.s + 20),
-        l: textHsl.l,
-      };
+      return accentColor;
     }
-
-    // Ensure shadow is brighter than text
-    if (shadowHsl.l <= textHsl.l) {
-      shadowHsl.l = Math.min(95, textHsl.l + 25);
-    }
-
-    return hslToHex(shadowHsl.h, shadowHsl.s, shadowHsl.l);
+    // Pick a CGA color that contrasts with text
+    const textVGA = findVGAColor(textColor);
+    const candidates = CGA_PALETTE.filter(
+      (c) =>
+        c.hex !== textColor &&
+        c.hex !== bgColor &&
+        colorDistance(c, textVGA) > 100
+    );
+    // Pick deterministically based on seed
+    const pickIdx = Math.floor(shadowRng() * candidates.length);
+    const picked =
+      candidates.length > 0 ? candidates[pickIdx] : CGA_PALETTE[0];
+    return picked.hex;
   };
   const shadowColor = hasShadowEffect ? getShadowColor() : null;
 
@@ -2895,6 +3157,85 @@ export function renderToCanvas({
     }
 
     ctx.globalAlpha = 1;
+  } else if (analyticsMode) {
+    // analyticsMode: show grid, crease lines, and hit counts all in accent color
+    const lineWidth = 2 * scaleX;
+
+    // Draw grid in accent color
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    // Vertical lines
+    for (let col = 0; col <= cols; col++) {
+      const x = offsetX + col * actualStrideX;
+      ctx.beginPath();
+      ctx.moveTo(x, offsetY);
+      ctx.lineTo(x, offsetY + drawHeight);
+      ctx.stroke();
+    }
+    // Horizontal lines
+    for (let row = 0; row <= rows; row++) {
+      const y = offsetY + row * actualStrideY;
+      ctx.beginPath();
+      ctx.moveTo(offsetX, y);
+      ctx.lineTo(offsetX + drawWidth, y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw crease lines in accent color
+    if (activeCreases.length > 0) {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = 1;
+      ctx.lineCap = "round";
+      for (const crease of activeCreases) {
+        ctx.beginPath();
+        ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
+        ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
+        ctx.stroke();
+      }
+    }
+
+    // Draw intersection points in accent color
+    if (activeIntersections && activeIntersections.length > 0) {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = 1;
+      const radius = 4 * scaleX;
+      for (const inter of activeIntersections) {
+        ctx.beginPath();
+        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // Draw hit counts in accent color
+    const hitFontSize = Math.floor(
+      Math.min(actualCellWidth * 0.45, actualCellHeight * 0.7)
+    );
+    ctx.font = `bold ${hitFontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = accentColor;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = Math.round(
+          offsetX + col * actualStrideX + actualCellWidth / 2
+        );
+        const y = Math.round(
+          offsetY + row * actualStrideY + actualCellHeight / 2
+        );
+        const key = `${col},${row}`;
+        const weight = intersectionWeight[key] || 0;
+
+        ctx.fillText(Math.round(weight).toString(), x, y);
+      }
+    }
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
   } else if (showHitCounts) {
     // showHitCounts mode: draw numeric weight values instead of shade characters
     const hitFontSize = Math.floor(
@@ -2916,9 +3257,7 @@ export function renderToCanvas({
         const key = `${col},${row}`;
         const weight = intersectionWeight[key] || 0;
 
-        if (weight > 0) {
-          ctx.fillText(Math.round(weight).toString(), x, y);
-        }
+        ctx.fillText(Math.round(weight).toString(), x, y);
       }
     }
 
@@ -2977,9 +3316,13 @@ export function renderToCanvas({
           }
         } else if (renderMode === "binary") {
           if (weight === 0) {
-            char = shadeChars[0];
-            level = 0;
-            color = getColorForLevel(0, key);
+            if (showEmptyCells) {
+              char = shadeChars[1];
+              level = 0;
+              isEmptyCell = true;
+              color = textColor;
+            }
+            // else: no char, cell stays empty
           } else {
             level = maxShadeLevel;
             char = shadeChars[level];
@@ -3011,6 +3354,11 @@ export function renderToCanvas({
             char = shadeChars[1];
             color = getColorForLevel(1, key);
             if (accentCells.has(key)) color = accentColor;
+          } else {
+            // Always show ░ character in non-sparse cells for texture
+            char = shadeChars[1];
+            isEmptyCell = true;
+            color = textColor;
           }
         } else if (renderMode === "dense") {
           level = countToLevelAdaptive(weight, thresholds);
@@ -3029,10 +3377,11 @@ export function renderToCanvas({
             } else if (accentCells.has(key)) {
               color = accentColor;
             }
-          } else if (weight === 0) {
-            char = shadeChars[0];
-            level = 0;
-            color = getColorForLevel(0, key);
+          } else {
+            // Always show ░ character in non-dense cells for texture
+            char = shadeChars[1];
+            isEmptyCell = true;
+            color = textColor;
           }
         }
 
@@ -3068,7 +3417,13 @@ export function renderToCanvas({
           if (effectiveCellWidth < charWidth * 0.5) continue;
 
           // Get pattern-based overlap factor for this cell
-          const cellOverlapFactor = getOverlapFactor(row, col);
+          // Non-inverted weight=0: no overlap but allow multiple chars (fill cell evenly)
+          // Inverted weight=0 (10%): single char only (barcode look)
+          const noOverlap = isEmptyCell || (weight === 0 && renderMode !== "inverted");
+          const singleCharOnly = renderMode === "inverted" && weight === 0 && invertedSingleCharOnEmpty;
+          const cellOverlapFactor = (noOverlap || singleCharOnly)
+            ? 1.0
+            : getOverlapFactor(row, col);
 
           // Calculate step based on overlap factor (1.0 = no overlap, 0.5 = 50% overlap)
           const effectiveStep = charWidth * cellOverlapFactor;
@@ -3095,7 +3450,9 @@ export function renderToCanvas({
               : (effectiveCellWidth - charWidth) / (numCharsInCell - 1);
 
           // Calculate max overflow distance based on cellOverflowAmount
-          const overflowDistance = cellOverflowAmount * actualCellWidth;
+          // Skip overflow for empty cells and single-char mode
+          const skipOverflow = isEmptyCell || singleCharOnly;
+          const overflowDistance = skipOverflow ? 0 : cellOverflowAmount * actualCellWidth;
 
           // Calculate overflow chars based on direction
           // Base cell is always filled; overflow extends in the specified direction
@@ -3103,7 +3460,7 @@ export function renderToCanvas({
           if (overflowDistance > 0) {
             overflowChars = Math.ceil(overflowDistance / step);
           }
-          const maxChars = numCharsInCell + overflowChars;
+          const maxChars = singleCharOnly ? 1 : numCharsInCell + overflowChars;
 
           // Determine effective direction for this cell based on mode
           let cellDirection; // "ltr", "rtl", or "center"
@@ -3276,6 +3633,19 @@ export function renderToCanvas({
       ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
       ctx.stroke();
     }
+
+    // Draw intersection points as stroked circles (same style as lines)
+    if (activeIntersections && activeIntersections.length > 0) {
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = 1;
+      const radius = 4 * scaleX;
+      for (const inter of activeIntersections) {
+        ctx.beginPath();
+        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
   }
 
   if (showPaperShape) {
@@ -3414,19 +3784,11 @@ export function generateAllParams(
   padding = 0,
   folds = null
 ) {
-  const palette = generatePalette(seed);
-  const cells = generateCellDimensions(width, height, padding, seed);
-  const renderMode = generateRenderMode(seed);
+  // Generate fold-related parameters first (needed for crease count)
   const weightRange = generateWeightRange(seed);
   const foldStrategy = generateFoldStrategy(seed);
-  const multiColor = generateMultiColorEnabled(seed);
-  const levelColors = multiColor
-    ? generateMultiColorPalette(seed, palette.bg, palette.text)
-    : null;
   const maxFolds = generateMaxFolds(seed);
   const paperProperties = generatePaperProperties(seed);
-  const showCreaseLines = generateRareCreaseLines(seed);
-  const overlapInfo = generateOverlapInfo(seed);
 
   let foldCount = folds;
   if (foldCount === null) {
@@ -3434,18 +3796,80 @@ export function generateAllParams(
     foldCount = Math.floor(1 + foldRng() * 500);
   }
 
+  // Run fold simulation to get actual crease count
+  // This determines visual density which influences palette choice
+  const drawWidth = width - DRAWING_MARGIN * 2;
+  const drawHeight = height - DRAWING_MARGIN * 2;
+  const { creases } = simulateFolds(
+    drawWidth,
+    drawHeight,
+    foldCount,
+    seed,
+    weightRange,
+    foldStrategy,
+    paperProperties
+  );
+  const creaseCount = creases.length;
+
+  // Gradient mode probability decreases with crease count
+  // Sparse pieces are more atmospheric, dense pieces are more compressed
+  const gradientProbability = getGradientProbability(creaseCount);
+  const gradientMode = generateGradientMode(seed, creaseCount);
+
+  // Generate CGA palette as normal (ground, text, accent using existing contrast logic)
+  const cgaPalette = generatePalette(seed);
+
+  // Build final palette
+  let palette;
+  let anchorType = null;
+  if (gradientMode) {
+    // Determine anchor type: background (50%), text (35%), accent (15%)
+    anchorType = generateAnchorType(seed);
+    // Build palette with anchor concept
+    palette = buildGradientPalette(seed, cgaPalette, anchorType);
+  } else {
+    palette = cgaPalette;
+  }
+
+  // Multi-color: 25% of non-gradient pieces use CGA palette interpolation
+  // Gradient mode and multi-color are mutually exclusive (gradient takes precedence)
+  const multiColor = gradientMode ? false : generateMultiColorEnabled(seed);
+
+  // Generate level colors based on mode:
+  // - Gradient mode: web-safe interpolation between final bg and text
+  // - Multi-color (no gradient): CGA palette interpolation
+  // - Neither: single text color (null)
+  let levelColors = null;
+  if (gradientMode) {
+    levelColors = generateWebSafeGradientPalette(palette.bg, palette.text);
+  } else if (multiColor) {
+    levelColors = generateMultiColorPalette(seed, palette.bg, palette.text);
+  }
+
+  const cells = generateCellDimensions(width, height, 0, seed);
+  const renderMode = generateRenderMode(seed);
+  const showEmptyCells = generateShowEmptyCells(seed);
+  const showCreaseLines = generateRareCreaseLines(seed);
+  const analyticsMode = generateRareAnalyticsMode(seed);
+  const overlapInfo = generateOverlapInfo(seed);
+
   return {
     seed,
     palette,
     cells,
     renderMode,
+    showEmptyCells,
     weightRange,
     foldStrategy,
+    gradientMode,
+    gradientProbability,
+    creaseCount,
     multiColor,
     levelColors,
     maxFolds,
     paperProperties,
     showCreaseLines,
+    analyticsMode,
     overlapInfo,
     folds: foldCount,
   };
@@ -3462,22 +3886,19 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
     foldCount
   );
 
-  // Calculate crease count by running simulation (with paper properties)
-  const weightRange = generateWeightRange(seed);
-  const refDrawWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
-  const refDrawHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
-  const { creases } = simulateFolds(
-    refDrawWidth,
-    refDrawHeight,
-    foldCount,
-    seed,
-    weightRange,
-    params.foldStrategy,
-    params.paperProperties
-  );
-
   // Get paper description for traits
   const paperDesc = getPaperDescription(params.paperProperties);
+
+  // Format palette strategy for display
+  // gradient/anchor-type (probability% @ creases) or cga/strategy (probability% gradient @ creases)
+  const probPct = Math.round(params.gradientProbability * 100);
+  let paletteStrategyDisplay;
+  if (params.gradientMode) {
+    const anchorType = params.palette.anchorType || "background";
+    paletteStrategyDisplay = `gradient/${anchorType} (${probPct}% @ ${params.creaseCount} creases)`;
+  } else {
+    paletteStrategyDisplay = `cga/${params.palette.strategy} (${probPct}% gradient @ ${params.creaseCount} creases)`;
+  }
 
   return {
     name: `Fold #${tokenId}`,
@@ -3493,8 +3914,8 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
       },
       { trait_type: "Fold Count", value: foldCount },
       { trait_type: "Max Folds", value: params.maxFolds },
-      { trait_type: "Crease Count", value: creases.length },
-      { trait_type: "Palette Strategy", value: params.palette.strategy },
+      { trait_type: "Crease Count", value: params.creaseCount },
+      { trait_type: "Palette Strategy", value: paletteStrategyDisplay },
       { trait_type: "Paper Type", value: paperDesc },
       {
         trait_type: "Paper Grain",
@@ -3532,9 +3953,10 @@ async function loadOnChainFont(fontDataUri) {
   `;
   document.head.appendChild(style);
 
-  // Wait for font to load
+  // Wait for font to load and be ready
   try {
     await document.fonts.load(`12px ${ONCHAIN_FONT_NAME}`);
+    await document.fonts.ready;
     return true;
   } catch (err) {
     console.warn("Failed to load on-chain font:", err);
@@ -3750,10 +4172,25 @@ export function renderWithState(canvas, state, options = {}) {
   } = options;
 
   // Use provided dimensions or calculate optimal ones
-  const dims =
-    width && height
-      ? { renderWidth: width, renderHeight: height, width, height }
-      : getOptimalDimensions();
+  // When dimensions are provided, maintain A4 aspect ratio (fit within bounds)
+  let dims;
+  if (width && height) {
+    const targetRatio = REFERENCE_WIDTH / REFERENCE_HEIGHT;
+    const givenRatio = width / height;
+    let renderWidth, renderHeight;
+    if (givenRatio > targetRatio) {
+      // Given area is wider than A4 - constrain by height
+      renderHeight = height;
+      renderWidth = Math.round(height * targetRatio);
+    } else {
+      // Given area is taller than A4 - constrain by width
+      renderWidth = width;
+      renderHeight = Math.round(width / targetRatio);
+    }
+    dims = { renderWidth, renderHeight, width, height };
+  } else {
+    dims = getOptimalDimensions();
+  }
 
   const actualFolds =
     foldOverride !== undefined ? foldOverride : state.foldCount;
@@ -3782,11 +4219,13 @@ export function renderWithState(canvas, state, options = {}) {
     cellWidth: state.params.cells.cellW,
     cellHeight: state.params.cells.cellH,
     renderMode: state.params.renderMode,
+    showEmptyCells: state.params.showEmptyCells,
     multiColor: state.params.multiColor,
     levelColors: state.params.levelColors,
     foldStrategy: state.params.foldStrategy,
     paperProperties: state.params.paperProperties,
     showCreaseLines: state.params.showCreaseLines,
+    analyticsMode: state.params.analyticsMode,
     showCreases: showOverlays,
     showIntersections: showOverlays,
     linesOnlyMode: linesOnly,
@@ -3794,14 +4233,33 @@ export function renderWithState(canvas, state, options = {}) {
 
   // Draw synchronously from the rendered canvas
   const ctx = canvas.getContext("2d");
-  // Set canvas internal resolution (matches renderToCanvas output)
-  canvas.width = srcCanvas.width;
-  canvas.height = srcCanvas.height;
-  // Set CSS size to fit screen (use provided dims or calculated)
+
+  // Use a scale factor for crisp rendering (2x)
+  const dpr = 2;
+
+  // Set canvas to full requested size (internal resolution)
+  canvas.width = dims.width * dpr;
+  canvas.height = dims.height * dpr;
+  // CSS size matches requested dimensions
   canvas.style.width = dims.width + "px";
   canvas.style.height = dims.height + "px";
-  // Draw directly from source canvas
-  ctx.drawImage(srcCanvas, 0, 0);
+
+  // Fill canvas with background color (for letterbox areas)
+  ctx.fillStyle = state.params.palette.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Center the A4 content within the canvas
+  const offsetX = ((dims.width - dims.renderWidth) / 2) * dpr;
+  const offsetY = ((dims.height - dims.renderHeight) / 2) * dpr;
+
+  // Draw the rendered content centered and scaled
+  ctx.drawImage(
+    srcCanvas,
+    offsetX,
+    offsetY,
+    dims.renderWidth * dpr,
+    dims.renderHeight * dpr
+  );
 
   // Trigger scaling callback if defined
   if (
@@ -3890,6 +4348,11 @@ export async function initOnChain() {
 
     // Initial render
     renderOnChain(canvas, _onChainState);
+
+    // Signal render complete (for image-api and other headless renderers)
+    if (typeof window !== "undefined") {
+      window.RENDER_COMPLETE = true;
+    }
 
     // Re-render on window resize (debounced to avoid excessive renders)
     window.addEventListener(

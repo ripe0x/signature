@@ -266,7 +266,7 @@
     }
 
     .grid-item {
-      aspect-ratio: 4/5;
+      aspect-ratio: 1200/1697;
       background: #1a1a1a;
       border-radius: 8px;
       overflow: hidden;
@@ -363,7 +363,9 @@
 
     .modal-image canvas {
       max-height: 85vh;
-      width: auto;
+      max-width: 100%;
+      width: auto !important;
+      height: auto !important;
     }
 
     .modal-details {
@@ -562,10 +564,6 @@
             <label>Count</label>
             <input type="number" id="countInput" value="100" min="1" max="10000">
           </div>
-          <div style="flex: 1">
-            <label>Start Seed</label>
-            <input type="number" id="startSeedInput" value="1" min="0">
-          </div>
         </div>
         <div class="control-row">
           <div style="flex: 1">
@@ -673,7 +671,6 @@
 
     // DOM elements
     const countInput = document.getElementById('countInput');
-    const startSeedInput = document.getElementById('startSeedInput');
     const foldsInput = document.getElementById('foldsInput');
     const foldModeSelect = document.getElementById('foldModeSelect');
     const generateBtn = document.getElementById('generateBtn');
@@ -696,9 +693,36 @@
     const modalTraits = document.getElementById('modalTraits');
     const modalClose = document.getElementById('modalClose');
 
+    // Generate a random seed as a small integer (avoids JS Number overflow in hash ops)
+    // fold-core.js uses multiplicative hashes that overflow with large seeds
+    function generateRandomSeed() {
+      const seed = Math.floor(Math.random() * 999999) + 1;
+      return '0x' + seed.toString(16).padStart(64, '0');
+    }
+
+    // Convert hex seed to number for JS functions
+    function hexSeedToNumber(hexSeed) {
+      // Parse the seed - for small seeds padded to 64 chars, this extracts the value
+      // For large hex seeds, take last 6 hex chars to keep value small
+      const hex = hexSeed.slice(2).replace(/^0+/, '') || '0';
+      if (hex.length <= 6) {
+        return parseInt(hex, 16);
+      }
+      // Large hex - use last 6 chars (24 bits, max ~16M)
+      return parseInt(hex.slice(-6), 16);
+    }
+
     // Generate a single output
-    function generateOutput(seed, foldCount = null) {
-      const hexSeed = '0x' + seed.toString(16).padStart(64, '0');
+    function generateOutput(seedInput, foldCount = null) {
+      // Handle both numeric seeds and hex string seeds
+      let seed, hexSeed;
+      if (typeof seedInput === 'string' && seedInput.startsWith('0x')) {
+        hexSeed = seedInput;
+        seed = hexSeedToNumber(seedInput);
+      } else {
+        seed = seedInput;
+        hexSeed = '0x' + seed.toString(16).padStart(64, '0');
+      }
       const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
 
       // Get metadata to extract traits (tokenId, seed, foldCount, imageBaseUrl)
@@ -778,6 +802,7 @@
         'Fold Strategy',
         'Render Mode',
         'Multi-Color',
+        'Gradient Mode',
         'Paper Type',
         'Paper Grain',
         'Palette Strategy',
@@ -980,6 +1005,10 @@
               <div class="trait-value">${output.foldCount}</div>
             </div>
             <div class="trait-card">
+              <div class="trait-type">Creases</div>
+              <div class="trait-value">${traits['Crease Count'] || '?'}</div>
+            </div>
+            <div class="trait-card">
               <div class="trait-type">Fold Strategy</div>
               <div class="trait-value">${params.foldStrategy?.type || 'random'}</div>
             </div>
@@ -1094,7 +1123,6 @@
     // Generate all outputs
     async function generate() {
       const count = parseInt(countInput.value) || 100;
-      const startSeed = parseInt(startSeedInput.value) || 1;
       const baseFolds = parseInt(foldsInput.value) || 50;
       const foldMode = foldModeSelect.value;
 
@@ -1113,14 +1141,16 @@
         const batchEnd = Math.min(i + batchSize, count);
 
         for (let j = i; j < batchEnd; j++) {
-          const seed = startSeed + j;
+          // Always use random 256-bit seeds
+          const seed = generateRandomSeed();
 
           // Determine fold count based on mode
           let foldCount;
           if (foldMode === 'fixed') {
             foldCount = baseFolds;
           } else if (foldMode === 'random') {
-            foldCount = null; // Let generateAllParams decide
+            // Random folds between 1-100
+            foldCount = Math.floor(Math.random() * 100) + 1;
           } else if (foldMode === 'incremental') {
             foldCount = j + 1; // 1, 2, 3, ...
           }

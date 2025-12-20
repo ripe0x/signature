@@ -391,6 +391,15 @@ contract LessRenderer is ILessRenderer, Ownable {
             );
         }
 
+        if (_hasAnalyticsMode(seed)) {
+            attrs = string(
+                abi.encodePacked(
+                    attrs,
+                    ',{"trait_type":"Analytics Mode","value":"Enabled"}'
+                )
+            );
+        }
+
         // Close the array
         return string(abi.encodePacked(attrs, "]"));
     }
@@ -505,6 +514,12 @@ contract LessRenderer is ILessRenderer, Ownable {
     /// @notice Checks if token has rare hit counts display (0.8%)
     function _hasHitCounts(bytes32 seed) internal pure returns (bool) {
         uint256 state = _nextRandom(_seedToNumber(seed) + 8888);
+        return (state * 1000) / 0x7fffffff < 8;
+    }
+
+    /// @notice Checks if token has rare analytics mode (0.8%)
+    function _hasAnalyticsMode(bytes32 seed) internal pure returns (bool) {
+        uint256 state = _nextRandom(_seedToNumber(seed) + 9393);
         return (state * 1000) / 0x7fffffff < 8;
     }
 
