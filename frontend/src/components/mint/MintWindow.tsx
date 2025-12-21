@@ -221,7 +221,7 @@ function MintedTokensGrid({
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
             </div>
             <div className="text-xs text-center text-muted group-hover:text-foreground transition-colors">
-              LESS #{token.id}
+              LESS {token.id}
             </div>
           </Link>
         ))}
@@ -387,7 +387,7 @@ export function MintWindow() {
         <div className="max-w-md mx-auto space-y-6">
           {/* Show loading placeholders during confirmation */}
           {isConfirming && mintedQuantity > 0 && (
-            <MintingPlaceholder count={mintedQuantity} />
+            // <MintingPlaceholder count={mintedQuantity} />
           )}
 
           {/* Show minted tokens grid after successful mint */}
