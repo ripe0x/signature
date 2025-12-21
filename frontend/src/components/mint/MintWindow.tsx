@@ -1,26 +1,40 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useAccount } from 'wagmi';
-import { useMintWindow } from '@/hooks/useMintWindow';
-import { useTokenStats } from '@/hooks/useTokenStats';
-import { useCollection } from '@/hooks/useCollection';
-import { ArtworkCanvas } from '@/components/artwork/ArtworkCanvas';
-import { CountdownTimer } from './CountdownTimer';
-import { MintButton } from './MintButton';
-import { CONTRACTS, CHAIN_ID } from '@/lib/contracts';
-import { formatCountdown, formatEth, getAddressUrl, getTxUrl, seedToNumber } from '@/lib/utils';
-import { useMemo, useEffect } from 'react';
+import Link from "next/link";
+import { useAccount } from "wagmi";
+import { useMintWindow } from "@/hooks/useMintWindow";
+import { useTokenStats } from "@/hooks/useTokenStats";
+import { useCollection } from "@/hooks/useCollection";
+import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { CountdownTimer } from "./CountdownTimer";
+import { MintButton } from "./MintButton";
+import { CONTRACTS } from "@/lib/contracts";
+import {
+  formatCountdown,
+  formatEth,
+  getAddressUrl,
+  getTxUrl,
+  seedToNumber,
+} from "@/lib/utils";
+import { useMemo, useEffect } from "react";
 
 // Progress bar for balance to threshold
-function BalanceProgress({ current, threshold }: { current: number; threshold: number }) {
+function BalanceProgress({
+  current,
+  threshold,
+}: {
+  current: number;
+  threshold: number;
+}) {
   const percentage = Math.min((current / threshold) * 100, 100);
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-sm">
         <span className="text-muted">balance</span>
-        <span>{current.toFixed(4)} / {threshold} ETH</span>
+        <span>
+          {current.toFixed(4)} / {threshold} ETH
+        </span>
       </div>
       <div className="h-2 bg-border overflow-hidden">
         <div
@@ -31,7 +45,7 @@ function BalanceProgress({ current, threshold }: { current: number; threshold: n
       <p className="text-xs text-muted text-center">
         {percentage < 100
           ? `${(threshold - current).toFixed(4)} ETH until next window`
-          : 'threshold reached — window can open'}
+          : "threshold reached — window can open"}
       </p>
     </div>
   );
@@ -129,15 +143,16 @@ function PricingInfo({
   return (
     <div className="text-xs text-muted space-y-2">
       {mintCount > 0 && (
-        <p className="text-foreground">
-          you've minted {mintCount} this window
-        </p>
+        <p className="text-foreground">you've minted {mintCount} this window</p>
       )}
       <p>
         {isLoading ? (
           <span className="animate-pulse">loading price...</span>
         ) : (
-          <>starts at {formatEth(basePrice)} ETH, increases 1.5x per mint. resets each window.</>
+          <>
+            starts at {formatEth(basePrice)} ETH, increases 1.5x per mint.
+            resets each window.
+          </>
         )}
       </p>
     </div>
@@ -150,15 +165,15 @@ function MintingPlaceholder({ count }: { count: number }) {
     <div className="space-y-4">
       <div className="text-center">
         <div className="inline-block px-3 py-1 bg-foreground/10 text-foreground text-sm mb-4 animate-pulse">
-          minting {count} token{count > 1 ? 's' : ''}...
+          minting {count} token{count > 1 ? "s" : ""}...
         </div>
       </div>
-      <div className={count === 1 ? '' : 'grid grid-cols-2 gap-4'}>
+      <div className={count === 1 ? "" : "grid grid-cols-2 gap-4"}>
         {Array.from({ length: count }).map((_, i) => (
           <div
             key={i}
             className="bg-border animate-pulse"
-            style={{ aspectRatio: '4/5' }}
+            style={{ aspectRatio: "4/5" }}
           >
             <div className="w-full h-full flex items-center justify-center">
               <span className="text-sm text-muted">generating...</span>
@@ -186,10 +201,11 @@ function MintedTokensGrid({
     <div className="space-y-4">
       <div className="text-center">
         <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm mb-4">
-          minted {tokens.length} token{tokens.length > 1 ? 's' : ''} successfully!
+          minted {tokens.length} token{tokens.length > 1 ? "s" : ""}{" "}
+          successfully!
         </div>
       </div>
-      <div className={isSingle ? '' : 'grid grid-cols-2 gap-4'}>
+      <div className={isSingle ? "" : "grid grid-cols-2 gap-4"}>
         {tokens.map((token) => (
           <Link
             key={token.id}
@@ -213,7 +229,7 @@ function MintedTokensGrid({
       <div className="text-center space-y-2">
         {txHash && (
           <a
-            href={getTxUrl(txHash, CHAIN_ID)}
+            href={getTxUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted hover:text-foreground"
@@ -239,7 +255,7 @@ function RecentMints() {
   // Group tokens by windowId
   const groupedByWindow = useMemo(() => {
     const groups: { [windowId: number]: typeof tokens } = {};
-    tokens.forEach(token => {
+    tokens.forEach((token) => {
       if (!groups[token.windowId]) {
         groups[token.windowId] = [];
       }
@@ -253,7 +269,9 @@ function RecentMints() {
 
   if (isLoading) {
     return (
-      <div className="text-center text-muted text-sm">loading recent mints...</div>
+      <div className="text-center text-muted text-sm">
+        loading recent mints...
+      </div>
     );
   }
 
@@ -268,7 +286,7 @@ function RecentMints() {
         <div key={windowId} className="space-y-4">
           <div className="text-sm text-muted">window #{windowId}</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {tokens.map(token => (
+            {tokens.map((token) => (
               <Link
                 key={token.id}
                 href={`/token/${token.id}`}
@@ -337,10 +355,10 @@ export function MintWindow() {
     }
   }, [isConfirmed, refetchTokens]);
 
-  const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT, CHAIN_ID);
+  const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT);
 
   // Count mints in current window
-  const mintsThisWindow = tokens.filter(t => t.windowId === windowId).length;
+  const mintsThisWindow = tokens.filter((t) => t.windowId === windowId).length;
 
   // Handle mint with current quantity
   const handleMint = () => {
@@ -358,7 +376,10 @@ export function MintWindow() {
 
         {/* Countdown */}
         <div className="text-center space-y-2">
-          <CountdownTimer seconds={timeRemaining} label={`window #${windowId} closes in`} />
+          <CountdownTimer
+            seconds={timeRemaining}
+            label={`window #${windowId} closes in`}
+          />
           <p className="text-sm text-muted">{mintsThisWindow} minted</p>
         </div>
 
@@ -407,9 +428,9 @@ export function MintWindow() {
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">
                   <p className="text-red-800">
-                    {mintError.message.includes('User rejected')
-                      ? 'transaction cancelled'
-                      : 'mint failed'}
+                    {mintError.message.includes("User rejected")
+                      ? "transaction cancelled"
+                      : "mint failed"}
                   </p>
                   <button
                     onClick={resetMint}
@@ -507,9 +528,9 @@ export function MintWindow() {
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">
                   <p className="text-red-800">
-                    {mintError.message.includes('User rejected')
-                      ? 'transaction cancelled'
-                      : 'mint failed'}
+                    {mintError.message.includes("User rejected")
+                      ? "transaction cancelled"
+                      : "mint failed"}
                   </p>
                   <button
                     onClick={resetMint}
@@ -567,23 +588,26 @@ export function MintWindow() {
           <h2 className="text-lg">how mint windows work</h2>
           <div className="text-sm text-muted space-y-3">
             <p>
-              trading fees from the $LESS token accumulate in the recursive strategy contract.
+              trading fees from the $LESS token accumulate in the recursive
+              strategy contract.
             </p>
             <p>
-              when the balance reaches <strong className="text-foreground">0.25 ETH</strong>,
-              anyone can trigger a burn — the ETH buys and burns $LESS tokens,
-              and a <strong className="text-foreground">90-minute mint window</strong> opens.
+              when the balance reaches{" "}
+              <strong className="text-foreground">0.25 ETH</strong>, anyone can
+              trigger a burn — the ETH buys and burns $LESS tokens, and a{" "}
+              <strong className="text-foreground">90-minute mint window</strong>{" "}
+              opens.
             </p>
             <p>
               during the window, mint as many as you like — but price escalates
-              <strong className="text-foreground"> 1.5x per mint</strong> per wallet.
-              pricing resets each window.
+              <strong className="text-foreground"> 1.5x per mint</strong> per
+              wallet. pricing resets each window.
             </p>
           </div>
         </div>
 
         {/* Balance progress - placeholder for now */}
-        <BalanceProgress current={0.12} threshold={0.25} />
+        {/* <BalanceProgress current={0.12} threshold={0.25} /> */}
       </div>
 
       {/* Stats */}

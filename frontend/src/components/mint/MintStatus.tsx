@@ -1,7 +1,6 @@
 'use client';
 
 import { cn, getTxUrl } from '@/lib/utils';
-import { CHAIN_ID } from '@/lib/contracts';
 
 interface MintStatusProps {
   isConfirmed: boolean;
@@ -26,7 +25,7 @@ export function MintStatus({ isConfirmed, error, txHash, onReset }: MintStatusPr
           <p className="text-green-800">minted successfully!</p>
           {txHash && (
             <a
-              href={getTxUrl(txHash, CHAIN_ID)}
+              href={getTxUrl(txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-600 hover:underline block"

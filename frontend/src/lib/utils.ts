@@ -75,18 +75,17 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
-// Get Etherscan base URL based on chain ID
-export function getEtherscanUrl(chainId: number): string {
-  if (chainId === 11155111) return 'https://sepolia.etherscan.io';
+// Get Etherscan base URL
+export function getEtherscanUrl(): string {
   return 'https://etherscan.io';
 }
 
 // Build Etherscan URL for address
-export function getAddressUrl(address: string, chainId: number): string {
-  return `${getEtherscanUrl(chainId)}/address/${address}`;
+export function getAddressUrl(address: string): string {
+  return `${getEtherscanUrl()}/address/${address}`;
 }
 
 // Build Etherscan URL for transaction
-export function getTxUrl(txHash: string, chainId: number): string {
-  return `${getEtherscanUrl(chainId)}/tx/${txHash}`;
+export function getTxUrl(txHash: string): string {
+  return `${getEtherscanUrl()}/tx/${txHash}`;
 }
