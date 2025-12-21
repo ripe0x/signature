@@ -15,4 +15,4 @@ COPY deployment-sepolia.json ./
 
 # Run the bot
 # Use shorter polling interval for testing (15s instead of 60s)
-CMD ["node", "scripts/twitter-bot.js", "--network=sepolia", "--interval=15"]
+CMD ["node", "scripts/twitter-bot.js", "--network=mainnet", "--interval=60"]

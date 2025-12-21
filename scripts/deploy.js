@@ -498,8 +498,9 @@ async function stepDeploy(network, rpcUrl, privateKey) {
       `--rpc-url "${rpcUrl}"`,
       `--private-key ${privateKey}`,
       "--broadcast",
+      network.confirmations ? "--slow" : "",
       "-vvv",
-    ].join(" ");
+    ].filter(Boolean).join(" ");
 
     const result = execWithRetry(forgeCmd, { silent: true });
 

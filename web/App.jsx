@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
-// Import all core rendering logic from fold-core
+// Import all rendering logic - fold-external re-exports everything from fold-core
+// plus external-only functions (loadFont, renderInteractiveToContainer, etc.)
 import {
   // Constants
   CELL_MIN,
@@ -48,7 +49,7 @@ import {
   seededRandom,
   // Font loading
   loadFont,
-} from "./fold-core.js";
+} from "./fold-external.js";
 
 // ============ BATCH STATS ============
 

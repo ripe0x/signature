@@ -7,8 +7,8 @@ primary_region = "iad"
 [env]
   NODE_ENV = "production"
   CACHE_ENABLED = "true"
-  CHAIN = "sepolia"
-  CONTRACT_ADDRESS = "0x0FCdC1761F85015363A46F8f503900D686Db23A2"
+  CHAIN = "mainnet"
+  CONTRACT_ADDRESS = "0x008B66385ed2346E6895031E250B2ac8dc14605C"
   # RPC_URL must be set as a secret: fly secrets set RPC_URL="https://..."
 
 [http_service]

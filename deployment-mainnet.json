@@ -1,0 +1,15 @@
+{
+  "network": "mainnet",
+  "chainId": 1,
+  "timestamp": "2025-12-21T21:05:27.535Z",
+  "contracts": {
+    "less": "0x008B66385ed2346E6895031E250B2ac8dc14605C",
+    "renderer": "0x32BE3cCe4Cf6F24aD26F7f4250Ff8c5f29d12b7f"
+  },
+  "config": {
+    "scriptyStorage": "0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699",
+    "scriptyBuilder": "0xD7587F110E08F4D120A231bA97d3B577A81Df022",
+    "scriptName": "lessFolds.js-v1766350961",
+    "useMockLess": false
+  }
+}

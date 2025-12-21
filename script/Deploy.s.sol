@@ -69,9 +69,9 @@ contract Deploy is Script {
         console.log("ScriptyBuilder:", config.scriptyBuilder);
         console.log("");
 
+        // ============ STEP 1: Deploy Less ============
+        console.log("=== Step 1/3: Deploying Less ===");
         vm.startBroadcast();
-
-        // Deploy Less or MockLess based on network
         if (config.useMockLess) {
             deployed.less = deployMockLess();
             deployed.isMock = true;
@@ -79,16 +79,43 @@ contract Deploy is Script {
             deployed.less = deployLess();
             deployed.isMock = false;
         }
-
-        // Deploy renderer
-        deployed.renderer = deployRenderer(deployed.less);
-
-        // Set renderer on Less/MockLess contract
-        setRenderer(deployed.less, deployed.renderer, deployed.isMock);
-
         vm.stopBroadcast();
 
+        // Verify Less deployment
+        require(deployed.less != address(0), "Less deployment failed");
+        require(deployed.less.code.length > 0, "Less has no code");
+        console.log("[CONFIRMED] Less deployed at:", deployed.less);
         console.log("");
+
+        // ============ STEP 2: Deploy Renderer ============
+        console.log("=== Step 2/3: Deploying LessRenderer ===");
+        vm.startBroadcast();
+        deployed.renderer = deployRenderer(deployed.less);
+        vm.stopBroadcast();
+
+        // Verify Renderer deployment
+        require(deployed.renderer != address(0), "Renderer deployment failed");
+        require(deployed.renderer.code.length > 0, "Renderer has no code");
+        console.log("[CONFIRMED] Renderer deployed at:", deployed.renderer);
+        console.log("");
+
+        // ============ STEP 3: Set Renderer ============
+        console.log("=== Step 3/3: Setting Renderer ===");
+        vm.startBroadcast();
+        setRenderer(deployed.less, deployed.renderer, deployed.isMock);
+        vm.stopBroadcast();
+
+        // Verify renderer was set
+        if (deployed.isMock) {
+            address setRenderer_ = MockLess(payable(deployed.less)).renderer();
+            require(setRenderer_ == deployed.renderer, "Renderer not set correctly on MockLess");
+        } else {
+            address setRenderer_ = Less(deployed.less).renderer();
+            require(setRenderer_ == deployed.renderer, "Renderer not set correctly on Less");
+        }
+        console.log("[CONFIRMED] Renderer set successfully");
+        console.log("");
+
         console.log("=== Deployment Complete ===");
         console.log("Less:", deployed.less);
         console.log("Renderer:", deployed.renderer);

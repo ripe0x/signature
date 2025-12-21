@@ -10,7 +10,7 @@ import {IRecursiveStrategy} from "./IRecursiveStrategy.sol";
 import {ILessRenderer} from "./ILessRenderer.sol";
 
 /// @title Less
-/// @author less.art
+/// @author ripe
 /// @notice ERC721 collection tied to RecursiveStrategy burn events
 /// @dev Each burn event opens a time-limited mint window. The contract integrates with
 ///      RecursiveStrategy to trigger token burns, and each burn creates a new window
@@ -177,7 +177,8 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Tracks how many times each address has minted for each window
     /// @dev windowId => minter => mintCount
-    mapping(uint256 => mapping(address => uint256)) internal _mintCountPerWindow;
+    mapping(uint256 => mapping(address => uint256))
+        internal _mintCountPerWindow;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -376,7 +377,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = startTokenId + i;
             bytes32 seed = keccak256(abi.encodePacked(blockHash, tokenId));
-            _tokenData[tokenId] = TokenData({windowId: uint64(windowId), seed: seed});
+            _tokenData[tokenId] = TokenData({
+                windowId: uint64(windowId),
+                seed: seed
+            });
             _mint(msg.sender, tokenId);
 
             emit Minted(tokenId, windowId, msg.sender, seed);

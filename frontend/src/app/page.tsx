@@ -36,8 +36,8 @@ const CGA_PALETTE = [
   "#FFFFFF",
 ];
 
-// Token-live landing page (token deployed, NFT not yet)
-function TokenLiveLanding() {
+// Main landing page (used for both pre-launch and NFT live states)
+function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
   const [sample, setSample] = useState({ seed: 42069, foldCount: 100 });
   const [mounted, setMounted] = useState(false);
 
@@ -85,9 +85,17 @@ function TokenLiveLanding() {
                 >
                   <Button size="lg">trade $LESS</Button>
                 </a>
-                <Button variant="outline" size="lg" disabled>
-                  NFT minting starts Sunday 12/21
-                </Button>
+                {nftLive ? (
+                  <Link href="/mint">
+                    <Button variant="outline" size="lg">
+                      mint NFT
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" size="lg" disabled>
+                    NFT minting starts Sunday 12/21
+                  </Button>
+                )}
               </div>
             </div>
             <div className="aspect-[1/1.414]">
@@ -172,7 +180,11 @@ function TokenLiveLanding() {
                 contract. over time that pressure is used to buy and burn the
                 token itself.
               </p>
-              <p>the token is live now. the NFT collection will launch soon.</p>
+              <p>
+                {nftLive
+                  ? "the token and the NFT collection are live now."
+                  : "the token is live now. the NFT collection will launch soon."}
+              </p>
             </div>
           </section>
 
@@ -402,7 +414,12 @@ function StandardHome() {
 export default function HomePage() {
   // Show token-live landing when token is deployed but NFT isn't
   if (IS_TOKEN_LIVE && IS_PRE_LAUNCH) {
-    return <TokenLiveLanding />;
+    return <TokenLiveLanding nftLive={false} />;
+  }
+
+  // Show same layout with live buttons when NFT is live
+  if (IS_TOKEN_LIVE && !IS_PRE_LAUNCH) {
+    return <TokenLiveLanding nftLive={true} />;
   }
 
   return <StandardHome />;

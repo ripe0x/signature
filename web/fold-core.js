@@ -3150,19 +3150,6 @@ export function renderToCanvas({
       }
     }
 
-    // Draw intersection points as stroked circles (same style as lines)
-    if (activeIntersections && activeIntersections.length > 0) {
-      ctx.strokeStyle = lineColor;
-      ctx.lineWidth = lineWidth;
-      ctx.globalAlpha = 1;
-      const radius = 4 * scaleX;
-      for (const inter of activeIntersections) {
-        ctx.beginPath();
-        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
-
     ctx.globalAlpha = 1;
   } else if (analyticsMode) {
     // analyticsMode: show grid, crease lines, and hit counts all in accent color
@@ -3200,19 +3187,6 @@ export function renderToCanvas({
         ctx.beginPath();
         ctx.moveTo(offsetX + crease.p1.x, offsetY + crease.p1.y);
         ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
-        ctx.stroke();
-      }
-    }
-
-    // Draw intersection points in accent color
-    if (activeIntersections && activeIntersections.length > 0) {
-      ctx.strokeStyle = accentColor;
-      ctx.lineWidth = lineWidth;
-      ctx.globalAlpha = 1;
-      const radius = 4 * scaleX;
-      for (const inter of activeIntersections) {
-        ctx.beginPath();
-        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -3617,19 +3591,6 @@ export function renderToCanvas({
       ctx.lineTo(offsetX + crease.p2.x, offsetY + crease.p2.y);
       ctx.stroke();
     }
-
-    // Draw intersection points as stroked circles (same style as lines)
-    if (activeIntersections && activeIntersections.length > 0) {
-      ctx.strokeStyle = lineColor;
-      ctx.lineWidth = lineWidth;
-      ctx.globalAlpha = 1;
-      const radius = 4 * scaleX;
-      for (const inter of activeIntersections) {
-        ctx.beginPath();
-        ctx.arc(offsetX + inter.x, offsetY + inter.y, radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
   }
 
   if (showPaperShape) {
@@ -3917,13 +3878,6 @@ export function generateMetadata(tokenId, seed, foldCount, imageBaseUrl = "") {
 
 // Load the embedded font - call this before rendering
 let fontLoaded = false;
-export async function loadFont() {
-  if (fontLoaded) return true;
-  const result = await loadOnChainFont(ONCHAIN_FONT_DATA_URI);
-  fontLoaded = result;
-  return result;
-}
-
 // Load font from data URI and wait for it to be ready
 async function loadOnChainFont(fontDataUri) {
   if (!fontDataUri) return false;
@@ -3959,45 +3913,6 @@ function hexSeedToNumber(hexSeed) {
   return Number(bigNum % BigInt(2147483647));
 }
 
-// Calculate optimal canvas dimensions based on screen size while maintaining A4 aspect ratio
-function getOptimalDimensions() {
-  const dpr = window.devicePixelRatio || 1;
-  // Use fallback dimensions if window size is 0 (e.g., iframe not yet laid out)
-  const screenW = window.innerWidth || REFERENCE_WIDTH;
-  const screenH = window.innerHeight || REFERENCE_HEIGHT;
-
-  // Maintain A4 aspect ratio (1:√2, width:height)
-  const aspectRatio = 1 / Math.sqrt(2);
-
-  let width, height;
-  if (screenW / screenH > aspectRatio) {
-    // Screen is wider than A4, fit to height
-    height = screenH;
-    width = Math.floor(height * aspectRatio);
-  } else {
-    // Screen is taller than A4, fit to width
-    width = screenW;
-    height = Math.floor(width / aspectRatio);
-  }
-
-  // Ensure minimum dimensions to avoid 0-size canvas errors
-  width = Math.max(width, 100);
-  height = Math.max(height, 141);
-
-  // Scale up by device pixel ratio for crisp rendering on high-DPI screens
-  // This makes art look sharp on retina displays and future high-res screens
-  const renderWidth = Math.floor(width * dpr);
-  const renderHeight = Math.floor(height * dpr);
-
-  return {
-    width, // CSS pixels for display
-    height,
-    renderWidth, // Physical pixels for rendering
-    renderHeight,
-    dpr,
-  };
-}
-
 // Store render state for resize re-rendering
 let _onChainState = null;
 
@@ -4007,130 +3922,6 @@ function formatGap(gap, cellSize) {
   const ratio = gap / cellSize;
   if (ratio < 0) return `${Math.round(ratio * 100)}% overlap`;
   return `${Math.round(ratio * 100)}% gap`;
-}
-
-// Secret mode state for keyboard-activated features
-let _secretShowFoldLines = false;
-let _secretAnimating = false;
-let _secretAnimationFold = 0;
-let _secretAnimationMode = null; // 'full' | 'lines-only'
-let _secretAnimationTimer = null;
-let _keyboardFeaturesCleanup = null;
-
-/**
- * Set up keyboard features for any canvas/state combination
- * Shift+F: Toggle fold lines and intersection points
- * Shift+A: Animate from 0 to current fold count (full render)
- * Shift+L: Animate from 0 to current fold count (lines only)
- * Escape: Cancel animation
- *
- * @param {HTMLCanvasElement} canvas - Target canvas element
- * @param {Function} getState - Function that returns current state {seed, foldCount, params}
- * @param {Object} options - Optional settings
- * @param {Function} options.onRender - Called after each render (optional)
- * @param {Function} options.getDimensions - Function returning {width, height} for render (optional)
- * @returns {Function} Cleanup function to remove event listeners
- */
-export function setupKeyboardFeatures(canvas, getState, options = {}) {
-  const { onRender, getDimensions } = options;
-
-  // Clean up any previous setup
-  if (_keyboardFeaturesCleanup) {
-    _keyboardFeaturesCleanup();
-  }
-
-  function render(foldOverride, linesOnly, isAnimating) {
-    const state = getState();
-    if (!state) return;
-
-    const dims = getDimensions ? getDimensions() : {};
-    renderWithState(canvas, state, {
-      foldOverride,
-      linesOnly,
-      isAnimating,
-      width: dims.width,
-      height: dims.height,
-    });
-
-    if (onRender) onRender();
-  }
-
-  function runAnimation() {
-    const state = getState();
-    if (!_secretAnimating || !state || _secretAnimationFold > state.foldCount) {
-      stopAnimation();
-      return;
-    }
-    const isLinesOnly = _secretAnimationMode === "lines-only";
-    render(_secretAnimationFold, isLinesOnly, true);
-    _secretAnimationFold++;
-    _secretAnimationTimer = setTimeout(runAnimation, 50);
-  }
-
-  function startAnimation(mode) {
-    _secretAnimating = true;
-    _secretAnimationFold = 0;
-    _secretAnimationMode = mode;
-    runAnimation();
-  }
-
-  function stopAnimation() {
-    _secretAnimating = false;
-    _secretAnimationMode = null;
-    if (_secretAnimationTimer) {
-      clearTimeout(_secretAnimationTimer);
-      _secretAnimationTimer = null;
-    }
-  }
-
-  function handleKeydown(e) {
-    const state = getState();
-    if (!state) return;
-
-    // Shift+F: Toggle fold lines overlay
-    if (e.shiftKey && e.key === "F") {
-      e.preventDefault();
-      _secretShowFoldLines = !_secretShowFoldLines;
-      if (!_secretAnimating) {
-        render();
-      }
-    }
-
-    // Shift+A: Start full animation
-    if (e.shiftKey && e.key === "A") {
-      e.preventDefault();
-      if (_secretAnimating) {
-        stopAnimation();
-      }
-      startAnimation("full");
-    }
-
-    // Shift+L: Start lines-only animation
-    if (e.shiftKey && e.key === "L") {
-      e.preventDefault();
-      if (_secretAnimating) {
-        stopAnimation();
-      }
-      startAnimation("lines-only");
-    }
-
-    // Escape: Cancel animation
-    if (e.key === "Escape" && _secretAnimating) {
-      e.preventDefault();
-      stopAnimation();
-    }
-  }
-
-  document.addEventListener("keydown", handleKeydown);
-
-  // Return cleanup function
-  _keyboardFeaturesCleanup = () => {
-    document.removeEventListener("keydown", handleKeydown);
-    stopAnimation();
-    _keyboardFeaturesCleanup = null;
-  };
-
-  return _keyboardFeaturesCleanup;
 }
 
 /**
@@ -4428,138 +4219,6 @@ export function extractCharacterData(state, outputWidth, outputHeight) {
   };
 }
 
-/**
- * Unified render function for both on-chain and preview contexts
- * @param {HTMLCanvasElement} canvas - Target canvas element
- * @param {Object} state - Render state with seed, foldCount, params
- * @param {Object} options - Optional overrides
- * @param {number} options.foldOverride - Override fold count (for animation)
- * @param {boolean} options.linesOnly - Lines-only mode
- * @param {boolean} options.isAnimating - Whether currently animating
- * @param {number} options.width - Override output width (default: auto from getOptimalDimensions)
- * @param {number} options.height - Override output height (default: auto from getOptimalDimensions)
- * @param {boolean} options.showOverlays - Override overlay visibility
- */
-export function renderWithState(canvas, state, options = {}) {
-  const {
-    foldOverride,
-    linesOnly = false,
-    isAnimating = false,
-    width,
-    height,
-    showOverlays: showOverlaysOverride,
-  } = options;
-
-  // Use provided dimensions or calculate optimal ones
-  // When dimensions are provided, maintain A4 aspect ratio (fit within bounds)
-  let dims;
-  if (width && height) {
-    const targetRatio = REFERENCE_WIDTH / REFERENCE_HEIGHT;
-    const givenRatio = width / height;
-    let renderWidth, renderHeight;
-    if (givenRatio > targetRatio) {
-      // Given area is wider than A4 - constrain by height
-      renderHeight = height;
-      renderWidth = Math.round(height * targetRatio);
-    } else {
-      // Given area is taller than A4 - constrain by width
-      renderWidth = width;
-      renderHeight = Math.round(width / targetRatio);
-    }
-    dims = { renderWidth, renderHeight, width, height };
-  } else {
-    dims = getOptimalDimensions();
-  }
-
-  const actualFolds =
-    foldOverride !== undefined ? foldOverride : state.foldCount;
-
-  // During animation: linesOnly mode shows lines, full mode shows clean render
-  // When not animating: respect _secretShowFoldLines toggle
-  const showOverlays =
-    showOverlaysOverride !== undefined
-      ? showOverlaysOverride
-      : isAnimating
-      ? linesOnly
-      : linesOnly || _secretShowFoldLines;
-
-  const {
-    canvas: srcCanvas,
-    dataUrl,
-    settings,
-  } = renderToCanvas({
-    folds: actualFolds,
-    seed: state.seed,
-    outputWidth: dims.renderWidth,
-    outputHeight: dims.renderHeight,
-    bgColor: state.params.palette.bg,
-    textColor: state.params.palette.text,
-    accentColor: state.params.palette.accent,
-    cellWidth: state.params.cells.cellW,
-    cellHeight: state.params.cells.cellH,
-    renderMode: state.params.renderMode,
-    showEmptyCells: state.params.showEmptyCells,
-    multiColor: state.params.multiColor,
-    levelColors: state.params.levelColors,
-    foldStrategy: state.params.foldStrategy,
-    paperProperties: state.params.paperProperties,
-    showCreaseLines: state.params.showCreaseLines,
-    analyticsMode: state.params.analyticsMode,
-    showCreases: showOverlays,
-    showIntersections: showOverlays,
-    linesOnlyMode: linesOnly,
-  });
-
-  // Draw synchronously from the rendered canvas
-  const ctx = canvas.getContext("2d");
-
-  // Use a scale factor for crisp rendering (2x)
-  const dpr = 2;
-
-  // Set canvas to full requested size (internal resolution)
-  canvas.width = dims.width * dpr;
-  canvas.height = dims.height * dpr;
-  // CSS size matches requested dimensions
-  canvas.style.width = dims.width + "px";
-  canvas.style.height = dims.height + "px";
-
-  // Fill canvas with background color (for letterbox areas)
-  ctx.fillStyle = state.params.palette.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Center the A4 content within the canvas
-  const offsetX = ((dims.width - dims.renderWidth) / 2) * dpr;
-  const offsetY = ((dims.height - dims.renderHeight) / 2) * dpr;
-
-  // Draw the rendered content centered and scaled
-  ctx.drawImage(
-    srcCanvas,
-    offsetX,
-    offsetY,
-    dims.renderWidth * dpr,
-    dims.renderHeight * dpr
-  );
-
-  // Trigger scaling callback if defined
-  if (
-    typeof window !== "undefined" &&
-    typeof window.scaleCanvas === "function"
-  ) {
-    window.scaleCanvas();
-  }
-
-  return { dataUrl, settings };
-}
-
-// Internal alias for backward compatibility within initOnChain
-function renderOnChain(canvas, state, foldOverride, linesOnly, isAnimating) {
-  return renderWithState(canvas, state, {
-    foldOverride,
-    linesOnly,
-    isAnimating,
-  });
-}
-
 // Debounce helper to avoid excessive re-renders during resize
 function debounce(fn, ms) {
   let timeout;
@@ -4592,6 +4251,13 @@ let _interactiveState = {
   renderHeight: 0,
   redrawCanvas: null, // Function to redraw canvas
 };
+
+// Animation state for interactive mode
+let _interactiveShowOverlays = false;
+let _interactiveAnimating = false;
+let _interactiveAnimationFold = 0;
+let _interactiveAnimationMode = null; // 'full' | 'lines-only'
+let _interactiveAnimationTimer = null;
 
 // CSS for interactive mode
 const INTERACTIVE_CSS = `
@@ -5040,6 +4706,46 @@ function resetInteractive() {
   }
 }
 
+// Animation helpers for interactive mode
+function stopInteractiveAnimation() {
+  _interactiveAnimating = false;
+  _interactiveAnimationMode = null;
+  if (_interactiveAnimationTimer) {
+    clearTimeout(_interactiveAnimationTimer);
+    _interactiveAnimationTimer = null;
+  }
+}
+
+function runInteractiveAnimation() {
+  const { redrawCanvas, state } = _interactiveState;
+  if (!_interactiveAnimating || !state || !redrawCanvas) {
+    stopInteractiveAnimation();
+    return;
+  }
+  if (_interactiveAnimationFold > state.foldCount) {
+    stopInteractiveAnimation();
+    // Final render at full fold count
+    redrawCanvas({ foldOverride: state.foldCount, showOverlays: false });
+    return;
+  }
+  const isLinesOnly = _interactiveAnimationMode === 'lines-only';
+  redrawCanvas({
+    foldOverride: _interactiveAnimationFold,
+    showOverlays: isLinesOnly,
+    linesOnly: isLinesOnly
+  });
+  _interactiveAnimationFold++;
+  _interactiveAnimationTimer = setTimeout(runInteractiveAnimation, 50);
+}
+
+function startInteractiveAnimation(mode) {
+  stopInteractiveAnimation();
+  _interactiveAnimating = true;
+  _interactiveAnimationFold = 0;
+  _interactiveAnimationMode = mode;
+  runInteractiveAnimation();
+}
+
 // Initialize keyboard shortcuts for interactive mode
 function initInteractiveKeyboardShortcuts(seed) {
   document.addEventListener("keydown", (e) => {
@@ -5053,10 +4759,43 @@ function initInteractiveKeyboardShortcuts(seed) {
     // Don't trigger while editing
     if (_interactiveState.isEditing) return;
 
-    // Escape - Reset
+    // Escape - Reset or stop animation
     if (e.key === "Escape") {
       e.preventDefault();
-      resetInteractive();
+      if (_interactiveAnimating) {
+        stopInteractiveAnimation();
+        // Redraw at full fold count
+        if (_interactiveState.redrawCanvas) {
+          _interactiveState.redrawCanvas({ showOverlays: _interactiveShowOverlays });
+        }
+      } else {
+        resetInteractive();
+      }
+      return;
+    }
+
+    // Shift+F - Toggle fold line overlays
+    if (e.shiftKey && e.key === "F") {
+      e.preventDefault();
+      _interactiveShowOverlays = !_interactiveShowOverlays;
+      if (!_interactiveAnimating && _interactiveState.redrawCanvas) {
+        _interactiveState.redrawCanvas({ showOverlays: _interactiveShowOverlays });
+      }
+      return;
+    }
+
+    // Shift+A - Animate folds (full render)
+    if (e.shiftKey && e.key === "A") {
+      e.preventDefault();
+      startInteractiveAnimation('full');
+      return;
+    }
+
+    // Shift+L - Animate folds (lines only)
+    if (e.shiftKey && e.key === "L") {
+      e.preventDefault();
+      startInteractiveAnimation('lines-only');
+      return;
     }
   });
 }
@@ -5086,8 +4825,20 @@ function renderInteractive(state, containerWidth, containerHeight) {
   _interactiveState.containerWidth = containerWidth;
   _interactiveState.containerHeight = containerHeight;
 
-  // Helper to redraw canvas (called during editing to update visuals)
-  const redrawCanvas = (skipEditingCell = false) => {
+  // Helper to redraw canvas (called during editing and animation)
+  // Options: skipEditingCell, foldOverride, showOverlays, linesOnly
+  const redrawCanvas = (skipEditingCellOrOptions = false) => {
+    // Support both old boolean API and new options object
+    const options = typeof skipEditingCellOrOptions === 'object'
+      ? skipEditingCellOrOptions
+      : { skipEditingCell: skipEditingCellOrOptions };
+    const {
+      skipEditingCell = false,
+      foldOverride,
+      showOverlays = _interactiveShowOverlays,
+      linesOnly = false
+    } = options;
+
     const skipCells = new Set();
     for (let i = 0; i < _interactiveState.textBuffer.length; i++) {
       const entry = _interactiveState.textBuffer[i];
@@ -5099,6 +4850,7 @@ function renderInteractive(state, containerWidth, containerHeight) {
     }
 
     const dpr = 2;
+    const actualFolds = foldOverride !== undefined ? foldOverride : params.folds;
 
     // Set up display canvas at container size
     bgCanvas.width = containerWidth * dpr;
@@ -5116,7 +4868,7 @@ function renderInteractive(state, containerWidth, containerHeight) {
 
     // Pass 2: Draw fold marks at A4 dimensions (no background)
     const artworkResult = renderToCanvas({
-      folds: params.folds,
+      folds: actualFolds,
       seed: seed,
       outputWidth: artworkWidth,
       outputHeight: artworkHeight,
@@ -5135,6 +4887,9 @@ function renderInteractive(state, containerWidth, containerHeight) {
       analyticsMode: params.analyticsMode,
       skipCells: skipCells.size > 0 ? skipCells : null,
       skipBackground: true,
+      showCreases: showOverlays,
+      showIntersections: showOverlays,
+      linesOnlyMode: linesOnly,
     });
 
     // Center the A4 artwork on the container
@@ -5352,479 +5107,6 @@ export async function initOnChain() {
       }, 150)
     );
   }
-}
-
-/**
- * Render interactive artwork to a container element
- * @param {HTMLElement} container - Container element to render into
- * @param {Object} state - State object with seed, foldCount, params
- * @param {Object} options - Optional settings
- * @returns {Function} Cleanup function to call on unmount
- */
-export function renderInteractiveToContainer(container, state, options = {}) {
-  const { width, height } = options;
-
-  // Inject CSS if not already done
-  injectInteractiveCSS();
-
-  // Clear container
-  container.innerHTML = "";
-  container.style.position = "relative";
-  container.style.overflow = "hidden";
-
-  // Get dimensions
-  const rect = container.getBoundingClientRect();
-  const renderWidth = width || rect.width;
-  const renderHeight = height || rect.height;
-
-  // Create canvas for visual rendering (uses renderToCanvas for perfect match)
-  const visualCanvas = document.createElement("canvas");
-  visualCanvas.style.cssText =
-    "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
-  container.appendChild(visualCanvas);
-
-  // Render using renderToCanvas for perfect visual match
-  const params = state.params;
-  const result = renderToCanvas({
-    folds: params.folds,
-    seed: state.seed,
-    outputWidth: renderWidth,
-    outputHeight: renderHeight,
-    bgColor: params.palette.bg,
-    textColor: params.palette.text,
-    accentColor: params.palette.accent,
-    cellWidth: params.cells.cellW,
-    cellHeight: params.cells.cellH,
-    renderMode: params.renderMode,
-    showEmptyCells: params.showEmptyCells,
-    multiColor: params.multiColor,
-    levelColors: params.levelColors,
-    foldStrategy: params.foldStrategy,
-    paperProperties: params.paperProperties,
-    showCreaseLines: params.showCreaseLines,
-    analyticsMode: params.analyticsMode,
-  });
-
-  // Copy rendered canvas to our visual canvas
-  visualCanvas.width = result.canvas.width;
-  visualCanvas.height = result.canvas.height;
-  const ctx = visualCanvas.getContext("2d");
-  ctx.drawImage(result.canvas, 0, 0);
-
-  // Create invisible DOM layer for interaction (click targets)
-  // Use fixed dimensions matching renderWidth/renderHeight, scaled to fit container
-  const charLayer = document.createElement("div");
-  charLayer.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: ${renderWidth}px;
-    height: ${renderHeight}px;
-    overflow: hidden;
-    transform-origin: top left;
-    transform: scale(${rect.width / renderWidth}, ${
-    rect.height / renderHeight
-  });
-  `;
-  container.appendChild(charLayer);
-
-  // Extract character data for interaction positions
-  const charData = extractCharacterData(state, renderWidth, renderHeight);
-
-  // Create a local state object for this instance
-  const localState = {
-    container,
-    visualCanvas,
-    charLayer,
-    charElements: [],
-    textBuffer: [],
-    originalPositions: new Map(),
-    hiddenInput: null,
-    isEditing: false,
-    cursorIndex: -1,
-    charData,
-    state, // Keep state for re-rendering
-    renderWidth,
-    renderHeight,
-  };
-
-  // Create invisible interaction zones for each cell
-  charData.characters.forEach((char, index) => {
-    const el = document.createElement("div");
-    el.className = "fold-char";
-    el.dataset.index = index;
-    el.style.cssText = `
-      position: absolute;
-      left: ${char.x}px;
-      top: ${char.y}px;
-      width: ${char.width}px;
-      height: ${char.height}px;
-      user-select: none;
-      background: transparent;
-    `;
-    // No visible content - canvas shows the visuals
-    charLayer.appendChild(el);
-    localState.charElements.push(el);
-
-    const editChar = char.editChar || char.char.charAt(0);
-    const numChars = char.numChars || char.char.length;
-
-    localState.textBuffer.push({
-      el,
-      char: editChar,
-      originalChar: editChar,
-      displayChar: char.char,
-      numChars,
-      row: char.row,
-      col: char.col,
-      color: char.color,
-      fontSize: char.fontSize,
-      x: char.x,
-      y: char.y,
-      width: char.width,
-      height: char.height,
-      step: char.step,
-      charWidth: char.charWidth,
-    });
-    localState.originalPositions.set(el, {
-      left: char.x,
-      top: char.y,
-      char: char.char,
-      editChar,
-      numChars,
-    });
-  });
-
-  // Create hidden input for text editing
-  const hiddenInput = document.createElement("input");
-  hiddenInput.style.cssText = "position:absolute;left:-9999px;opacity:0;";
-  document.body.appendChild(hiddenInput);
-  localState.hiddenInput = hiddenInput;
-
-  // Drag state
-  const dragState = {
-    isDragging: false,
-    target: null,
-    startX: 0,
-    startY: 0,
-    offsetX: 0,
-    offsetY: 0,
-  };
-
-  // Get canvas context and scale factor for drawing
-  const canvasCtx = visualCanvas.getContext("2d");
-  const canvasScale = visualCanvas.width / renderWidth;
-  const bgColor = charData.background.color;
-
-  // Helper to completely redraw canvas - ensures proper overlap order
-  // skipEditingCell: if true, leaves the currently editing cell empty
-  const redrawCanvas = (skipEditingCell = false) => {
-    // Build set of cells to skip (edited cells + currently editing cell)
-    const skipCells = new Set();
-    for (let i = 0; i < localState.textBuffer.length; i++) {
-      const entry = localState.textBuffer[i];
-      const isEditingThisCell = skipEditingCell && i === localState.cursorIndex;
-      if (isEditingThisCell || entry.char !== entry.originalChar) {
-        skipCells.add(`${entry.col},${entry.row}`);
-      }
-    }
-
-    // Re-render full canvas, skipping edited cells entirely
-    const freshResult = renderToCanvas({
-      folds: params.folds,
-      seed: state.seed,
-      outputWidth: renderWidth,
-      outputHeight: renderHeight,
-      bgColor: params.palette.bg,
-      textColor: params.palette.text,
-      accentColor: params.palette.accent,
-      cellWidth: params.cells.cellW,
-      cellHeight: params.cells.cellH,
-      renderMode: params.renderMode,
-      showEmptyCells: params.showEmptyCells,
-      multiColor: params.multiColor,
-      levelColors: params.levelColors,
-      foldStrategy: params.foldStrategy,
-      paperProperties: params.paperProperties,
-      showCreaseLines: params.showCreaseLines,
-      analyticsMode: params.analyticsMode,
-      skipCells: skipCells.size > 0 ? skipCells : null,
-    });
-    canvasCtx.drawImage(freshResult.canvas, 0, 0);
-
-    // Draw edited cells with single characters (not the editing cell - leave empty)
-    for (let i = 0; i < localState.textBuffer.length; i++) {
-      const entry = localState.textBuffer[i];
-      const isEditingThisCell = skipEditingCell && i === localState.cursorIndex;
-
-      if (
-        !isEditingThisCell &&
-        entry.char !== entry.originalChar &&
-        entry.char.trim() !== ""
-      ) {
-        const scaledFontSize = entry.fontSize * canvasScale;
-        canvasCtx.font = `${scaledFontSize}px ${FONT_STACK}`;
-        canvasCtx.fillStyle = entry.color;
-        canvasCtx.textAlign = "center";
-        canvasCtx.textBaseline = "middle";
-        const centerX = (entry.x + entry.width / 2) * canvasScale;
-        const centerY = (entry.y + entry.height / 2) * canvasScale;
-        canvasCtx.fillText(entry.char, centerX, centerY);
-        canvasCtx.textAlign = "left";
-        canvasCtx.textBaseline = "top";
-      }
-    }
-  };
-
-  // Helper to clear a cell area on canvas (fill with background)
-  const clearCellOnCanvas = (entry) => {
-    canvasCtx.fillStyle = bgColor;
-    canvasCtx.fillRect(
-      entry.x * canvasScale,
-      entry.y * canvasScale,
-      entry.width * canvasScale,
-      entry.height * canvasScale
-    );
-  };
-
-  // Helper to show visible character in DOM element (for editing)
-  const showCharInElement = (entry, char) => {
-    entry.el.textContent = char;
-    entry.el.style.color = entry.color;
-    entry.el.style.fontSize = entry.fontSize + "px";
-    entry.el.style.fontFamily = FONT_STACK;
-    entry.el.style.lineHeight = "1";
-    entry.el.style.whiteSpace = "pre";
-  };
-
-  // Helper to hide DOM element (show canvas underneath)
-  const hideElement = (entry) => {
-    entry.el.textContent = "";
-    entry.el.style.color = "";
-    entry.el.style.fontSize = "";
-  };
-
-  // Helper functions
-  const restoreCurrentCell = () => {
-    if (
-      localState.cursorIndex >= 0 &&
-      localState.cursorIndex < localState.textBuffer.length
-    ) {
-      const entry = localState.textBuffer[localState.cursorIndex];
-      hideElement(entry);
-      entry.el.classList.remove("editing");
-      // Full redraw ensures proper overlap order
-      redrawCanvas();
-    }
-  };
-
-  const updateCursorHighlight = () => {
-    localState.charElements.forEach((el) => {
-      el.classList.remove("editing");
-      el.style.color = "";
-    });
-    if (
-      localState.cursorIndex >= 0 &&
-      localState.cursorIndex < localState.charElements.length
-    ) {
-      const entry = localState.textBuffer[localState.cursorIndex];
-      if (entry) {
-        entry.el.textContent = "";
-        entry.el.style.color = entry.color; // Set color for cursor
-      }
-      localState.charElements[localState.cursorIndex].classList.add("editing");
-      // Redraw with editing cell empty
-      redrawCanvas(true);
-    }
-  };
-
-  const startEditing = (index) => {
-    localState.isEditing = true;
-    localState.cursorIndex = index;
-    const entry = localState.textBuffer[index];
-    if (entry) {
-      entry.el.textContent = "";
-    }
-    // Redraw with editing cell empty
-    redrawCanvas(true);
-    updateCursorHighlight();
-    hiddenInput.focus();
-  };
-
-  const stopEditing = () => {
-    if (
-      localState.cursorIndex >= 0 &&
-      localState.cursorIndex < localState.textBuffer.length
-    ) {
-      const entry = localState.textBuffer[localState.cursorIndex];
-      hideElement(entry);
-      entry.el.classList.remove("editing");
-    }
-    localState.isEditing = false;
-    localState.cursorIndex = -1;
-    hiddenInput.blur();
-    // Full redraw ensures proper overlap order
-    redrawCanvas();
-  };
-
-  // Event handlers
-  const onMouseDown = (e) => {
-    const target = e.target.closest(".fold-char");
-    if (!target || localState.isEditing) return;
-    dragState.isDragging = true;
-    dragState.target = target;
-    dragState.startX = e.clientX;
-    dragState.startY = e.clientY;
-    dragState.offsetX = target.offsetLeft;
-    dragState.offsetY = target.offsetTop;
-    target.style.zIndex = "1000";
-    target.style.filter = "brightness(1.2)";
-    e.preventDefault();
-  };
-
-  const onMouseMove = (e) => {
-    if (!dragState.isDragging || !dragState.target) return;
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-    dragState.target.style.left = dragState.offsetX + dx + "px";
-    dragState.target.style.top = dragState.offsetY + dy + "px";
-  };
-
-  const onMouseUp = () => {
-    if (dragState.target) {
-      dragState.target.style.zIndex = "";
-      dragState.target.style.filter = "";
-    }
-    dragState.isDragging = false;
-    dragState.target = null;
-  };
-
-  const onDblClick = (e) => {
-    const target = e.target.closest(".fold-char");
-    if (!target) return;
-    const index = parseInt(target.dataset.index, 10);
-    if (!isNaN(index)) startEditing(index);
-  };
-
-  const onTextInput = (e) => {
-    if (!localState.isEditing || localState.cursorIndex < 0) return;
-    const typed = e.data;
-    if (!typed) return;
-    for (let i = 0; i < typed.length; i++) {
-      const replaceAt = localState.cursorIndex + i;
-      if (replaceAt >= localState.textBuffer.length) break;
-      const entry = localState.textBuffer[replaceAt];
-      entry.char = typed[i];
-      // Show single char in DOM while editing
-      showCharInElement(entry, typed[i]);
-    }
-    const newIndex = Math.min(
-      localState.cursorIndex + typed.length,
-      localState.textBuffer.length - 1
-    );
-    if (newIndex !== localState.cursorIndex) {
-      // Full redraw then move cursor
-      const prevEntry = localState.textBuffer[localState.cursorIndex];
-      hideElement(prevEntry);
-      redrawCanvas();
-      localState.cursorIndex = newIndex;
-      updateCursorHighlight();
-    }
-    hiddenInput.value = "";
-  };
-
-  const onKeyDown = (e) => {
-    if (!localState.isEditing) return;
-    if (e.key === "Escape") {
-      stopEditing();
-      e.preventDefault();
-    } else if (e.key === "ArrowLeft" && localState.cursorIndex > 0) {
-      e.preventDefault();
-      restoreCurrentCell();
-      localState.cursorIndex--;
-      updateCursorHighlight();
-    } else if (
-      e.key === "ArrowRight" &&
-      localState.cursorIndex < localState.textBuffer.length - 1
-    ) {
-      e.preventDefault();
-      restoreCurrentCell();
-      localState.cursorIndex++;
-      updateCursorHighlight();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      const current = localState.textBuffer[localState.cursorIndex];
-      if (current) {
-        const above = localState.textBuffer.findIndex(
-          (c) => c.row === current.row - 1 && c.col === current.col
-        );
-        if (above >= 0) {
-          restoreCurrentCell();
-          localState.cursorIndex = above;
-          updateCursorHighlight();
-        }
-      }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      const current = localState.textBuffer[localState.cursorIndex];
-      if (current) {
-        const below = localState.textBuffer.findIndex(
-          (c) => c.row === current.row + 1 && c.col === current.col
-        );
-        if (below >= 0) {
-          restoreCurrentCell();
-          localState.cursorIndex = below;
-          updateCursorHighlight();
-        }
-      }
-    } else if (e.key === "Backspace" || e.key === "Delete") {
-      e.preventDefault();
-      const entry = localState.textBuffer[localState.cursorIndex];
-      if (entry.char !== entry.originalChar && entry.char.trim() !== "") {
-        // Typed char exists - restore original unicode
-        entry.char = entry.originalChar;
-      } else {
-        // Original char or already empty - clear the cell
-        entry.char = " ";
-      }
-      hideElement(entry);
-      // Full redraw
-      redrawCanvas(true);
-      // Move to previous cell on Backspace
-      if (e.key === "Backspace" && localState.cursorIndex > 0) {
-        localState.cursorIndex--;
-        updateCursorHighlight();
-      }
-    }
-  };
-
-  const onBlur = () => {
-    setTimeout(() => {
-      if (!hiddenInput.matches(":focus")) stopEditing();
-    }, 100);
-  };
-
-  // Attach listeners
-  charLayer.addEventListener("mousedown", onMouseDown);
-  charLayer.addEventListener("dblclick", onDblClick);
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-  hiddenInput.addEventListener("input", onTextInput);
-  hiddenInput.addEventListener("keydown", onKeyDown);
-  hiddenInput.addEventListener("blur", onBlur);
-
-  // Cleanup function
-  return () => {
-    charLayer.removeEventListener("mousedown", onMouseDown);
-    charLayer.removeEventListener("dblclick", onDblClick);
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-    hiddenInput.removeEventListener("input", onTextInput);
-    hiddenInput.removeEventListener("keydown", onKeyDown);
-    hiddenInput.removeEventListener("blur", onBlur);
-    hiddenInput.remove();
-    container.innerHTML = "";
-  };
 }
 
 // Auto-init when DOM is ready (for on-chain use)

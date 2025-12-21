@@ -1,33 +1,19 @@
 // Toggle test mode: set to true to use Sepolia testnet
-const USE_TESTNET = true; // Set to false for mainnet
-
-// Import deployment files (optional - will use fallbacks if not found)
-type Deployment = { contracts?: { less?: string; strategy?: string } };
-let sepoliaDeployment: Deployment = {};
-let mainnetDeployment: Deployment = {};
-
-try {
-  sepoliaDeployment = require("../../../deployment-sepolia.json");
-} catch {}
-
-try {
-  mainnetDeployment = require("../../../deployment-mainnet.json");
-} catch {}
+const USE_TESTNET = false; // Set to false for mainnet
 
 // Zero address for comparison
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`;
 
-// Contract addresses - Sepolia Testnet (from deployment-sepolia.json)
+// Contract addresses - Sepolia Testnet
 const TESTNET_CONTRACTS = {
-  LESS_NFT: (sepoliaDeployment.contracts?.less ?? ZERO_ADDRESS) as `0x${string}`,
-  LESS_STRATEGY: ZERO_ADDRESS, // No strategy on testnet
+  LESS_NFT: "0xdD365892Ca9E3cfc5b903BC1f91DB8664A198450" as `0x${string}`,
+  LESS_STRATEGY: "0x9C2CA573009F181EAc634C4d6e44A0977C24f335" as `0x${string}`, // Use mainnet strategy for IS_TOKEN_LIVE
 } as const;
 
-// Contract addresses - Ethereum Mainnet (from deployment-mainnet.json)
+// Contract addresses - Ethereum Mainnet
 const MAINNET_CONTRACTS = {
-  LESS_NFT: (mainnetDeployment.contracts?.less ?? ZERO_ADDRESS) as `0x${string}`,
-  LESS_STRATEGY: (mainnetDeployment.contracts?.strategy ??
-    "0x9c2ca573009f181eac634c4d6e44a0977c24f335") as `0x${string}`, // Recursive token fallback
+  LESS_NFT: "0x008B66385ed2346E6895031E250B2ac8dc14605C" as `0x${string}`,
+  LESS_STRATEGY: "0x9C2CA573009F181EAc634C4d6e44A0977C24f335" as `0x${string}`,
 } as const;
 
 export const CONTRACTS = USE_TESTNET ? TESTNET_CONTRACTS : MAINNET_CONTRACTS;
@@ -37,10 +23,7 @@ export const CHAIN_ID = USE_TESTNET ? 11155111 : 1; // Sepolia or Mainnet
 export const IS_TOKEN_LIVE = CONTRACTS.LESS_STRATEGY !== ZERO_ADDRESS;
 
 // NFT pre-launch: NFT contract not yet deployed (minting not available)
-// In testnet mode, only NFT address is required (no strategy on Sepolia)
-export const IS_PRE_LAUNCH = USE_TESTNET
-  ? CONTRACTS.LESS_NFT === ZERO_ADDRESS
-  : CONTRACTS.LESS_NFT === ZERO_ADDRESS;
+export const IS_PRE_LAUNCH = CONTRACTS.LESS_NFT === ZERO_ADDRESS;
 
 // Sample seeds for pre-launch preview
 export const SAMPLE_SEEDS = [
