@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Seed 42</title>
+</head>
+<body style="background: #222; padding: 20px;">
+  <h1 style="color: white;">Seed 42 Test</h1>
+  <canvas id="output" style="border: 1px solid #666;"></canvas>
+  <script type="module">
+    import {
+      generateAllParams,
+      renderToCanvas,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+    } from './web/fold-core.js';
+
+    const seed = 42;
+    const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, null);
+
+    console.log('Seed 42 params:', params);
+
+    // Test at thumbnail size like App.jsx uses
+    const result = renderToCanvas({
+      folds: params.folds,
+      seed: seed,
+      outputWidth: 106,
+      outputHeight: 150,
+      bgColor: params.palette.bg,
+      textColor: params.palette.text,
+      accentColor: params.palette.accent,
+      cellWidth: params.cells.cellW,
+      cellHeight: params.cells.cellH,
+      renderMode: params.renderMode,
+      showEmptyCells: params.showEmptyCells,
+      multiColor: params.multiColor,
+      levelColors: params.levelColors,
+      foldStrategy: params.foldStrategy,
+      paperProperties: params.paperProperties,
+      showCreaseLines: params.showCreaseLines,
+      analyticsMode: params.analyticsMode,
+    });
+
+    console.log('Result settings:', result.settings);
+
+    const canvas = document.getElementById('output');
+    canvas.width = result.canvas.width;
+    canvas.height = result.canvas.height;
+    canvas.getContext('2d').drawImage(result.canvas, 0, 0);
+  </script>
+</body>
+</html>

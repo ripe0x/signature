@@ -11,6 +11,7 @@ RUN npm install --production
 # Copy source files
 COPY scripts/twitter-bot.js ./scripts/
 COPY out/ ./out/
+COPY deployment-sepolia.json ./
 
 # Run the bot
 # Use shorter polling interval for testing (15s instead of 60s)

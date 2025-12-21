@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Same Seed Test</title>
+  <style>
+    body { background: #1a1a1a; color: #fff; font-family: sans-serif; padding: 20px; }
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .panel { background: #222; padding: 16px; border-radius: 8px; }
+    .panel h2 { font-size: 14px; color: #888; margin-bottom: 12px; }
+    .output { width: 100%; aspect-ratio: 1200 / 1697; background: #000; position: relative; overflow: hidden; }
+    .output canvas { width: 100%; height: 100%; border: none; }
+    #onchain-output { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Seed: 257741173, Folds: 1</h1>
+  <div class="comparison">
+    <div class="panel">
+      <h2>Static (renderToCanvas)</h2>
+      <div class="output"><canvas id="static-output"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>On-Chain Interactive (initOnChain)</h2>
+      <div class="output" id="onchain-output"></div>
+    </div>
+  </div>
+  <script type="module">
+    import { generateAllParams, renderToCanvas, REFERENCE_WIDTH, REFERENCE_HEIGHT, initOnChain } from './web/fold-core.js';
+
+    const SEED = 257741173;
+    const FOLDS = 1;
+    const WIDTH = 400;
+    const HEIGHT = Math.round(400 * (REFERENCE_HEIGHT / REFERENCE_WIDTH));
+
+    // ========== STATIC SIDE ==========
+    const params = generateAllParams(SEED, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, FOLDS);
+    console.log('Params:', params);
+
+    const result = renderToCanvas({
+      folds: FOLDS,
+      seed: SEED,
+      outputWidth: WIDTH,
+      outputHeight: HEIGHT,
+      bgColor: params.palette.bg,
+      textColor: params.palette.text,
+      accentColor: params.palette.accent,
+      cellWidth: params.cells.cellW,
+      cellHeight: params.cells.cellH,
+      renderMode: params.renderMode,
+      showEmptyCells: params.showEmptyCells,
+      multiColor: params.multiColor,
+      levelColors: params.levelColors,
+      foldStrategy: params.foldStrategy,
+      paperProperties: params.paperProperties,
+    });
+
+    const canvas = document.getElementById('static-output');
+    canvas.width = result.canvas.width;
+    canvas.height = result.canvas.height;
+    canvas.getContext('2d').drawImage(result.canvas, 0, 0);
+
+    // ========== ON-CHAIN SIDE ==========
+    // Set up globals that initOnChain expects
+    window.SEED = SEED;
+    window.FOLD_COUNT = FOLDS;
+
+    // initOnChain creates its own container in body, so we need to move it
+    await initOnChain();
+
+    // Move the fold-container into our output div
+    const foldContainer = document.getElementById('fold-container');
+    const onchainOutput = document.getElementById('onchain-output');
+    if (foldContainer) {
+      onchainOutput.appendChild(foldContainer);
+      // Adjust the fold-container to fill the output div
+      foldContainer.style.width = '100%';
+      foldContainer.style.height = '100%';
+    }
+  </script>
+</body>
+</html>

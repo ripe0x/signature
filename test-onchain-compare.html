@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>On-Chain Output Comparison</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    input[type="text"] {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: monospace;
+      width: 420px;
+    }
+    button {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #444; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .info {
+      font-family: monospace;
+      color: #888;
+      font-size: 13px;
+    }
+    .info span { color: #6cf; }
+    .status {
+      font-family: monospace;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .status.loading { color: #fc6; }
+    .status.success { color: #6f6; }
+    .status.error { color: #f66; }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .panel {
+      background: #222;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h2 {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .output-container {
+      width: 100%;
+      aspect-ratio: 1200 / 1697;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    .output-container canvas,
+    .output-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .metadata {
+      margin-top: 12px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #888;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .metadata .attr {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #333;
+    }
+    .metadata .attr:last-child { border-bottom: none; }
+    .metadata .attr-name { color: #888; }
+    .metadata .attr-value { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <input type="text" id="rpc-url" value="http://localhost:8545" placeholder="RPC URL">
+    <input type="text" id="contract-address" value="" placeholder="Less Contract Address">
+    <input type="text" id="token-id" value="1" placeholder="Token ID" style="width: 80px;">
+    <button id="fetch-btn">Fetch Token</button>
+    <button id="mint-btn">Mint New</button>
+    <button id="fullscreen-btn" disabled>Download HTML</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="controls">
+    <span class="info">Seed: <span id="seed-value">-</span></span>
+    <span class="info">Folds: <span id="fold-count">-</span></span>
+    <span class="info">Mode: <span id="render-mode">-</span></span>
+  </div>
+
+  <div class="comparison">
+    <div class="panel">
+      <h2>Static Canvas (Local renderToCanvas)</h2>
+      <div class="output-container">
+        <canvas id="canvas-output"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>On-Chain Interactive (animation_url)</h2>
+      <div class="output-container">
+        <iframe id="onchain-output" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+      <div class="metadata" id="metadata"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      generateAllParams,
+      renderToCanvas,
+      REFERENCE_WIDTH,
+      REFERENCE_HEIGHT,
+    } from './web/fold-core.js';
+
+    const WIDTH = 600;
+    const HEIGHT = Math.round(600 * (REFERENCE_HEIGHT / REFERENCE_WIDTH));
+
+    // Hardcoded fallback from latest local deployment
+    const FALLBACK_ADDRESS = '0x8bD99D7aD4ff12D9e3F075a0f4349C553DDCbd8c';
+
+    // Load saved contract address or use fallback
+    const savedAddress = localStorage.getItem('lessContractAddress');
+    document.getElementById('contract-address').value = savedAddress || FALLBACK_ADDRESS;
+
+    // Try to load from deployment-local.json
+    async function loadLocalDeployment() {
+      try {
+        const resp = await fetch('./deployment-local.json');
+        const data = await resp.json();
+        if (data.contracts?.less) {
+          document.getElementById('contract-address').value = data.contracts.less;
+        }
+      } catch (e) {
+        console.log('No local deployment found, using fallback');
+      }
+    }
+    loadLocalDeployment();
+
+    function setStatus(msg, type = 'loading') {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    function hexToNumber(hex) {
+      return parseInt(hex, 16);
+    }
+
+    function seedToNumber(seedHex) {
+      // Take first 16 chars of seed (after 0x) and convert to number
+      const cleaned = seedHex.replace(/^0x/, '').slice(0, 16);
+      const bigNum = BigInt('0x' + cleaned);
+      return Number(bigNum % BigInt(2147483647));
+    }
+
+    async function ethCall(rpcUrl, to, data) {
+      console.log('ethCall:', { to, data: data.slice(0, 10) + '...' });
+      const resp = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [{ to, data }, 'latest'],
+          id: 1
+        })
+      });
+      const json = await resp.json();
+      console.log('ethCall result:', json);
+      if (json.error) throw new Error(json.error.message);
+      return json.result;
+    }
+
+    async function fetchTokenData(rpcUrl, contractAddress, tokenId) {
+      // Get seed: getSeed(uint256) = 0xe0d4ea37
+      const seedData = '0xe0d4ea37' + tokenId.toString(16).padStart(64, '0');
+      const seedResult = await ethCall(rpcUrl, contractAddress, seedData);
+      const seed = seedResult; // bytes32
+
+      // Get tokenData: getTokenData(uint256) = 0xb09afec1
+      const tokenDataCall = '0xb09afec1' + tokenId.toString(16).padStart(64, '0');
+      const tokenDataResult = await ethCall(rpcUrl, contractAddress, tokenDataCall);
+      // Returns (uint64 windowId, bytes32 seed)
+      const windowId = hexToNumber(tokenDataResult.slice(2, 66));
+
+      // Get tokenURI: tokenURI(uint256) = 0xc87b56dd
+      const tokenUriData = '0xc87b56dd' + tokenId.toString(16).padStart(64, '0');
+      const tokenUriResult = await ethCall(rpcUrl, contractAddress, tokenUriData);
+
+      // Decode string from ABI encoding
+      const offsetHex = tokenUriResult.slice(2, 66);
+      const offset = hexToNumber(offsetHex) * 2 + 2;
+      const lengthHex = tokenUriResult.slice(offset, offset + 64);
+      const length = hexToNumber(lengthHex);
+      const dataHex = tokenUriResult.slice(offset + 64, offset + 64 + length * 2);
+
+      // Convert hex to string
+      let tokenUri = '';
+      for (let i = 0; i < dataHex.length; i += 2) {
+        tokenUri += String.fromCharCode(parseInt(dataHex.slice(i, i + 2), 16));
+      }
+
+      return { seed, windowId, tokenUri };
+    }
+
+    function parseTokenUri(tokenUri) {
+      // data:application/json;base64,...
+      const base64 = tokenUri.replace('data:application/json;base64,', '');
+      const json = JSON.parse(atob(base64));
+      return json;
+    }
+
+    function renderStaticCanvas(seed, foldCount) {
+      const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, foldCount);
+
+      const result = renderToCanvas({
+        folds: foldCount,
+        seed: seed,
+        outputWidth: WIDTH,
+        outputHeight: HEIGHT,
+        bgColor: params.palette.bg,
+        textColor: params.palette.text,
+        accentColor: params.palette.accent,
+        cellWidth: params.cells.cellW,
+        cellHeight: params.cells.cellH,
+        renderMode: params.renderMode,
+        showEmptyCells: params.showEmptyCells,
+        multiColor: params.multiColor,
+        levelColors: params.levelColors,
+        foldStrategy: params.foldStrategy,
+        paperProperties: params.paperProperties,
+        showCreaseLines: params.showCreaseLines,
+        analyticsMode: params.analyticsMode,
+      });
+
+      const displayCanvas = document.getElementById('canvas-output');
+      displayCanvas.width = result.canvas.width;
+      displayCanvas.height = result.canvas.height;
+      const ctx = displayCanvas.getContext('2d');
+      ctx.drawImage(result.canvas, 0, 0);
+
+      return params.renderMode;
+    }
+
+    function displayMetadata(metadata) {
+      const el = document.getElementById('metadata');
+      if (!metadata.attributes || metadata.attributes.length === 0) {
+        el.innerHTML = '<em>No attributes</em>';
+        return;
+      }
+      el.innerHTML = metadata.attributes.map(attr => `
+        <div class="attr">
+          <span class="attr-name">${attr.trait_type}</span>
+          <span class="attr-value">${attr.value}</span>
+        </div>
+      `).join('');
+    }
+
+    async function fetchAndRender() {
+      const rpcUrl = document.getElementById('rpc-url').value;
+      const contractAddress = document.getElementById('contract-address').value;
+      const tokenId = parseInt(document.getElementById('token-id').value);
+
+      if (!contractAddress) {
+        setStatus('Enter contract address', 'error');
+        return;
+      }
+
+      localStorage.setItem('lessContractAddress', contractAddress);
+
+      try {
+        setStatus('Fetching token data...', 'loading');
+
+        const { seed, windowId, tokenUri } = await fetchTokenData(rpcUrl, contractAddress, tokenId);
+        const metadata = parseTokenUri(tokenUri);
+
+        // Convert seed to number for local rendering
+        const seedNumber = seedToNumber(seed);
+        const foldCount = windowId;
+
+        document.getElementById('seed-value').textContent = seed.slice(0, 18) + '...';
+        document.getElementById('fold-count').textContent = foldCount;
+
+        // Render static canvas
+        const mode = renderStaticCanvas(seedNumber, foldCount);
+        document.getElementById('render-mode').textContent = mode;
+
+        // Load on-chain output in iframe
+        const iframe = document.getElementById('onchain-output');
+        iframe.src = metadata.animation_url;
+
+        // Enable fullscreen button and store animation_url
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        fullscreenBtn.disabled = false;
+        fullscreenBtn.dataset.url = metadata.animation_url;
+
+        // Display metadata
+        displayMetadata(metadata);
+
+        setStatus('Loaded token #' + tokenId, 'success');
+      } catch (e) {
+        console.error(e);
+        setStatus('Error: ' + e.message, 'error');
+      }
+    }
+
+    async function mintNew() {
+      const rpcUrl = document.getElementById('rpc-url').value;
+      const contractAddress = document.getElementById('contract-address').value;
+
+      if (!contractAddress) {
+        setStatus('Enter contract address', 'error');
+        return;
+      }
+
+      try {
+        setStatus('Minting new token...', 'loading');
+
+        // Get owner address
+        const ownerData = '0x8da5cb5b'; // owner()
+        const ownerResult = await ethCall(rpcUrl, contractAddress, ownerData);
+        const owner = '0x' + ownerResult.slice(26);
+
+        // Send mint transaction via eth_sendTransaction (requires unlocked account)
+        const mintData = '0x449a52f8' + // mintTo(address,uint256)
+          owner.slice(2).padStart(64, '0') +
+          '1'.padStart(64, '0');
+
+        const resp = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_sendTransaction',
+            params: [{ from: owner, to: contractAddress, data: mintData }],
+            id: 1
+          })
+        });
+        const json = await resp.json();
+        if (json.error) throw new Error(json.error.message);
+
+        // Get new total supply
+        const supplyData = '0x18160ddd'; // totalSupply()
+        const supplyResult = await ethCall(rpcUrl, contractAddress, supplyData);
+        const newTokenId = hexToNumber(supplyResult);
+
+        document.getElementById('token-id').value = newTokenId;
+        setStatus('Minted token #' + newTokenId, 'success');
+
+        // Fetch and render the new token
+        await fetchAndRender();
+      } catch (e) {
+        console.error(e);
+        setStatus('Error: ' + e.message, 'error');
+      }
+    }
+
+    document.getElementById('fetch-btn').addEventListener('click', fetchAndRender);
+    document.getElementById('mint-btn').addEventListener('click', mintNew);
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+      const url = document.getElementById('fullscreen-btn').dataset.url;
+      if (!url) return;
+
+      // Extract base64 HTML and create a blob for download
+      const base64 = url.replace('data:text/html;base64,', '');
+      const html = atob(base64);
+      const blob = new Blob([html], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `token-${document.getElementById('token-id').value}.html`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    });
+
+    // Auto-fetch on load if we have contract address
+    setTimeout(() => {
+      if (document.getElementById('contract-address').value) {
+        fetchAndRender();
+      }
+    }, 500);
+  </script>
+</body>
+</html>

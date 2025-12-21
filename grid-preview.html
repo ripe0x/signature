@@ -652,7 +652,7 @@
   <script type="module">
     import {
       generateAllParams,
-      renderWithState,
+      renderToCanvas,
       generateMetadata,
       generateGapInfo,
       generateMarginSize,
@@ -755,20 +755,34 @@
       };
     }
 
-    // Temporary canvas for thumbnail rendering (reused)
-    const thumbCanvas = document.createElement('canvas');
-
-    // Render thumbnail using unified render function
+    // Render thumbnail using renderToCanvas directly
     function renderThumbnail(output, size = 120) {
-      // Use the same render path as on-chain
-      const { dataUrl } = renderWithState(thumbCanvas, output, {
-        width: REFERENCE_WIDTH,
-        height: REFERENCE_HEIGHT,
+      const params = output.params;
+      const height = Math.round(size * (REFERENCE_HEIGHT / REFERENCE_WIDTH));
+
+      const result = renderToCanvas({
+        folds: params.folds,
+        seed: output.seed,
+        outputWidth: size,
+        outputHeight: height,
+        bgColor: params.palette.bg,
+        textColor: params.palette.text,
+        accentColor: params.palette.accent,
+        cellWidth: params.cells.cellW,
+        cellHeight: params.cells.cellH,
+        renderMode: params.renderMode,
+        showEmptyCells: params.showEmptyCells,
+        multiColor: params.multiColor,
+        levelColors: params.levelColors,
+        foldStrategy: params.foldStrategy,
+        paperProperties: params.paperProperties,
+        showCreaseLines: params.showCreaseLines,
+        analyticsMode: params.analyticsMode,
       });
 
       // Use an img element instead of canvas for proper scaling
       const img = document.createElement('img');
-      img.src = dataUrl;
+      img.src = result.canvas.toDataURL();
       img.alt = `Fold #${output.seed}`;
 
       return img;
@@ -777,7 +791,31 @@
     // Render full size for modal
     function renderFullSize(output) {
       currentModalOutput = output;
-      renderWithState(modalCanvas, output, { width: REFERENCE_WIDTH, height: REFERENCE_HEIGHT });
+      const params = output.params;
+
+      const result = renderToCanvas({
+        folds: params.folds,
+        seed: output.seed,
+        outputWidth: REFERENCE_WIDTH,
+        outputHeight: REFERENCE_HEIGHT,
+        bgColor: params.palette.bg,
+        textColor: params.palette.text,
+        accentColor: params.palette.accent,
+        cellWidth: params.cells.cellW,
+        cellHeight: params.cells.cellH,
+        renderMode: params.renderMode,
+        showEmptyCells: params.showEmptyCells,
+        multiColor: params.multiColor,
+        levelColors: params.levelColors,
+        foldStrategy: params.foldStrategy,
+        paperProperties: params.paperProperties,
+        showCreaseLines: params.showCreaseLines,
+        analyticsMode: params.analyticsMode,
+      });
+
+      modalCanvas.width = result.canvas.width;
+      modalCanvas.height = result.canvas.height;
+      modalCanvas.getContext('2d').drawImage(result.canvas, 0, 0);
     }
 
     // Count traits

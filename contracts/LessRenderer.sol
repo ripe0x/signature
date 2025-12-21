@@ -343,6 +343,8 @@ contract LessRenderer is ILessRenderer, Ownable {
             abi.encodePacked(
                 '[{"trait_type":"Window","value":',
                 uint256(token.windowId).toString(),
+                '},{"trait_type":"Fold Count","value":',
+                uint256(token.windowId).toString(),
                 '},{"trait_type":"Fold Strategy","value":"',
                 _getFoldStrategy(seed),
                 '"},{"trait_type":"Render Mode","value":"',

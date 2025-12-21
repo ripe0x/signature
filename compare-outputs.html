@@ -89,9 +89,7 @@
     </div>
     <div class="panel">
       <h2>Interactive Output (extractCharacterData)</h2>
-      <div class="output-container">
-        <canvas id="interactive-output"></canvas>
-      </div>
+      <div class="output-container" id="interactive-output"></div>
     </div>
   </div>
 
@@ -99,12 +97,9 @@
     import {
       generateAllParams,
       renderToCanvas,
-      extractCharacterData,
+      renderInteractiveToContainer,
       REFERENCE_WIDTH,
       REFERENCE_HEIGHT,
-      DRAWING_MARGIN,
-      CHAR_WIDTH_RATIO,
-      FONT_STACK
     } from './web/fold-core.js';
 
     let currentSeed = Math.floor(Math.random() * 1000000);
@@ -150,49 +145,8 @@
       const params = generateAllParams(seed, REFERENCE_WIDTH, REFERENCE_HEIGHT, 0, null);
       const state = { seed, foldCount: params.folds, params };
 
-      const charData = extractCharacterData(state, WIDTH, HEIGHT);
-
-      const canvas = document.getElementById('interactive-output');
-      const dpr = 2;
-      canvas.width = WIDTH * dpr;
-      canvas.height = HEIGHT * dpr;
-
-      const ctx = canvas.getContext('2d');
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      // Draw background
-      ctx.fillStyle = charData.background.color;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      // Draw background texture (same as renderToCanvas)
-      const scaleX = WIDTH / REFERENCE_WIDTH;
-      const scaleY = HEIGHT / REFERENCE_HEIGHT;
-      const textureFontSize = 15 * scaleX;
-      ctx.font = `${textureFontSize}px ${FONT_STACK}`;
-      ctx.fillStyle = charData.background.textureColor;
-      ctx.globalAlpha = charData.background.textureOpacity;
-      const texCharWidth = textureFontSize * CHAR_WIDTH_RATIO;
-      const texCharHeight = textureFontSize * 1.13;
-      for (let y = 0; y < HEIGHT + texCharHeight; y += texCharHeight) {
-        for (let x = 0; x < WIDTH + texCharWidth; x += texCharWidth) {
-          ctx.fillText('\u2591', x, y + texCharHeight);
-        }
-      }
-      ctx.globalAlpha = 1.0;
-
-      // Draw characters from extractCharacterData
-      ctx.textBaseline = 'top';
-      for (const c of charData.characters) {
-        ctx.font = `${c.fontSize}px ${FONT_STACK}`;
-        ctx.fillStyle = c.color;
-
-        const charW = c.fontSize * CHAR_WIDTH_RATIO;
-        const charsPerCell = Math.max(1, Math.floor(c.width / charW));
-
-        for (let i = 0; i < charsPerCell; i++) {
-          ctx.fillText(c.char, c.x + i * charW, c.y);
-        }
-      }
+      const container = document.getElementById('interactive-output');
+      renderInteractiveToContainer(container, state, { width: WIDTH, height: HEIGHT });
 
       return params.renderMode;
     }
@@ -217,17 +171,6 @@
 
     document.getElementById('next-btn').addEventListener('click', () => {
       render(currentSeed + 1);
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'r' || e.key === ' ') {
-        render(Math.floor(Math.random() * 1000000));
-      } else if (e.key === 'ArrowLeft') {
-        render(currentSeed - 1);
-      } else if (e.key === 'ArrowRight') {
-        render(currentSeed + 1);
-      }
     });
 
     // Initial render

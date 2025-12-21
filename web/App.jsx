@@ -177,11 +177,13 @@ function MiniCanvas({ params, folds, width, height, onClick, isSelected }) {
       cellWidth: params.cells.cellW,
       cellHeight: params.cells.cellH,
       renderMode: params.renderMode,
+      showEmptyCells: params.showEmptyCells,
       multiColor: params.multiColor,
       levelColors: params.levelColors,
       foldStrategy: params.foldStrategy,
       paperProperties: params.paperProperties,
-      margin: params.margin,
+      showCreaseLines: params.showCreaseLines,
+      analyticsMode: params.analyticsMode,
     });
 
     const img = new Image();
@@ -667,10 +669,13 @@ function DetailModal({
       cellWidth: item.params.cells.cellW,
       cellHeight: item.params.cells.cellH,
       renderMode: item.params.renderMode,
+      showEmptyCells: item.params.showEmptyCells,
       multiColor: item.params.multiColor,
       levelColors: item.params.levelColors,
       foldStrategy: item.params.foldStrategy,
       paperProperties: item.params.paperProperties,
+      showCreaseLines: item.params.showCreaseLines,
+      analyticsMode: item.params.analyticsMode,
     });
 
     const img = new Image();
@@ -1144,10 +1149,13 @@ function BatchMode({ folds, width, height, onSelectSeed, onClose }) {
         cellWidth: item.params.cells.cellW,
         cellHeight: item.params.cells.cellH,
         renderMode: item.params.renderMode,
+        showEmptyCells: item.params.showEmptyCells,
         multiColor: item.params.multiColor,
         levelColors: item.params.levelColors,
         foldStrategy: item.params.foldStrategy,
         paperProperties: item.params.paperProperties,
+        showCreaseLines: item.params.showCreaseLines,
+        analyticsMode: item.params.analyticsMode,
       });
 
       // Create download link
