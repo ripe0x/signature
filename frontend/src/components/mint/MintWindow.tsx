@@ -380,7 +380,7 @@ export function MintWindow() {
             seconds={timeRemaining}
             label={`window #${windowId} closes in`}
           />
-          <p className="text-sm text-muted">{mintsThisWindow} minted</p>
+          {/* <p className="text-sm text-muted">{mintsThisWindow} minted</p> */}
         </div>
 
         {/* Mint Section */}
