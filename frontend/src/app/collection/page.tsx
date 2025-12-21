@@ -48,7 +48,7 @@ function PreLaunchCollection() {
                   <a
                     href={`https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335`}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener noreferrer "
                   >
                     <Button variant="outline" size="sm">
                       trade $LESS

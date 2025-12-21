@@ -77,7 +77,7 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
                   supply goes down. art comes out.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-4 pt-2">
+              <div className="flex flex-wrap gap-4 pt-2 ">
                 <a
                   href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
                   target="_blank"
