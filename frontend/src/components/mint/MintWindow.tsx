@@ -324,6 +324,8 @@ export function MintWindow() {
     mintCount,
     canCreateWindow,
     windowDuration,
+    isWrongNetwork,
+    switchToMainnet,
     quantity,
     setQuantity,
     mint,
@@ -422,9 +424,17 @@ export function MintWindow() {
                 isPending={isMintPending}
                 isConfirming={isConfirming}
                 isConnected={isConnected}
+                isWrongNetwork={isWrongNetwork}
                 onMint={handleMint}
+                onSwitchNetwork={switchToMainnet}
               />
-              <p className="text-xs text-muted text-center">ETH MAINNET</p>
+              {isWrongNetwork ? (
+                <p className="text-xs text-red-500 text-center">
+                  wrong network — switch to mainnet
+                </p>
+              ) : (
+                <p className="text-xs text-muted text-center">ETH MAINNET</p>
+              )}
 
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">
@@ -519,12 +529,20 @@ export function MintWindow() {
                 isPending={isMintPending}
                 isConfirming={isConfirming}
                 isConnected={isConnected}
+                isWrongNetwork={isWrongNetwork}
                 onMint={handleMint}
+                onSwitchNetwork={switchToMainnet}
               />
 
-              <p className="text-xs text-muted">
-                first mint triggers buy + burn and opens the window
-              </p>
+              {isWrongNetwork ? (
+                <p className="text-xs text-red-500 text-center">
+                  wrong network — switch to mainnet
+                </p>
+              ) : (
+                <p className="text-xs text-muted">
+                  first mint triggers buy + burn and opens the window
+                </p>
+              )}
 
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">

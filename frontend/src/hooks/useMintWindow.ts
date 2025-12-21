@@ -1,7 +1,7 @@
 'use client';
 
-import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
+import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
+import { CONTRACTS, LESS_NFT_ABI, CHAIN_ID } from '@/lib/contracts';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 
 export interface MintWindowState {
@@ -39,9 +39,14 @@ function calculateNextMintPrice(basePrice: bigint, mintCount: number): bigint {
 
 export function useMintWindow() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [mintedQuantity, setMintedQuantity] = useState(0);
+
+  // Check if user is on the correct network
+  const isWrongNetwork = isConnected && chainId !== CHAIN_ID;
 
   // Read current window count
   const { data: windowCount, refetch: refetchWindowCount } = useReadContract({
@@ -169,6 +174,12 @@ export function useMintWindow() {
 
   const mint = useCallback(async (mintQuantity: number = 1) => {
     if (!address) return;
+    
+    // Prevent minting on wrong network
+    if (isWrongNetwork) {
+      console.error('Cannot mint on wrong network. Please switch to mainnet.');
+      return;
+    }
 
     // Track how many we're minting for UI feedback
     setMintedQuantity(mintQuantity);
@@ -184,14 +195,19 @@ export function useMintWindow() {
       args: [BigInt(mintQuantity)],
       value,
     });
-  }, [writeContract, address, totalCost, basePrice]);
+  }, [writeContract, address, totalCost, basePrice, isWrongNetwork]);
 
   const canMint = Boolean(
     isConnected &&
+    !isWrongNetwork &&
     (isWindowActive || canCreateWindow) &&
     !isMintPending &&
     !isConfirming
   );
+
+  const switchToMainnet = useCallback(() => {
+    switchChain({ chainId: CHAIN_ID });
+  }, [switchChain]);
 
   // Wrap resetMint to also clear mintedQuantity
   const handleResetMint = useCallback(() => {
@@ -212,6 +228,10 @@ export function useMintWindow() {
     multiplier,
     canCreateWindow: !!canCreateWindow,
     windowDuration: windowDuration ? Number(windowDuration) : 5400,
+
+    // Network
+    isWrongNetwork,
+    switchToMainnet,
 
     // Quantity
     quantity,
