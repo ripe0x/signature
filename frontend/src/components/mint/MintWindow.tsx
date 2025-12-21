@@ -386,9 +386,9 @@ export function MintWindow() {
         {/* Mint Section */}
         <div className="max-w-md mx-auto space-y-6">
           {/* Show loading placeholders during confirmation */}
-          {isConfirming && mintedQuantity > 0 && (
-            // <MintingPlaceholder count={mintedQuantity} />
-          )}
+          {/* {isConfirming && mintedQuantity > 0 && (
+            <MintingPlaceholder count={mintedQuantity} />
+          ) : null} */}
 
           {/* Show minted tokens grid after successful mint */}
           {isConfirmed && mintedTokens.length > 0 && (
