@@ -165,8 +165,8 @@ function LiveCollection() {
           <div className="mb-12">
             <h1 className="text-2xl mb-2">collection</h1>
             <p className="text-sm text-muted">
-              {total} pieces across {windowGroups.length} window
-              {windowGroups.length !== 1 ? "s" : ""}
+              {total} pieces across {windowGroups.length + 1} window
+              {windowGroups.length + 1 !== 1 ? "s" : ""}
             </p>
           </div>
 
