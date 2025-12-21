@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useEnsName } from "wagmi";
 import { useToken } from "@/hooks/useToken";
 import { truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
@@ -15,8 +16,12 @@ export default function TokenPage() {
   const params = useParams();
   const tokenId = parseInt(params.id as string, 10);
 
-  const { id, windowId, seed, seedNumber, owner, metadata, isLoading, error } =
+  const { id, windowId, seedNumber, owner, metadata, isLoading, error } =
     useToken(tokenId);
+
+  const { data: ensName } = useEnsName({
+    address: owner as `0x${string}` | undefined,
+  });
 
   if (isLoading) {
     return (
@@ -192,17 +197,10 @@ export default function TokenPage() {
                           rel="noopener noreferrer"
                           className="hover:underline"
                         >
-                          {truncateAddress(owner)}
+                          {ensName || truncateAddress(owner)}
                         </a>
                       </div>
                     )}
-
-                    <div className="flex justify-between py-2 border-b border-border">
-                      <span className="text-muted">seed</span>
-                      <span className="font-mono text-xs">
-                        {seed.slice(0, 18)}...
-                      </span>
-                    </div>
                   </div>
                 </div>
 
