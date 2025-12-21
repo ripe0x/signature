@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:onchain": "esbuild web/onchain/index.js --bundle --format=iife --platform=browser --outfile=web/onchain/bundled.js --minify --target=es2020",
     "preview": "vite preview",
     "deploy": "node scripts/deploy.js",
     "deploy:mainnet": "node scripts/deploy.js --network=mainnet",

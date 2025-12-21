@@ -3293,10 +3293,11 @@ export function renderToCanvas({
           color = accentColor;
         } else if (renderMode === "normal") {
           level = countToLevelAdaptive(weight, thresholds);
-          char = shadeChars[Math.min(level, maxShadeLevel)];
           if (level === 0) {
-            char = shadeChars[1];
-            isEmptyCell = true;
+            // Skip empty cells - background texture provides visual interest
+            char = null;
+          } else {
+            char = shadeChars[Math.min(level, maxShadeLevel)];
           }
           color = getColorForLevel(level, key);
           // Apply special styling within mode constraints
@@ -3355,10 +3356,8 @@ export function renderToCanvas({
             color = getColorForLevel(1, key);
             if (accentCells.has(key)) color = accentColor;
           } else {
-            // Always show ░ character in non-sparse cells for texture
-            char = shadeChars[1];
-            isEmptyCell = true;
-            color = textColor;
+            // Skip empty cells - background texture provides visual interest
+            char = null;
           }
         } else if (renderMode === "dense") {
           level = countToLevelAdaptive(weight, thresholds);
@@ -3378,10 +3377,8 @@ export function renderToCanvas({
               color = accentColor;
             }
           } else {
-            // Always show ░ character in non-dense cells for texture
-            char = shadeChars[1];
-            isEmptyCell = true;
-            color = textColor;
+            // Skip empty cells - background texture provides visual interest
+            char = null;
           }
         }
 
@@ -4150,6 +4147,240 @@ export function setupKeyboardFeatures(canvas, getState, options = {}) {
 }
 
 /**
+ * Extract character data for DOM-based rendering
+ * Returns an array of character objects with position, character, color, etc.
+ * Used for interactive artwork where characters are rendered as DOM elements
+ * @param {Object} state - Render state with seed, foldCount, params
+ * @param {number} outputWidth - Target output width
+ * @param {number} outputHeight - Target output height
+ * @returns {Object} - { characters: Array, background: Object }
+ */
+export function extractCharacterData(state, outputWidth, outputHeight) {
+  const { seed, foldCount, params } = state;
+  const {
+    palette,
+    cells,
+    renderMode,
+    showEmptyCells,
+    multiColor,
+    levelColors,
+    foldStrategy,
+    paperProperties,
+  } = params;
+
+  const { cellW: cellWidth, cellH: cellHeight } = cells;
+  const { bg: bgColor, text: textColor, accent: accentColor } = palette;
+
+  const scaleX = outputWidth / REFERENCE_WIDTH;
+  const scaleY = outputHeight / REFERENCE_HEIGHT;
+
+  const refInnerWidth = REFERENCE_WIDTH - DRAWING_MARGIN * 2;
+  const refInnerHeight = REFERENCE_HEIGHT - DRAWING_MARGIN * 2;
+
+  // Calculate grid layout
+  const grid = calculateGridWithGaps(
+    seed,
+    cellWidth,
+    cellHeight,
+    refInnerWidth,
+    refInnerHeight
+  );
+  const { cols, rows, strideX, strideY, gridOffsetX, gridOffsetY } = grid;
+  const refCellWidth = grid.cellWidth;
+  const refCellHeight = grid.cellHeight;
+
+  const offsetX = (DRAWING_MARGIN + gridOffsetX) * scaleX;
+  const offsetY = (DRAWING_MARGIN + gridOffsetY) * scaleY;
+  const actualCellWidth = refCellWidth * scaleX;
+  const actualCellHeight = refCellHeight * scaleY;
+  const actualStrideX = strideX * scaleX;
+  const actualStrideY = strideY * scaleY;
+
+  const weightRange = generateWeightRange(seed);
+  const scaledPaperProps = scaleAbsorbencyForGrid(paperProperties, cols, rows);
+  const actualGridWidth = grid.actualGridWidth;
+  const actualGridHeight = grid.actualGridHeight;
+
+  // Simulate folds
+  const { creases, firstFoldTarget, lastFoldTarget } = simulateFolds(
+    actualGridWidth,
+    actualGridHeight,
+    foldCount,
+    seed,
+    weightRange,
+    foldStrategy,
+    scaledPaperProps
+  );
+
+  const scaledCreases = creases.map((crease) => ({
+    ...crease,
+    p1: { x: crease.p1.x * scaleX, y: crease.p1.y * scaleY },
+    p2: { x: crease.p2.x * scaleX, y: crease.p2.y * scaleY },
+  }));
+
+  let firstFoldTargetCell = null;
+  if (firstFoldTarget) {
+    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX)));
+    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY)));
+    firstFoldTargetCell = `${targetCol},${targetRow}`;
+  }
+
+  let lastFoldTargetCell = null;
+  if (lastFoldTarget) {
+    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX)));
+    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY)));
+    lastFoldTargetCell = `${targetCol},${targetRow}`;
+  }
+
+  const { cellWeights: intersectionWeight, cellMaxGap } = processCreases(
+    scaledCreases,
+    cols,
+    rows,
+    actualStrideX,
+    actualStrideY,
+    foldCount,
+    paperProperties
+  );
+
+  // Accent cells
+  const accentCells = new Set();
+  if (Object.keys(cellMaxGap).length > 0) {
+    const maxGap = Math.max(...Object.values(cellMaxGap));
+    for (const [key, gap] of Object.entries(cellMaxGap)) {
+      if (gap === maxGap) accentCells.add(key);
+    }
+  }
+
+  // Font sizing
+  const glyphHeightRatio = 1 + CHAR_TOP_OVERFLOW + CHAR_BOTTOM_OVERFLOW_DARK;
+  const fontSize = actualCellHeight / glyphHeightRatio;
+  const charWidth = fontSize * CHAR_WIDTH_RATIO;
+  const shadeChars = [" ", "░", "▒", "▓"];
+  const maxShadeLevel = fontSize < 30 ? 2 : 3;
+
+  const thresholds = calculateAdaptiveThresholds(intersectionWeight);
+
+  // Color helper for multi-color/gradient modes
+  const getColorForLevel = (level, cellKey) => {
+    if (multiColor && levelColors && levelColors[level]) {
+      return levelColors[level];
+    }
+    return textColor;
+  };
+
+  const characters = [];
+
+  for (let row = 0; row < rows; row++) {
+    const y = offsetY + row * actualStrideY;
+
+    for (let col = 0; col < cols; col++) {
+      const x = offsetX + col * actualStrideX;
+      const key = `${col},${row}`;
+      const weight = intersectionWeight[key] || 0;
+
+      let char = null;
+      let color = textColor;
+      let level = -1;
+      let isEmptyCell = false;
+
+      // Determine character and color based on render mode
+      if (firstFoldTargetCell === key) {
+        level = weight > 0 ? countToLevelAdaptive(weight, thresholds) : 2;
+        char = shadeChars[Math.min(Math.max(level, 2), maxShadeLevel)];
+        color = accentColor;
+      } else if (renderMode === "normal") {
+        level = countToLevelAdaptive(weight, thresholds);
+        if (level === 0) {
+          // Skip empty cells - background texture provides visual interest
+          char = null;
+        } else {
+          char = shadeChars[Math.min(level, maxShadeLevel)];
+        }
+        color = getColorForLevel(level, key);
+        if (accentCells.has(key) && weight > 0) color = accentColor;
+        else if (lastFoldTargetCell === key) color = textColor;
+      } else if (renderMode === "binary") {
+        if (weight === 0) {
+          if (showEmptyCells) {
+            char = shadeChars[1];
+            isEmptyCell = true;
+            color = textColor;
+          }
+        } else {
+          level = maxShadeLevel;
+          char = shadeChars[level];
+          color = getColorForLevel(level, key);
+          if (accentCells.has(key)) color = accentColor;
+        }
+      } else if (renderMode === "inverted") {
+        level = Math.min(3 - countToLevelAdaptive(weight, thresholds), maxShadeLevel);
+        char = shadeChars[level];
+        color = getColorForLevel(level, key);
+        if (accentCells.has(key) && weight > 0) color = accentColor;
+      } else if (renderMode === "sparse") {
+        level = countToLevelAdaptive(weight, thresholds);
+        if (level === 1) {
+          char = shadeChars[1];
+          color = getColorForLevel(1, key);
+          if (accentCells.has(key)) color = accentColor;
+        } else {
+          // Skip empty cells - background texture provides visual interest
+          char = null;
+        }
+      } else if (renderMode === "dense") {
+        level = countToLevelAdaptive(weight, thresholds);
+        if (level >= 2) {
+          char = shadeChars[Math.min(level, maxShadeLevel)];
+          color = getColorForLevel(level, key);
+          if (accentCells.has(key)) color = accentColor;
+        } else {
+          // Skip empty cells - background texture provides visual interest
+          char = null;
+        }
+      }
+
+      if (!char || char === " ") continue;
+
+      // Skip empty cells for interactive layer (they stay on background)
+      if (isEmptyCell) continue;
+
+      characters.push({
+        id: `char-${row}-${col}`,
+        char,
+        x,
+        y,
+        width: actualCellWidth,
+        height: actualCellHeight,
+        fontSize,
+        color,
+        row,
+        col,
+        level,
+        isAccent: accentCells.has(key),
+        isFoldTarget: firstFoldTargetCell === key || lastFoldTargetCell === key,
+      });
+    }
+  }
+
+  return {
+    characters,
+    background: {
+      color: bgColor,
+      textureColor: textColor,
+      textureOpacity: 0.1,
+    },
+    grid: {
+      cols,
+      rows,
+      cellWidth: actualCellWidth,
+      cellHeight: actualCellHeight,
+      offsetX,
+      offsetY,
+    },
+  };
+}
+
+/**
  * Unified render function for both on-chain and preview contexts
  * @param {HTMLCanvasElement} canvas - Target canvas element
  * @param {Object} state - Render state with seed, foldCount, params
@@ -4290,6 +4521,555 @@ function debounce(fn, ms) {
   };
 }
 
+// ============ DOM-BASED INTERACTIVE RENDERING ============
+// Renders characters as real DOM text elements for drag/edit interactivity
+
+// Interactive state (module-level)
+let _interactiveState = {
+  charData: null,
+  charElements: [],
+  textBuffer: [],
+  originalPositions: new Map(),
+  cursorIndex: -1,
+  isEditing: false,
+  dragState: null,
+  hiddenInput: null,
+  container: null,
+  bgCanvas: null,
+  charLayer: null,
+  loading: null,
+};
+
+// CSS for interactive mode
+const INTERACTIVE_CSS = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  .fold-container {
+    position: relative;
+    width: min(100vw, calc(100vh * 1200 / 1697));
+    height: min(100vh, calc(100vw * 1697 / 1200));
+  }
+  .fold-loading {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Courier New", monospace;
+    font-size: 24px;
+    color: #000;
+  }
+  .fold-bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .fold-chars {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+  }
+  .fold-char {
+    position: absolute;
+    cursor: default;
+    user-select: none;
+    font-family: "${ONCHAIN_FONT_NAME}", "Courier New", monospace;
+    line-height: 1;
+    white-space: pre;
+  }
+  .fold-char:hover { filter: brightness(1.1); }
+  .fold-char.dragging {
+    cursor: grabbing;
+    z-index: 1000;
+    filter: brightness(1.2);
+  }
+  .fold-char.editing::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10%;
+    width: 2px;
+    height: 80%;
+    background: currentColor;
+    animation: cursor-blink 1s step-end infinite;
+  }
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+`;
+
+// Inject CSS into document
+function injectInteractiveCSS() {
+  if (document.getElementById("fold-interactive-css")) return;
+  const style = document.createElement("style");
+  style.id = "fold-interactive-css";
+  style.textContent = INTERACTIVE_CSS;
+  document.head.appendChild(style);
+}
+
+// Create DOM structure for interactive rendering
+function createInteractiveDOM() {
+  const container = document.createElement("div");
+  container.className = "fold-container";
+  container.id = "fold-container";
+  container.style.cssText = "position:relative;width:min(100vw,calc(100vh*1200/1697));height:min(100vh,calc(100vw*1697/1200))";
+
+  // Create loading screen with centered ▒ character (inline styles for immediate rendering)
+  const loading = document.createElement("div");
+  loading.className = "fold-loading";
+  loading.id = "fold-loading";
+  loading.textContent = "▒";
+  loading.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;z-index:100;display:flex;align-items:center;justify-content:center;font-family:Courier New,monospace;font-size:24px;color:#000";
+
+  const bgCanvas = document.createElement("canvas");
+  bgCanvas.className = "fold-bg";
+  bgCanvas.id = "fold-bg";
+
+  const charLayer = document.createElement("div");
+  charLayer.className = "fold-chars";
+  charLayer.id = "fold-chars";
+
+  container.appendChild(loading);
+  container.appendChild(bgCanvas);
+  container.appendChild(charLayer);
+  document.body.appendChild(container);
+
+  _interactiveState.container = container;
+  _interactiveState.bgCanvas = bgCanvas;
+  _interactiveState.charLayer = charLayer;
+  _interactiveState.loading = loading;
+
+  return { container, bgCanvas, charLayer, loading };
+}
+
+// Render background texture to canvas
+function renderInteractiveBackground(canvas, background, width, height) {
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 2;
+
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  ctx.fillStyle = background.color;
+  ctx.fillRect(0, 0, width, height);
+
+  const scaleX = width / REFERENCE_WIDTH;
+  const textureFontSize = 15 * scaleX;
+  ctx.font = `${textureFontSize}px ${FONT_STACK}`;
+  ctx.fillStyle = background.textureColor;
+  ctx.globalAlpha = background.textureOpacity;
+
+  const charWidth = textureFontSize * CHAR_WIDTH_RATIO;
+  const charHeight = textureFontSize * 1.13;
+
+  for (let y = 0; y < height + charHeight; y += charHeight) {
+    for (let x = 0; x < width + charWidth; x += charWidth) {
+      ctx.fillText("░", x, y + charHeight);
+    }
+  }
+  ctx.globalAlpha = 1.0;
+}
+
+// Render characters as DOM elements
+function renderInteractiveCharacters(charLayer, characters) {
+  stopInteractiveEditing();
+  charLayer.innerHTML = "";
+  _interactiveState.charElements = [];
+  _interactiveState.originalPositions.clear();
+  _interactiveState.textBuffer = [];
+  _interactiveState.hiddenInput = null;
+
+  for (let i = 0; i < characters.length; i++) {
+    const c = characters[i];
+    const el = document.createElement("span");
+    el.className = "fold-char";
+    el.textContent = c.char;
+    el.dataset.index = i;
+
+    el.style.left = c.x + "px";
+    el.style.top = c.y + "px";
+    el.style.fontSize = c.fontSize + "px";
+    el.style.color = c.color;
+    el.style.width = c.width + "px";
+    el.style.height = c.height + "px";
+
+    _interactiveState.originalPositions.set(i, { x: c.x, y: c.y, char: c.char });
+    _interactiveState.textBuffer.push({
+      char: c.char,
+      originalChar: c.char,
+      el,
+      color: c.color,
+    });
+
+    charLayer.appendChild(el);
+    _interactiveState.charElements.push(el);
+  }
+
+  // Create hidden input for text capture
+  const hiddenInput = document.createElement("input");
+  hiddenInput.type = "text";
+  hiddenInput.style.cssText = "position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;";
+  hiddenInput.addEventListener("input", onInteractiveTextInput);
+  hiddenInput.addEventListener("keydown", onInteractiveTextKeyDown);
+  hiddenInput.addEventListener("blur", onInteractiveTextBlur);
+  charLayer.appendChild(hiddenInput);
+  _interactiveState.hiddenInput = hiddenInput;
+}
+
+// Sync text buffer to DOM
+function syncInteractiveBufferToDOM() {
+  for (let i = 0; i < _interactiveState.textBuffer.length; i++) {
+    const entry = _interactiveState.textBuffer[i];
+    entry.el.textContent = entry.char;
+  }
+}
+
+// Text input handler
+function onInteractiveTextInput(e) {
+  const { isEditing, cursorIndex, textBuffer, hiddenInput } = _interactiveState;
+  if (!isEditing || cursorIndex < 0) return;
+
+  const typed = e.data;
+  if (!typed) return;
+
+  for (let i = 0; i < typed.length; i++) {
+    const replaceAt = cursorIndex + i;
+    if (replaceAt >= textBuffer.length) break;
+    // Update buffer and show character
+    textBuffer[replaceAt].char = typed[i];
+    textBuffer[replaceAt].el.textContent = typed[i];
+  }
+
+  // Move cursor forward (this will clear the new position)
+  const newIndex = Math.min(cursorIndex + typed.length, textBuffer.length - 1);
+  if (newIndex !== cursorIndex) {
+    _interactiveState.cursorIndex = newIndex;
+    updateInteractiveCursor();
+  }
+
+  hiddenInput.value = "";
+}
+
+// Text key handler
+function onInteractiveTextKeyDown(e) {
+  const { isEditing, cursorIndex, textBuffer } = _interactiveState;
+  if (!isEditing) return;
+
+  if (e.key === "Escape") {
+    stopInteractiveEditing();
+    return;
+  }
+
+  // Helper to restore current cell before moving
+  const restoreCurrentCell = () => {
+    if (cursorIndex >= 0 && cursorIndex < textBuffer.length) {
+      const entry = textBuffer[cursorIndex];
+      entry.el.textContent = entry.char;
+    }
+  };
+
+  if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    if (cursorIndex > 0) {
+      restoreCurrentCell();
+      _interactiveState.cursorIndex = cursorIndex - 1;
+      updateInteractiveCursor();
+    }
+  } else if (e.key === "ArrowRight") {
+    e.preventDefault();
+    if (cursorIndex < textBuffer.length - 1) {
+      restoreCurrentCell();
+      _interactiveState.cursorIndex = cursorIndex + 1;
+      updateInteractiveCursor();
+    }
+  } else if (e.key === "Backspace") {
+    e.preventDefault();
+    // Restore original char at current position and move back
+    textBuffer[cursorIndex].char = textBuffer[cursorIndex].originalChar;
+    textBuffer[cursorIndex].el.textContent = textBuffer[cursorIndex].originalChar;
+    if (cursorIndex > 0) {
+      _interactiveState.cursorIndex = cursorIndex - 1;
+      updateInteractiveCursor();
+    }
+  } else if (e.key === "Delete") {
+    e.preventDefault();
+    // Restore original char at current position, stay in place
+    textBuffer[cursorIndex].char = textBuffer[cursorIndex].originalChar;
+    // Keep cell empty since we're still editing here
+  }
+}
+
+// Text blur handler
+function onInteractiveTextBlur() {
+  setTimeout(() => {
+    if (_interactiveState.hiddenInput && !_interactiveState.hiddenInput.matches(":focus")) {
+      stopInteractiveEditing();
+    }
+  }, 100);
+}
+
+// Update cursor highlight
+function updateInteractiveCursor() {
+  const { charElements, cursorIndex, hiddenInput, textBuffer } = _interactiveState;
+  charElements.forEach((el) => el.classList.remove("editing"));
+
+  if (cursorIndex >= 0 && cursorIndex < charElements.length) {
+    // Clear new cursor position and add editing class
+    const entry = textBuffer[cursorIndex];
+    if (entry) {
+      entry.el.textContent = '';
+    }
+    charElements[cursorIndex].classList.add("editing");
+    if (hiddenInput) {
+      hiddenInput.style.left = charElements[cursorIndex].style.left;
+      hiddenInput.style.top = charElements[cursorIndex].style.top;
+    }
+  }
+}
+
+// Start editing
+function startInteractiveEditing(index) {
+  _interactiveState.isEditing = true;
+  _interactiveState.cursorIndex = index;
+
+  // Clear the character to show empty cell with cursor
+  const entry = _interactiveState.textBuffer[index];
+  if (entry) {
+    entry.el.textContent = '';
+  }
+
+  updateInteractiveCursor();
+  if (_interactiveState.hiddenInput) {
+    _interactiveState.hiddenInput.focus();
+  }
+}
+
+// Stop editing
+function stopInteractiveEditing() {
+  // Restore character from buffer if cell is empty
+  const { cursorIndex, textBuffer, charElements } = _interactiveState;
+  if (cursorIndex >= 0 && cursorIndex < textBuffer.length) {
+    const entry = textBuffer[cursorIndex];
+    if (entry && entry.el.textContent === '') {
+      entry.el.textContent = entry.char;
+    }
+  }
+
+  _interactiveState.isEditing = false;
+  _interactiveState.cursorIndex = -1;
+  charElements.forEach((el) => el.classList.remove("editing", "cursor"));
+  if (_interactiveState.hiddenInput) {
+    _interactiveState.hiddenInput.blur();
+  }
+}
+
+// Initialize drag handlers
+function initInteractiveDragHandlers(charLayer) {
+  charLayer.addEventListener("mousedown", onInteractiveMouseDown);
+  charLayer.addEventListener("touchstart", onInteractiveTouchStart, { passive: false });
+  document.addEventListener("mousemove", onInteractiveMouseMove);
+  document.addEventListener("touchmove", onInteractiveTouchMove, { passive: false });
+  document.addEventListener("mouseup", onInteractiveMouseUp);
+  document.addEventListener("touchend", onInteractiveTouchEnd);
+  charLayer.addEventListener("dblclick", onInteractiveDoubleClick);
+}
+
+function onInteractiveMouseDown(e) {
+  const target = e.target.closest(".fold-char");
+  if (!target) return;
+  e.preventDefault();
+  startInteractiveDrag(target, e.clientX, e.clientY);
+}
+
+function onInteractiveTouchStart(e) {
+  const target = e.target.closest(".fold-char");
+  if (!target) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  startInteractiveDrag(target, touch.clientX, touch.clientY);
+}
+
+function startInteractiveDrag(el, clientX, clientY) {
+  const rect = el.getBoundingClientRect();
+  const containerRect = _interactiveState.container.getBoundingClientRect();
+
+  _interactiveState.dragState = {
+    el,
+    offsetX: clientX - rect.left,
+    offsetY: clientY - rect.top,
+    containerRect,
+  };
+  el.classList.add("dragging");
+}
+
+function onInteractiveMouseMove(e) {
+  if (!_interactiveState.dragState) return;
+  moveInteractiveDrag(e.clientX, e.clientY);
+}
+
+function onInteractiveTouchMove(e) {
+  if (!_interactiveState.dragState) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  moveInteractiveDrag(touch.clientX, touch.clientY);
+}
+
+function moveInteractiveDrag(clientX, clientY) {
+  const { el, containerRect, offsetX, offsetY } = _interactiveState.dragState;
+  const x = clientX - containerRect.left - offsetX;
+  const y = clientY - containerRect.top - offsetY;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+}
+
+function onInteractiveMouseUp() {
+  endInteractiveDrag();
+}
+
+function onInteractiveTouchEnd() {
+  endInteractiveDrag();
+}
+
+function endInteractiveDrag() {
+  if (_interactiveState.dragState) {
+    _interactiveState.dragState.el.classList.remove("dragging");
+    _interactiveState.dragState = null;
+  }
+}
+
+function onInteractiveDoubleClick(e) {
+  const target = e.target.closest(".fold-char");
+  if (!target) return;
+  e.preventDefault();
+  const index = parseInt(target.dataset.index, 10);
+  if (!isNaN(index)) {
+    startInteractiveEditing(index);
+  }
+}
+
+// Download PNG of current state
+function downloadInteractivePNG(seed) {
+  const { charData, charElements, container } = _interactiveState;
+  if (!charData || !container) return;
+
+  const rect = container.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  const dpr = window.devicePixelRatio || 2;
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = width * dpr;
+  exportCanvas.height = height * dpr;
+  const ctx = exportCanvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Background
+  ctx.fillStyle = charData.background.color;
+  ctx.fillRect(0, 0, width, height);
+
+  // Texture
+  const scaleX = width / REFERENCE_WIDTH;
+  const textureFontSize = 15 * scaleX;
+  ctx.font = `${textureFontSize}px ${FONT_STACK}`;
+  ctx.fillStyle = charData.background.textureColor;
+  ctx.globalAlpha = charData.background.textureOpacity;
+  const texCharWidth = textureFontSize * CHAR_WIDTH_RATIO;
+  const texCharHeight = textureFontSize * 1.13;
+  for (let y = 0; y < height + texCharHeight; y += texCharHeight) {
+    for (let x = 0; x < width + texCharWidth; x += texCharWidth) {
+      ctx.fillText("░", x, y + texCharHeight);
+    }
+  }
+  ctx.globalAlpha = 1.0;
+
+  // Characters
+  ctx.textBaseline = "top";
+  for (const el of charElements) {
+    const x = parseFloat(el.style.left);
+    const y = parseFloat(el.style.top);
+    const fontSize = parseFloat(el.style.fontSize);
+    ctx.font = `${fontSize}px ${FONT_STACK}`;
+    ctx.fillStyle = el.style.color;
+    ctx.fillText(el.textContent, x, y);
+  }
+
+  exportCanvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fold-${seed || "edit"}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
+
+// Reset positions and text
+function resetInteractive() {
+  stopInteractiveEditing();
+  const { charElements, textBuffer, originalPositions } = _interactiveState;
+  for (let i = 0; i < charElements.length; i++) {
+    const el = charElements[i];
+    const original = originalPositions.get(i);
+    if (original) {
+      el.style.left = original.x + "px";
+      el.style.top = original.y + "px";
+      if (textBuffer[i]) {
+        textBuffer[i].char = original.char;
+      }
+      el.textContent = original.char;
+    }
+  }
+}
+
+// Initialize keyboard shortcuts for interactive mode
+function initInteractiveKeyboardShortcuts(seed) {
+  document.addEventListener("keydown", (e) => {
+    // Cmd/Ctrl+S - Download PNG
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      e.preventDefault();
+      downloadInteractivePNG(seed);
+      return;
+    }
+
+    // Don't trigger while editing
+    if (_interactiveState.isEditing) return;
+
+    // Escape - Reset
+    if (e.key === "Escape") {
+      e.preventDefault();
+      resetInteractive();
+    }
+  });
+}
+
+// Main interactive render function
+function renderInteractive(state, width, height) {
+  const { bgCanvas, charLayer } = _interactiveState;
+
+  const charData = extractCharacterData(state, width, height);
+  _interactiveState.charData = charData;
+
+  renderInteractiveBackground(bgCanvas, charData.background, width, height);
+  renderInteractiveCharacters(charLayer, charData.characters);
+}
+
 // Auto-render if global variables are set (for on-chain use)
 export async function initOnChain() {
   // Support both old (SEED/FOLD_COUNT) and new (LESS_SEED/LESS_TOKEN_ID) variable names
@@ -4317,22 +5097,12 @@ export async function initOnChain() {
     ONCHAIN_FONT_DATA_URI;
 
   if (seed && foldCount !== undefined) {
-    // Find or create canvas element
-    let canvas =
-      document.getElementById("c") || document.querySelector("canvas");
-
-    if (!canvas) {
-      // Create canvas if it doesn't exist
-      canvas = document.createElement("canvas");
-      canvas.id = "c";
-      document.body.appendChild(canvas);
-      // Style body for full-screen canvas
-      document.body.style.cssText =
-        "margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;";
-    }
-
     // Load font (embedded or provided)
     await loadOnChainFont(fontDataUri);
+
+    // Inject CSS and create DOM structure for interactive mode
+    injectInteractiveCSS();
+    createInteractiveDOM();
 
     // Generate params using reference dimensions (for consistent seed-based generation)
     const params = generateAllParams(
@@ -4346,8 +5116,23 @@ export async function initOnChain() {
     // Store state for resize re-rendering
     _onChainState = { seed, foldCount, params };
 
+    // Get container dimensions
+    const container = _interactiveState.container;
+    const rect = container.getBoundingClientRect();
+
     // Initial render
-    renderOnChain(canvas, _onChainState);
+    renderInteractive(_onChainState, rect.width, rect.height);
+
+    // Hide loading screen after render completes
+    if (_interactiveState.loading) {
+      _interactiveState.loading.style.display = "none";
+    }
+
+    // Initialize drag handlers
+    initInteractiveDragHandlers(_interactiveState.charLayer);
+
+    // Initialize keyboard shortcuts (Cmd+S for PNG, Escape for reset)
+    initInteractiveKeyboardShortcuts(seed);
 
     // Signal render complete (for image-api and other headless renderers)
     if (typeof window !== "undefined") {
@@ -4358,15 +5143,309 @@ export async function initOnChain() {
     window.addEventListener(
       "resize",
       debounce(() => {
-        if (_onChainState && !_secretAnimating) {
-          renderOnChain(canvas, _onChainState);
+        if (_onChainState) {
+          const rect = _interactiveState.container.getBoundingClientRect();
+          renderInteractive(_onChainState, rect.width, rect.height);
         }
       }, 150)
     );
-
-    // Set up keyboard features (Shift+F, Shift+A, Shift+L, Escape)
-    setupKeyboardFeatures(canvas, () => _onChainState);
   }
+}
+
+/**
+ * Render interactive artwork to a container element
+ * @param {HTMLElement} container - Container element to render into
+ * @param {Object} state - State object with seed, foldCount, params
+ * @param {Object} options - Optional settings
+ * @returns {Function} Cleanup function to call on unmount
+ */
+export function renderInteractiveToContainer(container, state, options = {}) {
+  const { width, height } = options;
+
+  // Inject CSS if not already done
+  injectInteractiveCSS();
+
+  // Clear container
+  container.innerHTML = "";
+  container.style.position = "relative";
+  container.style.overflow = "hidden";
+
+  // Create structure
+  const bgCanvas = document.createElement("canvas");
+  bgCanvas.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+  container.appendChild(bgCanvas);
+
+  const charLayer = document.createElement("div");
+  charLayer.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;";
+  container.appendChild(charLayer);
+
+  // Get dimensions
+  const rect = container.getBoundingClientRect();
+  const renderWidth = width || rect.width;
+  const renderHeight = height || rect.height;
+
+  bgCanvas.width = renderWidth;
+  bgCanvas.height = renderHeight;
+
+  // Create a local state object for this instance
+  const localState = {
+    container,
+    bgCanvas,
+    charLayer,
+    charElements: [],
+    textBuffer: [],
+    originalPositions: new Map(),
+    hiddenInput: null,
+    isEditing: false,
+    cursorIndex: -1,
+    charData: null,
+  };
+
+  // Extract and render
+  const charData = extractCharacterData(state, renderWidth, renderHeight);
+  localState.charData = charData;
+
+  // Render background
+  renderInteractiveBackground(bgCanvas, charData.background, renderWidth, renderHeight);
+
+  // Render characters
+  charData.characters.forEach((char, index) => {
+    const el = document.createElement("div");
+    el.className = "fold-char";
+    el.textContent = char.char;
+    el.dataset.index = index;
+    el.style.cssText = `
+      position: absolute;
+      left: ${char.x}px;
+      top: ${char.y}px;
+      width: ${char.width}px;
+      height: ${char.height}px;
+      font-size: ${char.fontSize}px;
+      color: ${char.color};
+      font-family: ${FONT_STACK};
+      line-height: 1;
+      white-space: pre;
+      cursor: default;
+      user-select: none;
+    `;
+    charLayer.appendChild(el);
+    localState.charElements.push(el);
+    localState.textBuffer.push({
+      el,
+      char: char.char,
+      originalChar: char.char,
+      row: char.row,
+      col: char.col,
+    });
+    localState.originalPositions.set(el, {
+      left: char.x,
+      top: char.y,
+      char: char.char,
+    });
+  });
+
+  // Create hidden input for text editing
+  const hiddenInput = document.createElement("input");
+  hiddenInput.style.cssText = "position:absolute;left:-9999px;opacity:0;";
+  document.body.appendChild(hiddenInput);
+  localState.hiddenInput = hiddenInput;
+
+  // Drag state
+  const dragState = {
+    isDragging: false,
+    target: null,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+  };
+
+  // Helper functions
+  const restoreCurrentCell = () => {
+    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.textBuffer.length) {
+      const entry = localState.textBuffer[localState.cursorIndex];
+      entry.el.textContent = entry.char;
+      entry.el.classList.remove("editing");
+    }
+  };
+
+  const updateCursorHighlight = () => {
+    localState.charElements.forEach((el) => el.classList.remove("editing"));
+    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.charElements.length) {
+      const entry = localState.textBuffer[localState.cursorIndex];
+      if (entry) entry.el.textContent = "";
+      localState.charElements[localState.cursorIndex].classList.add("editing");
+    }
+  };
+
+  const startEditing = (index) => {
+    localState.isEditing = true;
+    localState.cursorIndex = index;
+    const entry = localState.textBuffer[index];
+    if (entry) entry.el.textContent = "";
+    updateCursorHighlight();
+    hiddenInput.focus();
+  };
+
+  const stopEditing = () => {
+    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.textBuffer.length) {
+      const entry = localState.textBuffer[localState.cursorIndex];
+      if (entry && entry.el.textContent === "") {
+        entry.el.textContent = entry.char;
+      }
+      entry.el.classList.remove("editing");
+    }
+    localState.isEditing = false;
+    localState.cursorIndex = -1;
+    hiddenInput.blur();
+  };
+
+  // Event handlers
+  const onMouseDown = (e) => {
+    const target = e.target.closest(".fold-char");
+    if (!target || localState.isEditing) return;
+    dragState.isDragging = true;
+    dragState.target = target;
+    dragState.startX = e.clientX;
+    dragState.startY = e.clientY;
+    dragState.offsetX = target.offsetLeft;
+    dragState.offsetY = target.offsetTop;
+    target.style.zIndex = "1000";
+    target.style.filter = "brightness(1.2)";
+    e.preventDefault();
+  };
+
+  const onMouseMove = (e) => {
+    if (!dragState.isDragging || !dragState.target) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    dragState.target.style.left = dragState.offsetX + dx + "px";
+    dragState.target.style.top = dragState.offsetY + dy + "px";
+  };
+
+  const onMouseUp = () => {
+    if (dragState.target) {
+      dragState.target.style.zIndex = "";
+      dragState.target.style.filter = "";
+    }
+    dragState.isDragging = false;
+    dragState.target = null;
+  };
+
+  const onDblClick = (e) => {
+    const target = e.target.closest(".fold-char");
+    if (!target) return;
+    const index = parseInt(target.dataset.index, 10);
+    if (!isNaN(index)) startEditing(index);
+  };
+
+  const onTextInput = (e) => {
+    if (!localState.isEditing || localState.cursorIndex < 0) return;
+    const typed = e.data;
+    if (!typed) return;
+    for (let i = 0; i < typed.length; i++) {
+      const replaceAt = localState.cursorIndex + i;
+      if (replaceAt >= localState.textBuffer.length) break;
+      localState.textBuffer[replaceAt].char = typed[i];
+      localState.textBuffer[replaceAt].el.textContent = typed[i];
+    }
+    const newIndex = Math.min(
+      localState.cursorIndex + typed.length,
+      localState.textBuffer.length - 1
+    );
+    if (newIndex !== localState.cursorIndex) {
+      localState.cursorIndex = newIndex;
+      updateCursorHighlight();
+    }
+    hiddenInput.value = "";
+  };
+
+  const onKeyDown = (e) => {
+    if (!localState.isEditing) return;
+    if (e.key === "Escape") {
+      stopEditing();
+      e.preventDefault();
+    } else if (e.key === "ArrowLeft" && localState.cursorIndex > 0) {
+      e.preventDefault();
+      restoreCurrentCell();
+      localState.cursorIndex--;
+      updateCursorHighlight();
+    } else if (e.key === "ArrowRight" && localState.cursorIndex < localState.textBuffer.length - 1) {
+      e.preventDefault();
+      restoreCurrentCell();
+      localState.cursorIndex++;
+      updateCursorHighlight();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const current = localState.textBuffer[localState.cursorIndex];
+      if (current) {
+        const above = localState.textBuffer.findIndex(
+          (c) => c.row === current.row - 1 && c.col === current.col
+        );
+        if (above >= 0) {
+          restoreCurrentCell();
+          localState.cursorIndex = above;
+          updateCursorHighlight();
+        }
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const current = localState.textBuffer[localState.cursorIndex];
+      if (current) {
+        const below = localState.textBuffer.findIndex(
+          (c) => c.row === current.row + 1 && c.col === current.col
+        );
+        if (below >= 0) {
+          restoreCurrentCell();
+          localState.cursorIndex = below;
+          updateCursorHighlight();
+        }
+      }
+    } else if (e.key === "Backspace") {
+      e.preventDefault();
+      const entry = localState.textBuffer[localState.cursorIndex];
+      entry.char = entry.originalChar;
+      entry.el.textContent = entry.originalChar;
+      if (localState.cursorIndex > 0) {
+        localState.cursorIndex--;
+        updateCursorHighlight();
+      }
+    } else if (e.key === "Delete") {
+      e.preventDefault();
+      const entry = localState.textBuffer[localState.cursorIndex];
+      entry.char = entry.originalChar;
+    }
+  };
+
+  const onBlur = () => {
+    setTimeout(() => {
+      if (!hiddenInput.matches(":focus")) stopEditing();
+    }, 100);
+  };
+
+  // Attach listeners
+  charLayer.addEventListener("mousedown", onMouseDown);
+  charLayer.addEventListener("dblclick", onDblClick);
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+  hiddenInput.addEventListener("input", onTextInput);
+  hiddenInput.addEventListener("keydown", onKeyDown);
+  hiddenInput.addEventListener("blur", onBlur);
+
+  // Cleanup function
+  return () => {
+    charLayer.removeEventListener("mousedown", onMouseDown);
+    charLayer.removeEventListener("dblclick", onDblClick);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    hiddenInput.removeEventListener("input", onTextInput);
+    hiddenInput.removeEventListener("keydown", onKeyDown);
+    hiddenInput.removeEventListener("blur", onBlur);
+    hiddenInput.remove();
+    container.innerHTML = "";
+  };
 }
 
 // Auto-init when DOM is ready (for on-chain use)

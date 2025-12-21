@@ -774,7 +774,7 @@
       return img;
     }
 
-    // Render full size for modal using unified render function
+    // Render full size for modal
     function renderFullSize(output) {
       currentModalOutput = output;
       renderWithState(modalCanvas, output, { width: REFERENCE_WIDTH, height: REFERENCE_HEIGHT });
@@ -1114,10 +1114,6 @@
       modalOverlay.classList.remove('active');
       currentModalIndex = -1;
       currentModalOutput = null;
-      // Stop any running animation
-      if (typeof stopSecretAnimation === 'function') {
-        stopSecretAnimation();
-      }
     }
 
     // Generate all outputs
@@ -1221,89 +1217,21 @@
       renderGrid();
     });
 
-    // Secret animation state
-    let secretAnimating = false;
-    let secretAnimationFold = 0;
-    let secretAnimationMode = null;
-    let secretAnimationTimer = null;
-    let secretShowFoldLines = false;
-
-    function runSecretAnimation() {
-      if (!secretAnimating || !currentModalOutput || secretAnimationFold > currentModalOutput.foldCount) {
-        stopSecretAnimation();
-        return;
-      }
-      const isLinesOnly = secretAnimationMode === 'lines-only';
-      renderWithState(modalCanvas, currentModalOutput, {
-        width: REFERENCE_WIDTH,
-        height: REFERENCE_HEIGHT,
-        foldOverride: secretAnimationFold,
-        linesOnly: isLinesOnly,
-        isAnimating: true,
-      });
-      secretAnimationFold++;
-      secretAnimationTimer = setTimeout(runSecretAnimation, 50);
-    }
-
-    function startSecretAnimation(mode) {
-      if (!currentModalOutput) return;
-      secretAnimating = true;
-      secretAnimationFold = 0;
-      secretAnimationMode = mode;
-      runSecretAnimation();
-    }
-
-    function stopSecretAnimation() {
-      secretAnimating = false;
-      secretAnimationMode = null;
-      if (secretAnimationTimer) {
-        clearTimeout(secretAnimationTimer);
-        secretAnimationTimer = null;
-      }
-    }
-
     document.addEventListener('keydown', (e) => {
       // Modal navigation
       if (e.key === 'Escape') {
-        if (secretAnimating) {
-          e.preventDefault();
-          stopSecretAnimation();
-        } else {
-          closeModal();
-        }
+        closeModal();
         return;
       }
       if (e.key === 'ArrowLeft') navigateModal(-1);
       if (e.key === 'ArrowRight') navigateModal(1);
 
-      // Secret animations (only when modal is open)
+      // Reset interactive state
       if (!currentModalOutput) return;
 
-      // Shift+F: Toggle fold lines overlay
-      if (e.shiftKey && e.key === 'F') {
+      if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        secretShowFoldLines = !secretShowFoldLines;
-        if (!secretAnimating) {
-          renderWithState(modalCanvas, currentModalOutput, {
-            width: REFERENCE_WIDTH,
-            height: REFERENCE_HEIGHT,
-            showOverlays: secretShowFoldLines,
-          });
-        }
-      }
-
-      // Shift+A: Start full animation
-      if (e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        if (secretAnimating) stopSecretAnimation();
-        startSecretAnimation('full');
-      }
-
-      // Shift+L: Start lines-only animation
-      if (e.shiftKey && e.key === 'L') {
-        e.preventDefault();
-        if (secretAnimating) stopSecretAnimation();
-        startSecretAnimation('lines-only');
+        renderFullSize(currentModalOutput);
       }
     });
 

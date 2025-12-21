@@ -43,6 +43,7 @@ import {
   countToLevelAdaptive,
   // Rendering
   renderToCanvas,
+  renderInteractiveToContainer,
   // RNG
   seededRandom,
   // Font loading
@@ -1568,6 +1569,91 @@ function ASCIICanvas({
   return <canvas ref={canvasRef} />;
 }
 
+// ============ INTERACTIVE ARTWORK COMPONENT ============
+
+function InteractiveArtwork({
+  width,
+  height,
+  folds,
+  seed,
+  bgColor,
+  textColor,
+  accentColor,
+  cellWidth,
+  cellHeight,
+  renderMode = "normal",
+  multiColor = false,
+  levelColors = null,
+  foldStrategy = null,
+  paperProperties = null,
+}) {
+  const containerRef = useRef(null);
+  const cleanupRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Clean up previous instance
+    if (cleanupRef.current) {
+      cleanupRef.current();
+    }
+
+    // Build state object for renderInteractiveToContainer
+    const state = {
+      seed,
+      foldCount: folds,
+      params: {
+        palette: { bg: bgColor, text: textColor, accent: accentColor },
+        cells: { cellW: cellWidth, cellH: cellHeight },
+        renderMode,
+        multiColor,
+        levelColors,
+        foldStrategy,
+        paperProperties,
+      },
+    };
+
+    // Render interactive artwork
+    cleanupRef.current = renderInteractiveToContainer(container, state, {
+      width,
+      height,
+    });
+
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, [
+    width,
+    height,
+    folds,
+    seed,
+    bgColor,
+    textColor,
+    accentColor,
+    cellWidth,
+    cellHeight,
+    renderMode,
+    multiColor,
+    levelColors,
+    foldStrategy,
+    paperProperties,
+  ]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width,
+        height,
+        position: "relative",
+      }}
+    />
+  );
+}
 
 // ============ MAIN COMPONENT ============
 
@@ -1933,8 +2019,8 @@ export default function FoldedPaper() {
               transformOrigin: "top center",
             }}
           >
-            <ASCIICanvas
-              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${colGap}-${rowGap}-${padding}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${paperProperties?.absorbency}-${showCreases}-${showPaperShape}-${showHitCounts}-${showCellOutlines}`}
+            <InteractiveArtwork
+              key={`${folds}-${seed}-${cellWidth}-${cellHeight}-${bgColor}-${textColor}-${accentColor}-${renderMode}-${multiColor}-${foldStrategy?.type}-${paperProperties?.absorbency}`}
               width={width}
               height={height}
               folds={folds}
@@ -1944,25 +2030,11 @@ export default function FoldedPaper() {
               accentColor={accentColor}
               cellWidth={cellWidth}
               cellHeight={cellHeight}
-              colGap={colGap}
-              rowGap={rowGap}
-              padding={padding}
               renderMode={renderMode}
               multiColor={multiColor}
               levelColors={levelColors}
               foldStrategy={foldStrategy}
               paperProperties={paperProperties}
-              showCreases={showCreases}
-              showPaperShape={showPaperShape}
-              showHitCounts={showHitCounts}
-              showCellOutlines={showCellOutlines}
-              onStatsUpdate={(stats) => {
-                setIntersectionCount(stats.intersections);
-                setCreaseCount(stats.creases);
-                setMaxFoldsValue(stats.maxFolds || 0);
-                setFontSizeValue(stats.fontSize || 0);
-                setOverlapInfo(stats.overlapInfo || "");
-              }}
             />
           </div>
         </div>

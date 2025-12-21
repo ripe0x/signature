@@ -223,6 +223,7 @@ function generateFixtures() {
         hasPaperGrain: hasPaperGrain(seedNum),
         hasCreaseLines: hasCreaseLines(seedNum),
         hasHitCounts: hasHitCounts(seedNum),
+        hasAnalyticsMode: hasAnalyticsMode(seedNum),
       },
     });
   }
@@ -247,6 +248,7 @@ function generateFixtures() {
         hasPaperGrain: hasPaperGrain(seedNum),
         hasCreaseLines: hasCreaseLines(seedNum),
         hasHitCounts: hasHitCounts(seedNum),
+        hasAnalyticsMode: hasAnalyticsMode(seedNum),
       },
     });
   }
@@ -312,6 +314,9 @@ function generateSolidityTest(fixtures) {
   lines.push('    }');
   lines.push('    function hasHitCounts(bytes32 seed) external pure returns (bool) {');
   lines.push('        return _hasHitCounts(seed);');
+  lines.push('    }');
+  lines.push('    function hasAnalyticsMode(bytes32 seed) external pure returns (bool) {');
+  lines.push('        return _hasAnalyticsMode(seed);');
   lines.push('    }');
   lines.push('}');
   lines.push('');
@@ -387,6 +392,14 @@ function generateSolidityTest(fixtures) {
   lines.push('    }');
   lines.push('');
 
+  // Generate test for analyticsMode
+  lines.push('    function test_AnalyticsMode() public view {');
+  for (const fixture of fixtures.seeds) {
+    lines.push(`        assertEq(harness.hasAnalyticsMode(${fixture.hex}), ${fixture.traits.hasAnalyticsMode});`);
+  }
+  lines.push('    }');
+  lines.push('');
+
   // Special seeds tests
   if (fixtures.specialSeeds.creaseLines) {
     lines.push('    function test_SpecialSeed_CreaseLines() public view {');
@@ -398,6 +411,13 @@ function generateSolidityTest(fixtures) {
   if (fixtures.specialSeeds.hitCounts) {
     lines.push('    function test_SpecialSeed_HitCounts() public view {');
     lines.push(`        assertTrue(harness.hasHitCounts(${fixtures.specialSeeds.hitCounts}));`);
+    lines.push('    }');
+    lines.push('');
+  }
+
+  if (fixtures.specialSeeds.analyticsMode) {
+    lines.push('    function test_SpecialSeed_AnalyticsMode() public view {');
+    lines.push(`        assertTrue(harness.hasAnalyticsMode(${fixtures.specialSeeds.analyticsMode}));`);
     lines.push('    }');
     lines.push('');
   }
