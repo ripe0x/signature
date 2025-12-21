@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
-import { CONTRACTS, LESS_NFT_ABI, CHAIN_ID } from '@/lib/contracts';
+import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, CHAIN_ID } from '@/lib/contracts';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 
 export interface MintWindowState {
@@ -42,6 +42,7 @@ export function useMintWindow() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [mintedQuantity, setMintedQuantity] = useState(0);
 
@@ -128,6 +129,17 @@ export function useMintWindow() {
     },
   });
 
+  // Get time until funds can be moved (burn cooldown)
+  const { data: timeUntilFundsMoved } = useReadContract({
+    address: CONTRACTS.LESS_STRATEGY,
+    abi: STRATEGY_ABI,
+    functionName: 'timeUntilFundsMoved',
+    query: {
+      enabled: !isWindowActive && !canCreateWindow,
+      refetchInterval: 5000,
+    },
+  });
+
   // Calculate multiplier and next mint price from mintCount (computed client-side)
   const mintCountNum = mintCount ? Number(mintCount) : 0;
   const multiplier = useMemo(() => calculateMultiplier(mintCountNum), [mintCountNum]);
@@ -136,7 +148,7 @@ export function useMintWindow() {
     [basePrice, mintCountNum]
   );
 
-  // Countdown timer
+  // Countdown timer for active window
   useEffect(() => {
     if (timeUntilClose) {
       setTimeRemaining(Number(timeUntilClose));
@@ -148,6 +160,19 @@ export function useMintWindow() {
 
     return () => clearInterval(interval);
   }, [timeUntilClose]);
+
+  // Countdown timer for burn cooldown
+  useEffect(() => {
+    if (timeUntilFundsMoved !== undefined) {
+      setCooldownRemaining(Number(timeUntilFundsMoved));
+    }
+
+    const interval = setInterval(() => {
+      setCooldownRemaining((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeUntilFundsMoved]);
 
   // Mint transaction
   const {
@@ -220,6 +245,7 @@ export function useMintWindow() {
     isActive: !!isWindowActive,
     windowId: windowCount ? Number(windowCount) : 0,
     timeRemaining,
+    cooldownRemaining,
     basePrice: basePrice ?? BigInt(0),
     isPriceLoading,
     nextMintPrice: nextMintPrice || basePrice || BigInt(0),

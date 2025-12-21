@@ -318,6 +318,7 @@ export function MintWindow() {
     isActive,
     windowId,
     timeRemaining,
+    cooldownRemaining,
     basePrice,
     isPriceLoading,
     totalCost,
@@ -593,12 +594,21 @@ export function MintWindow() {
     );
   }
 
-  // STATE 3: Window closed and threshold not met
+  // STATE 3: Window closed and threshold not met (or cooldown in progress)
   return (
     <div className="space-y-12">
       <div className="text-center space-y-4">
         <h1 className="text-3xl">mint LESS</h1>
-        <p className="text-muted">no active window</p>
+        {cooldownRemaining > 0 ? (
+          <p className="text-muted">
+            next window available in{" "}
+            <span className="text-foreground font-mono">
+              {formatCountdown(cooldownRemaining)}
+            </span>
+          </p>
+        ) : (
+          <p className="text-muted">no active window</p>
+        )}
       </div>
 
       {/* How it works */}
