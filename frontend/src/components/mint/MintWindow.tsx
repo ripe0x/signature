@@ -424,6 +424,7 @@ export function MintWindow() {
                 isConnected={isConnected}
                 onMint={handleMint}
               />
+              <p className="text-xs text-muted text-center">ETH MAINNET</p>
 
               {mintError && (
                 <div className="p-4 bg-red-50 border border-red-200 text-sm">
