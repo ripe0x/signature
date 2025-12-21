@@ -380,7 +380,7 @@ export function MintWindow() {
         <div className="text-center space-y-2">
           <CountdownTimer
             seconds={timeRemaining}
-            label={`window #${windowId} closes in`}
+            label={`window ${windowId} closes in`}
           />
           {/* <p className="text-sm text-muted">{mintsThisWindow} minted</p> */}
         </div>
