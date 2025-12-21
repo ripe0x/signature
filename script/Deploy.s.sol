@@ -49,11 +49,6 @@ contract Deploy is Script {
     uint256 constant SEPOLIA_CHAIN_ID = 11155111;
     uint256 constant LOCAL_CHAIN_ID = 31337;
 
-    // Helper to create versioned script name using block timestamp
-    function versionedScriptName(string memory base) internal view returns (string memory) {
-        return string.concat(base, "-v", vm.toString(block.timestamp));
-    }
-
     // ============ State ============
 
     NetworkConfig public config;
@@ -161,7 +156,7 @@ contract Deploy is Script {
                 mintPrice: 0.001 ether,
                 payoutRecipient: deployer,
                 owner: deployer,
-                scriptName: versionedScriptName(vm.envOr("SCRIPT_NAME", string("less-sepolia"))),
+                scriptName: vm.envOr("SCRIPT_NAME", string("less-sepolia")),
                 baseImageURL: baseImageURL,
                 collectionName: "LESS",
                 description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",
@@ -190,7 +185,7 @@ contract Deploy is Script {
                 mintPrice: 0.001 ether,
                 payoutRecipient: deployer,
                 owner: deployer,
-                scriptName: versionedScriptName(vm.envOr("SCRIPT_NAME", string("less-local"))),
+                scriptName: vm.envOr("SCRIPT_NAME", string("less-local")),
                 baseImageURL: baseImageURL,
                 collectionName: "LESS",
                 description: "LESS is a networked generative artwork about subtraction. what remains when a system keeps taking things away.",

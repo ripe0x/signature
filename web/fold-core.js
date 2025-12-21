@@ -4728,12 +4728,14 @@ function onInteractiveTextInput(e) {
 
   // Move cursor forward
   const newIndex = Math.min(cursorIndex + typed.length, textBuffer.length - 1);
-  if (newIndex !== cursorIndex) {
+  const cursorMoved = newIndex !== cursorIndex;
+  if (cursorMoved) {
     _interactiveState.cursorIndex = newIndex;
   }
 
   // Redraw canvas with edits
-  if (redrawCanvas) redrawCanvas(true);
+  // If cursor can't move (last/only cell), show the typed char by not skipping editing cell
+  if (redrawCanvas) redrawCanvas(cursorMoved);
   updateInteractiveCursor();
 
   hiddenInput.value = "";
@@ -4764,22 +4766,22 @@ function onInteractiveTextKeyDown(e) {
       if (redrawCanvas) redrawCanvas(true);
       updateInteractiveCursor();
     }
-  } else if (e.key === "Backspace") {
+  } else if (e.key === "Backspace" || e.key === "Delete") {
     e.preventDefault();
-    // Restore original char at current position and move back
     const entry = textBuffer[cursorIndex];
-    entry.char = entry.originalChar;
-    if (cursorIndex > 0) {
+    if (entry.char !== entry.originalChar && entry.char.trim() !== "") {
+      // Typed char exists - restore original unicode
+      entry.char = entry.originalChar;
+    } else {
+      // Original char or already empty - clear the cell
+      entry.char = " ";
+    }
+    // Move to previous cell on Backspace
+    if (e.key === "Backspace" && cursorIndex > 0) {
       _interactiveState.cursorIndex = cursorIndex - 1;
     }
     if (redrawCanvas) redrawCanvas(true);
     updateInteractiveCursor();
-  } else if (e.key === "Delete") {
-    e.preventDefault();
-    // Restore original char at current position, stay in place
-    const entry = textBuffer[cursorIndex];
-    entry.char = entry.originalChar;
-    if (redrawCanvas) redrawCanvas(true);
   }
 }
 

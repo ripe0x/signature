@@ -677,11 +677,21 @@ ${c.bright}╔══════════════════════
   }
 
   // Display configuration
+  // Generate versioned script name to avoid conflicts across deploys
+  // This ensures upload and deploy use the same name
+  if (!env.SCRIPT_NAME?.includes("-v")) {
+    const baseScriptName = env.SCRIPT_NAME || (network.useMockLess ? `less-${networkName}` : "less");
+    const versionedName = `${baseScriptName}-v${Math.floor(Date.now() / 1000)}`;
+    env.SCRIPT_NAME = versionedName;
+    process.env.SCRIPT_NAME = versionedName; // Pass to forge
+  }
+
   log(`Network:     ${networkName}`, "gray");
   log(`Chain ID:    ${network.chainId}`, "gray");
   log(`Deployer:    ${deployerAddress}`, "gray");
   log(`Balance:     ${balance.toFixed(4)} ETH`, balance < 0.1 ? "yellow" : "gray");
   log(`Mock Mode:   ${network.useMockLess}`, "gray");
+  log(`Script:      ${env.SCRIPT_NAME}`, "gray");
   log(`Verify:      ${network.verify && !skipVerify}`, "gray");
   log("");
 

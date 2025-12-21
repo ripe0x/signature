@@ -8,7 +8,7 @@ primary_region = "iad"
   NODE_ENV = "production"
   CACHE_ENABLED = "true"
   CHAIN = "sepolia"
-  CONTRACT_ADDRESS = "0x13Cc4c32899c1877F43e891F02935eaE2A0419a7"
+  CONTRACT_ADDRESS = "0x0FCdC1761F85015363A46F8f503900D686Db23A2"
   # RPC_URL must be set as a secret: fly secrets set RPC_URL="https://..."
 
 [http_service]
