@@ -91,10 +91,7 @@ function PreLaunchCollection() {
               {SAMPLE_SEEDS.map((seed, index) => (
                 <div key={seed} className="group">
                   <div className="relative aspect-[1/1.414] overflow-hidden bg-background">
-                    <ArtworkCanvas
-                      seed={seed}
-                      className="w-full h-full"
-                    />
+                    <ArtworkCanvas seed={seed} className="w-full h-full" />
                     <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
                   </div>
                   <div className="mt-3 flex items-center justify-between text-sm">
@@ -187,10 +184,10 @@ function LiveCollection() {
                 {/* Window header */}
                 <div className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border">
                   <h2 className="text-lg">window {group.windowId}</h2>
-                  <span className="text-sm text-muted">
+                  {/* <span className="text-sm text-muted">
                     {group.tokens.length} piece
                     {group.tokens.length !== 1 ? "s" : ""}
-                  </span>
+                  </span> */}
                 </div>
 
                 {/* Tokens grid */}
