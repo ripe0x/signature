@@ -985,7 +985,8 @@ export function shiftTowardWebSafe(hexColor, direction, steps) {
 // Considers contrast with the anchor color to ensure readability
 export function deriveWebSafeColor(seed, cgaColor, anchorColor, role) {
   // Different offset per role to decorrelate
-  const roleOffset = role === "background" ? 11111 : role === "text" ? 22222 : 33333;
+  const roleOffset =
+    role === "background" ? 11111 : role === "text" ? 22222 : 33333;
   const rng = seededRandom(seed + roleOffset);
 
   const colorLum = getLuminanceFromHex(cgaColor);
@@ -1319,15 +1320,15 @@ export function calculateGridWithGaps(
       return NEGATIVE_RATIOS[Math.floor(gapRng() * NEGATIVE_RATIOS.length)];
     }
     const roll = gapRng();
-    if (roll < 0.40) return 0;           // 40% no gap
-    if (roll < 0.525) return 1 / 64;     // 12.5% tiny
-    if (roll < 0.65) return 1 / 32;      // 12.5% tiny
-    if (roll < 0.75) return 1 / 16;      // 10% small
-    if (roll < 0.85) return 1 / 8;       // 10% small
-    if (roll < 0.90) return 1 / 4;       // 5% medium
-    if (roll < 0.95) return 1 / 2;       // 5% medium
-    if (roll < 0.98) return 1.0;         // 3% large
-    return 2.0;                          // 2% large
+    if (roll < 0.4) return 0; // 40% no gap
+    if (roll < 0.525) return 1 / 64; // 12.5% tiny
+    if (roll < 0.65) return 1 / 32; // 12.5% tiny
+    if (roll < 0.75) return 1 / 16; // 10% small
+    if (roll < 0.85) return 1 / 8; // 10% small
+    if (roll < 0.9) return 1 / 4; // 5% medium
+    if (roll < 0.95) return 1 / 2; // 5% medium
+    if (roll < 0.98) return 1.0; // 3% large
+    return 2.0; // 2% large
   };
 
   let refCellWidth = cellWidth;
@@ -1337,7 +1338,10 @@ export function calculateGridWithGaps(
   const colGapRatio = useColGaps ? pickWeightedGapRatio(forceNegativeCol) : 0;
   const colGapCalc = refCellWidth * colGapRatio;
   const colStride = refCellWidth + colGapCalc;
-  let bestCols = colStride > 0 ? Math.max(1, Math.floor((innerWidth + colGapCalc) / colStride)) : 1;
+  let bestCols =
+    colStride > 0
+      ? Math.max(1, Math.floor((innerWidth + colGapCalc) / colStride))
+      : 1;
   let bestColGap = bestCols > 1 ? colGapCalc : 0;
 
   // Handle single column case
@@ -1350,7 +1354,10 @@ export function calculateGridWithGaps(
   const rowGapRatio = useRowGaps ? pickWeightedGapRatio(forceNegativeRow) : 0;
   const rowGapCalc = refCellHeight * rowGapRatio;
   const rowStride = refCellHeight + rowGapCalc;
-  let bestRows = rowStride > 0 ? Math.max(1, Math.floor((innerHeight + rowGapCalc) / rowStride)) : 1;
+  let bestRows =
+    rowStride > 0
+      ? Math.max(1, Math.floor((innerHeight + rowGapCalc) / rowStride))
+      : 1;
   let bestRowGap = bestRows > 1 ? rowGapCalc : 0;
 
   // Handle single row case
@@ -1504,7 +1511,7 @@ export function generateOverlapParams(seed, cols, renderMode) {
     randomDiagSelection.push(overlapRng() < diagSelectionProb);
   }
   const checkerboardRandomMode = Math.floor(overlapRng() * 2);
-  const invertedSingleCharOnEmpty = overlapRng() < 0.10;
+  const invertedSingleCharOnEmpty = overlapRng() < 0.1;
 
   // Function to get overlap factor for a cell
   const getOverlapFactor = (row, col) => {
@@ -1514,27 +1521,35 @@ export function generateOverlapParams(seed, cols, renderMode) {
     switch (overlapPatternType) {
       case 1: // row-based
         if (overlapSubPattern === 1) {
-          if (randomRowSelection[row % 20]) idx = (idx + overlapVariation) % overlapIntervals.length;
+          if (randomRowSelection[row % 20])
+            idx = (idx + overlapVariation) % overlapIntervals.length;
         } else if (overlapSubPattern === 2) {
           idx = (idx + (row % 3) * overlapVariation) % overlapIntervals.length;
         } else {
-          idx = (idx + Math.floor(row / overlapInterval) * overlapVariation) % overlapIntervals.length;
+          idx =
+            (idx + Math.floor(row / overlapInterval) * overlapVariation) %
+            overlapIntervals.length;
         }
         break;
       case 2: // col-based
         if (overlapSubPattern === 1) {
-          if (randomColSelection[col % 20]) idx = (idx + overlapVariation) % overlapIntervals.length;
+          if (randomColSelection[col % 20])
+            idx = (idx + overlapVariation) % overlapIntervals.length;
         } else if (overlapSubPattern === 2) {
           idx = (idx + (col % 3) * overlapVariation) % overlapIntervals.length;
         } else {
-          idx = (idx + Math.floor(col / overlapInterval) * overlapVariation) % overlapIntervals.length;
+          idx =
+            (idx + Math.floor(col / overlapInterval) * overlapVariation) %
+            overlapIntervals.length;
         }
         break;
       case 3: // checkerboard
         if (overlapSubPattern === 1) {
           const rowSel = randomRowSelection[row % 20];
           const colSel = randomColSelection[col % 20];
-          if (checkerboardRandomMode === 0 ? (rowSel || colSel) : (rowSel !== colSel)) {
+          if (
+            checkerboardRandomMode === 0 ? rowSel || colSel : rowSel !== colSel
+          ) {
             idx = (idx + overlapVariation) % overlapIntervals.length;
           }
         } else {
@@ -1545,10 +1560,13 @@ export function generateOverlapParams(seed, cols, renderMode) {
         break;
       case 4: // diagonal
         if (overlapSubPattern === 1) {
-          if (randomDiagSelection[(row + col) % 20]) idx = (idx + overlapVariation) % overlapIntervals.length;
+          if (randomDiagSelection[(row + col) % 20])
+            idx = (idx + overlapVariation) % overlapIntervals.length;
         } else {
-          const diagIdx = (row + col) % (overlapSubPattern === 2 ? 5 : overlapInterval + 1);
-          if (diagIdx === 0) idx = (idx + overlapVariation) % overlapIntervals.length;
+          const diagIdx =
+            (row + col) % (overlapSubPattern === 2 ? 5 : overlapInterval + 1);
+          if (diagIdx === 0)
+            idx = (idx + overlapVariation) % overlapIntervals.length;
         }
         break;
     }
@@ -1565,7 +1583,9 @@ export function generateOverlapParams(seed, cols, renderMode) {
       return isOddRow !== alternateStartsRtl ? "rtl" : "ltr";
     }
     if (drawDirectionMode === "diagonal") {
-      const seamCol = (diagonalStartCol + (diagonalShiftRight ? row : -row) + cols * 100) % cols;
+      const seamCol =
+        (diagonalStartCol + (diagonalShiftRight ? row : -row) + cols * 100) %
+        cols;
       return col < seamCol ? "ltr" : "rtl";
     }
     if (drawDirectionMode === "randomMid") {
@@ -2829,6 +2849,31 @@ export function processCreases(
 
 // ============ CANVAS RENDERING ============
 
+// Shared helper to draw background texture matching ░ (light shade ~25% coverage)
+function drawBackgroundTexture(ctx, width, height, scaleX, textColor) {
+  const tileCanvas = document.createElement("canvas");
+  const tileCtx = tileCanvas.getContext("2d");
+
+  // ░ pattern: 2x2 checkerboard where gap size = dot size
+  const pixelSize = Math.max(1, Math.round(scaleX * 2));
+  const tileSize = pixelSize * 2;
+
+  tileCanvas.width = tileSize;
+  tileCanvas.height = tileSize;
+
+  // Draw checkerboard: dots at (0,0) and (1,1)
+  tileCtx.fillStyle = textColor;
+  tileCtx.fillRect(0, 0, pixelSize, pixelSize);
+  tileCtx.fillRect(pixelSize, pixelSize, pixelSize, pixelSize);
+
+  // Use pattern to fill
+  ctx.globalAlpha = 0.05;
+  const pattern = ctx.createPattern(tileCanvas, "repeat");
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalAlpha = 1.0;
+}
+
 export function renderToCanvas({
   folds,
   seed,
@@ -2858,6 +2903,7 @@ export function renderToCanvas({
   linesOnlyMode = false,
   analyticsMode = false,
   skipCells = null, // Set of "col,row" keys to skip rendering
+  skipBackground = false, // Skip background fill and texture (for transparent overlay)
 }) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -2867,35 +2913,19 @@ export function renderToCanvas({
   canvas.height = outputHeight * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, outputWidth, outputHeight);
-
   const scaleX = outputWidth / REFERENCE_WIDTH;
   const scaleY = outputHeight / REFERENCE_HEIGHT;
+
+  // Background fill and texture (skip if rendering transparent overlay)
+  if (!skipBackground) {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, outputWidth, outputHeight);
+    drawBackgroundTexture(ctx, outputWidth, outputHeight, scaleX, textColor);
+  }
 
   // Calculate inner dimensions accounting for padding and drawing margin
   const refInnerWidth = REFERENCE_WIDTH - padding * 2 - DRAWING_MARGIN * 2;
   const refInnerHeight = REFERENCE_HEIGHT - padding * 2 - DRAWING_MARGIN * 2;
-
-  // Add background texture (edge to edge, scales consistently)
-  {
-    // Base size on reference dimensions (15px at 1200px width), then scale
-    const refTextureFontSize = 15;
-    const textureFontSize = refTextureFontSize * scaleX;
-    ctx.font = `${textureFontSize}px ${fontFamily}`;
-    ctx.fillStyle = textColor;
-    ctx.globalAlpha = 0.1;
-    // Use established character dimensions for perfect tiling
-    const charWidth = textureFontSize * CHAR_WIDTH_RATIO;
-    const charHeight = textureFontSize * 1.13;
-    // Draw edge to edge
-    for (let y = 0; y < outputHeight + charHeight; y += charHeight) {
-      for (let x = 0; x < outputWidth + charWidth; x += charWidth) {
-        ctx.fillText("░", x, y + charHeight);
-      }
-    }
-    ctx.globalAlpha = 1.0;
-  }
 
   // Use gap calculation for grid layout
   const grid = calculateGridWithGaps(
@@ -3026,7 +3056,13 @@ export function renderToCanvas({
 
   // Use shared overlap/direction parameters (same as extractCharacterData)
   const overlapParams = generateOverlapParams(seed, cols, renderMode);
-  const { cellOverflowAmount, drawDirectionMode, invertedSingleCharOnEmpty, getOverlapFactor, getCellDirection } = overlapParams;
+  const {
+    cellOverflowAmount,
+    drawDirectionMode,
+    invertedSingleCharOnEmpty,
+    getOverlapFactor,
+    getCellDirection,
+  } = overlapParams;
 
   const getColorForLevel = (level, cellKey) => {
     // Use level colors if available (from gradient mode or multi-color mode)
@@ -3066,8 +3102,7 @@ export function renderToCanvas({
     );
     // Pick deterministically based on seed
     const pickIdx = Math.floor(shadowRng() * candidates.length);
-    const picked =
-      candidates.length > 0 ? candidates[pickIdx] : CGA_PALETTE[0];
+    const picked = candidates.length > 0 ? candidates[pickIdx] : CGA_PALETTE[0];
     return picked.hex;
   };
   const shadowColor = hasShadowEffect ? getShadowColor() : null;
@@ -3392,11 +3427,14 @@ export function renderToCanvas({
           // Get pattern-based overlap factor for this cell
           // Non-inverted weight=0: no overlap but allow multiple chars (fill cell evenly)
           // Inverted weight=0 (10%): single char only (barcode look)
-          const noOverlap = isEmptyCell || (weight === 0 && renderMode !== "inverted");
-          const singleCharOnly = renderMode === "inverted" && weight === 0 && invertedSingleCharOnEmpty;
-          const cellOverlapFactor = (noOverlap || singleCharOnly)
-            ? 1.0
-            : getOverlapFactor(row, col);
+          const noOverlap =
+            isEmptyCell || (weight === 0 && renderMode !== "inverted");
+          const singleCharOnly =
+            renderMode === "inverted" &&
+            weight === 0 &&
+            invertedSingleCharOnEmpty;
+          const cellOverlapFactor =
+            noOverlap || singleCharOnly ? 1.0 : getOverlapFactor(row, col);
 
           // Calculate step based on overlap factor (1.0 = no overlap, 0.5 = 50% overlap)
           const effectiveStep = charWidth * cellOverlapFactor;
@@ -3425,7 +3463,9 @@ export function renderToCanvas({
           // Calculate max overflow distance based on cellOverflowAmount
           // Skip overflow for empty cells and single-char mode
           const skipOverflow = isEmptyCell || singleCharOnly;
-          const overflowDistance = skipOverflow ? 0 : cellOverflowAmount * actualCellWidth;
+          const overflowDistance = skipOverflow
+            ? 0
+            : cellOverflowAmount * actualCellWidth;
 
           // Calculate overflow chars based on direction
           // Base cell is always filled; overflow extends in the specified direction
@@ -4167,15 +4207,27 @@ export function extractCharacterData(state, outputWidth, outputHeight) {
 
   let firstFoldTargetCell = null;
   if (firstFoldTarget) {
-    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX)));
-    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY)));
+    const targetCol = Math.max(
+      0,
+      Math.min(cols - 1, Math.floor(firstFoldTarget.x / strideX))
+    );
+    const targetRow = Math.max(
+      0,
+      Math.min(rows - 1, Math.floor(firstFoldTarget.y / strideY))
+    );
     firstFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
   let lastFoldTargetCell = null;
   if (lastFoldTarget) {
-    const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX)));
-    const targetRow = Math.max(0, Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY)));
+    const targetCol = Math.max(
+      0,
+      Math.min(cols - 1, Math.floor(lastFoldTarget.x / strideX))
+    );
+    const targetRow = Math.max(
+      0,
+      Math.min(rows - 1, Math.floor(lastFoldTarget.y / strideY))
+    );
     lastFoldTargetCell = `${targetCol},${targetRow}`;
   }
 
@@ -4217,7 +4269,12 @@ export function extractCharacterData(state, outputWidth, outputHeight) {
 
   // Get overlap/direction params (same as renderToCanvas)
   const overlapParams = generateOverlapParams(seed, cols, renderMode);
-  const { cellOverflowAmount, invertedSingleCharOnEmpty, getOverlapFactor, getCellDirection } = overlapParams;
+  const {
+    cellOverflowAmount,
+    invertedSingleCharOnEmpty,
+    getOverlapFactor,
+    getCellDirection,
+  } = overlapParams;
 
   // Calculate draw area boundaries (scaled from reference)
   const drawAreaLeft = DRAWING_MARGIN * scaleX;
@@ -4267,7 +4324,10 @@ export function extractCharacterData(state, outputWidth, outputHeight) {
           if (accentCells.has(key)) color = accentColor;
         }
       } else if (renderMode === "inverted") {
-        level = Math.min(3 - countToLevelAdaptive(weight, thresholds), maxShadeLevel);
+        level = Math.min(
+          3 - countToLevelAdaptive(weight, thresholds),
+          maxShadeLevel
+        );
         char = shadeChars[level];
         color = getColorForLevel(level, key);
         if (accentCells.has(key) && weight > 0) color = accentColor;
@@ -4303,16 +4363,26 @@ export function extractCharacterData(state, outputWidth, outputHeight) {
 
       // Calculate how many characters to fill the cell (for visual display)
       // This matches the overlap logic in renderToCanvas
-      const noOverlap = isEmptyCell || (weight === 0 && renderMode !== "inverted");
-      const singleCharOnly = renderMode === "inverted" && weight === 0 && invertedSingleCharOnEmpty;
-      const cellOverlapFactor = (noOverlap || singleCharOnly) ? 1.0 : getOverlapFactor(row, col);
+      const noOverlap =
+        isEmptyCell || (weight === 0 && renderMode !== "inverted");
+      const singleCharOnly =
+        renderMode === "inverted" && weight === 0 && invertedSingleCharOnEmpty;
+      const cellOverlapFactor =
+        noOverlap || singleCharOnly ? 1.0 : getOverlapFactor(row, col);
 
       const effectiveStep = charWidth * cellOverlapFactor;
-      const charsWithStep = Math.max(1, Math.floor((effectiveCellWidth - charWidth) / effectiveStep) + 1);
+      const charsWithStep = Math.max(
+        1,
+        Math.floor((effectiveCellWidth - charWidth) / effectiveStep) + 1
+      );
       const coveredWidth = (charsWithStep - 1) * effectiveStep + charWidth;
       const remainingGap = effectiveCellWidth - coveredWidth;
       const gapRatio = remainingGap / charWidth;
-      const numCharsInCell = singleCharOnly ? 1 : (gapRatio > 0.3 ? charsWithStep + 1 : charsWithStep);
+      const numCharsInCell = singleCharOnly
+        ? 1
+        : gapRatio > 0.3
+        ? charsWithStep + 1
+        : charsWithStep;
 
       // Build the display string (multiple chars to fill cell visually)
       // Note: overflow is handled by CSS overflow on the cell
@@ -4517,17 +4587,16 @@ let _interactiveState = {
   charLayer: null,
   loading: null,
   // For canvas-based rendering
-  state: null,  // { seed, foldCount, params }
+  state: null, // { seed, foldCount, params }
   renderWidth: 0,
   renderHeight: 0,
-  redrawCanvas: null,  // Function to redraw canvas
+  redrawCanvas: null, // Function to redraw canvas
 };
 
 // CSS for interactive mode
 const INTERACTIVE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4608,14 +4677,16 @@ function createInteractiveDOM() {
   const container = document.createElement("div");
   container.className = "fold-container";
   container.id = "fold-container";
-  container.style.cssText = "position:relative;width:min(100vw,calc(100vh*1200/1697));height:min(100vh,calc(100vw*1697/1200))";
+  container.style.cssText =
+    "position:relative;width:min(100vw,calc(100vh*1200/1697));height:min(100vh,calc(100vw*1697/1200))";
 
   // Create loading screen with centered ▒ character (inline styles for immediate rendering)
   const loading = document.createElement("div");
   loading.className = "fold-loading";
   loading.id = "fold-loading";
   loading.textContent = "▒";
-  loading.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;z-index:100;display:flex;align-items:center;justify-content:center;font-family:Courier New,monospace;font-size:24px;color:#000";
+  loading.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;z-index:100;display:flex;align-items:center;justify-content:center;font-family:Courier New,monospace;font-size:24px;color:#000";
 
   const bgCanvas = document.createElement("canvas");
   bgCanvas.className = "fold-bg";
@@ -4640,7 +4711,8 @@ function createInteractiveDOM() {
 
 // Text input handler
 function onInteractiveTextInput(e) {
-  const { isEditing, cursorIndex, textBuffer, hiddenInput, redrawCanvas } = _interactiveState;
+  const { isEditing, cursorIndex, textBuffer, hiddenInput, redrawCanvas } =
+    _interactiveState;
   if (!isEditing || cursorIndex < 0) return;
 
   const typed = e.data;
@@ -4669,7 +4741,8 @@ function onInteractiveTextInput(e) {
 
 // Text key handler
 function onInteractiveTextKeyDown(e) {
-  const { isEditing, cursorIndex, textBuffer, redrawCanvas } = _interactiveState;
+  const { isEditing, cursorIndex, textBuffer, redrawCanvas } =
+    _interactiveState;
   if (!isEditing) return;
 
   if (e.key === "Escape") {
@@ -4713,7 +4786,10 @@ function onInteractiveTextKeyDown(e) {
 // Text blur handler
 function onInteractiveTextBlur() {
   setTimeout(() => {
-    if (_interactiveState.hiddenInput && !_interactiveState.hiddenInput.matches(":focus")) {
+    if (
+      _interactiveState.hiddenInput &&
+      !_interactiveState.hiddenInput.matches(":focus")
+    ) {
       stopInteractiveEditing();
     }
   }, 100);
@@ -4721,16 +4797,17 @@ function onInteractiveTextBlur() {
 
 // Update cursor highlight
 function updateInteractiveCursor() {
-  const { charElements, cursorIndex, hiddenInput, textBuffer } = _interactiveState;
+  const { charElements, cursorIndex, hiddenInput, textBuffer } =
+    _interactiveState;
   charElements.forEach((el) => {
     el.classList.remove("editing");
-    el.style.color = "";  // Clear any color set for cursor
+    el.style.color = ""; // Clear any color set for cursor
   });
 
   if (cursorIndex >= 0 && cursorIndex < charElements.length) {
     const entry = textBuffer[cursorIndex];
     if (entry) {
-      entry.el.style.color = entry.color;  // Set color for CSS cursor
+      entry.el.style.color = entry.color; // Set color for CSS cursor
     }
     charElements[cursorIndex].classList.add("editing");
     if (hiddenInput) {
@@ -4779,9 +4856,13 @@ function stopInteractiveEditing() {
 // Initialize drag handlers
 function initInteractiveDragHandlers(charLayer) {
   charLayer.addEventListener("mousedown", onInteractiveMouseDown);
-  charLayer.addEventListener("touchstart", onInteractiveTouchStart, { passive: false });
+  charLayer.addEventListener("touchstart", onInteractiveTouchStart, {
+    passive: false,
+  });
   document.addEventListener("mousemove", onInteractiveMouseMove);
-  document.addEventListener("touchmove", onInteractiveTouchMove, { passive: false });
+  document.addEventListener("touchmove", onInteractiveTouchMove, {
+    passive: false,
+  });
   document.addEventListener("mouseup", onInteractiveMouseUp);
   document.addEventListener("touchend", onInteractiveTouchEnd);
   charLayer.addEventListener("dblclick", onInteractiveDoubleClick);
@@ -4862,7 +4943,8 @@ function onInteractiveDoubleClick(e) {
 
 // Download PNG of current state
 function downloadInteractivePNG(seed) {
-  const { state, renderWidth, renderHeight, textBuffer, container } = _interactiveState;
+  const { state, renderWidth, renderHeight, textBuffer, container } =
+    _interactiveState;
   if (!state || !container) return;
 
   const width = renderWidth;
@@ -4928,13 +5010,21 @@ function downloadInteractivePNG(seed) {
 // Reset positions and text
 function resetInteractive() {
   stopInteractiveEditing();
-  const { charElements, textBuffer, originalPositions, redrawCanvas } = _interactiveState;
+  const {
+    charElements,
+    textBuffer,
+    originalPositions,
+    redrawCanvas,
+    offsetX = 0,
+    offsetY = 0,
+  } = _interactiveState;
   for (let i = 0; i < charElements.length; i++) {
     const el = charElements[i];
     const original = originalPositions.get(i);
     if (original) {
-      el.style.left = original.x + "px";
-      el.style.top = original.y + "px";
+      // Position includes offset for centered artwork
+      el.style.left = original.x + offsetX + "px";
+      el.style.top = original.y + offsetY + "px";
       if (textBuffer[i]) {
         textBuffer[i].char = original.editChar;
         textBuffer[i].x = original.x;
@@ -4970,32 +5060,64 @@ function initInteractiveKeyboardShortcuts(seed) {
 }
 
 // Main interactive render function - uses renderToCanvas for pixel-perfect match
-function renderInteractive(state, width, height) {
+function renderInteractive(state, containerWidth, containerHeight) {
   const { bgCanvas, charLayer } = _interactiveState;
   const { seed, params } = state;
 
+  // Calculate A4 dimensions that fit within container (for fold marks)
+  const a4Ratio = REFERENCE_WIDTH / REFERENCE_HEIGHT; // ~0.707
+  let artworkWidth, artworkHeight;
+  if (containerWidth / containerHeight > a4Ratio) {
+    // Container is wider than A4 - fit to height
+    artworkHeight = containerHeight;
+    artworkWidth = Math.floor(artworkHeight * a4Ratio);
+  } else {
+    // Container is taller than A4 - fit to width
+    artworkWidth = containerWidth;
+    artworkHeight = Math.floor(artworkWidth / a4Ratio);
+  }
+
   // Store state for re-rendering during edits
   _interactiveState.state = state;
-  _interactiveState.renderWidth = width;
-  _interactiveState.renderHeight = height;
+  _interactiveState.renderWidth = artworkWidth;
+  _interactiveState.renderHeight = artworkHeight;
+  _interactiveState.containerWidth = containerWidth;
+  _interactiveState.containerHeight = containerHeight;
 
   // Helper to redraw canvas (called during editing to update visuals)
   const redrawCanvas = (skipEditingCell = false) => {
     const skipCells = new Set();
     for (let i = 0; i < _interactiveState.textBuffer.length; i++) {
       const entry = _interactiveState.textBuffer[i];
-      const isEditingThisCell = skipEditingCell && i === _interactiveState.cursorIndex;
+      const isEditingThisCell =
+        skipEditingCell && i === _interactiveState.cursorIndex;
       if (isEditingThisCell || entry.char !== entry.originalChar) {
         skipCells.add(`${entry.col},${entry.row}`);
       }
     }
 
-    // Re-render full canvas, skipping edited cells
-    const result = renderToCanvas({
+    const dpr = 2;
+
+    // Set up display canvas at container size
+    bgCanvas.width = containerWidth * dpr;
+    bgCanvas.height = containerHeight * dpr;
+    bgCanvas.style.width = containerWidth + "px";
+    bgCanvas.style.height = containerHeight + "px";
+    const ctx = bgCanvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Pass 1: Draw background + texture at container dimensions
+    ctx.fillStyle = params.palette.bg;
+    ctx.fillRect(0, 0, containerWidth, containerHeight);
+    const scaleX = artworkWidth / REFERENCE_WIDTH;
+    drawBackgroundTexture(ctx, containerWidth, containerHeight, scaleX, params.palette.text);
+
+    // Pass 2: Draw fold marks at A4 dimensions (no background)
+    const artworkResult = renderToCanvas({
       folds: params.folds,
       seed: seed,
-      outputWidth: width,
-      outputHeight: height,
+      outputWidth: artworkWidth,
+      outputHeight: artworkHeight,
       bgColor: params.palette.bg,
       textColor: params.palette.text,
       accentColor: params.palette.accent,
@@ -5010,30 +5132,42 @@ function renderInteractive(state, width, height) {
       showCreaseLines: params.showCreaseLines,
       analyticsMode: params.analyticsMode,
       skipCells: skipCells.size > 0 ? skipCells : null,
+      skipBackground: true,
     });
 
-    // Copy to display canvas
-    bgCanvas.width = result.canvas.width;
-    bgCanvas.height = result.canvas.height;
-    bgCanvas.style.width = width + "px";
-    bgCanvas.style.height = height + "px";
-    const ctx = bgCanvas.getContext("2d");
-    ctx.drawImage(result.canvas, 0, 0);
+    // Center the A4 artwork on the container
+    const offsetX = (containerWidth - artworkWidth) / 2;
+    const offsetY = (containerHeight - artworkHeight) / 2;
+    ctx.drawImage(
+      artworkResult.canvas,
+      0,
+      0,
+      artworkResult.canvas.width,
+      artworkResult.canvas.height,
+      offsetX,
+      offsetY,
+      artworkWidth,
+      artworkHeight
+    );
 
     // Draw edited cells with single characters (not the editing cell)
-    const canvasScale = result.canvas.width / width;
+    // Note: ctx already has transform applied (dpr scaling), so use unscaled coordinates
     for (let i = 0; i < _interactiveState.textBuffer.length; i++) {
       const entry = _interactiveState.textBuffer[i];
-      const isEditingThisCell = skipEditingCell && i === _interactiveState.cursorIndex;
+      const isEditingThisCell =
+        skipEditingCell && i === _interactiveState.cursorIndex;
 
-      if (!isEditingThisCell && entry.char !== entry.originalChar && entry.char.trim() !== "") {
-        const scaledFontSize = entry.fontSize * canvasScale;
-        ctx.font = `${scaledFontSize}px ${FONT_STACK}`;
+      if (
+        !isEditingThisCell &&
+        entry.char !== entry.originalChar &&
+        entry.char.trim() !== ""
+      ) {
+        ctx.font = `${entry.fontSize}px ${FONT_STACK}`;
         ctx.fillStyle = entry.color;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const centerX = (entry.x + entry.width / 2) * canvasScale;
-        const centerY = (entry.y + entry.height / 2) * canvasScale;
+        const centerX = offsetX + entry.x + entry.width / 2;
+        const centerY = offsetY + entry.y + entry.height / 2;
         ctx.fillText(entry.char, centerX, centerY);
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
@@ -5047,8 +5181,14 @@ function renderInteractive(state, width, height) {
   // Initial render using renderToCanvas
   redrawCanvas(false);
 
-  // Extract character data for interaction layer
-  const charData = extractCharacterData(state, width, height);
+  // Calculate offset for centered A4 artwork
+  const offsetX = (containerWidth - artworkWidth) / 2;
+  const offsetY = (containerHeight - artworkHeight) / 2;
+  _interactiveState.offsetX = offsetX;
+  _interactiveState.offsetY = offsetY;
+
+  // Extract character data for interaction layer (at A4 dimensions)
+  const charData = extractCharacterData(state, artworkWidth, artworkHeight);
   _interactiveState.charData = charData;
 
   // Create invisible click targets
@@ -5064,15 +5204,20 @@ function renderInteractiveClickTargets(charLayer, characters) {
   _interactiveState.textBuffer = [];
   _interactiveState.hiddenInput = null;
 
+  // Get offset for centered artwork
+  const offsetX = _interactiveState.offsetX || 0;
+  const offsetY = _interactiveState.offsetY || 0;
+
   for (let i = 0; i < characters.length; i++) {
     const c = characters[i];
     const el = document.createElement("div");
     el.className = "fold-char";
     el.dataset.index = i;
+    // Position click targets with offset for centered artwork
     el.style.cssText = `
       position: absolute;
-      left: ${c.x}px;
-      top: ${c.y}px;
+      left: ${c.x + offsetX}px;
+      top: ${c.y + offsetY}px;
       width: ${c.width}px;
       height: ${c.height}px;
       user-select: none;
@@ -5083,7 +5228,14 @@ function renderInteractiveClickTargets(charLayer, characters) {
     const editChar = c.editChar || c.char.charAt(0);
     const numChars = c.numChars || c.char.length;
 
-    _interactiveState.originalPositions.set(i, { x: c.x, y: c.y, char: c.char, editChar, numChars });
+    // Store artwork-relative coordinates (offset is added when drawing)
+    _interactiveState.originalPositions.set(i, {
+      x: c.x,
+      y: c.y,
+      char: c.char,
+      editChar,
+      numChars,
+    });
     _interactiveState.textBuffer.push({
       char: editChar,
       originalChar: editChar,
@@ -5109,7 +5261,8 @@ function renderInteractiveClickTargets(charLayer, characters) {
   // Create hidden input for text capture
   const hiddenInput = document.createElement("input");
   hiddenInput.type = "text";
-  hiddenInput.style.cssText = "position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;";
+  hiddenInput.style.cssText =
+    "position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;";
   hiddenInput.addEventListener("input", onInteractiveTextInput);
   hiddenInput.addEventListener("keydown", onInteractiveTextKeyDown);
   hiddenInput.addEventListener("blur", onInteractiveTextBlur);
@@ -5267,7 +5420,9 @@ export function renderInteractiveToContainer(container, state, options = {}) {
     height: ${renderHeight}px;
     overflow: hidden;
     transform-origin: top left;
-    transform: scale(${rect.width / renderWidth}, ${rect.height / renderHeight});
+    transform: scale(${rect.width / renderWidth}, ${
+    rect.height / renderHeight
+  });
   `;
   container.appendChild(charLayer);
 
@@ -5400,7 +5555,11 @@ export function renderInteractiveToContainer(container, state, options = {}) {
       const entry = localState.textBuffer[i];
       const isEditingThisCell = skipEditingCell && i === localState.cursorIndex;
 
-      if (!isEditingThisCell && entry.char !== entry.originalChar && entry.char.trim() !== "") {
+      if (
+        !isEditingThisCell &&
+        entry.char !== entry.originalChar &&
+        entry.char.trim() !== ""
+      ) {
         const scaledFontSize = entry.fontSize * canvasScale;
         canvasCtx.font = `${scaledFontSize}px ${FONT_STACK}`;
         canvasCtx.fillStyle = entry.color;
@@ -5445,7 +5604,10 @@ export function renderInteractiveToContainer(container, state, options = {}) {
 
   // Helper functions
   const restoreCurrentCell = () => {
-    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.textBuffer.length) {
+    if (
+      localState.cursorIndex >= 0 &&
+      localState.cursorIndex < localState.textBuffer.length
+    ) {
       const entry = localState.textBuffer[localState.cursorIndex];
       hideElement(entry);
       entry.el.classList.remove("editing");
@@ -5459,7 +5621,10 @@ export function renderInteractiveToContainer(container, state, options = {}) {
       el.classList.remove("editing");
       el.style.color = "";
     });
-    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.charElements.length) {
+    if (
+      localState.cursorIndex >= 0 &&
+      localState.cursorIndex < localState.charElements.length
+    ) {
       const entry = localState.textBuffer[localState.cursorIndex];
       if (entry) {
         entry.el.textContent = "";
@@ -5485,7 +5650,10 @@ export function renderInteractiveToContainer(container, state, options = {}) {
   };
 
   const stopEditing = () => {
-    if (localState.cursorIndex >= 0 && localState.cursorIndex < localState.textBuffer.length) {
+    if (
+      localState.cursorIndex >= 0 &&
+      localState.cursorIndex < localState.textBuffer.length
+    ) {
       const entry = localState.textBuffer[localState.cursorIndex];
       hideElement(entry);
       entry.el.classList.remove("editing");
@@ -5573,7 +5741,10 @@ export function renderInteractiveToContainer(container, state, options = {}) {
       restoreCurrentCell();
       localState.cursorIndex--;
       updateCursorHighlight();
-    } else if (e.key === "ArrowRight" && localState.cursorIndex < localState.textBuffer.length - 1) {
+    } else if (
+      e.key === "ArrowRight" &&
+      localState.cursorIndex < localState.textBuffer.length - 1
+    ) {
       e.preventDefault();
       restoreCurrentCell();
       localState.cursorIndex++;

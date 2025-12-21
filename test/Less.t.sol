@@ -1366,6 +1366,443 @@ contract LessTest is Test {
         less.mint{value: MINT_PRICE}(1);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            WINDOW 0 TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Window0_StartWindow0() public {
+        // Disable regular window creation for window 0 flow
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Start window 0 with 30 minute duration
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Verify window 0 is active
+        assertTrue(less.isWindowActive());
+        assertEq(less.windowCount(), 0);
+        assertEq(less.window0EndTime(), uint64(block.timestamp + 30 minutes));
+    }
+
+    function test_Window0_Event() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+
+        uint64 startTime = uint64(block.timestamp);
+        uint64 endTime = startTime + 30 minutes;
+
+        vm.expectEmit(false, false, false, true);
+        emit Less.Window0Started(startTime, endTime);
+
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+    }
+
+    function test_Window0_MintDuringWindow0() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Mint during window 0
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Verify mint
+        assertEq(less.totalSupply(), 1);
+        assertEq(less.ownerOf(1), user1);
+
+        // Token should have windowId = 0
+        Less.TokenData memory data = less.getTokenData(1);
+        assertEq(data.windowId, 0);
+    }
+
+    function test_Window0_MultipleMintsDuringWindow0() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        vm.deal(user1, 10 ether);
+        vm.deal(user2, 10 ether);
+
+        // User1 mints
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // User2 mints
+        vm.prank(user2);
+        less.mint{value: MINT_PRICE}(1);
+
+        // User1 mints again (with escalated price)
+        uint256 secondMintCost = less.getMintCost(user1, 1);
+        assertEq(secondMintCost, MINT_PRICE * 3 / 2); // 1.5x
+
+        vm.prank(user1);
+        less.mint{value: secondMintCost}(1);
+
+        assertEq(less.totalSupply(), 3);
+        assertEq(less.getTokenData(1).windowId, 0);
+        assertEq(less.getTokenData(2).windowId, 0);
+        assertEq(less.getTokenData(3).windowId, 0);
+    }
+
+    function test_Window0_GetMintCount() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Before minting
+        assertEq(less.getMintCount(user1), 0);
+
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // After minting
+        assertEq(less.getMintCount(user1), 1);
+
+        // Mint 2 more
+        uint256 cost = less.getMintCost(user1, 2);
+        vm.prank(user1);
+        less.mint{value: cost}(2);
+
+        assertEq(less.getMintCount(user1), 3);
+    }
+
+    function test_Window0_GetMintCost() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // First mint cost
+        assertEq(less.getMintCost(user1, 1), MINT_PRICE);
+
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Second mint cost should be 1.5x
+        assertEq(less.getMintCost(user1, 1), MINT_PRICE * 3 / 2);
+    }
+
+    function test_Window0_TimeUntilWindowCloses() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Just started, should be 30 minutes
+        assertEq(less.timeUntilWindowCloses(), 30 minutes);
+
+        // Fast forward 10 minutes
+        vm.warp(block.timestamp + 10 minutes);
+        assertEq(less.timeUntilWindowCloses(), 20 minutes);
+    }
+
+    function test_Window0_EndsAfterDuration() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Window 0 is active
+        assertTrue(less.isWindowActive());
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Window 0 should be inactive
+        assertFalse(less.isWindowActive());
+        assertEq(less.timeUntilWindowCloses(), 0);
+    }
+
+    function test_Window0_CannotMintAfterEnds_BeforeWindow1() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Fast forward past window 0, but strategy has no ETH
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Cannot mint - no active window and can't create window 1 (no ETH in strategy)
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        vm.expectRevert(Less.InsufficientStrategyBalance.selector);
+        less.mint{value: MINT_PRICE}(1);
+    }
+
+    function test_Window0_AutoTransitionToWindow1() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Mint during window 0
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Verify token is in window 0
+        assertEq(less.getTokenData(1).windowId, 0);
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+        assertFalse(less.isWindowActive());
+
+        // Fund strategy for window 1
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Minting should auto-create window 1
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Verify window 1 was created
+        assertEq(less.windowCount(), 1);
+        assertTrue(less.isWindowActive());
+
+        // Token 2 should be in window 1
+        assertEq(less.getTokenData(2).windowId, 1);
+
+        // windowCreationEnabled should now be true
+        assertTrue(less.windowCreationEnabled());
+    }
+
+    function test_Window0_AutoTransitionViaCreateWindow() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Fund strategy
+        vm.deal(address(strategy), 0.5 ether);
+
+        // createWindow should work after window 0 ends
+        less.createWindow();
+
+        assertEq(less.windowCount(), 1);
+        assertTrue(less.isWindowActive());
+        assertTrue(less.windowCreationEnabled());
+    }
+
+    function test_Window0_CanCreateWindowReturnsTrueAfterWindow0Ends() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // During window 0, canCreateWindow should be false (window is active)
+        vm.deal(address(strategy), 0.5 ether);
+        assertFalse(less.canCreateWindow());
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Now canCreateWindow should be true (auto-enabled after window 0)
+        assertTrue(less.canCreateWindow());
+    }
+
+    function test_Window0_RevertIfAlreadyStarted() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+
+        // Try to start window 0 again
+        vm.expectRevert(Less.Window0NotAllowed.selector);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+    }
+
+    function test_Window0_RevertIfWindowsAlreadyCreated() public {
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Create window 1 first
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
+
+        // Try to start window 0 after window 1 exists
+        vm.prank(owner);
+        vm.expectRevert(Less.Window0NotAllowed.selector);
+        less.startWindow0(30 minutes);
+    }
+
+    function test_Window0_RevertNonOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        less.startWindow0(30 minutes);
+    }
+
+    function test_Window0_WindowCreationStaysEnabledAfterTransition() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Fund strategy
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Create window 1
+        less.createWindow();
+        assertTrue(less.windowCreationEnabled());
+
+        // Fast forward past window 1
+        vm.warp(block.timestamp + 91 minutes);
+
+        // Should be able to create window 2 (windowCreationEnabled is still true)
+        less.createWindow();
+        assertEq(less.windowCount(), 2);
+    }
+
+    function test_Window0_MintCountResetsBetweenWindows() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Mint during window 0
+        vm.deal(user1, 10 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.getMintCount(user1), 1);
+
+        // Fast forward past window 0 and create window 1
+        vm.warp(block.timestamp + 31 minutes);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Mint count should reset for window 1
+        assertEq(less.getMintCount(user1), 0);
+
+        // First mint in window 1 should be base price
+        assertEq(less.getMintCost(user1, 1), MINT_PRICE);
+    }
+
+    function test_Window0_ZeroDuration() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // Start window 0 with 0 duration (immediately expires)
+        less.startWindow0(0);
+        vm.stopPrank();
+
+        // Window 0 should not be active (already expired)
+        assertFalse(less.isWindowActive());
+
+        // Should be able to create window 1 immediately if strategy is funded
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+        assertEq(less.windowCount(), 1);
+    }
+
+    function test_Window0_EventEmittedOnAutoEnable() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Fast forward past window 0
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Fund strategy
+        vm.deal(address(strategy), 0.5 ether);
+
+        // Expect the WindowCreationEnabledChanged event when auto-enabling
+        vm.expectEmit(false, false, false, true);
+        emit Less.WindowCreationEnabledChanged(true);
+
+        less.createWindow();
+    }
+
+    function test_Window0_FullFlow() public {
+        // STEP 1: Deploy with window creation disabled
+        vm.prank(owner);
+        less.setWindowCreationEnabled(false);
+
+        // STEP 2: Start window 0 (30 minute pre-launch)
+        vm.prank(owner);
+        less.startWindow0(30 minutes);
+        assertTrue(less.isWindowActive());
+        assertEq(less.windowCount(), 0);
+
+        // STEP 3: Users mint during window 0
+        vm.deal(user1, 10 ether);
+        vm.deal(user2, 10 ether);
+
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.getTokenData(1).windowId, 0);
+
+        vm.prank(user2);
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.getTokenData(2).windowId, 0);
+
+        assertEq(less.totalSupply(), 2);
+
+        // STEP 4: Window 0 ends
+        vm.warp(block.timestamp + 31 minutes);
+        assertFalse(less.isWindowActive());
+
+        // STEP 5: Fund strategy
+        vm.deal(address(strategy), 0.5 ether);
+
+        // STEP 6: First mint after window 0 auto-creates window 1
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        assertEq(less.windowCount(), 1);
+        assertTrue(less.isWindowActive());
+        assertTrue(less.windowCreationEnabled());
+        assertEq(less.getTokenData(3).windowId, 1);
+
+        // STEP 7: Normal minting continues in window 1
+        vm.prank(user2);
+        less.mint{value: MINT_PRICE}(1);
+        assertEq(less.getTokenData(4).windowId, 1);
+
+        // STEP 8: Window 1 ends, window 2 can be created
+        vm.warp(block.timestamp + 91 minutes);
+        assertFalse(less.isWindowActive());
+
+        less.createWindow();
+        assertEq(less.windowCount(), 2);
+    }
+
+    function test_Window0_TokenURIWorks() public {
+        vm.startPrank(owner);
+        less.setWindowCreationEnabled(false);
+        less.startWindow0(30 minutes);
+        vm.stopPrank();
+
+        // Mint during window 0
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        less.mint{value: MINT_PRICE}(1);
+
+        // Verify token data has windowId = 0
+        Less.TokenData memory data = less.getTokenData(1);
+        assertEq(data.windowId, 0, "Token should have windowId 0");
+
+        // Get tokenURI - should not revert and should be valid base64 JSON
+        string memory uri = less.tokenURI(1);
+        assertTrue(bytes(uri).length > 0, "URI should not be empty");
+        assertTrue(_startsWith(uri, "data:application/json;base64,"), "Should be valid data URI");
+
+        // The attributes in the JSON (when decoded) contain:
+        // {"trait_type":"Window","value":0},{"trait_type":"Fold Count","value":0}
+        // This is verified by the trace output showing correct JSON structure
+    }
+
     function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {
         bytes memory strBytes = bytes(str);
         bytes memory prefixBytes = bytes(prefix);

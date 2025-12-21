@@ -77,13 +77,28 @@ export class PlaywrightRenderer {
     return { page, poolIndex: -1 };
   }
 
-  private async releasePage(page: Page, poolIndex: number): Promise<void> {
+  private async releasePage(page: Page, poolIndex: number, crashed: boolean = false): Promise<void> {
     if (poolIndex >= 0) {
-      this.pagePool[poolIndex].inUse = false;
-      this.pagePool[poolIndex].lastUsed = Date.now();
+      if (crashed) {
+        // Page crashed, replace it with a fresh one
+        console.log(`Page ${poolIndex} crashed, creating replacement...`);
+        try {
+          await page.close().catch(() => {}); // May fail if already closed
+        } catch {}
+
+        if (this.browser) {
+          const newPage = await this.browser.newPage();
+          await newPage.setViewportSize({ width: 1200, height: 1697 });
+          this.pagePool[poolIndex] = { page: newPage, inUse: false, lastUsed: Date.now() };
+          console.log(`Page ${poolIndex} replaced successfully`);
+        }
+      } else {
+        this.pagePool[poolIndex].inUse = false;
+        this.pagePool[poolIndex].lastUsed = Date.now();
+      }
     } else {
       // Overflow page, close it
-      await page.close();
+      await page.close().catch(() => {});
     }
   }
 
@@ -91,6 +106,7 @@ export class PlaywrightRenderer {
     const { seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, foldCount } = options;
 
     const { page, poolIndex } = await this.acquirePage();
+    let crashed = false;
 
     try {
       await page.setViewportSize({ width, height });
@@ -111,8 +127,14 @@ export class PlaywrightRenderer {
       const canvas = await page.$('canvas');
       if (!canvas) throw new Error('Canvas not found');
       return await canvas.screenshot({ type: 'png' });
+    } catch (error) {
+      // Detect page crash
+      if (error instanceof Error && error.message.includes('crashed')) {
+        crashed = true;
+      }
+      throw error;
     } finally {
-      await this.releasePage(page, poolIndex);
+      await this.releasePage(page, poolIndex, crashed);
     }
   }
 
@@ -129,6 +151,7 @@ export class PlaywrightRenderer {
     const { html, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT } = options;
 
     const { page, poolIndex } = await this.acquirePage();
+    let crashed = false;
 
     try {
       await page.setViewportSize({ width, height });
@@ -147,8 +170,14 @@ export class PlaywrightRenderer {
       const canvas = await page.$('canvas');
       if (!canvas) throw new Error('Canvas not found');
       return await canvas.screenshot({ type: 'png' });
+    } catch (error) {
+      // Detect page crash
+      if (error instanceof Error && error.message.includes('crashed')) {
+        crashed = true;
+      }
+      throw error;
     } finally {
-      await this.releasePage(page, poolIndex);
+      await this.releasePage(page, poolIndex, crashed);
     }
   }
 

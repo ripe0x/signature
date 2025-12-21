@@ -8,7 +8,7 @@ primary_region = "iad"
   NODE_ENV = "production"
   IMAGE_API_URL = "https://fold-image-api.fly.dev"
   # LESS NFT contract address (Sepolia testnet)
-  LESS_CONTRACT_ADDRESS = "0x42c0aa6597f69Aa799a52c182Fd594758500BC21"
+  LESS_CONTRACT_ADDRESS = "0x13Cc4c32899c1877F43e891F02935eaE2A0419a7"
   # LESS ERC20 token address (mainnet) - used for burn/supply data
   LESS_TOKEN_ADDRESS = "0x32f223e5c09878823934a8116f289bae2b657b8e"
 

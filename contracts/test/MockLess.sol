@@ -24,6 +24,11 @@ contract MockLess {
     uint256 public windowDuration = 90 minutes; // Default 90 minute windows
     uint256 public mintPrice = 0.001 ether; // Base mint price
 
+    /// @notice End time for window 0 (pre-launch mint window), 0 if not started
+    uint64 public window0EndTime;
+    /// @notice Block hash used for window 0 seeds
+    bytes32 public window0BlockHash;
+
     mapping(uint256 => Window) public windows;
     mapping(uint256 => TokenData) public tokenData;
     mapping(uint256 => address) private _owners;
@@ -31,6 +36,8 @@ contract MockLess {
 
     event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash);
     event WindowClosed(uint256 indexed windowId);
+    event Window0Started(uint64 startTime, uint64 endTime);
+    event Window0Closed();
     event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed);
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
@@ -40,6 +47,8 @@ contract MockLess {
     error MintWindowActive();
     error TokenDoesNotExist();
     error WindowDoesNotExist();
+    error Window0NotAllowed();
+    error Window0NotActive();
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -100,6 +109,43 @@ contract MockLess {
         emit WindowClosed(windowCount);
     }
 
+    // ============ Window 0 (Pre-launch) ============
+
+    /// @notice Start window 0 (pre-launch mint window)
+    /// @param duration Duration of window 0 in seconds
+    function startWindow0(uint64 duration) external onlyOwner {
+        if (windowCount > 0) revert Window0NotAllowed();
+        if (window0EndTime > 0) revert Window0NotAllowed();
+
+        uint64 startTime = uint64(block.timestamp);
+        window0EndTime = startTime + duration;
+        window0BlockHash = blockhash(block.number - 1);
+
+        emit Window0Started(startTime, window0EndTime);
+    }
+
+    /// @notice Start window 0 with a custom block hash (for testing specific seeds)
+    function startWindow0WithHash(uint64 duration, bytes32 _blockHash) external onlyOwner {
+        if (windowCount > 0) revert Window0NotAllowed();
+        if (window0EndTime > 0) revert Window0NotAllowed();
+
+        uint64 startTime = uint64(block.timestamp);
+        window0EndTime = startTime + duration;
+        window0BlockHash = _blockHash;
+
+        emit Window0Started(startTime, window0EndTime);
+    }
+
+    /// @notice Close window 0 early (manual close for testing)
+    function closeWindow0() external onlyOwner {
+        if (window0EndTime == 0) revert Window0NotActive();
+
+        // Set endTime to now to close window 0
+        window0EndTime = uint64(block.timestamp);
+
+        emit Window0Closed();
+    }
+
     /// @notice Set the window duration for new windows
     function setWindowDuration(uint256 _duration) external onlyOwner {
         windowDuration = _duration;
@@ -118,7 +164,7 @@ contract MockLess {
         if (quantity == 0) revert InvalidQuantity();
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 windowId = windowCount;
+        uint256 windowId = windowCount; // 0 for window 0
         uint256 previousMints = mintCountPerWindow[windowId][msg.sender];
 
         // Calculate total cost with exponential pricing
@@ -129,10 +175,10 @@ contract MockLess {
         // Update mint count
         mintCountPerWindow[windowId][msg.sender] = previousMints + quantity;
 
-        // Mint tokens
+        // Mint tokens - use window0BlockHash for window 0
         uint256 startTokenId = totalSupply + 1;
         totalSupply += quantity;
-        bytes32 blockHash = windows[windowId].blockHash;
+        bytes32 blockHash = windowId == 0 ? window0BlockHash : windows[windowId].blockHash;
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = startTokenId + i;
@@ -151,11 +197,11 @@ contract MockLess {
         if (quantity == 0) revert InvalidQuantity();
         if (!_isWindowActive()) revert NoActiveMintWindow();
 
-        uint256 windowId = windowCount;
+        uint256 windowId = windowCount; // 0 for window 0
 
         uint256 startTokenId = totalSupply + 1;
         totalSupply += quantity;
-        bytes32 blockHash = windows[windowId].blockHash;
+        bytes32 blockHash = windowId == 0 ? window0BlockHash : windows[windowId].blockHash;
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = startTokenId + i;
@@ -202,6 +248,10 @@ contract MockLess {
 
     function timeUntilWindowCloses() external view returns (uint256) {
         if (!_isWindowActive()) return 0;
+        // Handle window 0
+        if (windowCount == 0) {
+            return window0EndTime - block.timestamp;
+        }
         Window storage window = windows[windowCount];
         if (block.timestamp >= window.endTime) return 0;
         return window.endTime - block.timestamp;
@@ -214,32 +264,45 @@ contract MockLess {
 
     /// @notice Get the number of mints a user has made in the current window
     function getMintCount(address user) external view returns (uint256) {
-        if (windowCount == 0) return 0;
+        // Handle window 0
+        if (windowCount == 0) {
+            if (window0EndTime == 0) return 0;
+            return mintCountPerWindow[0][user];
+        }
         return mintCountPerWindow[windowCount][user];
     }
 
     /// @notice Get the price for a user's next single mint in the current window
     function getNextMintPrice(address user) external view returns (uint256) {
-        uint256 previousMints = windowCount > 0
-            ? mintCountPerWindow[windowCount][user]
-            : 0;
+        uint256 previousMints;
+        if (windowCount > 0) {
+            previousMints = mintCountPerWindow[windowCount][user];
+        } else if (window0EndTime > 0) {
+            previousMints = mintCountPerWindow[0][user];
+        }
         return _calculateMintCost(previousMints, 1);
     }
 
     /// @notice Get the total cost for a user to mint a specific quantity
     function getMintCost(address user, uint256 quantity) external view returns (uint256) {
         if (quantity == 0) return 0;
-        uint256 previousMints = windowCount > 0
-            ? mintCountPerWindow[windowCount][user]
-            : 0;
+        uint256 previousMints;
+        if (windowCount > 0) {
+            previousMints = mintCountPerWindow[windowCount][user];
+        } else if (window0EndTime > 0) {
+            previousMints = mintCountPerWindow[0][user];
+        }
         return _calculateMintCost(previousMints, quantity);
     }
 
     /// @notice Get the price multiplier for a user's next mint (scaled by 1e18)
     function getPriceMultiplier(address user) external view returns (uint256) {
-        uint256 previousMints = windowCount > 0
-            ? mintCountPerWindow[windowCount][user]
-            : 0;
+        uint256 previousMints;
+        if (windowCount > 0) {
+            previousMints = mintCountPerWindow[windowCount][user];
+        } else if (window0EndTime > 0) {
+            previousMints = mintCountPerWindow[0][user];
+        }
         // 1.5^n = 3^n / 2^n, scaled by 1e18
         return (1e18 * (3 ** previousMints)) / (2 ** previousMints);
     }
@@ -282,7 +345,10 @@ contract MockLess {
     // ============ Internal ============
 
     function _isWindowActive() internal view returns (bool) {
-        if (windowCount == 0) return false;
+        // Check window 0 first
+        if (windowCount == 0) {
+            return window0EndTime > 0 && block.timestamp < window0EndTime;
+        }
         Window storage window = windows[windowCount];
         return block.timestamp >= window.startTime && block.timestamp < window.endTime;
     }

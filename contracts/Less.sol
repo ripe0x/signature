@@ -99,6 +99,11 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @param enabled True if window creation is now enabled, false if disabled
     event WindowCreationEnabledChanged(bool enabled);
 
+    /// @notice Emitted when window 0 (pre-launch mint) is started
+    /// @param startTime Unix timestamp when window 0 opens
+    /// @param endTime Unix timestamp when window 0 closes
+    event Window0Started(uint64 startTime, uint64 endTime);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -123,6 +128,9 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Thrown when window creation is disabled
     error WindowCreationDisabled();
+
+    /// @notice Thrown when trying to start window 0 after windows have begun or window 0 already started
+    error Window0NotAllowed();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -157,6 +165,9 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Whether window creation is currently enabled
     bool public windowCreationEnabled;
+
+    /// @notice End time for window 0 (pre-launch mint window), 0 if not started
+    uint64 public window0EndTime;
 
     /// @notice Mapping of window ID to window data
     mapping(uint256 => Window) internal _windows;
@@ -240,15 +251,28 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @notice Creates a new window by triggering a burn on the strategy
     /// @dev Anyone can call this; will revert if a mint window is active, window creation is disabled, strategy balance is insufficient, or strategy burn fails.
     ///      Note: mint() will automatically create a window if needed, so this function is optional.
+    ///      After window 0 ends, window creation is automatically enabled.
     function createWindow() external nonReentrant {
-        if (!windowCreationEnabled) revert WindowCreationDisabled();
+        // Auto-enable window creation after window 0 ends
+        bool autoEnabled = windowCount == 0 &&
+            window0EndTime > 0 &&
+            block.timestamp >= window0EndTime;
+        if (!windowCreationEnabled && !autoEnabled)
+            revert WindowCreationDisabled();
         if (_isWindowActive()) revert MintWindowActive();
         _createWindow();
     }
 
     /// @notice Internal function to create a new window
-    /// @dev Checks balance, triggers strategy burn, and records window data
+    /// @dev Checks balance, triggers strategy burn, and records window data.
+    ///      When transitioning from window 0, permanently enables window creation.
     function _createWindow() internal {
+        // Auto-enable window creation permanently after window 0 ends
+        if (!windowCreationEnabled && windowCount == 0 && window0EndTime > 0) {
+            windowCreationEnabled = true;
+            emit WindowCreationEnabledChanged(true);
+        }
+
         // Check strategy has minimum ETH balance required
         if (address(strategy).balance < minEthForWindow)
             revert InsufficientStrategyBalance();
@@ -280,13 +304,17 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     }
 
     /// @notice Check if a window can be created
-    /// @dev Returns true only if: window creation enabled, no active window, strategy balance >= minEthForWindow, and TWAP delay met.
+    /// @dev Returns true only if: window creation enabled (or window 0 ended), no active window, strategy balance >= minEthForWindow, and TWAP delay met.
     ///      Note: This view function mirrors the conditions that would cause _createWindow() to revert.
     ///      If the strategy's processTokenTwap() revert conditions ever diverge from timeUntilFundsMoved(),
     ///      this function could return true when createWindow() would actually fail.
     /// @return True if createWindow() would likely succeed, false otherwise
     function canCreateWindow() external view returns (bool) {
-        if (!windowCreationEnabled) return false;
+        // Check if window creation is allowed (explicitly enabled or auto-enabled after window 0)
+        bool autoEnabled = windowCount == 0 &&
+            window0EndTime > 0 &&
+            block.timestamp >= window0EndTime;
+        if (!windowCreationEnabled && !autoEnabled) return false;
         if (_isWindowActive()) return false;
         if (address(strategy).balance < minEthForWindow) return false;
         return strategy.timeUntilFundsMoved() == 0;
@@ -296,6 +324,10 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @return Seconds until the window closes, or 0 if no window is active
     function timeUntilWindowCloses() external view returns (uint256) {
         if (!_isWindowActive()) return 0;
+        // Handle window 0
+        if (windowCount == 0) {
+            return window0EndTime - block.timestamp;
+        }
         return _windows[windowCount].endTime - block.timestamp;
     }
 
@@ -307,6 +339,7 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @dev Price escalates per wallet per window: price(n) = mintPrice * 1.5^(n-1)
     ///      where n is the nth mint for this wallet in this window.
     ///      If no window is active but one can be created, automatically creates a new window.
+    ///      After window 0 ends, window creation is automatically enabled.
     /// @param quantity Number of tokens to mint (must be >= 1)
     function mint(uint256 quantity) external payable nonReentrant {
         if (mintingPaused) revert MintingPaused();
@@ -314,7 +347,12 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
 
         // If no active window, try to create a new one
         if (!_isWindowActive()) {
-            if (!windowCreationEnabled) revert WindowCreationDisabled();
+            // Auto-enable window creation after window 0 ends
+            bool autoEnabled = windowCount == 0 &&
+                window0EndTime > 0 &&
+                block.timestamp >= window0EndTime;
+            if (!windowCreationEnabled && !autoEnabled)
+                revert WindowCreationDisabled();
             _createWindow();
         }
 
@@ -372,7 +410,11 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     /// @param user The address to check
     /// @return The number of mints for this user in the current window (0 if no active window)
     function getMintCount(address user) external view returns (uint256) {
-        if (windowCount == 0) return 0;
+        // During window 0, return mints for window 0
+        if (windowCount == 0) {
+            if (window0EndTime == 0) return 0;
+            return _mintCountPerWindow[0][user];
+        }
         return _mintCountPerWindow[windowCount][user];
     }
 
@@ -386,9 +428,13 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         uint256 quantity
     ) external view returns (uint256) {
         if (quantity == 0) return 0;
-        uint256 previousMints = windowCount > 0
-            ? _mintCountPerWindow[windowCount][user]
-            : 0;
+        uint256 previousMints;
+        if (windowCount > 0) {
+            previousMints = _mintCountPerWindow[windowCount][user];
+        } else if (window0EndTime > 0) {
+            // During window 0
+            previousMints = _mintCountPerWindow[0][user];
+        }
         return _calculateMintCost(previousMints, quantity);
     }
 
@@ -455,6 +501,21 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
         emit WindowCreationEnabledChanged(_enabled);
     }
 
+    /// @notice Start window 0 (pre-launch mint window)
+    /// @dev Can only be called once, before any regular windows are created.
+    ///      Window 0 allows minting before the strategy integration begins.
+    ///      After window 0 ends, window creation is automatically enabled.
+    /// @param duration Duration of window 0 in seconds (e.g., 1800 for 30 minutes)
+    function startWindow0(uint64 duration) external onlyOwner {
+        if (windowCount > 0) revert Window0NotAllowed();
+        if (window0EndTime > 0) revert Window0NotAllowed();
+
+        uint64 startTime = uint64(block.timestamp);
+        window0EndTime = startTime + duration;
+
+        emit Window0Started(startTime, window0EndTime);
+    }
+
     /// @notice Withdraw accumulated ETH to the payout recipient
     /// @dev Only callable by owner. Sends entire contract balance to payoutRecipient.
     function withdraw() external onlyOwner {
@@ -468,12 +529,17 @@ contract Less is ERC721, Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Check if there is an active mint window
-    /// @dev Window is active when windowCount > 0 and current time is before endTime
+    /// @dev Window is active when:
+    ///      1. Window 0 is active (windowCount == 0 && window0EndTime > 0 && block.timestamp < window0EndTime), OR
+    ///      2. A regular window is active (windowCount > 0 && block.timestamp < endTime)
     ///      Note: At exactly endTime, window is inactive but a new window may not be
     ///      immediately creatable due to TWAP delay - this creates a brief limbo period.
     /// @return True if minting is currently allowed, false otherwise
     function _isWindowActive() internal view returns (bool) {
-        if (windowCount == 0) return false;
+        // Check window 0 first
+        if (windowCount == 0) {
+            return window0EndTime > 0 && block.timestamp < window0EndTime;
+        }
         return block.timestamp < _windows[windowCount].endTime;
     }
 

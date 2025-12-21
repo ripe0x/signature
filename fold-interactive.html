@@ -15,10 +15,71 @@
     if (urlParams.has('folds')) {
       window.FOLD_COUNT = parseInt(urlParams.get('folds'));
     }
+
+    // Square container mode (simulates OpenSea/marketplace display)
+    if (urlParams.has('square')) {
+      window.SQUARE_CONTAINER = true;
+    }
   </script>
+  <style>
+    body { background: rgba(0,0,0,0.4); }
+    #fold-container {
+      width: min(75vw, calc(75vh * 1200 / 1697)) !important;
+      height: min(75vh, calc(75vw * 1697 / 1200)) !important;
+      border: 1px solid #555;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ratio-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      padding: 8px 16px;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .ratio-btn:hover { background: rgba(0,0,0,0.9); }
+  </style>
 </head>
 <body>
+  <button class="ratio-btn" id="ratio-btn">A4</button>
   <!-- fold-core.js auto-inits when window.SEED is set -->
   <script type="module" src="./web/fold-core.js"></script>
+  <script>
+    const ratios = [
+      { name: 'A4', css: 'width:min(75vw,calc(75vh*1200/1697));height:min(75vh,calc(75vw*1697/1200))' },
+      { name: '1:1', css: 'width:min(75vw,75vh);height:min(75vw,75vh)' },
+      { name: '16:9', css: 'width:min(75vw,calc(75vh*16/9));height:min(75vh,calc(75vw*9/16))' },
+      { name: '4:3', css: 'width:min(75vw,calc(75vh*4/3));height:min(75vh,calc(75vw*3/4))' },
+      { name: '3:4', css: 'width:min(75vw,calc(75vh*3/4));height:min(75vh,calc(75vw*4/3))' },
+      { name: '2:1', css: 'width:min(75vw,calc(75vh*2));height:min(75vh,calc(75vw/2))' },
+    ];
+    let idx = window.SQUARE_CONTAINER ? 1 : 0;
+    const btn = document.getElementById('ratio-btn');
+    btn.textContent = ratios[idx].name;
+
+    btn.addEventListener('click', () => {
+      idx = (idx + 1) % ratios.length;
+      const r = ratios[idx];
+      btn.textContent = r.name;
+      const container = document.getElementById('fold-container');
+      if (container) {
+        // Parse CSS and apply with !important to override stylesheet
+        const match = r.css.match(/width:([^;]+);height:([^;]+)/);
+        if (match) {
+          container.style.setProperty('width', match[1], 'important');
+          container.style.setProperty('height', match[2], 'important');
+        }
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+  </script>
 </body>
 </html>
