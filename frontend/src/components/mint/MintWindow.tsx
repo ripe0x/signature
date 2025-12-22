@@ -4,19 +4,11 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
-import { useCollection } from "@/hooks/useCollection";
-import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
 import { CONTRACTS } from "@/lib/contracts";
-import {
-  formatCountdown,
-  formatEth,
-  getAddressUrl,
-  getTxUrl,
-  seedToNumber,
-} from "@/lib/utils";
-import { useMemo, useEffect } from "react";
+import { formatCountdown, formatEth, getAddressUrl, getTxUrl } from "@/lib/utils";
+import { useMemo } from "react";
 
 // Progress bar for balance to threshold
 function BalanceProgress({
@@ -185,129 +177,47 @@ function MintingPlaceholder({ count }: { count: number }) {
   );
 }
 
-// Grid of minted tokens
-function MintedTokensGrid({
-  tokens,
+// Simple success message after minting
+function MintSuccess({
+  quantity,
   txHash,
   onMintMore,
 }: {
-  tokens: { id: number; windowId: number; seed: `0x${string}` }[];
+  quantity: number;
   txHash?: `0x${string}`;
   onMintMore: () => void;
 }) {
-  const isSingle = tokens.length === 1;
-
   return (
-    <div className="space-y-4">
-      <div className="text-center">
-        <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm mb-4">
-          minted {tokens.length} token{tokens.length > 1 ? "s" : ""}{" "}
-          successfully!
-        </div>
+    <div className="space-y-6 text-center">
+      <div className="inline-block px-4 py-2 bg-green-100 text-green-800 text-sm">
+        minted {quantity} token{quantity > 1 ? "s" : ""} successfully!
       </div>
-      <div className={isSingle ? "" : "grid grid-cols-2 gap-4"}>
-        {tokens.map((token) => (
-          <Link
-            key={token.id}
-            href={`/token/${token.id}`}
-            className="block space-y-2 group"
-          >
-            <div className="relative overflow-hidden aspect-[1/1.414]">
-              <ArtworkCanvas
-                seed={seedToNumber(token.seed)}
-                foldCount={token.windowId}
-                className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
-              />
-              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
-            </div>
-            <div className="text-xs text-center text-muted group-hover:text-foreground transition-colors">
-              LESS {token.id}
-            </div>
-          </Link>
-        ))}
-      </div>
-      <div className="text-center space-y-2">
+
+      <div className="space-y-3">
         {txHash && (
           <a
             href={getTxUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-muted hover:text-foreground"
+            className="block text-sm text-muted hover:text-foreground"
           >
             view transaction →
           </a>
         )}
-        <button
-          onClick={onMintMore}
-          className="block w-full mt-4 px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-colors"
+        <Link
+          href="/collection"
+          className="block text-sm text-muted hover:text-foreground"
         >
-          mint more
-        </button>
+          view collection →
+        </Link>
       </div>
-    </div>
-  );
-}
 
-// Recent mints grouped by window
-function RecentMints() {
-  const { tokens, total, isLoading } = useCollection(0);
-
-  // Group tokens by windowId
-  const groupedByWindow = useMemo(() => {
-    const groups: { [windowId: number]: typeof tokens } = {};
-    tokens.forEach((token) => {
-      if (!groups[token.windowId]) {
-        groups[token.windowId] = [];
-      }
-      groups[token.windowId].push(token);
-    });
-    // Sort by window ID descending (most recent first)
-    return Object.entries(groups)
-      .sort(([a], [b]) => Number(b) - Number(a))
-      .map(([windowId, tokens]) => ({ windowId: Number(windowId), tokens }));
-  }, [tokens]);
-
-  if (isLoading) {
-    return (
-      <div className="text-center text-muted text-sm">
-        loading recent mints...
-      </div>
-    );
-  }
-
-  if (total === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-lg text-center">recent mints</h2>
-      {groupedByWindow.map(({ windowId, tokens }) => (
-        <div key={windowId} className="space-y-4">
-          <div className="text-sm text-muted">window #{windowId}</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {tokens.map((token) => (
-              <Link
-                key={token.id}
-                href={`/token/${token.id}`}
-                className="block space-y-2 group"
-              >
-                <div className="relative overflow-hidden aspect-[1/1.414]">
-                  <ArtworkCanvas
-                    seed={seedToNumber(token.seed)}
-                    foldCount={token.windowId}
-                    className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                  <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
-                </div>
-                <div className="text-xs text-center text-muted group-hover:text-foreground transition-colors">
-                  LESS #{token.id}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ))}
+      <button
+        onClick={onMintMore}
+        className="w-full px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-colors"
+      >
+        mint more
+      </button>
     </div>
   );
 }
@@ -315,6 +225,7 @@ function RecentMints() {
 export function MintWindow() {
   const { isConnected } = useAccount();
   const {
+    isLoading,
     isActive,
     windowId,
     timeRemaining,
@@ -341,31 +252,27 @@ export function MintWindow() {
 
   const { windowCount } = useTokenStats();
 
-  // Get the most recent tokens for showing artwork on confirmation
-  const { tokens, refetch: refetchTokens } = useCollection(0);
-
-  // Get the newly minted tokens (most recent N tokens where N = mintedQuantity)
-  const mintedTokens = useMemo(() => {
-    if (!mintedQuantity || mintedQuantity === 0) return [];
-    return tokens.slice(0, mintedQuantity);
-  }, [tokens, mintedQuantity]);
-
-  // Refetch tokens when mint is confirmed
-  useEffect(() => {
-    if (isConfirmed) {
-      refetchTokens();
-    }
-  }, [isConfirmed, refetchTokens]);
-
   const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT);
-
-  // Count mints in current window
-  const mintsThisWindow = tokens.filter((t) => t.windowId === windowId).length;
 
   // Handle mint with current quantity
   const handleMint = () => {
     mint(quantity);
   };
+
+  // STATE 0: Loading
+  if (isLoading) {
+    return (
+      <div className="space-y-12">
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl">mint LESS</h1>
+          <p className="text-muted animate-pulse">loading...</p>
+        </div>
+        <div className="max-w-md mx-auto">
+          <div className="h-48 bg-border/30 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   // STATE 1: Window is open
   if (isActive) {
@@ -387,15 +294,15 @@ export function MintWindow() {
 
         {/* Mint Section */}
         <div className="max-w-md mx-auto space-y-6">
-          {/* Show loading placeholders during confirmation */}
-          {/* {isConfirming && mintedQuantity > 0 && (
+          {/* Show loading placeholder during confirmation */}
+          {isConfirming && mintedQuantity > 0 && (
             <MintingPlaceholder count={mintedQuantity} />
-          ) : null} */}
+          )}
 
-          {/* Show minted tokens grid after successful mint */}
-          {isConfirmed && mintedTokens.length > 0 && (
-            <MintedTokensGrid
-              tokens={mintedTokens}
+          {/* Show success message after mint */}
+          {isConfirmed && (
+            <MintSuccess
+              quantity={mintedQuantity}
               txHash={mintTxHash}
               onMintMore={() => {
                 resetMint();
@@ -488,15 +395,15 @@ export function MintWindow() {
 
         {/* Mint Section */}
         <div className="max-w-md mx-auto space-y-6">
-          {/* Show loading placeholders during confirmation */}
+          {/* Show loading placeholder during confirmation */}
           {isConfirming && mintedQuantity > 0 && (
             <MintingPlaceholder count={mintedQuantity} />
           )}
 
-          {/* Show minted tokens grid after successful mint */}
-          {isConfirmed && mintedTokens.length > 0 && (
-            <MintedTokensGrid
-              tokens={mintedTokens}
+          {/* Show success message after mint */}
+          {isConfirmed && (
+            <MintSuccess
+              quantity={mintedQuantity}
               txHash={mintTxHash}
               onMintMore={() => {
                 resetMint();
@@ -648,8 +555,6 @@ export function MintWindow() {
         </a>
       </div>
 
-      {/* Recent mints */}
-      <RecentMints />
     </div>
   );
 }

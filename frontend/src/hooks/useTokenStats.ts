@@ -84,12 +84,13 @@ export function useTokenStats() {
     const fetchHolderCount = async () => {
       try {
         const response = await fetch('/api/token-stats');
+        if (!response.ok) return; // Silently fail - non-critical data
         const data = await response.json();
         if (data.holderCount !== null) {
           setHolderCount(data.holderCount);
         }
-      } catch (error) {
-        console.error('Failed to fetch holder count:', error);
+      } catch {
+        // Silently fail - holder count is non-critical
       }
     };
 

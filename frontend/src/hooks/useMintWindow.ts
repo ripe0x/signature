@@ -60,7 +60,7 @@ export function useMintWindow() {
   });
 
   // Read if window is active
-  const { data: isWindowActive, refetch: refetchWindowActive } = useReadContract({
+  const { data: isWindowActive, refetch: refetchWindowActive, isLoading: isWindowActiveLoading } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'isWindowActive',
@@ -119,7 +119,7 @@ export function useMintWindow() {
   });
 
   // Check if window can be created
-  const { data: canCreateWindow } = useReadContract({
+  const { data: canCreateWindow, isLoading: isCanCreateWindowLoading } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'canCreateWindow',
@@ -128,6 +128,9 @@ export function useMintWindow() {
       refetchInterval: 5000,
     },
   });
+
+  // Overall loading state for initial render
+  const isLoading = isWindowActiveLoading || (!isWindowActive && isCanCreateWindowLoading);
 
   // Get time until funds can be moved (burn cooldown)
   const { data: timeUntilFundsMoved } = useReadContract({
@@ -243,6 +246,7 @@ export function useMintWindow() {
 
   return {
     // State
+    isLoading,
     isActive: !!isWindowActive,
     windowId: windowCount ? Number(windowCount) : 0,
     timeRemaining,

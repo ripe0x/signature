@@ -15,7 +15,9 @@ export interface CollectionToken {
   metadata?: TokenMetadata;
 }
 
-export function useCollection(page = 0) {
+export function useCollection(page = 0, options?: { skipMetadata?: boolean; enabled?: boolean }) {
+  const skipMetadata = options?.skipMetadata ?? false;
+  const enabled = options?.enabled ?? true;
   // Get total supply
   const { data: totalSupply, refetch: refetchSupply, error: supplyError, isLoading: isLoadingSupply } = useReadContract({
     address: CONTRACTS.LESS_NFT,
@@ -23,6 +25,7 @@ export function useCollection(page = 0) {
     functionName: 'totalSupply',
     query: {
       refetchInterval: 10000,
+      enabled,
     },
   });
 
@@ -56,7 +59,7 @@ export function useCollection(page = 0) {
       args: [BigInt(id)],
     })),
     query: {
-      enabled: tokenIds.length > 0,
+      enabled: enabled && tokenIds.length > 0,
     },
   });
 
@@ -69,11 +72,11 @@ export function useCollection(page = 0) {
       args: [BigInt(id)],
     })),
     query: {
-      enabled: tokenIds.length > 0,
+      enabled: enabled && tokenIds.length > 0,
     },
   });
 
-  // Batch read tokenURIs
+  // Batch read tokenURIs (optional - skip for performance when only seeds are needed)
   const { data: uriResults, isLoading: isLoadingURIs, refetch: refetchURIs } = useReadContracts({
     contracts: tokenIds.map((id) => ({
       address: CONTRACTS.LESS_NFT,
@@ -82,7 +85,7 @@ export function useCollection(page = 0) {
       args: [BigInt(id)],
     })),
     query: {
-      enabled: tokenIds.length > 0,
+      enabled: enabled && tokenIds.length > 0 && !skipMetadata,
     },
   });
 
@@ -122,7 +125,7 @@ export function useCollection(page = 0) {
     });
   }, [tokenIds, tokenDataResults, seedResults, uriResults]);
 
-  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || isLoadingURIs;
+  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || (!skipMetadata && isLoadingURIs);
   const hasMore = total > (page + 1) * BATCH_SIZE;
   const totalPages = Math.ceil(total / BATCH_SIZE);
 
