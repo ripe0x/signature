@@ -306,7 +306,14 @@ async function stepUpload(network, rpcUrl, privateKey) {
   }
 
   const scriptName = env.SCRIPT_NAME || (network.useMockLess ? `less-${networkName}` : "less");
-  const scriptBytes = readFileSync(scriptPath);
+
+  // Base64 encode the script for use with scriptBase64DataURI
+  // This prevents OpenSea's URL-decoding from corrupting % characters in the JS
+  const rawScript = readFileSync(scriptPath);
+  const scriptBytes = Buffer.from(rawScript.toString("base64"));
+  logInfo(`Raw script: ${rawScript.length} bytes`);
+  logInfo(`Base64 encoded: ${scriptBytes.length} bytes`);
+
   const chunkSize = 24000;
   const numChunks = Math.ceil(scriptBytes.length / chunkSize);
 

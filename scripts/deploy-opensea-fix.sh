@@ -122,6 +122,8 @@ SCRIPT_NAME="$SCRIPT_NAME" forge script script/UploadScript.s.sol:UploadScript \
     --rpc-url "$RPC_URL" \
     --private-key "$PK" \
     $BROADCAST_FLAG \
+    --gas-estimate-multiplier 300 \
+    --with-gas-price 2gwei \
     -vvv
 
 echo ""
@@ -170,6 +172,8 @@ DEPLOY_OUTPUT=$(SCRIPT_NAME="$SCRIPT_NAME" forge script script/DeployNewRenderer
     --rpc-url "$RPC_URL" \
     --private-key "$PK" \
     $BROADCAST_FLAG \
+    --gas-estimate-multiplier 300 \
+    --with-gas-price 2gwei \
     -vvv 2>&1)
 
 echo "$DEPLOY_OUTPUT"

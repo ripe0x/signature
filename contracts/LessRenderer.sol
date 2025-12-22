@@ -268,7 +268,7 @@ contract LessRenderer is ILessRenderer, Ownable {
     ) internal view returns (IScriptyBuilderV2.HTMLRequest memory) {
         // Create head tags (inject seed as a global variable)
         IScriptyBuilderV2.HTMLTag[]
-            memory headTags = new IScriptyBuilderV2.HTMLTag[](2);
+            memory headTags = new IScriptyBuilderV2.HTMLTag[](3);
 
         // Meta viewport for proper scaling
         headTags[0] = IScriptyBuilderV2.HTMLTag({
@@ -281,8 +281,21 @@ contract LessRenderer is ILessRenderer, Ownable {
             tagContent: ""
         });
 
-        // Inject seed, tokenId, and windowId as global JS variables
+        // Add critical CSS to ensure HTML fills viewport (required for OpenSea iframe)
         headTags[1] = IScriptyBuilderV2.HTMLTag({
+            name: "",
+            contractAddress: address(0),
+            contractData: "",
+            tagType: IScriptyBuilderV2.HTMLTagType.useTagOpenAndClose,
+            tagOpen: "<style>",
+            tagClose: "</style>",
+            tagContent: bytes(
+                "html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden}"
+            )
+        });
+
+        // Inject seed, tokenId, and windowId as global JS variables
+        headTags[2] = IScriptyBuilderV2.HTMLTag({
             name: "",
             contractAddress: address(0),
             contractData: "",
@@ -296,11 +309,14 @@ contract LessRenderer is ILessRenderer, Ownable {
         IScriptyBuilderV2.HTMLTag[]
             memory bodyTags = new IScriptyBuilderV2.HTMLTag[](1);
 
+        // Use scriptBase64DataURI to prevent OpenSea's URL-decoding from corrupting
+        // % characters in the JS. The script stored in ScriptyStorage must be base64 encoded.
+        // Output: <script src="data:text/javascript;base64,[STORED_BASE64]"></script>
         bodyTags[0] = IScriptyBuilderV2.HTMLTag({
             name: scriptName,
             contractAddress: scriptyStorage,
             contractData: "",
-            tagType: IScriptyBuilderV2.HTMLTagType.script,
+            tagType: IScriptyBuilderV2.HTMLTagType.scriptBase64DataURI,
             tagOpen: "",
             tagClose: "",
             tagContent: ""

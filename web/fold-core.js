@@ -4343,8 +4343,9 @@ function createInteractiveDOM() {
   const container = document.createElement("div");
   container.className = "fold-container";
   container.id = "fold-container";
+  // Fill entire viewport - background extends to edges, artwork is centered within
   container.style.cssText =
-    "position:relative;width:min(100vw,calc(100vh*1200/1697));height:min(100vh,calc(100vw*1697/1200))";
+    "position:relative;width:100vw;height:100vh";
 
   // Create loading screen with centered ▒ character (inline styles for immediate rendering)
   const loading = document.createElement("div");

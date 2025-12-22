@@ -38,9 +38,17 @@ const network =
 const dryRun = args.includes("--dry-run");
 const testMode = args.includes("--test");
 const testMintMode = args.includes("--test-mint");
+const testReminderMode = args.includes("--test-reminder");
 const verifyMode = args.includes("--verify");
 const postTestTweet = args.includes("--post-test");
 const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
+const skipCatchup = args.includes("--skip-catchup"); // Skip catching up on missed events, just watch for new ones
+const postMintTokenId = args
+  .find((arg) => arg.startsWith("--post-mint="))
+  ?.split("=")[1]; // Post a tweet for a specific token ID
+const postWindowId = args
+  .find((arg) => arg.startsWith("--post-window="))
+  ?.split("=")[1]; // Post a window opened tweet for a specific window ID
 const pollingInterval =
   parseInt(
     args.find((arg) => arg.startsWith("--interval="))?.split("=")[1] || "60",
@@ -86,7 +94,34 @@ function logWarn(message) {
 
 // State persistence - tracks processed windows, mints, and last block
 // Clears state automatically if contract address changes
+// Supports RESET_PROCESSED_MINTS and RESET_PROCESSED_WINDOWS env vars to initialize state
 function loadState(contractAddress) {
+  // Check for reset env vars - these allow resetting state on deploy
+  const resetMints = process.env.RESET_PROCESSED_MINTS
+    ? parseInt(process.env.RESET_PROCESSED_MINTS, 10)
+    : null;
+  const resetWindows = process.env.RESET_PROCESSED_WINDOWS
+    ? parseInt(process.env.RESET_PROCESSED_WINDOWS, 10)
+    : null;
+
+  if (resetMints !== null || resetWindows !== null) {
+    logInfo(
+      `Resetting state from env vars: mints=${resetMints}, windows=${resetWindows}`
+    );
+    const processedMints = resetMints
+      ? new Set(Array.from({ length: resetMints }, (_, i) => i + 1))
+      : new Set();
+    const processedWindows = resetWindows
+      ? new Set(Array.from({ length: resetWindows }, (_, i) => i + 1))
+      : new Set();
+    return {
+      processedWindows,
+      processedMints,
+      fifteenMinReminders: new Set(),
+      lastBlock: 0n,
+    };
+  }
+
   try {
     if (existsSync(stateFile)) {
       const data = JSON.parse(readFileSync(stateFile, "utf-8"));
@@ -100,6 +135,7 @@ function loadState(contractAddress) {
         return {
           processedWindows: new Set(),
           processedMints: new Set(),
+          fifteenMinReminders: new Set(),
           lastBlock: 0n,
         };
       }
@@ -109,6 +145,7 @@ function loadState(contractAddress) {
           data.processedWindows || data.processedFolds || []
         ),
         processedMints: new Set(data.processedMints || []),
+        fifteenMinReminders: new Set(data.fifteenMinReminders || []),
         lastBlock: BigInt(data.lastBlock || 0),
       };
     }
@@ -118,6 +155,7 @@ function loadState(contractAddress) {
   return {
     processedWindows: new Set(),
     processedMints: new Set(),
+    fifteenMinReminders: new Set(),
     lastBlock: 0n,
   };
 }
@@ -125,6 +163,7 @@ function loadState(contractAddress) {
 function saveState(
   processedWindows,
   processedMints,
+  fifteenMinReminders,
   lastBlock,
   contractAddress
 ) {
@@ -133,6 +172,7 @@ function saveState(
       contractAddress,
       processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
+      fifteenMinReminders: Array.from(fifteenMinReminders),
       lastBlock: lastBlock.toString(),
       updatedAt: new Date().toISOString(),
     };
@@ -149,12 +189,7 @@ function sleep(ms) {
 
 // Fetch image from image API using token ID
 async function fetchImage(tokenId) {
-  const imageApiUrl = process.env.IMAGE_API_URL;
-  if (!imageApiUrl) {
-    logWarn("IMAGE_API_URL not set, skipping image");
-    return null;
-  }
-
+  const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
   const url = `${imageApiUrl}/images/${tokenId}`;
   logInfo(`Fetching image from ${url}`);
 
@@ -296,8 +331,10 @@ function formatDuration(seconds) {
   }`;
 }
 
-const MINT_URL = "https://less.ripe.wtf";
-const LESS_TOKEN_ADDRESS = process.env.LESS_TOKEN_ADDRESS;
+const BASE_URL = "https://less.ripe.wtf";
+const LESS_TOKEN_ADDRESS =
+  process.env.LESS_TOKEN_ADDRESS ||
+  "0x9C2CA573009F181EAc634C4d6e44A0977C24f335";
 const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 decimals
 
 // Fetch burn data from strategy and token contracts
@@ -461,7 +498,7 @@ ${burnData.supplyRemaining}% supply remaining
 
 LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
-${MINT_URL}`;
+${BASE_URL}/mint`;
   }
 
   // If we have only supply data (no burn amount), show just supply
@@ -474,7 +511,7 @@ ${burnData.supplyRemaining}% total supply remaining
 LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
-${MINT_URL}`;
+${BASE_URL}/mint`;
   }
 
   // Simple format without any burn/supply data
@@ -484,7 +521,7 @@ ${MINT_URL}`;
  LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
-${MINT_URL}`;
+${BASE_URL}/mint`;
 }
 
 // Display tweet preview in console
@@ -512,7 +549,7 @@ function displayTweetPreview(message) {
 // Post tweet with optional image
 async function postTweet(twitterClient, message, imageBuffer = null) {
   // In dry-run or test mode, just display the preview
-  if (dryRun || testMode || testMintMode) {
+  if (dryRun || testMode || testMintMode || testReminderMode) {
     displayTweetPreview(message);
     if (imageBuffer) {
       logInfo(`[DRY-RUN] Would attach image (${imageBuffer.length} bytes)`);
@@ -547,6 +584,22 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
       // Duplicate tweet
       logError("Tweet failed: duplicate content");
       return null;
+    }
+    // Handle rate limit (429)
+    if (error.code === 429 || error.message?.includes("429")) {
+      const resetTime = error.rateLimit?.reset;
+      const waitSeconds = resetTime
+        ? Math.max(resetTime - Math.floor(Date.now() / 1000), 60)
+        : 900; // Default 15 min
+      logWarn(
+        `Rate limited by Twitter. Waiting ${Math.ceil(
+          waitSeconds / 60
+        )} minutes before retry...`
+      );
+      await new Promise((r) => setTimeout(r, waitSeconds * 1000));
+      // Retry once after waiting (without image to simplify)
+      const tweet = await twitterClient.v2.tweet(message);
+      return tweet.data.id;
     }
     throw error;
   }
@@ -698,6 +751,252 @@ async function runTestMintMode() {
   logSuccess("Test mint completed!");
 }
 
+// Post a mint tweet for a specific token ID (fetches real on-chain data)
+async function runPostMintMode(tokenId) {
+  logInfo(`Posting mint tweet for token #${tokenId}...`);
+  console.log();
+
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
+  // Fetch token data from contract
+  const abi = loadContractABI();
+
+  // Get the owner of the token (minter)
+  let minter;
+  try {
+    minter = await client.readContract({
+      address: contractAddress,
+      abi,
+      functionName: "ownerOf",
+      args: [BigInt(tokenId)],
+    });
+    logInfo(`Token owner: ${minter}`);
+  } catch (error) {
+    logError(`Failed to get token owner: ${error.message}`);
+    logError("Token may not exist or contract call failed");
+    process.exit(1);
+  }
+
+  // Resolve ENS or use truncated address
+  const ensName = await resolveEns(minter);
+  const minterDisplay = ensName || truncateAddress(minter);
+  logInfo(`Minter display: ${minterDisplay}`);
+
+  // Fetch remaining time in window
+  let minutesRemaining = null;
+  try {
+    const timeUntilClose = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "timeUntilWindowCloses",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "timeUntilWindowCloses",
+    });
+    minutesRemaining = Math.floor(Number(timeUntilClose) / 60);
+    logInfo(`Time remaining in window: ${minutesRemaining} minutes`);
+  } catch (e) {
+    logWarn(`Could not fetch time remaining: ${e.message}`);
+  }
+
+  // Get current window ID (windowCount is the current/most recent window)
+  let windowId = null;
+  try {
+    const windowCount = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "windowCount",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "windowCount",
+    });
+    windowId = Number(windowCount);
+    logInfo(`Window ID: ${windowId}`);
+  } catch (e) {
+    logWarn(`Could not fetch window ID: ${e.message}`);
+  }
+
+  // Fetch image from image API
+  const imageBuffer = await fetchImage(tokenId);
+
+  if (!imageBuffer) {
+    logError("Failed to fetch image - cannot post tweet without image");
+    process.exit(1);
+  }
+  logSuccess(`Image fetched: ${imageBuffer.length} bytes`);
+
+  // Format tweet
+  const tweetMessage = formatMintTweet(
+    Number(tokenId),
+    minterDisplay,
+    minutesRemaining,
+    windowId
+  );
+
+  // Initialize Twitter client and post
+  const twitterClient = initTwitterClient();
+  if (!twitterClient) {
+    logError("Failed to initialize Twitter client");
+    process.exit(1);
+  }
+
+  logInfo("Posting tweet...");
+  const tweetId = await postTweet(twitterClient, tweetMessage, imageBuffer);
+
+  if (tweetId) {
+    logSuccess(`Tweet posted! ID: ${tweetId}`);
+    logInfo(`View at: https://x.com/i/status/${tweetId}`);
+  } else {
+    logError("Failed to post tweet");
+    process.exit(1);
+  }
+}
+
+// Run post window mode - post a window opened tweet for a specific window ID
+async function runPostWindowMode(windowId) {
+  logInfo(`Posting window opened tweet for window #${windowId}...`);
+  console.log();
+
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
+  // Fetch time until window closes
+  let timeRemaining;
+  try {
+    const timeUntilClose = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "timeUntilWindowCloses",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "timeUntilWindowCloses",
+    });
+    timeRemaining = Number(timeUntilClose);
+  } catch (error) {
+    logError(`Failed to fetch window time: ${error.message}`);
+    process.exit(1);
+  }
+
+  if (timeRemaining === 0) {
+    logError("No window is currently open");
+    process.exit(1);
+  }
+
+  // Calculate start/end times
+  const now = Math.floor(Date.now() / 1000);
+  const endTime = now + timeRemaining;
+  const startTime = now; // Approximate - we don't have the exact start time
+  const minutesLeft = Math.floor(timeRemaining / 60);
+  logInfo(`Window ${windowId}: ${minutesLeft} minutes remaining`);
+
+  // Fetch burn data
+  let burnData = null;
+  try {
+    const abi = loadContractABI();
+    burnData = await fetchBurnData(client, contractAddress, abi);
+  } catch (error) {
+    logWarn(`Could not fetch burn data: ${error.message}`);
+  }
+
+  // Format tweet
+  const tweetMessage = formatTweet(
+    Number(windowId),
+    Number(startTime),
+    Number(endTime),
+    burnData
+  );
+
+  // Display preview
+  displayTweetPreview(tweetMessage);
+
+  // Initialize Twitter client and post
+  const twitterClient = initTwitterClient();
+  if (!twitterClient && !dryRun) {
+    logError("Failed to initialize Twitter client");
+    process.exit(1);
+  }
+
+  if (dryRun) {
+    logInfo("[DRY-RUN] Would post tweet (not actually sent)");
+    return;
+  }
+
+  logInfo("Posting tweet...");
+  const tweetId = await postTweet(twitterClient, tweetMessage);
+
+  if (tweetId) {
+    logSuccess(`Tweet posted! ID: ${tweetId}`);
+    logInfo(`View at: https://x.com/i/status/${tweetId}`);
+  } else {
+    logError("Failed to post tweet");
+    process.exit(1);
+  }
+}
+
+// Run test reminder mode - simulate a 15-minute reminder
+async function runTestReminderMode() {
+  logInfo("Running in TEST REMINDER MODE - simulating a 15-minute reminder");
+  console.log();
+
+  // Simulate event data
+  const testWindowId = 42;
+  const testMinutesRemaining = 15;
+
+  logInfo(
+    `Simulated: Window #${testWindowId} with ${testMinutesRemaining} minutes remaining`
+  );
+  console.log();
+
+  // Fetch burn data (if configured)
+  let burnData = null;
+  try {
+    const rpcUrl = getRpcUrl();
+    const contractAddress = getContractAddress();
+    const abi = loadContractABI();
+    const client = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+    burnData = await fetchBurnData(client, contractAddress, abi);
+  } catch (error) {
+    logWarn(`Could not fetch burn data: ${error.message}`);
+  }
+
+  // Format and display the tweet
+  const tweetMessage = formatReminderTweet(
+    testWindowId,
+    testMinutesRemaining,
+    burnData
+  );
+
+  await postTweet(null, tweetMessage);
+  logSuccess("Test reminder completed!");
+}
+
 // Generate a preview seed for a window (deterministic based on window parameters)
 function generatePreviewSeed(windowId, strategyBlock, startTime) {
   // Create a deterministic seed from window parameters
@@ -782,7 +1081,38 @@ function formatMintTweet(
       : "";
   return `LESS ${tokenId} minted by ${minterDisplay}${timeText}
 
-${MINT_URL}/token/${tokenId}`;
+${BASE_URL}/${tokenId}`;
+}
+
+// Format 15-minute reminder tweet
+function formatReminderTweet(windowId, minutesRemaining, burnData = null) {
+  // If we have full burn data (amount + supply), include both lines
+  if (burnData && burnData.amountBurned && burnData.supplyRemaining) {
+    return `only ~${minutesRemaining} minutes left to mint!
+
+window ${windowId}
+${burnData.amountBurned} $LESS burned
+${burnData.supplyRemaining}% supply remaining
+
+${BASE_URL}/mint`;
+  }
+
+  // If we have only supply data (no burn amount), show just supply
+  if (burnData && burnData.supplyRemaining) {
+    return `only ~${minutesRemaining} minutes left to mint!
+
+window ${windowId}
+${burnData.supplyRemaining}% supply remaining
+
+${BASE_URL}/mint`;
+  }
+
+  // Simple format without any burn/supply data
+  return `only ~${minutesRemaining} minutes left to mint!
+
+window ${windowId}
+
+${BASE_URL}/mint`;
 }
 
 // Resolve ENS name for an address (always uses mainnet since ENS lives there)
@@ -860,6 +1190,14 @@ async function processMintEvent(
     // Fetch image using the token ID (uses /images/:tokenId which fetches windowId for correct foldCount)
     const imageBuffer = await fetchImage(tokenId);
 
+    // Skip posting if image failed - will retry on next poll
+    if (!imageBuffer) {
+      logWarn(
+        `Skipping mint tweet for #${tokenId} - image not available, will retry later`
+      );
+      return;
+    }
+
     // Format and post tweet with image
     const tweetMessage = formatMintTweet(
       Number(tokenId),
@@ -882,6 +1220,98 @@ async function processMintEvent(
     if (error.stack) {
       console.error(error.stack);
     }
+  }
+}
+
+// Process 15-minute reminder check
+async function processReminderCheck(
+  fifteenMinReminders,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    // Get current window info
+    const currentWindowAbi = [
+      {
+        inputs: [],
+        name: "getCurrentWindow",
+        outputs: [
+          { name: "windowId", type: "uint256" },
+          { name: "startTime", type: "uint64" },
+          { name: "endTime", type: "uint64" },
+          { name: "strategyBlock", type: "uint64" },
+        ],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    const [windowId, startTime, endTime, strategyBlock] =
+      await client.readContract({
+        address: contractAddress,
+        abi: currentWindowAbi,
+        functionName: "getCurrentWindow",
+      });
+
+    // Check if window is active (endTime > now)
+    const now = Math.floor(Date.now() / 1000);
+    const timeRemaining = Number(endTime) - now;
+
+    // Skip if window is not active
+    if (timeRemaining <= 0) {
+      return null;
+    }
+
+    // Check if we're in the 15-minute reminder window (10-16 minutes remaining)
+    const minutesRemaining = Math.ceil(timeRemaining / 60);
+    const inReminderWindow = timeRemaining >= 600 && timeRemaining <= 960; // 10-16 minutes
+
+    if (!inReminderWindow) {
+      return null;
+    }
+
+    // Skip if already reminded for this window
+    if (fifteenMinReminders.has(Number(windowId))) {
+      return null;
+    }
+
+    logInfo(
+      `15-minute reminder triggered for window #${windowId} (${minutesRemaining} minutes remaining)`
+    );
+
+    // Fetch burn data
+    const burnData = await fetchBurnData(client, contractAddress, abi);
+
+    // Format and post tweet
+    const tweetMessage = formatReminderTweet(
+      Number(windowId),
+      minutesRemaining,
+      burnData
+    );
+
+    logInfo("Posting 15-minute reminder tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+
+    if (tweetId) {
+      logSuccess(`Reminder tweet posted! Tweet ID: ${tweetId}`);
+      fifteenMinReminders.add(Number(windowId));
+      return Number(windowId);
+    } else {
+      logError("Failed to post reminder tweet");
+      return null;
+    }
+  } catch (error) {
+    // Silently handle "no active window" errors
+    if (
+      error.message?.includes("revert") ||
+      error.message?.includes("Window")
+    ) {
+      return null;
+    }
+    logError(`Error checking reminder: ${error.message}`);
+    return null;
   }
 }
 
@@ -908,6 +1338,24 @@ async function runBot() {
   // Handle test mint mode
   if (testMintMode) {
     await runTestMintMode();
+    return;
+  }
+
+  // Handle post mint mode (post tweet for specific token ID)
+  if (postMintTokenId) {
+    await runPostMintMode(postMintTokenId);
+    return;
+  }
+
+  // Handle post window mode (post window opened tweet for specific window ID)
+  if (postWindowId) {
+    await runPostWindowMode(postWindowId);
+    return;
+  }
+
+  // Handle test reminder mode
+  if (testReminderMode) {
+    await runTestReminderMode();
     return;
   }
 
@@ -942,6 +1390,7 @@ async function runBot() {
   const state = loadState(contractAddress);
   const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
+  const fifteenMinReminders = state.fifteenMinReminders;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
   if (rescanMode) {
@@ -955,6 +1404,11 @@ async function runBot() {
   if (processedMints.size > 0) {
     logInfo(
       `Loaded ${processedMints.size} previously processed mints from state`
+    );
+  }
+  if (fifteenMinReminders.size > 0) {
+    logInfo(
+      `Loaded ${fifteenMinReminders.size} previously sent 15-min reminders from state`
     );
   }
   if (lastProcessedBlock > 0n) {
@@ -991,7 +1445,11 @@ async function runBot() {
           ? lastProcessedBlock + 1n
           : currentBlock - lookbackBlocks;
 
-      if (fromBlock < currentBlock) {
+      if (skipCatchup) {
+        logInfo(
+          "Skipping catchup (--skip-catchup flag set), watching for new events only..."
+        );
+      } else if (fromBlock < currentBlock) {
         logInfo(
           `Scanning for missed events from block ${fromBlock} to ${currentBlock}...`
         );
@@ -1000,7 +1458,7 @@ async function runBot() {
         const missedWindowLogs = await client.getLogs({
           address: contractAddress,
           event: parseAbiItem(
-            "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
+            "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime)"
           ),
           fromBlock,
           toBlock: currentBlock,
@@ -1017,6 +1475,10 @@ async function runBot() {
               client,
               abi
             );
+            // Delay between tweets to avoid rate limiting
+            if (missedWindowLogs.length > 1) {
+              await new Promise((r) => setTimeout(r, 5000));
+            }
           }
         }
 
@@ -1040,6 +1502,10 @@ async function runBot() {
               client,
               contractAddress
             );
+            // Delay between tweets to avoid rate limiting
+            if (missedMintLogs.length > 1) {
+              await new Promise((r) => setTimeout(r, 5000));
+            }
           }
         }
 
@@ -1053,6 +1519,7 @@ async function runBot() {
       saveState(
         processedWindows,
         processedMints,
+        fifteenMinReminders,
         lastProcessedBlock,
         contractAddress
       );
@@ -1064,7 +1531,7 @@ async function runBot() {
       const unwatchWindows = client.watchEvent({
         address: contractAddress,
         event: parseAbiItem(
-          "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime, bytes32 blockHash)"
+          "event WindowCreated(uint256 indexed windowId, uint64 startTime, uint64 endTime)"
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
@@ -1081,6 +1548,7 @@ async function runBot() {
               saveState(
                 processedWindows,
                 processedMints,
+                fifteenMinReminders,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1112,6 +1580,7 @@ async function runBot() {
               saveState(
                 processedWindows,
                 processedMints,
+                fifteenMinReminders,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1134,13 +1603,39 @@ async function runBot() {
       );
       logInfo("Press Ctrl+C to stop");
 
+      // 15-minute reminder checker (every 30 seconds)
+      const reminderInterval = setInterval(async () => {
+        try {
+          const reminded = await processReminderCheck(
+            fifteenMinReminders,
+            twitterClient,
+            client,
+            contractAddress,
+            abi
+          );
+          if (reminded) {
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              lastProcessedBlock,
+              contractAddress
+            );
+          }
+        } catch (error) {
+          logError(`Reminder check error: ${error.message}`);
+        }
+      }, 30000);
+
       // Graceful shutdown handler
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
+        clearInterval(reminderInterval);
         saveState(
           processedWindows,
           processedMints,
+          fifteenMinReminders,
           lastProcessedBlock,
           contractAddress
         );
@@ -1158,10 +1653,11 @@ async function runBot() {
           try {
             const block = await client.getBlockNumber();
             logInfo(
-              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints`
+              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints, ${fifteenMinReminders.size} reminders`
             );
           } catch (error) {
             clearInterval(healthCheck);
+            clearInterval(reminderInterval);
             reject(error);
           }
         }, 300000);

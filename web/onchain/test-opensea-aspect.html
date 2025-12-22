@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenSea Aspect Ratio Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a1a;
+      font-family: system-ui, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #fff;
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .test-case {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .test-case h2 {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+    .iframe-container {
+      position: relative;
+      background: #fff;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    /* OpenSea's aspect-square class */
+    .aspect-square {
+      aspect-ratio: 1 / 1;
+    }
+    /* Wide aspect ratio */
+    .aspect-wide {
+      aspect-ratio: 16 / 9;
+    }
+    /* Tall aspect ratio */
+    .aspect-tall {
+      aspect-ratio: 9 / 16;
+    }
+    /* A4 aspect ratio (should fit perfectly) */
+    .aspect-a4 {
+      aspect-ratio: 1200 / 1697;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .info {
+      color: #666;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+    .seed-info {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .seed-info code {
+      background: #333;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .seed-info a {
+      color: #6af;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenSea Aspect Ratio Test - Background should fill entire container</h1>
+  <p class="seed-info">Seed: <code id="current-seed"></code> | Folds: <code id="current-folds"></code> | <a href="#" onclick="location.reload(); return false;">Refresh for new token</a></p>
+
+  <div class="test-grid">
+    <div class="test-case">
+      <h2>Square (OpenSea default)</h2>
+      <div class="iframe-container aspect-square">
+        <iframe id="frame-square"></iframe>
+      </div>
+      <div class="info">White bars on sides = bug. Background should fill entire square.</div>
+    </div>
+
+    <div class="test-case">
+      <h2>Wide (16:9)</h2>
+      <div class="iframe-container aspect-wide">
+        <iframe id="frame-wide"></iframe>
+      </div>
+      <div class="info">Background should fill, artwork centered.</div>
+    </div>
+
+    <div class="test-case">
+      <h2>Tall (9:16)</h2>
+      <div class="iframe-container aspect-tall">
+        <iframe id="frame-tall"></iframe>
+      </div>
+      <div class="info">Background should fill, artwork centered.</div>
+    </div>
+
+    <div class="test-case">
+      <h2>A4 Ratio (perfect fit)</h2>
+      <div class="iframe-container aspect-a4">
+        <iframe id="frame-a4"></iframe>
+      </div>
+      <div class="info">Should fit perfectly with no gaps.</div>
+    </div>
+  </div>
+
+  <script>
+    // Generate random seed
+    const seed = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+    const folds = Math.floor(Math.random() * 15) + 1;
+    const src = `demo-frame.html?seed=${seed}&folds=${folds}`;
+
+    // Display current values
+    document.getElementById('current-seed').textContent = seed.slice(0, 10) + '...' + seed.slice(-6);
+    document.getElementById('current-folds').textContent = folds;
+
+    // Set all iframes to same seed
+    document.getElementById('frame-square').src = src;
+    document.getElementById('frame-wide').src = src;
+    document.getElementById('frame-tall').src = src;
+    document.getElementById('frame-a4').src = src;
+  </script>
+</body>
+</html>

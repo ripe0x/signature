@@ -6,13 +6,18 @@ import {LessRenderer} from "../contracts/LessRenderer.sol";
 
 /// @title DeployRenderer
 /// @notice Deploys only the LessRenderer contract
+/// @dev Used by deploy-opensea-fix.js for the base64 encoding fix
 contract DeployRenderer is Script {
     address constant SCRIPTY_STORAGE = 0xbD11994aABB55Da86DC246EBB17C1Be0af5b7699;
     address constant SCRIPTY_BUILDER = 0xD7587F110E08F4D120A231bA97d3B577A81Df022;
 
+    // Mainnet Less contract
+    address constant LESS_MAINNET = 0x008B66385ed2346E6895031E250B2ac8dc14605C;
+
     function run() external returns (address) {
-        address lessAddress = vm.envAddress("LESS_TOKEN_ADDRESS");
-        string memory scriptName = vm.envOr("SCRIPT_NAME", string("lessFolds.js"));
+        // Allow override via env, default to mainnet
+        address lessAddress = vm.envOr("LESS_TOKEN_ADDRESS", LESS_MAINNET);
+        string memory scriptName = vm.envOr("SCRIPT_NAME", string("less"));
         string memory baseImageURL = vm.envOr("BASE_IMAGE_URL", string("https://fold-image-api.fly.dev/images/"));
         address owner = vm.envOr("OWNER_ADDRESS", msg.sender);
 
@@ -21,6 +26,7 @@ contract DeployRenderer is Script {
         console.log("Script name:", scriptName);
         console.log("Base image URL:", baseImageURL);
         console.log("Owner:", owner);
+        console.log("");
 
         vm.startBroadcast();
 
@@ -41,6 +47,7 @@ contract DeployRenderer is Script {
 
         vm.stopBroadcast();
 
+        console.log("");
         console.log("LessRenderer deployed at:", address(renderer));
         return address(renderer);
     }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
+import {Base64} from "solady/utils/Base64.sol";
 
 /// @title IScriptyStorage
 /// @notice Interface for ScriptyStorageV2 contract
@@ -40,12 +41,17 @@ contract UploadScript is Script {
         console.log("Script path:", scriptPath);
         console.log("");
 
-        // Read the script file
+        // Read the script file and base64 encode it
+        // Base64 encoding is required for scriptBase64DataURI tagType
+        // This prevents OpenSea's URL-decoding from corrupting % characters in JS
         string memory scriptContent = vm.readFile(scriptPath);
-        bytes memory scriptBytes = bytes(scriptContent);
+        bytes memory rawBytes = bytes(scriptContent);
+        string memory base64Content = Base64.encode(rawBytes);
+        bytes memory scriptBytes = bytes(base64Content);
         uint256 scriptSize = scriptBytes.length;
 
-        console.log("Script size:", scriptSize, "bytes");
+        console.log("Raw script size:", rawBytes.length, "bytes");
+        console.log("Base64 encoded size:", scriptSize, "bytes");
 
         uint256 totalChunks = (scriptSize + MAX_CHUNK_SIZE - 1) / MAX_CHUNK_SIZE;
         console.log("Chunks required:", totalChunks);

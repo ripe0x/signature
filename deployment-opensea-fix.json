@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-12-22T02:13:03.471Z",
+  "network": "mainnet",
+  "fix": "opensea-base64-encoding",
+  "scriptName": "less-b64-v1766369273",
+  "renderer": "0xbd5FDC7d81D1ecE30Cd6BAE6cD9A00846EF22D27",
+  "lessContract": "0x008B66385ed2346E6895031E250B2ac8dc14605C",
+  "rendererSet": true
+}

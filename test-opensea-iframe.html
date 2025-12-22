@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OpenSea iframe Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: monospace;
+    }
+    .test-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .test-box {
+      border: 2px solid #333;
+      padding: 10px;
+    }
+    iframe {
+      width: 100%;
+      height: 400px;
+      border: 1px solid #ccc;
+    }
+    h3 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenSea iframe Rendering Test</h1>
+  <p>This page tests how the HTML renders in an iframe (simulating OpenSea's environment)</p>
+  
+  <div class="test-container">
+    <div class="test-box">
+      <h3>❌ Current HTML (without viewport CSS)</h3>
+      <p>This is what OpenSea currently sees - likely shows white screen</p>
+      <iframe id="current" srcdoc="<html><head><meta charset=&quot;utf-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;><script>window.LESS_TOKEN_ID=2;window.LESS_SEED=&quot;0x577e355f0c2e5b97ddf8591ff44a7cc479f61ca565eefd1aca5c8b4be9873b18&quot;;window.FOLD_COUNT=0;</script></head><body><div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;color:#000;font-family:monospace;font-size:24px;&quot;>Content should appear here</div></body></html>"></iframe>
+    </div>
+    
+    <div class="test-box">
+      <h3>✅ Fixed HTML (with viewport CSS)</h3>
+      <p>This is what it should look like with the fix</p>
+      <iframe id="fixed" srcdoc="<html><head><meta charset=&quot;utf-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;><style>html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden}</style><script>window.LESS_TOKEN_ID=2;window.LESS_SEED=&quot;0x577e355f0c2e5b97ddf8591ff44a7cc479f61ca565eefd1aca5c8b4be9873b18&quot;;window.FOLD_COUNT=0;</script></head><body><div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;color:#000;font-family:monospace;font-size:24px;&quot;>Content should appear here</div></body></html>"></iframe>
+    </div>
+  </div>
+  
+  <div style="margin-top: 30px; padding: 15px; background: #f0f0f0; border-left: 4px solid #0066cc;">
+    <h3>Analysis:</h3>
+    <ul>
+      <li><strong>Left iframe:</strong> Without the CSS fix, the body/html elements may not fill the iframe viewport, causing white space or rendering issues</li>
+      <li><strong>Right iframe:</strong> With the CSS fix (html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden}), the content should fill the entire iframe</li>
+      <li><strong>OpenSea's issue:</strong> OpenSea loads the animation_url in a sandboxed iframe. Without proper viewport CSS, the HTML may render as a white screen</li>
+    </ul>
+  </div>
+  
+  <script>
+    // Check if content is visible in iframes
+    setTimeout(() => {
+      const current = document.getElementById('current');
+      const fixed = document.getElementById('fixed');
+      
+      try {
+        const currentDoc = current.contentDocument || current.contentWindow.document;
+        const fixedDoc = fixed.contentDocument || fixed.contentWindow.document;
+        
+        console.log('Current iframe body dimensions:', {
+          width: currentDoc.body.offsetWidth,
+          height: currentDoc.body.offsetHeight,
+          scrollWidth: currentDoc.body.scrollWidth,
+          scrollHeight: currentDoc.body.scrollHeight
+        });
+        
+        console.log('Fixed iframe body dimensions:', {
+          width: fixedDoc.body.offsetWidth,
+          height: fixedDoc.body.offsetHeight,
+          scrollWidth: fixedDoc.body.scrollWidth,
+          scrollHeight: fixedDoc.body.scrollHeight
+        });
+      } catch (e) {
+        console.log('Cannot access iframe content (cross-origin or sandbox restrictions)');
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
+

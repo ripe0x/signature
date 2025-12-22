@@ -7,7 +7,7 @@ import type { PooledPage, RenderOptions } from '../types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const POOL_SIZE = 1;
+const POOL_SIZE = 4;
 const RENDER_TIMEOUT = 30000;
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1697; // A4 aspect ratio (1:√2)
@@ -158,18 +158,13 @@ export class PlaywrightRenderer {
 
       // Navigate to blank first to clear state
       await page.goto('about:blank');
-      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+      await page.setContent(html, { waitUntil: 'load' });
 
-      // Wait for render complete signal (set by fold-core.js)
-      await page.waitForFunction(
-        () => (window as any).RENDER_COMPLETE === true,
-        { timeout: RENDER_TIMEOUT }
-      );
+      // Wait for render to complete
+      await page.waitForTimeout(5000);
 
-      // Take screenshot of the canvas element
-      const canvas = await page.$('canvas');
-      if (!canvas) throw new Error('Canvas not found');
-      return await canvas.screenshot({ type: 'png' });
+      // Take full page screenshot (avoids canvas stability issues)
+      return await page.screenshot({ type: 'png', fullPage: false });
     } catch (error) {
       // Detect page crash
       if (error instanceof Error && error.message.includes('crashed')) {
