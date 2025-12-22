@@ -495,63 +495,87 @@ export function MintWindow() {
 
   // STATE 3: Window closed and threshold not met (or cooldown in progress)
   return (
-    <div className="space-y-12">
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl">mint LESS</h1>
-        {cooldownRemaining > 0 ? (
-          <p className="text-muted">
-            next window available in{" "}
-            <span className="text-foreground font-mono">
-              {formatCountdown(cooldownRemaining)}
-            </span>
-          </p>
-        ) : (
-          <p className="text-muted">no active window</p>
-        )}
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-3xl mb-2">mint LESS</h1>
+        <p className="text-muted">
+          {windowCount} window{windowCount !== 1 ? "s" : ""} so far
+        </p>
       </div>
 
-      {/* How it works */}
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="p-6 border border-border space-y-4">
-          <h2 className="text-lg">how mint windows work</h2>
-          <div className="text-sm text-muted space-y-3">
+      {/* Main status card */}
+      <div className="max-w-md mx-auto">
+        <div className="p-6 border border-border space-y-6">
+          {/* Status */}
+          <div className="text-center">
+            {cooldownRemaining > 0 ? (
+              <>
+                <p className="text-sm text-muted mb-1">cooldown active</p>
+                <p className="text-2xl font-mono">
+                  {formatCountdown(cooldownRemaining)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted mb-1">waiting for threshold</p>
+                <p className="text-lg">
+                  {buybackBalanceEth.toFixed(4)} / 0.25 ETH
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          {cooldownRemaining === 0 && (
+            <div className="space-y-2">
+              <div className="h-2 bg-border overflow-hidden">
+                <div
+                  className="h-full bg-foreground transition-all duration-500"
+                  style={{ width: `${Math.min((buybackBalanceEth / 0.25) * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted text-center">
+                {(0.25 - buybackBalanceEth).toFixed(4)} ETH until next window
+              </p>
+            </div>
+          )}
+
+          {/* How it works */}
+          <div className="text-xs text-muted space-y-2 pt-4 border-t border-border">
             <p>
-              trading fees from the{" "}
+              trading fees from{" "}
               <a
                 href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground hover:underline"
               >
-                $LESS token
+                $LESS
               </a>{" "}
-              accumulate in the recursive strategy contract.
-            </p>
-            <p>
-              when the balance reaches{" "}
-              <strong className="text-foreground">0.25 ETH</strong>, anyone can
-              trigger a burn — the ETH buys and burns $LESS tokens, and a{" "}
-              <strong className="text-foreground">90-minute mint window</strong>{" "}
-              opens.
-            </p>
-            <p>
-              during the window, mint as many as you like — but price escalates
-              <strong className="text-foreground"> 1.5x per mint</strong> per
-              wallet. pricing resets each window.
+              accumulate until the 0.25 ETH threshold is reached. then anyone
+              can trigger a burn to open a 90-minute mint window.
             </p>
           </div>
         </div>
-
-        {/* Balance progress */}
-        <BalanceProgress current={buybackBalanceEth} threshold={0.25} />
       </div>
 
-      {/* Stats */}
-      <div className="flex justify-center text-sm">
-        <div className="text-center">
-          <div className="text-muted mb-1">total windows</div>
-          <div className="text-2xl">{windowCount}</div>
-        </div>
+      {/* Actions */}
+      <div className="flex flex-wrap justify-center gap-3">
+        <Link href="/collection">
+          <button className="px-4 py-2 text-sm border border-border hover:border-foreground transition-colors">
+            browse collection
+          </button>
+        </Link>
+        <a
+          href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <button className="px-4 py-2 text-sm border border-border hover:border-foreground transition-colors">
+            trade $LESS
+          </button>
+        </a>
       </div>
 
       {/* Contract link */}
@@ -560,12 +584,11 @@ export function MintWindow() {
           href={contractUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-muted hover:text-foreground"
+          className="text-xs text-muted hover:text-foreground"
         >
-          view contract on etherscan →
+          view contract →
         </a>
       </div>
-
     </div>
   );
 }
