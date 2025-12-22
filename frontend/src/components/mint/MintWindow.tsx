@@ -250,7 +250,10 @@ export function MintWindow() {
     resetMint,
   } = useMintWindow();
 
-  const { windowCount } = useTokenStats();
+  const { windowCount, buybackBalance } = useTokenStats();
+
+  // Convert buyback balance to ETH (from wei)
+  const buybackBalanceEth = Number(buybackBalance) / 1e18;
 
   const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT);
 
@@ -482,7 +485,7 @@ export function MintWindow() {
         {/* Stats */}
         <div className="flex justify-center text-sm">
           <div className="text-center">
-            <div className="text-muted mb-1">total windows</div>
+            <div className="text-muted mb-1">windows so far</div>
             <div className="text-2xl">{windowCount}</div>
           </div>
         </div>
@@ -513,8 +516,16 @@ export function MintWindow() {
           <h2 className="text-lg">how mint windows work</h2>
           <div className="text-sm text-muted space-y-3">
             <p>
-              trading fees from the $LESS token accumulate in the recursive
-              strategy contract.
+              trading fees from the{" "}
+              <a
+                href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground hover:underline"
+              >
+                $LESS token
+              </a>{" "}
+              accumulate in the recursive strategy contract.
             </p>
             <p>
               when the balance reaches{" "}
@@ -531,8 +542,8 @@ export function MintWindow() {
           </div>
         </div>
 
-        {/* Balance progress - placeholder for now */}
-        {/* <BalanceProgress current={0.12} threshold={0.25} /> */}
+        {/* Balance progress */}
+        <BalanceProgress current={buybackBalanceEth} threshold={0.25} />
       </div>
 
       {/* Stats */}
