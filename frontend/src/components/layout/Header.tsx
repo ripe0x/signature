@@ -89,7 +89,7 @@ export function Header() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm">
         <div className="flex items-center justify-between px-6 py-4 md:px-8">
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-col">
             <Link
               href="/"
               className="text-lg font-medium tracking-tight hover:opacity-70 transition-opacity"
@@ -100,7 +100,7 @@ export function Header() {
               href="https://ripe.wtf"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-muted hover:text-foreground transition-colors"
+              className="text-[12px] text-muted/70 hover:text-muted transition-colors -mt-0.5"
             >
               by ripe
             </a>
