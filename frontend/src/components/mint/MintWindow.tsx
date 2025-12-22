@@ -427,11 +427,7 @@ export function MintWindow() {
                 isWrongNetwork={isWrongNetwork}
                 onMint={handleMint}
               />
-              {isWrongNetwork ? (
-                <p className="text-xs text-red-500 text-center">
-                  wrong network — use the button above to switch to mainnet
-                </p>
-              ) : (
+              {!isWrongNetwork && (
                 <p className="text-xs text-muted text-center">ETH MAINNET</p>
               )}
 
@@ -532,11 +528,7 @@ export function MintWindow() {
                 onMint={handleMint}
               />
 
-              {isWrongNetwork ? (
-                <p className="text-xs text-red-500 text-center">
-                  wrong network — use the button above to switch to mainnet
-                </p>
-              ) : (
+              {!isWrongNetwork && (
                 <p className="text-xs text-muted">
                   first mint triggers buy + burn and opens the window
                 </p>

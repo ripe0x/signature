@@ -1,6 +1,6 @@
 'use client';
 
-import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
+import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, CHAIN_ID } from '@/lib/contracts';
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -39,8 +39,7 @@ function calculateNextMintPrice(basePrice: bigint, mintCount: number): bigint {
 }
 
 export function useMintWindow() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const { address, isConnected, chainId } = useAccount();
   const { switchChain } = useSwitchChain();
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);

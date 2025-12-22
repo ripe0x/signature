@@ -1,5 +1,6 @@
 'use client';
 
+import { useConnectModal, useChainModal } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/ui/Button';
 import { formatEth } from '@/lib/utils';
 
@@ -26,9 +27,11 @@ export function MintButton({
   onMint,
   label,
 }: MintButtonProps) {
+  const { openConnectModal } = useConnectModal();
+  const { openChainModal } = useChainModal();
+
   const getButtonText = () => {
-    if (!isConnected) return 'connect wallet';
-    if (isWrongNetwork) return 'switch network to mint';
+    if (!isConnected) return 'connect wallet to mint';
     if (isPending) return 'confirm in wallet...';
     if (isConfirming) return 'minting...';
     if (label) return label;
@@ -39,22 +42,35 @@ export function MintButton({
   };
 
   const handleClick = () => {
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
     if (isWrongNetwork) {
+      openChainModal?.();
       return;
     }
     onMint();
   };
 
-  const isDisabled = isWrongNetwork || !canMint || isPending || isConfirming;
+  // Button is clickable when not connected (opens modal) or on wrong network (opens chain modal)
+  const isDisabled = (isConnected && !isWrongNetwork && !canMint) || isPending || isConfirming;
 
   return (
-    <Button
-      size="lg"
-      onClick={handleClick}
-      disabled={isDisabled}
-      className="w-full md:w-auto min-w-[200px]"
-    >
-      {getButtonText()}
-    </Button>
+    <div className="space-y-2">
+      <Button
+        size="lg"
+        onClick={handleClick}
+        disabled={isDisabled}
+        className="w-full md:w-auto min-w-[200px]"
+      >
+        {getButtonText()}
+      </Button>
+      {isWrongNetwork && (
+        <p className="text-xs text-red-500 text-center">
+          wrong network — switch to Ethereum Mainnet to mint
+        </p>
+      )}
+    </div>
   );
 }
