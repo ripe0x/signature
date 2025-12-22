@@ -12,7 +12,6 @@ interface MintButtonProps {
   isConnected: boolean;
   isWrongNetwork?: boolean;
   onMint: () => void;
-  onSwitchNetwork?: () => void;
   label?: string;
 }
 
@@ -25,12 +24,11 @@ export function MintButton({
   isConnected,
   isWrongNetwork,
   onMint,
-  onSwitchNetwork,
   label,
 }: MintButtonProps) {
   const getButtonText = () => {
     if (!isConnected) return 'connect wallet';
-    if (isWrongNetwork) return 'switch to mainnet';
+    if (isWrongNetwork) return 'switch network to mint';
     if (isPending) return 'confirm in wallet...';
     if (isConfirming) return 'minting...';
     if (label) return label;
@@ -41,22 +39,13 @@ export function MintButton({
   };
 
   const handleClick = () => {
-    if (isWrongNetwork && onSwitchNetwork) {
-      onSwitchNetwork();
-      return;
-    }
-    
-    // Double-check: don't allow minting if on wrong network
     if (isWrongNetwork) {
-      console.error('Cannot mint on wrong network');
       return;
     }
-    
     onMint();
   };
 
-  // Disable button if on wrong network (unless we have switch handler) or if can't mint
-  const isDisabled = isWrongNetwork ? !onSwitchNetwork : (!canMint || isPending || isConfirming);
+  const isDisabled = isWrongNetwork || !canMint || isPending || isConfirming;
 
   return (
     <Button

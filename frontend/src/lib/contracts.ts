@@ -1,7 +1,7 @@
 // Contract addresses - Ethereum Mainnet
 export const CONTRACTS = {
   LESS_NFT: "0x008B66385ed2346E6895031E250B2ac8dc14605C" as `0x${string}`,
-  LESS_STRATEGY: "0x9C2CA573009F181EAc634C4d6e44A0977C24f335" as `0x${string}`,
+  LESS_STRATEGY: "0x9c2ca573009f181eac634c4d6e44a0977c24f335" as `0x${string}`,
 } as const;
 
 export const CHAIN_ID = 1;

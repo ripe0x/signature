@@ -326,7 +326,6 @@ export function MintWindow() {
     canCreateWindow,
     windowDuration,
     isWrongNetwork,
-    switchToMainnet,
     quantity,
     setQuantity,
     mint,
@@ -427,11 +426,10 @@ export function MintWindow() {
                 isConnected={isConnected}
                 isWrongNetwork={isWrongNetwork}
                 onMint={handleMint}
-                onSwitchNetwork={switchToMainnet}
               />
               {isWrongNetwork ? (
                 <p className="text-xs text-red-500 text-center">
-                  wrong network — switch to mainnet
+                  wrong network — use the button above to switch to mainnet
                 </p>
               ) : (
                 <p className="text-xs text-muted text-center">ETH MAINNET</p>
@@ -532,12 +530,11 @@ export function MintWindow() {
                 isConnected={isConnected}
                 isWrongNetwork={isWrongNetwork}
                 onMint={handleMint}
-                onSwitchNetwork={switchToMainnet}
               />
 
               {isWrongNetwork ? (
                 <p className="text-xs text-red-500 text-center">
-                  wrong network — switch to mainnet
+                  wrong network — use the button above to switch to mainnet
                 </p>
               ) : (
                 <p className="text-xs text-muted">
