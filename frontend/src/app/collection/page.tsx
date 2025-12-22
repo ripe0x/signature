@@ -7,6 +7,7 @@ import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCollection, type CollectionToken } from "@/hooks/useCollection";
+import { useWindowMintCounts } from "@/hooks/useWindowMintCounts";
 import {
   IS_PRE_LAUNCH,
   IS_TOKEN_LIVE,
@@ -112,6 +113,7 @@ function LiveCollection() {
   const [page, setPage] = useState(0);
 
   const { tokens, total, isLoading, hasMore, totalPages } = useCollection(page);
+  const { windowMintCounts } = useWindowMintCounts();
 
   // Group tokens by windowId, sorted by most recent window first
   const windowGroups: WindowGroup[] = useMemo(() => {
@@ -184,10 +186,10 @@ function LiveCollection() {
                 {/* Window header */}
                 <div className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border">
                   <h2 className="text-lg">window {group.windowId}</h2>
-                  {/* <span className="text-sm text-muted">
-                    {group.tokens.length} piece
-                    {group.tokens.length !== 1 ? "s" : ""}
-                  </span> */}
+                  <span className="text-sm text-muted">
+                    {windowMintCounts.get(group.windowId) ?? group.tokens.length} piece
+                    {(windowMintCounts.get(group.windowId) ?? group.tokens.length) !== 1 ? "s" : ""}
+                  </span>
                 </div>
 
                 {/* Tokens grid */}

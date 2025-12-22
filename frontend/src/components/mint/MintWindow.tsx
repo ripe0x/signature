@@ -526,7 +526,7 @@ export function MintWindow() {
               <MintButton
                 totalCost={totalCost}
                 quantity={quantity}
-                canMint={isConnected && !isMintPending && !isConfirming}
+                canMint={canMint}
                 isPending={isMintPending}
                 isConfirming={isConfirming}
                 isConnected={isConnected}

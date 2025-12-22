@@ -1,6 +1,7 @@
 'use client';
 
 import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
+import { mainnet } from 'wagmi/chains';
 import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, CHAIN_ID } from '@/lib/contracts';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 
@@ -219,6 +220,7 @@ export function useMintWindow() {
       functionName: 'mint',
       args: [BigInt(mintQuantity)],
       value,
+      chainId: mainnet.id,
     });
   }, [writeContract, address, totalCost, basePrice, isWrongNetwork]);
 
