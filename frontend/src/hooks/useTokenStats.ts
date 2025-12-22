@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContract, useBalance } from 'wagmi';
-import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, IS_TOKEN_LIVE } from '@/lib/contracts';
+import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, IS_TOKEN_LIVE, DEAD_ADDRESS } from '@/lib/contracts';
 import { useEffect, useState } from 'react';
 
 export interface TokenStats {
@@ -11,16 +11,22 @@ export interface TokenStats {
   burnCount: number;
   tokenPrice: number | null;
   holderCount: number | null;
+  burnedBalance: bigint; // Tokens at dead address
+
+  // Threshold
+  minEthForWindow: bigint;
 
   // NFT stats
   nftsMinted: number;
   windowCount: number;
+  lastWindowStart: number; // Unix timestamp of last window creation
 }
 
 export function useTokenStats() {
   const [tokenPrice, setTokenPrice] = useState<number | null>(null);
   const [holderCount, setHolderCount] = useState<number | null>(null);
   const [ethPrice, setEthPrice] = useState<number | null>(null);
+  const [lastWindowStart, setLastWindowStart] = useState<number>(0);
 
   // Strategy token supply
   const { data: tokenSupply } = useReadContract({
@@ -61,6 +67,27 @@ export function useTokenStats() {
     },
   });
 
+  // Minimum ETH required to create a window (threshold)
+  const { data: minEthForWindow } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'minEthForWindow',
+    query: {
+      refetchInterval: 60000, // Less frequent, rarely changes
+    },
+  });
+
+  // Burned token balance (tokens sent to dead address)
+  const { data: burnedBalance } = useReadContract({
+    address: CONTRACTS.LESS_STRATEGY,
+    abi: STRATEGY_ABI,
+    functionName: 'balanceOf',
+    args: [DEAD_ADDRESS],
+    query: {
+      refetchInterval: 30000,
+    },
+  });
+
   // Fetch token price and holder count from DexScreener
   useEffect(() => {
     if (!IS_TOKEN_LIVE) return;
@@ -81,8 +108,8 @@ export function useTokenStats() {
       }
     };
 
-    // Fetch holder count via our API route (avoids CORS issues with Etherscan)
-    const fetchHolderCount = async () => {
+    // Fetch holder count and last window via our API route (avoids CORS issues with Etherscan)
+    const fetchTokenStats = async () => {
       try {
         const response = await fetch('/api/token-stats');
         if (!response.ok) return; // Silently fail - non-critical data
@@ -90,8 +117,11 @@ export function useTokenStats() {
         if (data.holderCount !== null) {
           setHolderCount(data.holderCount);
         }
+        if (data.lastWindowStart !== null) {
+          setLastWindowStart(data.lastWindowStart);
+        }
       } catch {
-        // Silently fail - holder count is non-critical
+        // Silently fail - non-critical
       }
     };
 
@@ -112,13 +142,13 @@ export function useTokenStats() {
     };
 
     fetchDexData();
-    fetchHolderCount();
+    fetchTokenStats();
     fetchEthPrice();
 
     // Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchDexData();
-      fetchHolderCount();
+      fetchTokenStats();
       fetchEthPrice();
     }, 30000);
 
@@ -134,5 +164,8 @@ export function useTokenStats() {
     ethPrice,
     nftsMinted: nftSupply ? Number(nftSupply) : 0,
     windowCount: windowCount ? Number(windowCount) : 0,
+    minEthForWindow: minEthForWindow ?? BigInt(0),
+    burnedBalance: burnedBalance ?? BigInt(0),
+    lastWindowStart,
   };
 }

@@ -5,29 +5,60 @@ import { useTokenStats } from "@/hooks/useTokenStats";
 import { formatEther } from "viem";
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
 
+// Initial supply for burn calculations (1 billion with 18 decimals)
+const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
+
+// Format time ago in a human readable way
+function formatTimeAgo(timestamp: number): string {
+  if (timestamp === 0) return "—";
+
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - timestamp;
+
+  if (diff < 0) return "just now"; // Future timestamp edge case
+  if (diff < 60) return "just now";
+  if (diff < 3600) {
+    const mins = Math.floor(diff / 60);
+    return `${mins}m ago`;
+  }
+  if (diff < 86400) {
+    const hours = Math.floor(diff / 3600);
+    return `${hours}h ago`;
+  }
+  const days = Math.floor(diff / 86400);
+  return `${days}d ago`;
+}
+
 export function TokenPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const {
-    tokenSupply,
     buybackBalance,
-    burnCount,
     tokenPrice,
     holderCount,
     nftsMinted,
     windowCount,
+    minEthForWindow,
+    burnedBalance,
+    lastWindowStart,
   } = useTokenStats();
 
-  const formattedSupply =
-    IS_TOKEN_LIVE && tokenSupply > 0
-      ? parseFloat(formatEther(tokenSupply)).toLocaleString(undefined, {
-          maximumFractionDigits: 0,
-        })
-      : "—";
+  // Calculate burn percentage from dead address balance
+  const burnedPercent =
+    burnedBalance > 0
+      ? Number((burnedBalance * BigInt(10000)) / INITIAL_SUPPLY) / 100
+      : 0;
 
-  const formattedBuybackBalance =
+  // Format values
+  const buybackEth =
     IS_TOKEN_LIVE && buybackBalance > 0
-      ? parseFloat(formatEther(buybackBalance)).toFixed(3)
-      : "0";
+      ? parseFloat(formatEther(buybackBalance))
+      : 0;
+
+  const thresholdEth =
+    minEthForWindow > 0 ? parseFloat(formatEther(minEthForWindow)) : 0.25; // Fallback to 0.25 if not loaded
+
+  const thresholdPercent = Math.min((buybackEth / thresholdEth) * 100, 100);
+  const thresholdMet = buybackEth >= thresholdEth;
 
   const formattedPrice =
     tokenPrice !== null
@@ -63,79 +94,95 @@ export function TokenPanel() {
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="p-6 pt-24 space-y-8 h-full overflow-y-auto">
+        <div className="p-6 pt-24 space-y-6 h-full overflow-y-auto">
+          {/* Header */}
           <div>
             <h2 className="text-lg mb-1">$LESS</h2>
             <p className="text-xs text-muted">recursive strategy token</p>
-            {IS_TOKEN_LIVE && (
-              <div className="mt-3 px-2 py-1 border border-foreground text-foreground text-xs inline-block">
-                live
-              </div>
-            )}
-            {IS_PRE_LAUNCH && (
-              <div className="mt-2 px-2 py-1 border border-muted text-muted text-xs inline-block">
-                nft coming soon
-              </div>
-            )}
           </div>
 
-          {/* Stats */}
-          <div className="space-y-6">
-            {/* Token stats - show when token is live */}
+          {/* Threshold Status - Most important */}
+          {IS_TOKEN_LIVE && (
+            <div className="p-4 border border-border">
+              <div className="text-xs text-muted mb-2">
+                next window threshold
+              </div>
+              <div className="flex justify-between items-baseline mb-2">
+                <span className="text-lg tabular-nums">
+                  {buybackEth.toFixed(4)} ETH
+                </span>
+                <span className="text-xs text-muted">/ {thresholdEth} ETH</span>
+              </div>
+              <div className="h-2 bg-border overflow-hidden mb-2">
+                <div
+                  className="h-full bg-foreground transition-all duration-500"
+                  style={{ width: `${thresholdPercent}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted">
+                {thresholdMet
+                  ? "threshold met — window can open"
+                  : `${(thresholdEth - buybackEth).toFixed(4)} ETH to go`}
+              </p>
+            </div>
+          )}
+
+          {/* Key Stats Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Price */}
             <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">token price</div>
-              <div className="text-xl tabular-nums">${formattedPrice}</div>
+              <div className="text-xs text-muted mb-1">price</div>
+              <div className="text-lg tabular-nums">${formattedPrice}</div>
             </div>
 
+            {/* Burned % */}
             <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">token supply</div>
-              <div className="text-xl tabular-nums">{formattedSupply}</div>
+              <div className="text-xs text-muted mb-1">supply burned</div>
+              <div className="text-lg tabular-nums">
+                {burnedPercent.toFixed(2)}%
+              </div>
             </div>
 
+            {/* Holders */}
             {IS_TOKEN_LIVE && holderCount !== null && (
               <div>
                 <div className="text-xs text-muted mb-1">holders</div>
-                <div className="text-xl tabular-nums">
+                <div className="text-lg tabular-nums">
                   {holderCount.toLocaleString()}
                 </div>
               </div>
             )}
 
-            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">buyback balance</div>
-              <div className="text-xl tabular-nums">
-                {formattedBuybackBalance} ETH
-              </div>
-            </div>
-
-            <div className={!IS_TOKEN_LIVE ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">
-                burn interval (when active)
-              </div>
-              <div className="text-sm">90 min</div>
-            </div>
-
-            {/* NFT stats - show when NFT is live */}
+            {/* Burns / Windows */}
             <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">
-                burns / mint windows
-              </div>
-              <div className="text-xl tabular-nums">
-                {IS_PRE_LAUNCH ? "—" : burnCount}
+              <div className="text-xs text-muted mb-1">burn cycles</div>
+              <div className="text-lg tabular-nums">
+                {IS_PRE_LAUNCH ? "—" : windowCount}
               </div>
             </div>
+          </div>
 
-            <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
-              <div className="text-xs text-muted mb-1">nfts minted</div>
-              <div className="text-xl tabular-nums">
-                {IS_PRE_LAUNCH ? "—" : nftsMinted}
+          {/* NFT Stats */}
+          <div className="pt-4 border-t border-border">
+            <div className="grid grid-cols-2 gap-4">
+              <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
+                <div className="text-xs text-muted mb-1">nfts minted</div>
+                <div className="text-lg tabular-nums">
+                  {IS_PRE_LAUNCH ? "—" : nftsMinted}
+                </div>
+              </div>
+              <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
+                <div className="text-xs text-muted mb-1">last mint window</div>
+                <div className="text-lg tabular-nums">
+                  {IS_PRE_LAUNCH ? "—" : formatTimeAgo(lastWindowStart)}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Links */}
           <div
-            className={`pt-6 border-t border-border space-y-3 ${
+            className={`pt-4 border-t border-border space-y-2 ${
               !IS_TOKEN_LIVE ? "opacity-40 pointer-events-none" : ""
             }`}
           >
@@ -156,6 +203,14 @@ export function TokenPanel() {
               dexscreener →
             </a>
             <a
+              href={`https://opensea.io/collection/less-nft`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-muted hover:text-foreground transition-colors"
+            >
+              opensea →
+            </a>
+            <a
               href={`https://etherscan.io/token/${CONTRACTS.LESS_STRATEGY}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -169,7 +224,7 @@ export function TokenPanel() {
               rel="noopener noreferrer"
               className="block text-sm text-muted hover:text-foreground transition-colors"
             >
-              strategy protocol docs →
+              strategy docs →
             </a>
           </div>
         </div>

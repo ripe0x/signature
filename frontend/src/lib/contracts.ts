@@ -27,6 +27,13 @@ export const LESS_NFT_ABI = [
     outputs: [{ type: "uint256" }],
   },
   {
+    name: "minEthForWindow",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
     name: "totalSupply",
     type: "function",
     stateMutability: "view",
@@ -160,6 +167,13 @@ export const STRATEGY_ABI = [
     outputs: [{ type: "uint256" }],
   },
   {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
     name: "lastBurn",
     type: "function",
     stateMutability: "view",
@@ -181,3 +195,6 @@ export const STRATEGY_ABI = [
     outputs: [{ type: "uint256" }],
   },
 ] as const;
+
+// Dead address for burn tracking
+export const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD" as `0x${string}`;
