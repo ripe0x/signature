@@ -409,7 +409,7 @@ export function MintWindow() {
         <div className="text-center space-y-4">
           <h1 className="text-3xl">mint LESS</h1>
           <p className="text-sm text-muted">
-            window #{nextWindowId} — ready to open
+            mint window {nextWindowId} — ready to open
           </p>
         </div>
 
@@ -517,7 +517,7 @@ export function MintWindow() {
       <div className="text-center">
         <h1 className="text-3xl mb-2">mint LESS</h1>
         <p className="text-muted text-sm">
-          {windowCount} window{windowCount !== 1 ? "s" : ""} opened
+          {/* {windowCount} previous mint window{windowCount !== 1 ? "s" : ""} opened */}
           {burnedPercent > 0 && (
             <> · {burnedPercent.toFixed(2)}% of $LESS burned</>
           )}
@@ -538,7 +538,9 @@ export function MintWindow() {
               </>
             ) : (
               <>
-                <p className="text-sm text-muted mb-1">waiting for threshold</p>
+                <p className="text-sm text-muted mb-1">
+                  mint window {windowCount + 1} is waiting for threshold
+                </p>
                 <p className="text-lg">
                   {buybackBalanceEth.toFixed(4)} / 0.25 ETH
                 </p>
