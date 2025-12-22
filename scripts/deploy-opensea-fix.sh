@@ -13,10 +13,36 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-RPC_URL="${RPC_URL:-https://eth-mainnet.g.alchemy.com/v2/vCDlbqYLHrl_dZJkGmX2FgpAUpRs-iTI}"
+# Parse arguments
+DRY_RUN=false
+for arg in "$@"; do
+    case $arg in
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+    esac
+done
+
+# Load .env file
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+    echo "Loaded .env file"
+fi
+
+# Configuration (use .env vars with fallbacks)
+RPC_URL="${MAINNET_RPC_URL:-$RPC_URL}"
+PK="${PRIVATE_KEY:-$PK}"
 ETHERSCAN_API_KEY="${ETHERSCAN_API_KEY:-}"
 SCRIPT_NAME="lessFolds.js-v$(date +%s)"
+
+# Dry run mode
+if [ "$DRY_RUN" = true ]; then
+    BROADCAST_FLAG=""
+    echo -e "${YELLOW}>>> DRY RUN MODE - No transactions will be sent <<<${NC}"
+else
+    BROADCAST_FLAG="--broadcast"
+fi
 
 echo ""
 echo -e "${BLUE}============================================================${NC}"
@@ -26,8 +52,14 @@ echo ""
 
 # Check for private key
 if [ -z "$PK" ]; then
-    echo -e "${RED}Error: PK environment variable not set${NC}"
-    echo "Usage: PK=your_private_key ./scripts/deploy-opensea-fix.sh"
+    echo -e "${RED}Error: PRIVATE_KEY not set in .env${NC}"
+    echo "Add PRIVATE_KEY=your_key to .env file"
+    exit 1
+fi
+
+# Check for RPC URL
+if [ -z "$RPC_URL" ]; then
+    echo -e "${RED}Error: MAINNET_RPC_URL not set in .env${NC}"
     exit 1
 fi
 
@@ -89,7 +121,7 @@ echo "Uploading..."
 SCRIPT_NAME="$SCRIPT_NAME" forge script script/UploadScript.s.sol:UploadScript \
     --rpc-url "$RPC_URL" \
     --private-key "$PK" \
-    --broadcast \
+    $BROADCAST_FLAG \
     -vvv
 
 echo ""
@@ -137,7 +169,7 @@ echo "Deploying renderer..."
 DEPLOY_OUTPUT=$(SCRIPT_NAME="$SCRIPT_NAME" forge script script/DeployNewRenderer.s.sol:DeployNewRenderer \
     --rpc-url "$RPC_URL" \
     --private-key "$PK" \
-    --broadcast \
+    $BROADCAST_FLAG \
     -vvv 2>&1)
 
 echo "$DEPLOY_OUTPUT"
