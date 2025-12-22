@@ -1,9 +1,12 @@
 'use client';
 
 import { ConnectButton as RainbowConnectButton } from '@rainbow-me/rainbowkit';
-import { IS_PRE_LAUNCH } from '@/lib/contracts';
+import { useSwitchChain } from 'wagmi';
+import { IS_PRE_LAUNCH, CHAIN_ID } from '@/lib/contracts';
 
 export function ConnectButton() {
+  const { switchChain } = useSwitchChain();
+
   if (IS_PRE_LAUNCH) {
     return (
       <span className="text-sm px-3 py-1 border border-muted text-muted">
@@ -18,7 +21,6 @@ export function ConnectButton() {
         account,
         chain,
         openAccountModal,
-        openChainModal,
         openConnectModal,
         mounted,
       }) => {
@@ -51,7 +53,7 @@ export function ConnectButton() {
               if (chain.unsupported) {
                 return (
                   <button
-                    onClick={openChainModal}
+                    onClick={() => switchChain({ chainId: CHAIN_ID })}
                     className="text-sm px-4 py-2 bg-red-600 text-white font-bold border border-red-600 hover:bg-red-700 transition-colors"
                   >
                     WRONG NETWORK
