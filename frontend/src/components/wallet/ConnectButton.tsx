@@ -1,15 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi';
 import { truncateAddress } from '@/lib/utils';
-import { IS_PRE_LAUNCH } from '@/lib/contracts';
+import { IS_PRE_LAUNCH, CHAIN_ID } from '@/lib/contracts';
 
 export function ConnectButton() {
   const [mounted, setMounted] = useState(false);
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  const isWrongNetwork = isConnected && chainId !== CHAIN_ID;
 
   useEffect(() => {
     setMounted(true);
@@ -33,6 +37,18 @@ export function ConnectButton() {
       <span className="text-sm px-3 py-1 border border-muted text-muted">
         coming soon
       </span>
+    );
+  }
+
+  // Show wrong network warning
+  if (isWrongNetwork) {
+    return (
+      <button
+        onClick={() => switchChain({ chainId: CHAIN_ID })}
+        className="text-sm px-4 py-2 bg-red-600 text-white font-bold border border-red-600 hover:bg-red-700 transition-colors"
+      >
+        WRONG NETWORK
+      </button>
     );
   }
 
