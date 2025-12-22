@@ -20,6 +20,7 @@ export interface TokenStats {
 export function useTokenStats() {
   const [tokenPrice, setTokenPrice] = useState<number | null>(null);
   const [holderCount, setHolderCount] = useState<number | null>(null);
+  const [ethPrice, setEthPrice] = useState<number | null>(null);
 
   // Strategy token supply
   const { data: tokenSupply } = useReadContract({
@@ -94,13 +95,31 @@ export function useTokenStats() {
       }
     };
 
+    // Fetch ETH price from CoinGecko
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.ethereum?.usd) {
+          setEthPrice(data.ethereum.usd);
+        }
+      } catch {
+        // Silently fail - non-critical
+      }
+    };
+
     fetchDexData();
     fetchHolderCount();
+    fetchEthPrice();
 
     // Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchDexData();
       fetchHolderCount();
+      fetchEthPrice();
     }, 30000);
 
     return () => clearInterval(interval);
@@ -112,6 +131,7 @@ export function useTokenStats() {
     burnCount: windowCount ? Number(windowCount) : 0,
     tokenPrice,
     holderCount,
+    ethPrice,
     nftsMinted: nftSupply ? Number(nftSupply) : 0,
     windowCount: windowCount ? Number(windowCount) : 0,
   };

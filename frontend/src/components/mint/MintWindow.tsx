@@ -7,7 +7,12 @@ import { useTokenStats } from "@/hooks/useTokenStats";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
 import { CONTRACTS } from "@/lib/contracts";
-import { formatCountdown, formatEth, getAddressUrl, getTxUrl } from "@/lib/utils";
+import {
+  formatCountdown,
+  formatEth,
+  getAddressUrl,
+  getTxUrl,
+} from "@/lib/utils";
 import { useMemo } from "react";
 
 // Progress bar for balance to threshold
@@ -250,10 +255,22 @@ export function MintWindow() {
     resetMint,
   } = useMintWindow();
 
-  const { windowCount, buybackBalance } = useTokenStats();
+  const { windowCount, buybackBalance, tokenSupply, ethPrice } =
+    useTokenStats();
 
   // Convert buyback balance to ETH (from wei)
   const buybackBalanceEth = Number(buybackBalance) / 1e18;
+
+  // Calculate % of $LESS burned (initial supply is 1 billion with 18 decimals)
+  const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
+  const burnedAmount = INITIAL_SUPPLY - tokenSupply;
+  const burnedPercent =
+    Number((burnedAmount * BigInt(10000)) / INITIAL_SUPPLY) / 100;
+
+  // Estimate trading volume needed to hit threshold (8% of fees go to buyback)
+  const ethNeeded = Math.max(0, 0.25 - buybackBalanceEth);
+  const volumeNeededEth = ethNeeded / 0.08;
+  const volumeNeededUsd = ethPrice ? volumeNeededEth * ethPrice : null;
 
   const contractUrl = getAddressUrl(CONTRACTS.LESS_NFT);
 
@@ -485,7 +502,7 @@ export function MintWindow() {
         {/* Stats */}
         <div className="flex justify-center text-sm">
           <div className="text-center">
-            <div className="text-muted mb-1">windows so far</div>
+            <div className="text-muted mb-1">mint windows so far</div>
             <div className="text-2xl">{windowCount}</div>
           </div>
         </div>
@@ -499,8 +516,11 @@ export function MintWindow() {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl mb-2">mint LESS</h1>
-        <p className="text-muted">
-          {windowCount} window{windowCount !== 1 ? "s" : ""} so far
+        <p className="text-muted text-sm">
+          {windowCount} window{windowCount !== 1 ? "s" : ""} opened
+          {burnedPercent > 0 && (
+            <> · {burnedPercent.toFixed(2)}% of $LESS burned</>
+          )}
         </p>
       </div>
 
@@ -509,7 +529,7 @@ export function MintWindow() {
         <div className="p-6 border border-border space-y-6">
           {/* Status */}
           <div className="text-center">
-            {cooldownRemaining > 0 ? (
+            {buybackBalanceEth >= 0.25 && cooldownRemaining > 0 ? (
               <>
                 <p className="text-sm text-muted mb-1">cooldown active</p>
                 <p className="text-2xl font-mono">
@@ -526,17 +546,31 @@ export function MintWindow() {
             )}
           </div>
 
-          {/* Progress bar */}
-          {cooldownRemaining === 0 && (
+          {/* Progress bar - show when below threshold */}
+          {buybackBalanceEth < 0.25 && (
             <div className="space-y-2">
               <div className="h-2 bg-border overflow-hidden">
                 <div
                   className="h-full bg-foreground transition-all duration-500"
-                  style={{ width: `${Math.min((buybackBalanceEth / 0.25) * 100, 100)}%` }}
+                  style={{
+                    width: `${Math.min(
+                      (buybackBalanceEth / 0.25) * 100,
+                      100
+                    )}%`,
+                  }}
                 />
               </div>
               <p className="text-xs text-muted text-center">
-                {(0.25 - buybackBalanceEth).toFixed(4)} ETH until next window
+                {ethNeeded.toFixed(4)} ETH until next window
+                {volumeNeededUsd !== null && (
+                  <span className="block mt-1 italic">
+                    ~$
+                    {volumeNeededUsd.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}{" "}
+                    worth of $LESS trading volume
+                  </span>
+                )}
               </p>
             </div>
           )}

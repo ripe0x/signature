@@ -183,14 +183,22 @@ function LiveCollection() {
           <div className="space-y-16">
             {windowGroups.map((group) => (
               <section key={group.windowId}>
-                {/* Window header */}
-                <div className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border">
-                  <h2 className="text-lg">window {group.windowId}</h2>
+                {/* Window header - clickable link to window detail */}
+                <Link
+                  href={`/collection/window/${group.windowId}`}
+                  className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border group"
+                >
+                  <h2 className="text-lg group-hover:underline underline-offset-4">
+                    window {group.windowId}
+                  </h2>
                   <span className="text-sm text-muted">
                     {windowMintCounts.get(group.windowId) ?? group.tokens.length} piece
                     {(windowMintCounts.get(group.windowId) ?? group.tokens.length) !== 1 ? "s" : ""}
                   </span>
-                </div>
+                  <span className="text-sm text-muted opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                    view all →
+                  </span>
+                </Link>
 
                 {/* Tokens grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
