@@ -9,7 +9,7 @@ export function ConnectButton() {
 
   if (IS_PRE_LAUNCH) {
     return (
-      <span className="text-sm px-3 py-1 border border-muted text-muted">
+      <span className="text-xs md:text-sm px-2 md:px-3 py-1 border border-muted text-muted">
         coming soon
       </span>
     );
@@ -43,7 +43,7 @@ export function ConnectButton() {
                 return (
                   <button
                     onClick={openConnectModal}
-                    className="text-sm px-4 py-2 border border-border hover:border-foreground transition-colors"
+                    className="text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 border border-border hover:border-foreground transition-colors"
                   >
                     connect
                   </button>
@@ -54,7 +54,7 @@ export function ConnectButton() {
                 return (
                   <button
                     onClick={() => switchChain({ chainId: CHAIN_ID })}
-                    className="text-sm px-4 py-2 bg-red-600 text-white font-bold border border-red-600 hover:bg-red-700 transition-colors"
+                    className="text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 bg-red-600 text-white font-bold border border-red-600 hover:bg-red-700 transition-colors"
                   >
                     WRONG NETWORK
                   </button>
@@ -64,7 +64,7 @@ export function ConnectButton() {
               return (
                 <button
                   onClick={openAccountModal}
-                  className="text-sm px-4 py-2 border border-border hover:border-foreground transition-colors"
+                  className="text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 border border-border hover:border-foreground transition-colors max-w-[100px] md:max-w-none truncate"
                 >
                   {account.displayName}
                 </button>

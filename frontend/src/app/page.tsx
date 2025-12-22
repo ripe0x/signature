@@ -77,7 +77,7 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
                   supply goes down. art comes out.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-4 pt-2 ">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <a
                   href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
                   target="_blank"
@@ -86,11 +86,16 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
                   <Button size="lg">trade $LESS</Button>
                 </a>
                 {nftLive ? (
-                  <Link href="/mint">
-                    <Button variant="outline" size="lg">
-                      mint NFT
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/mint">
+                      <Button size="lg">mint NFT</Button>
+                    </Link>
+                    <Link href="/collection">
+                      <Button variant="outline" size="lg">
+                        browse collection
+                      </Button>
+                    </Link>
+                  </>
                 ) : (
                   <Button variant="outline" size="lg" disabled>
                     NFT minting starts Sunday 12/21
