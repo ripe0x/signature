@@ -39,6 +39,7 @@ const dryRun = args.includes("--dry-run");
 const testMode = args.includes("--test");
 const testMintMode = args.includes("--test-mint");
 const testReminderMode = args.includes("--test-reminder");
+const testWindowReadyMode = args.includes("--test-window-ready");
 const verifyMode = args.includes("--verify");
 const postTestTweet = args.includes("--post-test");
 const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
@@ -118,6 +119,7 @@ function loadState(contractAddress) {
       processedWindows,
       processedMints,
       fifteenMinReminders: new Set(),
+      windowReadyAlerted: false,
       lastBlock: 0n,
     };
   }
@@ -136,6 +138,7 @@ function loadState(contractAddress) {
           processedWindows: new Set(),
           processedMints: new Set(),
           fifteenMinReminders: new Set(),
+          windowReadyAlerted: false,
           lastBlock: 0n,
         };
       }
@@ -146,6 +149,7 @@ function loadState(contractAddress) {
         ),
         processedMints: new Set(data.processedMints || []),
         fifteenMinReminders: new Set(data.fifteenMinReminders || []),
+        windowReadyAlerted: data.windowReadyAlerted || false,
         lastBlock: BigInt(data.lastBlock || 0),
       };
     }
@@ -156,6 +160,7 @@ function loadState(contractAddress) {
     processedWindows: new Set(),
     processedMints: new Set(),
     fifteenMinReminders: new Set(),
+    windowReadyAlerted: false,
     lastBlock: 0n,
   };
 }
@@ -164,6 +169,7 @@ function saveState(
   processedWindows,
   processedMints,
   fifteenMinReminders,
+  windowReadyAlerted,
   lastBlock,
   contractAddress
 ) {
@@ -173,6 +179,7 @@ function saveState(
       processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
       fifteenMinReminders: Array.from(fifteenMinReminders),
+      windowReadyAlerted,
       lastBlock: lastBlock.toString(),
       updatedAt: new Date().toISOString(),
     };
@@ -189,7 +196,8 @@ function sleep(ms) {
 
 // Fetch image from image API using token ID
 async function fetchImage(tokenId) {
-  const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+  const imageApiUrl =
+    process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
   const url = `${imageApiUrl}/images/${tokenId}`;
   logInfo(`Fetching image from ${url}`);
 
@@ -549,7 +557,13 @@ function displayTweetPreview(message) {
 // Post tweet with optional image
 async function postTweet(twitterClient, message, imageBuffer = null) {
   // In dry-run or test mode, just display the preview
-  if (dryRun || testMode || testMintMode || testReminderMode) {
+  if (
+    dryRun ||
+    testMode ||
+    testMintMode ||
+    testReminderMode ||
+    testWindowReadyMode
+  ) {
     displayTweetPreview(message);
     if (imageBuffer) {
       logInfo(`[DRY-RUN] Would attach image (${imageBuffer.length} bytes)`);
@@ -997,6 +1011,20 @@ async function runTestReminderMode() {
   logSuccess("Test reminder completed!");
 }
 
+// Run test window ready mode - simulate a window ready tweet
+async function runTestWindowReadyMode() {
+  logInfo(
+    "Running in TEST WINDOW READY MODE - simulating a window ready tweet"
+  );
+  console.log();
+
+  // Format and display the tweet
+  const tweetMessage = formatWindowReadyTweet();
+
+  await postTweet(null, tweetMessage);
+  logSuccess("Test window ready completed!");
+}
+
 // Generate a preview seed for a window (deterministic based on window parameters)
 function generatePreviewSeed(windowId, strategyBlock, startTime) {
   // Create a deterministic seed from window parameters
@@ -1111,6 +1139,15 @@ ${BASE_URL}/mint`;
   return `only ~${minutesRemaining} minutes left to mint!
 
 window ${windowId}
+
+${BASE_URL}/mint`;
+}
+
+// Format tweet for when a new window is ready to be opened
+function formatWindowReadyTweet() {
+  return `a new LESS window is ready to open
+
+minting will trigger a 0.25 ETH buy + burn of $LESS
 
 ${BASE_URL}/mint`;
 }
@@ -1315,6 +1352,69 @@ async function processReminderCheck(
   }
 }
 
+// Process window ready check - posts when canCreateWindow() is true
+async function processWindowReadyCheck(
+  windowReadyAlerted,
+  twitterClient,
+  client,
+  contractAddress
+) {
+  try {
+    // Check if canCreateWindow returns true
+    const canCreateWindowAbi = [
+      {
+        inputs: [],
+        name: "canCreateWindow",
+        outputs: [{ name: "", type: "bool" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    const canCreate = await client.readContract({
+      address: contractAddress,
+      abi: canCreateWindowAbi,
+      functionName: "canCreateWindow",
+    });
+
+    // If window can't be created, reset the alert state
+    if (!canCreate) {
+      return { alerted: false, shouldReset: true };
+    }
+
+    // If we've already alerted for this ready state, skip
+    if (windowReadyAlerted) {
+      return { alerted: true, shouldReset: false };
+    }
+
+    logInfo("Window ready to open! Conditions met for new mint window.");
+
+    // Format and post tweet
+    const tweetMessage = formatWindowReadyTweet();
+
+    logInfo("Posting window ready tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+
+    if (tweetId) {
+      logSuccess(`Window ready tweet posted! Tweet ID: ${tweetId}`);
+      return { alerted: true, shouldReset: false };
+    } else {
+      logError("Failed to post window ready tweet");
+      return { alerted: false, shouldReset: false };
+    }
+  } catch (error) {
+    // Silently handle contract errors
+    if (
+      error.message?.includes("revert") ||
+      error.message?.includes("execution reverted")
+    ) {
+      return { alerted: windowReadyAlerted, shouldReset: false };
+    }
+    logError(`Error checking window ready: ${error.message}`);
+    return { alerted: windowReadyAlerted, shouldReset: false };
+  }
+}
+
 // Main bot function
 async function runBot() {
   // Handle verify mode
@@ -1359,6 +1459,12 @@ async function runBot() {
     return;
   }
 
+  // Handle test window ready mode
+  if (testWindowReadyMode) {
+    await runTestWindowReadyMode();
+    return;
+  }
+
   logInfo("Starting Twitter bot for mint window announcements...");
   if (dryRun) {
     logInfo(
@@ -1391,6 +1497,7 @@ async function runBot() {
   const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
   const fifteenMinReminders = state.fifteenMinReminders;
+  let windowReadyAlerted = state.windowReadyAlerted;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
   if (rescanMode) {
@@ -1520,6 +1627,7 @@ async function runBot() {
         processedWindows,
         processedMints,
         fifteenMinReminders,
+        windowReadyAlerted,
         lastProcessedBlock,
         contractAddress
       );
@@ -1543,12 +1651,15 @@ async function runBot() {
               client,
               abi
             );
+            // Reset windowReadyAlerted since a new window was created
+            windowReadyAlerted = false;
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
               saveState(
                 processedWindows,
                 processedMints,
                 fifteenMinReminders,
+                windowReadyAlerted,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1581,6 +1692,7 @@ async function runBot() {
                 processedWindows,
                 processedMints,
                 fifteenMinReminders,
+                windowReadyAlerted,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1618,6 +1730,7 @@ async function runBot() {
               processedWindows,
               processedMints,
               fifteenMinReminders,
+              windowReadyAlerted,
               lastProcessedBlock,
               contractAddress
             );
@@ -1627,15 +1740,43 @@ async function runBot() {
         }
       }, 30000);
 
+      // Window ready checker (every 60 seconds) - posts when canCreateWindow() is true
+      const windowReadyInterval = setInterval(async () => {
+        try {
+          const result = await processWindowReadyCheck(
+            windowReadyAlerted,
+            twitterClient,
+            client,
+            contractAddress
+          );
+          // Update state if changed
+          if (result.alerted !== windowReadyAlerted || result.shouldReset) {
+            windowReadyAlerted = result.alerted;
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              windowReadyAlerted,
+              lastProcessedBlock,
+              contractAddress
+            );
+          }
+        } catch (error) {
+          logError(`Window ready check error: ${error.message}`);
+        }
+      }, 60000);
+
       // Graceful shutdown handler
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
         clearInterval(reminderInterval);
+        clearInterval(windowReadyInterval);
         saveState(
           processedWindows,
           processedMints,
           fifteenMinReminders,
+          windowReadyAlerted,
           lastProcessedBlock,
           contractAddress
         );
@@ -1658,6 +1799,7 @@ async function runBot() {
           } catch (error) {
             clearInterval(healthCheck);
             clearInterval(reminderInterval);
+            clearInterval(windowReadyInterval);
             reject(error);
           }
         }, 300000);
