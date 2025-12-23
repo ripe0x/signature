@@ -12,6 +12,11 @@ import { get as httpGet } from 'http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Social share image dimensions (Open Graph / Twitter)
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
+const A4_RATIO = 1200 / 1697; // ~0.707
+
 const PORT = process.env.PORT || 3001;
 const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
@@ -88,7 +93,7 @@ app.get('/api/render', async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const { seed, width, height } = req.query;
+    const { seed, width, height, format } = req.query;
 
     // Validate seed
     if (!seed || typeof seed !== 'string') {
@@ -101,6 +106,7 @@ app.get('/api/render', async (req, res) => {
     }
 
     const normalizedSeed = seed.startsWith('0x') ? seed : `0x${seed}`;
+    const isOgFormat = format === 'og';
     const w = width ? parseInt(width as string, 10) : 1200;
     const h = height ? parseInt(height as string, 10) : 1697;
 
@@ -110,7 +116,10 @@ app.get('/api/render', async (req, res) => {
     }
 
     // Check cache
-    const cached = await cache.get(normalizedSeed, w, h);
+    const cacheKey = isOgFormat ? `${normalizedSeed}-og` : normalizedSeed;
+    const cacheW = isOgFormat ? OG_WIDTH : w;
+    const cacheH = isOgFormat ? OG_HEIGHT : h;
+    const cached = await cache.get(cacheKey, cacheW, cacheH);
     if (cached) {
       res.set('Content-Type', 'image/png');
       res.set('X-Cache', 'HIT');
@@ -125,13 +134,59 @@ app.get('/api/render', async (req, res) => {
       height: h,
     });
 
+    let finalBuffer = imageBuffer;
+
+    // For OG format, composite artwork centered on a background-colored canvas
+    if (isOgFormat) {
+      // Get background color from top-left corner pixel
+      const { data } = await sharp(imageBuffer)
+        .extract({ left: 0, top: 0, width: 1, height: 1 })
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const bgR = data[0];
+      const bgG = data[1];
+      const bgB = data[2];
+
+      // Calculate artwork dimensions to fit within OG canvas while maintaining A4 ratio
+      let artworkWidth: number;
+      let artworkHeight: number;
+      if (OG_WIDTH / OG_HEIGHT > A4_RATIO) {
+        artworkHeight = OG_HEIGHT;
+        artworkWidth = Math.round(artworkHeight * A4_RATIO);
+      } else {
+        artworkWidth = OG_WIDTH;
+        artworkHeight = Math.round(artworkWidth / A4_RATIO);
+      }
+
+      // Resize the rendered image to fit
+      const resizedArtwork = await sharp(imageBuffer)
+        .resize(artworkWidth, artworkHeight, { fit: 'fill' })
+        .toBuffer();
+
+      // Create OG canvas with background color and composite artwork centered
+      const offsetX = Math.round((OG_WIDTH - artworkWidth) / 2);
+      const offsetY = Math.round((OG_HEIGHT - artworkHeight) / 2);
+
+      finalBuffer = await sharp({
+        create: {
+          width: OG_WIDTH,
+          height: OG_HEIGHT,
+          channels: 4,
+          background: { r: bgR, g: bgG, b: bgB, alpha: 255 },
+        },
+      })
+        .composite([{ input: resizedArtwork, left: offsetX, top: offsetY }])
+        .png()
+        .toBuffer();
+    }
+
     // Cache result
-    await cache.set(normalizedSeed, w, h, imageBuffer);
+    await cache.set(cacheKey, cacheW, cacheH, finalBuffer);
 
     res.set('Content-Type', 'image/png');
     res.set('X-Cache', 'MISS');
     res.set('X-Render-Time', `${Date.now() - startTime}ms`);
-    res.send(imageBuffer);
+    res.send(finalBuffer);
   } catch (error) {
     console.error('Render error:', error);
     res.status(500).json({
@@ -357,6 +412,10 @@ app.get('/images/:tokenId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid token ID' });
     }
 
+    // Check for social share format
+    const format = req.query.format as string | undefined;
+    const isOgFormat = format === 'og';
+
     // Parse optional dimensions (default to A4 ratio: 1200x1697)
     const width = req.query.width ? parseInt(req.query.width as string, 10) : 1200;
     const height = req.query.height ? parseInt(req.query.height as string, 10) : 1697;
@@ -405,9 +464,11 @@ app.get('/images/:tokenId', async (req, res) => {
 
     const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
 
-    // Check cache using tokenId + dimensions (since on-chain state determines output)
-    const cacheKey = `token-${tokenId}`;
-    const cached = await cache.get(cacheKey, width, height);
+    // Check cache using tokenId + dimensions + format
+    const cacheKey = isOgFormat ? `token-${tokenId}-og` : `token-${tokenId}`;
+    const cacheWidth = isOgFormat ? OG_WIDTH : width;
+    const cacheHeight = isOgFormat ? OG_HEIGHT : height;
+    const cached = await cache.get(cacheKey, cacheWidth, cacheHeight);
     if (cached) {
       res.set('Content-Type', 'image/png');
       res.set('X-Cache', 'HIT');
@@ -423,14 +484,62 @@ app.get('/images/:tokenId', async (req, res) => {
       height,
     });
 
+    let finalBuffer = imageBuffer;
+
+    // For OG format, composite artwork centered on a background-colored canvas
+    if (isOgFormat) {
+      // Get background color from top-left corner pixel (always background color)
+      const { data } = await sharp(imageBuffer)
+        .extract({ left: 0, top: 0, width: 1, height: 1 })
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const bgR = data[0];
+      const bgG = data[1];
+      const bgB = data[2];
+
+      // Calculate artwork dimensions to fit within OG canvas while maintaining A4 ratio
+      let artworkWidth: number;
+      let artworkHeight: number;
+      if (OG_WIDTH / OG_HEIGHT > A4_RATIO) {
+        // OG canvas is wider than A4 - fit to height
+        artworkHeight = OG_HEIGHT;
+        artworkWidth = Math.round(artworkHeight * A4_RATIO);
+      } else {
+        // OG canvas is taller than A4 - fit to width
+        artworkWidth = OG_WIDTH;
+        artworkHeight = Math.round(artworkWidth / A4_RATIO);
+      }
+
+      // Resize the rendered image to fit
+      const resizedArtwork = await sharp(imageBuffer)
+        .resize(artworkWidth, artworkHeight, { fit: 'fill' })
+        .toBuffer();
+
+      // Create OG canvas with background color and composite artwork centered
+      const offsetX = Math.round((OG_WIDTH - artworkWidth) / 2);
+      const offsetY = Math.round((OG_HEIGHT - artworkHeight) / 2);
+
+      finalBuffer = await sharp({
+        create: {
+          width: OG_WIDTH,
+          height: OG_HEIGHT,
+          channels: 4,
+          background: { r: bgR, g: bgG, b: bgB, alpha: 255 },
+        },
+      })
+        .composite([{ input: resizedArtwork, left: offsetX, top: offsetY }])
+        .png()
+        .toBuffer();
+    }
+
     // Cache result
-    await cache.set(cacheKey, width, height, imageBuffer);
+    await cache.set(cacheKey, cacheWidth, cacheHeight, finalBuffer);
 
     res.set('Content-Type', 'image/png');
     res.set('X-Cache', 'MISS');
     res.set('X-Token-Id', tokenId.toString());
     res.set('X-Render-Time', `${Date.now() - startTime}ms`);
-    res.send(imageBuffer);
+    res.send(finalBuffer);
   } catch (error) {
     console.error('Image fetch error:', error);
 

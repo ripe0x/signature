@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const imageUrl = `https://fold-image-api.fly.dev/images/${tokenId}`;
+  const imageUrl = `https://fold-image-api.fly.dev/images/${tokenId}?format=og`;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://less.fun';
 
   return {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         {
           url: imageUrl,
           width: 1200,
-          height: 1697,
+          height: 630,
           alt: `LESS #${tokenId}`,
         },
       ],
