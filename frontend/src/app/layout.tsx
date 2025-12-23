@@ -19,11 +19,20 @@ export const metadata: Metadata = {
     title: 'LESS',
     description: 'an onchain artwork about what remains when a system keeps taking things away',
     type: 'website',
+    images: [
+      {
+        url: '/less-logo.png',
+        width: 1200,
+        height: 630,
+        alt: 'LESS',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'LESS',
     description: 'an onchain artwork about what remains when a system keeps taking things away',
+    images: ['/less-logo.png'],
   },
 };
 
