@@ -2,13 +2,14 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useEnsName } from "wagmi";
 import { useToken } from "@/hooks/useToken";
 import { truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { renderArtwork, REFERENCE_WIDTH, REFERENCE_HEIGHT } from "@/lib/fold-core-wrapper";
 
 // Toggle to show 3-column comparison layout (local, on-chain, image-api)
 const TEST_MODE = false;
@@ -17,6 +18,7 @@ export default function TokenPage() {
   const params = useParams();
   const tokenId = parseInt(params.id as string, 10);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { id, windowId, seedNumber, owner, metadata, isLoading, error } =
     useToken(tokenId);
@@ -25,63 +27,115 @@ export default function TokenPage() {
     address: owner as `0x${string}` | undefined,
   });
 
-  const handleDownloadPNG = () => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) return;
-
+  const handleDownloadPNG = async () => {
+    if (!seedNumber || !windowId || isDownloading) return;
+    
+    setIsDownloading(true);
     try {
-      // Since animation_url is a data URI, we should be able to access the iframe
-      // Wait a moment for iframe to potentially finish loading
-      const attemptTrigger = () => {
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      // Try to get edited state from iframe
+      let editedChars: Array<{ char: string; originalChar: string; x: number; y: number; width: number; height: number; fontSize: number; color: string }> = [];
+      let renderWidth = 0;
+      let renderHeight = 0;
+      
+      try {
+        const iframe = iframeRef.current;
+        if (iframe?.contentWindow) {
+          // Try to access the iframe's interactive state
+          // The state might be in a module scope, try accessing via window if exposed
+          const iframeWindow = iframe.contentWindow as any;
           
-          if (!iframeDoc || !iframeDoc.body) {
-            // If document not ready, focus iframe so user can press Cmd/Ctrl+S manually
-            iframe.focus();
-            return;
+          // Try different ways to access the state
+          let state = null;
+          if (iframeWindow._interactiveState) {
+            state = iframeWindow._interactiveState;
+          } else if (iframeWindow.window?._interactiveState) {
+            state = iframeWindow.window._interactiveState;
           }
-
-          const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
           
-          // Focus the iframe first so the keyboard event is captured
-          iframe.focus();
-          iframeDoc.body.focus();
-          
-          // Create and dispatch keyboard event to trigger Cmd/Ctrl+S shortcut
-          // The existing keyboard shortcut handler in fold-core.js will catch this
-          const event = new KeyboardEvent("keydown", {
-            key: "s",
-            code: "KeyS",
-            keyCode: 83,
-            which: 83,
-            metaKey: isMac,
-            ctrlKey: !isMac,
-            bubbles: true,
-            cancelable: true,
-          });
-          
-          // Dispatch to document so it bubbles properly
-          iframeDoc.dispatchEvent(event);
-          
-          // Also try dispatching directly to the window as fallback
-          if (iframe.contentWindow) {
-            iframe.contentWindow.dispatchEvent(event);
+          if (state && state.textBuffer && state.renderWidth && state.renderHeight) {
+            // Extract edited characters
+            editedChars = state.textBuffer.filter((entry: any) => 
+              entry.char !== entry.originalChar && entry.char.trim() !== ""
+            );
+            renderWidth = state.renderWidth;
+            renderHeight = state.renderHeight;
           }
-        } catch (error) {
-          // Fallback: just focus the iframe so user can manually press Cmd/Ctrl+S
-          console.warn("Could not trigger download automatically:", error);
-          iframe.focus();
         }
-      };
+      } catch (e) {
+        // Can't access iframe state, will render without edits
+        console.log("Could not access iframe state for edits, downloading unedited version");
+      }
 
-      // Try immediately, and also after a short delay in case iframe is still loading
-      attemptTrigger();
-      setTimeout(attemptTrigger, 100);
+      // Create offscreen canvas at high resolution (2x reference size)
+      const DOWNLOAD_SCALE = 2;
+      const width = REFERENCE_WIDTH * DOWNLOAD_SCALE; // 2400px
+      const height = REFERENCE_HEIGHT * DOWNLOAD_SCALE; // 3394px
+
+      // Build skipCells for edited characters
+      const skipCells = new Set<string>();
+      if (editedChars.length > 0 && renderWidth > 0 && renderHeight > 0) {
+        // We'd need cell coordinates, but we don't have them easily
+        // For now, render base and overlay edits
+      }
+
+      // Render the base artwork at high resolution
+      const result = await renderArtwork({
+        seed: seedNumber,
+        folds: windowId,
+        outputWidth: width,
+        outputHeight: height,
+      });
+
+      // Create canvas and draw the base image
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(null);
+        };
+        img.onerror = reject;
+        img.src = result.dataUrl;
+      });
+
+      // Draw edited characters on top if we have them
+      if (editedChars.length > 0 && renderWidth > 0 && renderHeight > 0) {
+        const scaleX = width / renderWidth;
+        const scaleY = height / renderHeight;
+        
+        for (const entry of editedChars) {
+          if (entry.char.trim() === "") continue;
+          
+          const scaledFontSize = entry.fontSize * scaleX;
+          ctx.font = `${scaledFontSize}px "Courier New", monospace`;
+          ctx.fillStyle = entry.color;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const centerX = (entry.x + entry.width / 2) * scaleX;
+          const centerY = (entry.y + entry.height / 2) * scaleY;
+          ctx.fillText(entry.char, centerX, centerY);
+        }
+      }
+
+      // Download the canvas
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `fold-${seedNumber}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
     } catch (error) {
-      // Final fallback: focus iframe for manual download
-      console.warn("Cannot access iframe:", error);
-      iframe.focus();
+      console.error("Error downloading PNG:", error);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -205,23 +259,15 @@ export default function TokenPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
               {/* Artwork - left column */}
               <div>
-                <div className="aspect-[1/1.414] relative">
+                <div className="aspect-[1/1.414]">
                   {metadata?.animation_url ? (
-                    <>
-                      <iframe
-                        ref={iframeRef}
-                        src={metadata.animation_url}
-                        className="w-full h-full border-0"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                        title="On-chain artwork"
-                      />
-                      <button
-                        onClick={handleDownloadPNG}
-                        className="absolute top-4 right-4 px-4 py-2 bg-foreground text-background text-xs hover:bg-foreground/90 transition-colors z-10"
-                      >
-                        download png
-                      </button>
-                    </>
+                    <iframe
+                      ref={iframeRef}
+                      src={metadata.animation_url}
+                      className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-same-origin allow-forms"
+                      title="On-chain artwork"
+                    />
                   ) : (
                     <div className="w-full h-full bg-muted/10 flex items-center justify-center text-xs text-muted">
                       loading...
@@ -240,8 +286,8 @@ export default function TokenPage() {
                 <div className="text-sm leading-relaxed text-muted border-l border-border pl-4">
                   this piece was generated from the compression points the
                   collective creases created during the burn events in the LESS
-                  recursive token. the folds that led here are invisible. you only
-                  see where they collided.
+                  recursive token. the folds that led here are invisible. you
+                  only see where they collided.
                 </div>
 
                 {/* Metadata */}
@@ -314,6 +360,13 @@ export default function TokenPage() {
                   >
                     opensea →
                   </a>
+                  <button
+                    onClick={handleDownloadPNG}
+                    disabled={isDownloading || !seedNumber}
+                    className="text-sm text-muted hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDownloading ? "downloading..." : "download png"}
+                  </button>
                 </div>
               </div>
             </div>
