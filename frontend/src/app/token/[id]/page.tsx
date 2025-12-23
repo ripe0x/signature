@@ -30,31 +30,57 @@ export default function TokenPage() {
     if (!iframe?.contentWindow) return;
 
     try {
-      // Try to access the iframe's document (works if same-origin or sandbox allows it)
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      
-      // Create and dispatch keyboard event to trigger Cmd/Ctrl+S shortcut
-      const event = new KeyboardEvent("keydown", {
-        key: "s",
-        code: "KeyS",
-        keyCode: 83,
-        which: 83,
-        metaKey: isMac,
-        ctrlKey: !isMac,
-        bubbles: true,
-        cancelable: true,
-      });
-      
-      // Focus the iframe first, then dispatch the event
-      iframe.focus();
-      iframeDoc.dispatchEvent(event);
+      // Since animation_url is a data URI, we should be able to access the iframe
+      // Wait a moment for iframe to potentially finish loading
+      const attemptTrigger = () => {
+        try {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          
+          if (!iframeDoc || !iframeDoc.body) {
+            // If document not ready, focus iframe so user can press Cmd/Ctrl+S manually
+            iframe.focus();
+            return;
+          }
+
+          const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+          
+          // Focus the iframe first so the keyboard event is captured
+          iframe.focus();
+          iframeDoc.body.focus();
+          
+          // Create and dispatch keyboard event to trigger Cmd/Ctrl+S shortcut
+          // The existing keyboard shortcut handler in fold-core.js will catch this
+          const event = new KeyboardEvent("keydown", {
+            key: "s",
+            code: "KeyS",
+            keyCode: 83,
+            which: 83,
+            metaKey: isMac,
+            ctrlKey: !isMac,
+            bubbles: true,
+            cancelable: true,
+          });
+          
+          // Dispatch to document so it bubbles properly
+          iframeDoc.dispatchEvent(event);
+          
+          // Also try dispatching directly to the window as fallback
+          if (iframe.contentWindow) {
+            iframe.contentWindow.dispatchEvent(event);
+          }
+        } catch (error) {
+          // Fallback: just focus the iframe so user can manually press Cmd/Ctrl+S
+          console.warn("Could not trigger download automatically:", error);
+          iframe.focus();
+        }
+      };
+
+      // Try immediately, and also after a short delay in case iframe is still loading
+      attemptTrigger();
+      setTimeout(attemptTrigger, 100);
     } catch (error) {
-      // Cross-origin restrictions prevent direct access
-      // In this case, users can still use Cmd/Ctrl+S manually
-      console.warn("Cannot trigger download programmatically due to cross-origin restrictions. Please use Cmd/Ctrl+S in the iframe.");
-      
-      // Focus the iframe so user can easily press Cmd/Ctrl+S
+      // Final fallback: focus iframe for manual download
+      console.warn("Cannot access iframe:", error);
       iframe.focus();
     }
   };
