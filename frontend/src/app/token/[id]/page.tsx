@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useRef } from "react";
 import { useEnsName } from "wagmi";
 import { useToken } from "@/hooks/useToken";
 import { truncateAddress } from "@/lib/utils";
@@ -15,6 +16,7 @@ const TEST_MODE = false;
 export default function TokenPage() {
   const params = useParams();
   const tokenId = parseInt(params.id as string, 10);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { id, windowId, seedNumber, owner, metadata, isLoading, error } =
     useToken(tokenId);
@@ -22,6 +24,16 @@ export default function TokenPage() {
   const { data: ensName } = useEnsName({
     address: owner as `0x${string}` | undefined,
   });
+
+  const handleDownloadPNG = () => {
+    if (iframeRef.current?.contentWindow) {
+      // Send postMessage to iframe to trigger download
+      iframeRef.current.contentWindow.postMessage(
+        { type: "DOWNLOAD_PNG" },
+        "*" // Accept any origin for on-chain hosted content
+      );
+    }
+  };
 
   if (isLoading) {
     return (
@@ -143,14 +155,23 @@ export default function TokenPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
               {/* Artwork - left column */}
               <div>
-                <div className="aspect-[1/1.414]">
+                <div className="aspect-[1/1.414] relative">
                   {metadata?.animation_url ? (
-                    <iframe
-                      src={metadata.animation_url}
-                      className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin allow-forms"
-                      title="On-chain artwork"
-                    />
+                    <>
+                      <iframe
+                        ref={iframeRef}
+                        src={metadata.animation_url}
+                        className="w-full h-full border-0"
+                        sandbox="allow-scripts allow-same-origin allow-forms"
+                        title="On-chain artwork"
+                      />
+                      <button
+                        onClick={handleDownloadPNG}
+                        className="absolute top-4 right-4 px-4 py-2 bg-foreground text-background text-xs hover:bg-foreground/90 transition-colors z-10"
+                      >
+                        download png
+                      </button>
+                    </>
                   ) : (
                     <div className="w-full h-full bg-muted/10 flex items-center justify-center text-xs text-muted">
                       loading...
