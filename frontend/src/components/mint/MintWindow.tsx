@@ -580,8 +580,7 @@ export function MintWindow() {
           )}
 
           {/* Balance progress - show when threshold met but syncing */}
-          {/* TEMP: was cooldownRemaining */}
-          {buybackBalanceEth >= 0.25 && _cooldownRemaining > 0 && (
+          {buybackBalanceEth >= 0.25 && cooldownRemaining > 0 && (
             <div className="space-y-2">
               <div className="flex justify-between text-xs gap-4">
                 <span className="text-muted">balance</span>
@@ -615,14 +614,6 @@ export function MintWindow() {
               accumulate until the 0.25 ETH threshold is reached. then anyone
               can trigger a burn to open a 90-minute mint window.
             </p>
-            {/* TEMP: was cooldownRemaining */}
-            {/* {buybackBalanceEth >= 0.25 && _cooldownRemaining > 0 && (
-              <p className="pt-2">
-                the sync period ensures fair token buybacks using time-weighted
-                average pricing. trading activity during a window can extend
-                this period by up to 30 minutes after the window closes.
-              </p>
-            )} */}
           </div>
         </div>
       </div>

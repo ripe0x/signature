@@ -26,12 +26,36 @@ export default function TokenPage() {
   });
 
   const handleDownloadPNG = () => {
-    if (iframeRef.current?.contentWindow) {
-      // Send postMessage to iframe to trigger download
-      iframeRef.current.contentWindow.postMessage(
-        { type: "DOWNLOAD_PNG" },
-        "*" // Accept any origin for on-chain hosted content
-      );
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+
+    try {
+      // Try to access the iframe's document (works if same-origin or sandbox allows it)
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      
+      // Create and dispatch keyboard event to trigger Cmd/Ctrl+S shortcut
+      const event = new KeyboardEvent("keydown", {
+        key: "s",
+        code: "KeyS",
+        keyCode: 83,
+        which: 83,
+        metaKey: isMac,
+        ctrlKey: !isMac,
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      // Focus the iframe first, then dispatch the event
+      iframe.focus();
+      iframeDoc.dispatchEvent(event);
+    } catch (error) {
+      // Cross-origin restrictions prevent direct access
+      // In this case, users can still use Cmd/Ctrl+S manually
+      console.warn("Cannot trigger download programmatically due to cross-origin restrictions. Please use Cmd/Ctrl+S in the iframe.");
+      
+      // Focus the iframe so user can easily press Cmd/Ctrl+S
+      iframe.focus();
     }
   };
 

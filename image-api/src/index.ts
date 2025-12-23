@@ -5,6 +5,9 @@ import { createPublicClient, http, getContract } from 'viem';
 import { sepolia, mainnet } from 'viem/chains';
 import { PlaywrightRenderer } from './lib/renderer.js';
 import { DiskCache } from './lib/cache.js';
+import sharp from 'sharp';
+import { get as httpsGet } from 'https';
+import { get as httpGet } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -49,6 +52,17 @@ const LESS_ABI = [
 
 const app = express();
 app.use(express.json());
+
+// CORS middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Serve static files (preview page)
 app.use(express.static(join(__dirname, '../public')));
@@ -135,6 +149,188 @@ app.post('/api/cache/clear', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: 'Failed to clear cache',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Calculate optimal grid dimensions for social media
+function calculateGridDimensions(count: number) {
+  if (count === 0) return { cols: 1, rows: 1 };
+  if (count === 1) return { cols: 1, rows: 1 };
+  if (count === 2) return { cols: 2, rows: 1 };
+  if (count === 3) return { cols: 3, rows: 1 };
+  if (count === 4) return { cols: 2, rows: 2 };
+  if (count <= 6) return { cols: 3, rows: 2 };
+  if (count <= 9) return { cols: 3, rows: 3 };
+  if (count <= 12) return { cols: 4, rows: 3 };
+  if (count <= 16) return { cols: 4, rows: 4 };
+  if (count <= 20) return { cols: 5, rows: 4 };
+  if (count <= 25) return { cols: 5, rows: 5 };
+  if (count <= 30) return { cols: 6, rows: 5 };
+  if (count <= 36) return { cols: 6, rows: 6 };
+  // For larger counts, use a reasonable max
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  return { cols, rows };
+}
+
+// Grid endpoint - generates a grid image from multiple token IDs
+app.get('/api/grid', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    const { tokenIds, cellWidth, cellHeight } = req.query;
+
+    if (!tokenIds || typeof tokenIds !== 'string') {
+      return res.status(400).json({ error: 'Missing tokenIds parameter (comma-separated)' });
+    }
+
+    // Parse token IDs
+    const ids = tokenIds.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id) && id > 0);
+    
+    if (ids.length === 0) {
+      return res.status(400).json({ error: 'No valid token IDs provided' });
+    }
+
+    // Parse cell dimensions (default to A4 ratio: 300x424)
+    const cw = cellWidth ? parseInt(cellWidth as string, 10) : 300;
+    const ch = cellHeight ? parseInt(cellHeight as string, 10) : 424;
+    const gap = 0; // No gap between images
+    const padding = 0; // No padding around edges
+
+    // Calculate grid dimensions
+    const { cols, rows } = calculateGridDimensions(ids.length);
+    const gridWidth = cols * cw + (cols - 1) * gap + padding * 2;
+    const gridHeight = rows * ch + (rows - 1) * gap + padding * 2;
+
+    // Check cache
+    const cacheKey = `grid-${ids.join('-')}-${cw}-${ch}`;
+    const cached = await cache.get(cacheKey, gridWidth, gridHeight);
+    if (cached) {
+      res.set('Content-Type', 'image/png');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+      return res.send(cached);
+    }
+
+    // Fetch all images in parallel
+    // Use internal rendering instead of HTTP requests for better performance
+    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(RPC_URL),
+    });
+
+    const imageBuffers = await Promise.all(
+      ids.map(async (tokenId) => {
+        try {
+          // Fetch tokenURI and render directly (faster than HTTP request)
+          const tokenURI = await client.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: LESS_ABI,
+            functionName: 'tokenURI',
+            args: [BigInt(tokenId)],
+          });
+
+          if (!tokenURI) {
+            return null;
+          }
+
+          // Parse tokenURI
+          const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+          if (!jsonMatch) {
+            return null;
+          }
+
+          const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+          const animationUrl = metadata.animation_url;
+
+          if (!animationUrl) {
+            return null;
+          }
+
+          // Extract HTML
+          const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+          if (!htmlMatch) {
+            return null;
+          }
+
+          const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+          // Render image directly
+          return await renderer.renderHtml({
+            html: onChainHtml,
+            width: cw,
+            height: ch,
+          });
+        } catch (error) {
+          console.warn(`Error rendering image for token ${tokenId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out failed fetches
+    const validImages = imageBuffers.filter((img): img is Buffer => img !== null);
+    if (validImages.length === 0) {
+      return res.status(500).json({ error: 'Failed to fetch any images' });
+    }
+
+    // Create base image with black background
+    const gridImage = sharp({
+      create: {
+        width: gridWidth,
+        height: gridHeight,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 1 },
+      },
+    });
+
+    // Composite images onto grid
+    const composites = [];
+    let imageIndex = 0;
+
+    for (let row = 0; row < rows && imageIndex < validImages.length; row++) {
+      for (let col = 0; col < cols && imageIndex < validImages.length; col++) {
+        const x = padding + col * (cw + gap);
+        const y = padding + row * (ch + gap);
+
+        // Resize image to fit cell dimensions (maintain aspect ratio, center crop)
+        const resized = await sharp(validImages[imageIndex])
+          .resize(cw, ch, {
+            fit: 'cover',
+            position: 'center',
+          })
+          .toBuffer();
+
+        composites.push({
+          input: resized,
+          left: x,
+          top: y,
+        });
+
+        imageIndex++;
+      }
+    }
+
+    // Composite all images onto the grid
+    const finalImage = await gridImage.composite(composites).png().toBuffer();
+
+    // Cache result
+    await cache.set(cacheKey, gridWidth, gridHeight, finalImage);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+    res.send(finalImage);
+  } catch (error) {
+    console.error('Grid generation error:', error);
+    res.set('Access-Control-Allow-Origin', '*');
+    res.status(500).json({
+      error: 'Grid generation failed',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }

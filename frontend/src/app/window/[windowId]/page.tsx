@@ -115,7 +115,7 @@ function WindowCollection({ windowId }: { windowId: number }) {
             <div className="flex items-center justify-between mt-12 pt-8 border-t border-border">
               {prevWindow !== null ? (
                 <Link
-                  href={`/collection/window/${prevWindow}`}
+                  href={`/window/${prevWindow}`}
                   className="text-sm text-muted hover:text-foreground transition-colors"
                 >
                   ← window {prevWindow}
@@ -130,7 +130,7 @@ function WindowCollection({ windowId }: { windowId: number }) {
 
               {nextWindow !== null ? (
                 <Link
-                  href={`/collection/window/${nextWindow}`}
+                  href={`/window/${nextWindow}`}
                   className="text-sm text-muted hover:text-foreground transition-colors"
                 >
                   window {nextWindow} →
@@ -176,3 +176,4 @@ export default function WindowPage({ params }: WindowPageProps) {
 
   return <WindowCollection windowId={windowId} />;
 }
+

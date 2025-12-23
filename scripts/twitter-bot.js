@@ -19,6 +19,7 @@ import { get as httpGet } from "http";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import sharp from "sharp";
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,7 @@ const testMode = args.includes("--test");
 const testMintMode = args.includes("--test-mint");
 const testReminderMode = args.includes("--test-reminder");
 const testWindowReadyMode = args.includes("--test-window-ready");
+const testBalanceProgressMode = args.includes("--test-balance-progress");
 const verifyMode = args.includes("--verify");
 const postTestTweet = args.includes("--post-test");
 const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
@@ -50,6 +52,18 @@ const postMintTokenId = args
 const postWindowId = args
   .find((arg) => arg.startsWith("--post-window="))
   ?.split("=")[1]; // Post a window opened tweet for a specific window ID
+const mockBalance = args
+  .find((arg) => arg.startsWith("--mock-balance="))
+  ?.split("=")[1]; // Mock balance in ETH for testing (e.g., --mock-balance=0.15)
+const mockThreshold = args
+  .find((arg) => arg.startsWith("--mock-threshold="))
+  ?.split("=")[1]; // Mock threshold in ETH for testing (e.g., --mock-threshold=0.25)
+const mockWindowId = args
+  .find((arg) => arg.startsWith("--mock-window-id="))
+  ?.split("=")[1]; // Mock window ID for testing (e.g., --mock-window-id=5)
+const mockEthPrice = args
+  .find((arg) => arg.startsWith("--mock-eth-price="))
+  ?.split("=")[1]; // Mock ETH price in USD for testing
 const pollingInterval =
   parseInt(
     args.find((arg) => arg.startsWith("--interval="))?.split("=")[1] || "60",
@@ -119,7 +133,9 @@ function loadState(contractAddress) {
       processedWindows,
       processedMints,
       fifteenMinReminders: new Set(),
+      processedEndedWindows: new Set(),
       windowReadyAlerted: false,
+      lastBalanceProgressPost: null,
       lastBlock: 0n,
     };
   }
@@ -138,7 +154,9 @@ function loadState(contractAddress) {
           processedWindows: new Set(),
           processedMints: new Set(),
           fifteenMinReminders: new Set(),
+          processedEndedWindows: new Set(),
           windowReadyAlerted: false,
+          lastBalanceProgressPost: null,
           lastBlock: 0n,
         };
       }
@@ -149,7 +167,9 @@ function loadState(contractAddress) {
         ),
         processedMints: new Set(data.processedMints || []),
         fifteenMinReminders: new Set(data.fifteenMinReminders || []),
+        processedEndedWindows: new Set(data.processedEndedWindows || []),
         windowReadyAlerted: data.windowReadyAlerted || false,
+        lastBalanceProgressPost: data.lastBalanceProgressPost || null,
         lastBlock: BigInt(data.lastBlock || 0),
       };
     }
@@ -160,7 +180,9 @@ function loadState(contractAddress) {
     processedWindows: new Set(),
     processedMints: new Set(),
     fifteenMinReminders: new Set(),
+    processedEndedWindows: new Set(),
     windowReadyAlerted: false,
+    lastBalanceProgressPost: null,
     lastBlock: 0n,
   };
 }
@@ -169,7 +191,9 @@ function saveState(
   processedWindows,
   processedMints,
   fifteenMinReminders,
+  processedEndedWindows,
   windowReadyAlerted,
+  lastBalanceProgressPost,
   lastBlock,
   contractAddress
 ) {
@@ -179,7 +203,9 @@ function saveState(
       processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
       fifteenMinReminders: Array.from(fifteenMinReminders),
+      processedEndedWindows: Array.from(processedEndedWindows),
       windowReadyAlerted,
+      lastBalanceProgressPost,
       lastBlock: lastBlock.toString(),
       updatedAt: new Date().toISOString(),
     };
@@ -345,6 +371,29 @@ const LESS_TOKEN_ADDRESS =
   "0x9C2CA573009F181EAc634C4d6e44A0977C24f335";
 const INITIAL_SUPPLY = 1_000_000_000n * 10n ** 18n; // 1 billion tokens with 18 decimals
 
+// Fetch ETH price from CoinGecko
+async function fetchEthPrice() {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.ethereum?.usd || null;
+  } catch (error) {
+    logWarn(`Failed to fetch ETH price: ${error.message}`);
+    return null;
+  }
+}
+
+// Format URL to prevent Twitter from showing preview card
+// Removes the protocol so Twitter doesn't auto-link and show a preview card
+// Users can still copy/paste the URL and it will work
+function formatUrlForTweet(url) {
+  // Remove protocol (https:// or http://) - Twitter won't create a card for URLs without protocol
+  return url.replace(/^https?:\/\//, "");
+}
+
 // Fetch burn data from strategy and token contracts
 async function fetchBurnData(client, contractAddress, abi) {
   try {
@@ -506,7 +555,7 @@ ${burnData.supplyRemaining}% supply remaining
 
 LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
   }
 
   // If we have only supply data (no burn amount), show just supply
@@ -519,7 +568,7 @@ ${burnData.supplyRemaining}% total supply remaining
 LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
   }
 
   // Simple format without any burn/supply data
@@ -529,7 +578,7 @@ ${BASE_URL}/mint`;
  LESS is open to mint for the next ${minutesLeft} minutes for window ${windowId}
 
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
 
 // Display tweet preview in console
@@ -562,7 +611,8 @@ async function postTweet(twitterClient, message, imageBuffer = null) {
     testMode ||
     testMintMode ||
     testReminderMode ||
-    testWindowReadyMode
+    testWindowReadyMode ||
+    testBalanceProgressMode
   ) {
     displayTweetPreview(message);
     if (imageBuffer) {
@@ -1025,6 +1075,148 @@ async function runTestWindowReadyMode() {
   logSuccess("Test window ready completed!");
 }
 
+// Run test balance progress mode - test balance progress tweet with real or mock data
+async function runTestBalanceProgressMode() {
+  const usingMockData = mockBalance || mockThreshold || mockWindowId;
+
+  if (usingMockData) {
+    logInfo("Running in TEST BALANCE PROGRESS MODE - using mock values");
+  } else {
+    logInfo(
+      "Running in TEST BALANCE PROGRESS MODE - fetching real balance data"
+    );
+  }
+  console.log();
+
+  try {
+    let currentBalance, minEthForWindow, nextWindowId;
+
+    if (usingMockData) {
+      // Use mock values if provided
+      const mockBalanceEth = parseFloat(mockBalance || "0.15");
+      const mockThresholdEth = parseFloat(mockThreshold || "0.25");
+      const mockWindowIdNum = parseInt(mockWindowId || "5", 10);
+
+      currentBalance = BigInt(Math.floor(mockBalanceEth * 1e18));
+      minEthForWindow = BigInt(Math.floor(mockThresholdEth * 1e18));
+      nextWindowId = mockWindowIdNum;
+
+      logInfo(`Using mock values:`);
+      logInfo(`  Balance: ${mockBalanceEth} ETH`);
+      logInfo(`  Threshold: ${mockThresholdEth} ETH`);
+      logInfo(`  Window ID: ${nextWindowId}`);
+    } else {
+      // Fetch real data from contract
+      const rpcUrl = getRpcUrl();
+      const contractAddress = getContractAddress();
+      const abi = loadContractABI();
+      const client = createPublicClient({
+        chain: getChain(),
+        transport: http(rpcUrl),
+      });
+
+      // Get strategy address, minEthForWindow, and windowCount
+      const [strategyAddress, fetchedMinEthForWindow, windowCount] =
+        await Promise.all([
+          client.readContract({
+            address: contractAddress,
+            abi: abi,
+            functionName: "strategy",
+          }),
+          client.readContract({
+            address: contractAddress,
+            abi: [
+              {
+                inputs: [],
+                name: "minEthForWindow",
+                outputs: [{ name: "", type: "uint256" }],
+                stateMutability: "view",
+                type: "function",
+              },
+            ],
+            functionName: "minEthForWindow",
+          }),
+          client.readContract({
+            address: contractAddress,
+            abi: [
+              {
+                inputs: [],
+                name: "windowCount",
+                outputs: [{ name: "", type: "uint256" }],
+                stateMutability: "view",
+                type: "function",
+              },
+            ],
+            functionName: "windowCount",
+          }),
+        ]);
+
+      if (
+        !strategyAddress ||
+        strategyAddress === "0x0000000000000000000000000000000000000000"
+      ) {
+        logError("No strategy address set");
+        process.exit(1);
+      }
+
+      // Next window ID is current windowCount + 1
+      nextWindowId = Number(windowCount) + 1;
+      minEthForWindow = fetchedMinEthForWindow;
+
+      logInfo(`Strategy address: ${strategyAddress}`);
+      logInfo(`Threshold: ${formatEther(minEthForWindow)} ETH`);
+      logInfo(`Next window ID: ${nextWindowId}`);
+
+      // Get current balance of strategy contract
+      currentBalance = await client.getBalance({
+        address: strategyAddress,
+      });
+
+      logInfo(`Current balance: ${formatEther(currentBalance)} ETH`);
+    }
+
+    // Calculate progress percentage (capped at 100%)
+    const progressPercent = Math.min(
+      100,
+      Number((currentBalance * 100n) / minEthForWindow)
+    );
+
+    logInfo(`Progress: ${progressPercent.toFixed(1)}%`);
+
+    // Get ETH price (mock or real)
+    let ethPrice = null;
+    if (mockEthPrice) {
+      ethPrice = parseFloat(mockEthPrice);
+      logInfo(`Using mock ETH price: $${ethPrice}`);
+    } else {
+      // Fetch real ETH price
+      ethPrice = await fetchEthPrice();
+      if (ethPrice) {
+        logInfo(`ETH price: $${ethPrice}`);
+      }
+    }
+    console.log();
+
+    // Format and display the tweet
+    const tweetMessage = formatBalanceProgressTweet(
+      currentBalance,
+      minEthForWindow,
+      progressPercent,
+      nextWindowId,
+      ethPrice
+    );
+
+    await postTweet(null, tweetMessage);
+    logSuccess("Test balance progress completed!");
+  } catch (error) {
+    logError(`Test failed: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
+  }
+}
+
 // Generate a preview seed for a window (deterministic based on window parameters)
 function generatePreviewSeed(windowId, strategyBlock, startTime) {
   // Create a deterministic seed from window parameters
@@ -1109,7 +1301,7 @@ function formatMintTweet(
       : "";
   return `LESS ${tokenId} minted by ${minterDisplay}${timeText}
 
-${BASE_URL}/${tokenId}`;
+${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 }
 
 // Format 15-minute reminder tweet
@@ -1122,7 +1314,7 @@ window ${windowId}
 ${burnData.amountBurned} $LESS burned
 ${burnData.supplyRemaining}% supply remaining
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
   }
 
   // If we have only supply data (no burn amount), show just supply
@@ -1132,7 +1324,7 @@ ${BASE_URL}/mint`;
 window ${windowId}
 ${burnData.supplyRemaining}% supply remaining
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
   }
 
   // Simple format without any burn/supply data
@@ -1140,7 +1332,7 @@ ${BASE_URL}/mint`;
 
 window ${windowId}
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
 
 // Format tweet for when a new window is ready to be opened
@@ -1149,7 +1341,80 @@ function formatWindowReadyTweet() {
 
 minting will trigger a 0.25 ETH buy + burn of $LESS
 
-${BASE_URL}/mint`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
+}
+
+// Format balance progress tweet with unicode progress bar
+function formatBalanceProgressTweet(
+  currentBalance,
+  threshold,
+  progressPercent,
+  windowId,
+  ethPrice = null
+) {
+  // Create progress bar using unicode shade characters
+  // Dark shades (█, ▓, ▒) for filled, light (░) for empty
+  const barLength = 20;
+  const filledBlocks = Math.floor((progressPercent / 100) * barLength);
+  const partialBlock = (progressPercent / 100) * barLength - filledBlocks;
+
+  let progressBar = "";
+
+  // Add filled blocks (dark)
+  for (let i = 0; i < filledBlocks; i++) {
+    progressBar += "▓";
+  }
+
+  // Add partial block based on remainder (if needed) - use dark shades
+  if (filledBlocks < barLength && partialBlock > 0) {
+    if (partialBlock < 0.25) {
+      progressBar += "▒"; // Medium-dark shade for small partial
+    } else if (partialBlock < 0.5) {
+      progressBar += "▒"; // Dark shade
+    } else if (partialBlock < 0.75) {
+      progressBar += "▓"; // Full block
+    } else {
+      progressBar += "▓"; // Full block
+    }
+  }
+
+  // Fill rest with light shade (empty portion)
+  while (progressBar.length < barLength) {
+    progressBar += "░";
+  }
+
+  // Format ETH amounts
+  const currentEth = Number(formatEther(currentBalance));
+  const thresholdEth = Number(formatEther(threshold));
+  const remainingEth = Math.max(0, thresholdEth - currentEth);
+
+  // Calculate trading volume estimate (8% of fees go to buyback)
+  let volumeText = "";
+  if (remainingEth > 0 && ethPrice) {
+    const volumeNeededEth = remainingEth / 0.08;
+    const volumeNeededUsd = volumeNeededEth * ethPrice;
+    volumeText = `\n~$${volumeNeededUsd.toLocaleString(undefined, {
+      maximumFractionDigits: 0,
+    })} worth of $LESS trading volume`;
+  }
+
+  // Format percentages
+  const percentStr = progressPercent.toFixed(1);
+
+  return `$LESS buy + burn balance progress toward window ${windowId}
+
+${progressBar} ${percentStr}%
+
+${currentEth.toFixed(4)} ETH / ${thresholdEth.toFixed(4)} ETH
+${
+  remainingEth > 0
+    ? `${remainingEth.toFixed(4)} ETH remaining${volumeText}`
+    : "ready to open!"
+}
+
+${formatUrlForTweet(
+  `https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335`
+)}`;
 }
 
 // Resolve ENS name for an address (always uses mainnet since ENS lives there)
@@ -1352,6 +1617,301 @@ async function processReminderCheck(
   }
 }
 
+// Get all token IDs minted in a specific window
+async function getMintsForWindow(
+  client,
+  contractAddress,
+  windowId,
+  fromBlock = null
+) {
+  try {
+    // Get all Minted events for this window
+    // If fromBlock is provided, use it for efficiency; otherwise query all blocks
+    const logOptions = {
+      address: contractAddress,
+      event: parseAbiItem(
+        "event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed)"
+      ),
+      args: {
+        windowId: BigInt(windowId),
+      },
+    };
+
+    // Add block range if provided (helps with performance)
+    if (fromBlock !== null) {
+      logOptions.fromBlock = fromBlock;
+    }
+
+    const mintLogs = await client.getLogs(logOptions);
+
+    // Extract token IDs and sort them
+    const tokenIds = mintLogs
+      .map((log) => Number(log.args.tokenId))
+      .sort((a, b) => a - b);
+
+    return tokenIds;
+  } catch (error) {
+    logError(`Failed to get mints for window ${windowId}: ${error.message}`);
+    return [];
+  }
+}
+
+// Calculate optimal grid dimensions for social media
+function calculateGridDimensions(count) {
+  if (count === 0) return { cols: 1, rows: 1 };
+  if (count === 1) return { cols: 1, rows: 1 };
+  if (count === 2) return { cols: 2, rows: 1 };
+  if (count === 3) return { cols: 3, rows: 1 };
+  if (count === 4) return { cols: 2, rows: 2 };
+  if (count <= 6) return { cols: 3, rows: 2 };
+  if (count <= 9) return { cols: 3, rows: 3 };
+  if (count <= 12) return { cols: 4, rows: 3 };
+  if (count <= 16) return { cols: 4, rows: 4 };
+  if (count <= 20) return { cols: 5, rows: 4 };
+  if (count <= 25) return { cols: 5, rows: 5 };
+  if (count <= 30) return { cols: 6, rows: 5 };
+  if (count <= 36) return { cols: 6, rows: 6 };
+  // For larger counts, use a reasonable max
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  return { cols, rows };
+}
+
+// Create a grid image from multiple token images using image-api
+async function createGridImage(tokenIds) {
+  if (tokenIds.length === 0) {
+    throw new Error("No token IDs provided for grid");
+  }
+
+  const imageApiUrl =
+    process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+
+  // Use image-api grid endpoint for fast server-side generation
+  // This uses black background, no padding, no gaps, and A4 ratio (300x424)
+  const tokenIdsParam = tokenIds.join(",");
+  const gridUrl = `${imageApiUrl}/api/grid?tokenIds=${tokenIdsParam}&cellWidth=300&cellHeight=424`;
+
+  logInfo(
+    `Fetching grid image from image-api for ${tokenIds.length} tokens...`
+  );
+
+  return new Promise((resolve, reject) => {
+    const get = gridUrl.startsWith("https") ? httpsGet : httpGet;
+    get(gridUrl, (res) => {
+      if (res.statusCode !== 200) {
+        const errorMsg = `Image API returned status ${res.statusCode}`;
+        logError(errorMsg);
+        reject(new Error(errorMsg));
+        return;
+      }
+
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
+        const buffer = Buffer.concat(chunks);
+        logSuccess(
+          `Grid image fetched: ${buffer.length} bytes for ${tokenIds.length} tokens`
+        );
+        resolve(buffer);
+      });
+      res.on("error", (err) => {
+        logError(`Grid image fetch error: ${err.message}`);
+        reject(err);
+      });
+    }).on("error", (err) => {
+      logError(`Grid image fetch error: ${err.message}`);
+      reject(err);
+    });
+  });
+}
+
+// Format window end summary tweet
+function formatWindowEndTweet(windowId, mintCount, tokenIds) {
+  const tokenRange =
+    tokenIds.length > 0
+      ? tokenIds.length === 1
+        ? `token ${tokenIds[0]}`
+        : `tokens ${tokenIds[0]}-${tokenIds[tokenIds.length - 1]}`
+      : "no tokens";
+
+  return `LESS mint window ${windowId} closed
+
+${mintCount} pieces minted
+${tokenRange}
+
+${formatUrlForTweet(`${BASE_URL}/window/${windowId}`)}`;
+}
+
+// Process balance progress check - posts every 6 hours if no active window
+async function processBalanceProgressCheck(
+  lastBalanceProgressPost,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    // Check if there's an active window - if so, skip
+    const currentWindowAbi = [
+      {
+        inputs: [],
+        name: "getCurrentWindow",
+        outputs: [
+          { name: "windowId", type: "uint256" },
+          { name: "startTime", type: "uint64" },
+          { name: "endTime", type: "uint64" },
+          { name: "strategyBlock", type: "uint64" },
+        ],
+        stateMutability: "view",
+        type: "function",
+      },
+      {
+        inputs: [],
+        name: "isWindowActive",
+        outputs: [{ name: "", type: "bool" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    const isActive = await client.readContract({
+      address: contractAddress,
+      abi: currentWindowAbi,
+      functionName: "isWindowActive",
+    });
+
+    if (isActive) {
+      return { posted: false, lastPost: lastBalanceProgressPost };
+    }
+
+    // Check if 6 hours have passed since last post
+    const now = Math.floor(Date.now() / 1000);
+    const sixHoursInSeconds = 6 * 60 * 60; // 21600 seconds
+    if (
+      lastBalanceProgressPost &&
+      now - lastBalanceProgressPost < sixHoursInSeconds
+    ) {
+      return { posted: false, lastPost: lastBalanceProgressPost };
+    }
+
+    // Get strategy address and minEthForWindow
+    const [strategyAddress, minEthForWindow] = await Promise.all([
+      client.readContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: "strategy",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "minEthForWindow",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "minEthForWindow",
+      }),
+    ]);
+
+    if (
+      !strategyAddress ||
+      strategyAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      logInfo("No strategy address set, skipping balance progress check");
+      return { posted: false, lastPost: lastBalanceProgressPost };
+    }
+
+    // Get current balance of strategy contract and window count
+    const [currentBalance, windowCount] = await Promise.all([
+      client.getBalance({
+        address: strategyAddress,
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "windowCount",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "windowCount",
+      }),
+    ]);
+
+    // Next window ID is current windowCount + 1
+    const nextWindowId = Number(windowCount) + 1;
+
+    // Calculate progress percentage (capped at 100%)
+    const progressPercent = Math.min(
+      100,
+      Number((currentBalance * 100n) / minEthForWindow)
+    );
+
+    // Fetch ETH price for trading volume estimate
+    const ethPrice = await fetchEthPrice();
+
+    logInfo(
+      `Balance progress: ${formatEther(currentBalance)} ETH / ${formatEther(
+        minEthForWindow
+      )} ETH (${progressPercent.toFixed(1)}%)`
+    );
+    if (ethPrice) {
+      const remainingEth = Math.max(
+        0,
+        Number(formatEther(minEthForWindow)) -
+          Number(formatEther(currentBalance))
+      );
+      if (remainingEth > 0) {
+        const volumeNeededEth = remainingEth / 0.08;
+        const volumeNeededUsd = volumeNeededEth * ethPrice;
+        logInfo(
+          `Trading volume needed: ~$${volumeNeededUsd.toLocaleString(
+            undefined,
+            { maximumFractionDigits: 0 }
+          )}`
+        );
+      }
+    }
+
+    // Format and post tweet
+    const tweetMessage = formatBalanceProgressTweet(
+      currentBalance,
+      minEthForWindow,
+      progressPercent,
+      nextWindowId,
+      ethPrice
+    );
+
+    logInfo("Posting balance progress tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+
+    if (tweetId) {
+      logSuccess(`Balance progress tweet posted! Tweet ID: ${tweetId}`);
+      return { posted: true, lastPost: now };
+    } else {
+      logError("Failed to post balance progress tweet");
+      return { posted: false, lastPost: lastBalanceProgressPost };
+    }
+  } catch (error) {
+    // Silently handle contract errors
+    if (
+      error.message?.includes("revert") ||
+      error.message?.includes("execution reverted") ||
+      error.message?.includes("Window")
+    ) {
+      return { posted: false, lastPost: lastBalanceProgressPost };
+    }
+    logError(`Error checking balance progress: ${error.message}`);
+    return { posted: false, lastPost: lastBalanceProgressPost };
+  }
+}
+
 // Process window ready check - posts when canCreateWindow() is true
 async function processWindowReadyCheck(
   windowReadyAlerted,
@@ -1415,6 +1975,130 @@ async function processWindowReadyCheck(
   }
 }
 
+// Process ended windows check - posts summary when windows end
+async function processEndedWindowsCheck(
+  processedEndedWindows,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+
+    // Get current window info to find the most recent window
+    const currentWindowAbi = [
+      {
+        inputs: [],
+        name: "getCurrentWindow",
+        outputs: [
+          { name: "windowId", type: "uint256" },
+          { name: "startTime", type: "uint64" },
+          { name: "endTime", type: "uint64" },
+          { name: "strategyBlock", type: "uint64" },
+        ],
+        stateMutability: "view",
+        type: "function",
+      },
+      {
+        inputs: [],
+        name: "windowCount",
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    let currentWindowId;
+    let currentEndTime;
+
+    try {
+      const [windowId, startTime, endTime, strategyBlock] =
+        await client.readContract({
+          address: contractAddress,
+          abi: currentWindowAbi,
+          functionName: "getCurrentWindow",
+        });
+      currentWindowId = Number(windowId);
+      currentEndTime = Number(endTime);
+    } catch (error) {
+      // If no current window, we can't easily determine which window just ended
+      // without querying WindowCreated events. For now, skip this check.
+      // The window end check will catch windows as they end when there's an active window.
+      return null;
+    }
+
+    // Check if current window has ended (if there is one)
+    if (currentEndTime > 0 && now >= currentEndTime) {
+      // Window has ended, check if we've processed it
+      if (!processedEndedWindows.has(currentWindowId)) {
+        logInfo(
+          `Window ${currentWindowId} has ended, creating summary tweet...`
+        );
+
+        // Get all mints for this window
+        // Use a lookback block for efficiency (last 1000 blocks ~3.5 hours)
+        const currentBlock = await client.getBlockNumber();
+        const fromBlock = currentBlock > 1000n ? currentBlock - 1000n : 0n;
+        const tokenIds = await getMintsForWindow(
+          client,
+          contractAddress,
+          currentWindowId,
+          fromBlock
+        );
+
+        if (tokenIds.length === 0) {
+          logInfo(
+            `Window ${currentWindowId} ended with no mints, skipping summary`
+          );
+          processedEndedWindows.add(currentWindowId);
+          return currentWindowId;
+        }
+
+        // Create grid image
+        let gridImage = null;
+        try {
+          gridImage = await createGridImage(tokenIds);
+        } catch (error) {
+          logError(`Failed to create grid image: ${error.message}`);
+          // Continue without image
+        }
+
+        // Format and post tweet
+        const tweetMessage = formatWindowEndTweet(
+          currentWindowId,
+          tokenIds.length,
+          tokenIds
+        );
+
+        logInfo("Posting window end summary tweet...");
+        const tweetId = await postTweet(twitterClient, tweetMessage, gridImage);
+
+        if (tweetId) {
+          logSuccess(`Window end summary tweet posted! Tweet ID: ${tweetId}`);
+          processedEndedWindows.add(currentWindowId);
+          return currentWindowId;
+        } else {
+          logError("Failed to post window end summary tweet");
+          return null;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    // Silently handle "no active window" errors
+    if (
+      error.message?.includes("revert") ||
+      error.message?.includes("Window")
+    ) {
+      return null;
+    }
+    logError(`Error checking ended windows: ${error.message}`);
+    return null;
+  }
+}
+
 // Main bot function
 async function runBot() {
   // Handle verify mode
@@ -1465,6 +2149,12 @@ async function runBot() {
     return;
   }
 
+  // Handle test balance progress mode
+  if (testBalanceProgressMode) {
+    await runTestBalanceProgressMode();
+    return;
+  }
+
   logInfo("Starting Twitter bot for mint window announcements...");
   if (dryRun) {
     logInfo(
@@ -1497,7 +2187,9 @@ async function runBot() {
   const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
   const fifteenMinReminders = state.fifteenMinReminders;
+  const processedEndedWindows = state.processedEndedWindows;
   let windowReadyAlerted = state.windowReadyAlerted;
+  let lastBalanceProgressPost = state.lastBalanceProgressPost;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
 
   if (rescanMode) {
@@ -1516,6 +2208,11 @@ async function runBot() {
   if (fifteenMinReminders.size > 0) {
     logInfo(
       `Loaded ${fifteenMinReminders.size} previously sent 15-min reminders from state`
+    );
+  }
+  if (processedEndedWindows.size > 0) {
+    logInfo(
+      `Loaded ${processedEndedWindows.size} previously processed ended windows from state`
     );
   }
   if (lastProcessedBlock > 0n) {
@@ -1627,7 +2324,9 @@ async function runBot() {
         processedWindows,
         processedMints,
         fifteenMinReminders,
+        processedEndedWindows,
         windowReadyAlerted,
+        lastBalanceProgressPost,
         lastProcessedBlock,
         contractAddress
       );
@@ -1659,7 +2358,9 @@ async function runBot() {
                 processedWindows,
                 processedMints,
                 fifteenMinReminders,
+                processedEndedWindows,
                 windowReadyAlerted,
+                lastBalanceProgressPost,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1692,7 +2393,9 @@ async function runBot() {
                 processedWindows,
                 processedMints,
                 fifteenMinReminders,
+                processedEndedWindows,
                 windowReadyAlerted,
+                lastBalanceProgressPost,
                 lastProcessedBlock,
                 contractAddress
               );
@@ -1730,7 +2433,9 @@ async function runBot() {
               processedWindows,
               processedMints,
               fifteenMinReminders,
+              processedEndedWindows,
               windowReadyAlerted,
+              lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress
             );
@@ -1756,7 +2461,9 @@ async function runBot() {
               processedWindows,
               processedMints,
               fifteenMinReminders,
+              processedEndedWindows,
               windowReadyAlerted,
+              lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress
             );
@@ -1766,17 +2473,77 @@ async function runBot() {
         }
       }, 60000);
 
+      // Ended windows checker (every 60 seconds) - posts summary when windows end
+      const endedWindowsInterval = setInterval(async () => {
+        try {
+          const processedWindowId = await processEndedWindowsCheck(
+            processedEndedWindows,
+            twitterClient,
+            client,
+            contractAddress,
+            abi
+          );
+          if (processedWindowId) {
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress
+            );
+          }
+        } catch (error) {
+          logError(`Ended windows check error: ${error.message}`);
+        }
+      }, 60000);
+
+      // Balance progress checker (every 6 hours) - posts progress when no active window
+      const balanceProgressInterval = setInterval(async () => {
+        try {
+          const result = await processBalanceProgressCheck(
+            lastBalanceProgressPost,
+            twitterClient,
+            client,
+            contractAddress,
+            abi
+          );
+          // Update state if posted
+          if (result.posted || result.lastPost !== lastBalanceProgressPost) {
+            lastBalanceProgressPost = result.lastPost;
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress
+            );
+          }
+        } catch (error) {
+          logError(`Balance progress check error: ${error.message}`);
+        }
+      }, 6 * 60 * 60 * 1000); // 6 hours in milliseconds
+
       // Graceful shutdown handler
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
         clearInterval(reminderInterval);
         clearInterval(windowReadyInterval);
+        clearInterval(endedWindowsInterval);
+        clearInterval(balanceProgressInterval);
         saveState(
           processedWindows,
           processedMints,
           fifteenMinReminders,
+          processedEndedWindows,
           windowReadyAlerted,
+          lastBalanceProgressPost,
           lastProcessedBlock,
           contractAddress
         );
@@ -1794,12 +2561,14 @@ async function runBot() {
           try {
             const block = await client.getBlockNumber();
             logInfo(
-              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints, ${fifteenMinReminders.size} reminders`
+              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints, ${fifteenMinReminders.size} reminders, ${processedEndedWindows.size} ended windows`
             );
           } catch (error) {
             clearInterval(healthCheck);
             clearInterval(reminderInterval);
             clearInterval(windowReadyInterval);
+            clearInterval(endedWindowsInterval);
+            clearInterval(balanceProgressInterval);
             reject(error);
           }
         }, 300000);

@@ -185,7 +185,7 @@ function LiveCollection() {
               <section key={group.windowId}>
                 {/* Window header - clickable link to window detail */}
                 <Link
-                  href={`/collection/window/${group.windowId}`}
+                  href={`/window/${group.windowId}`}
                   className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border group"
                 >
                   <h2 className="text-lg group-hover:underline underline-offset-4">
