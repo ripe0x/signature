@@ -9,7 +9,7 @@ import { truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
-import { renderArtwork, REFERENCE_WIDTH, REFERENCE_HEIGHT } from "@/lib/fold-core-wrapper";
+import { renderToCanvas, REFERENCE_WIDTH, REFERENCE_HEIGHT } from "@/lib/fold-core-wrapper";
 
 // Toggle to show 3-column comparison layout (local, on-chain, image-api)
 const TEST_MODE = false;
@@ -71,37 +71,19 @@ export default function TokenPage() {
       const width = REFERENCE_WIDTH * DOWNLOAD_SCALE; // 2400px
       const height = REFERENCE_HEIGHT * DOWNLOAD_SCALE; // 3394px
 
-      // Build skipCells for edited characters
-      const skipCells = new Set<string>();
-      if (editedChars.length > 0 && renderWidth > 0 && renderHeight > 0) {
-        // We'd need cell coordinates, but we don't have them easily
-        // For now, render base and overlay edits
-      }
-
-      // Render the base artwork at high resolution
-      const result = await renderArtwork({
-        seed: seedNumber,
-        folds: windowId,
-        outputWidth: width,
-        outputHeight: height,
-      });
-
-      // Create canvas and draw the base image
+      // Create a temporary canvas for rendering (renderToCanvas will set it to 2x for retina)
+      const tempCanvas = document.createElement("canvas");
+      await renderToCanvas(tempCanvas, seedNumber, width, height, windowId);
+      
+      // Create final canvas at exact download size
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Could not get canvas context");
-
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(null);
-        };
-        img.onerror = reject;
-        img.src = result.dataUrl;
-      });
+      
+      // Copy from temp canvas (which may be 2x) to final canvas at 1x
+      ctx.drawImage(tempCanvas, 0, 0, width, height);
 
       // Draw edited characters on top if we have them
       if (editedChars.length > 0 && renderWidth > 0 && renderHeight > 0) {
