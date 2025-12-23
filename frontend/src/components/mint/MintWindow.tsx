@@ -531,7 +531,9 @@ export function MintWindow() {
           <div className="text-center">
             {buybackBalanceEth >= 0.25 && cooldownRemaining > 0 ? (
               <>
-                <p className="text-sm text-muted mb-1">cooldown active</p>
+                <p className="text-sm text-muted mb-1">
+                  window {windowCount + 1} opens in
+                </p>
                 <p className="text-2xl font-mono">
                   {formatCountdown(cooldownRemaining)}
                 </p>
@@ -577,6 +579,27 @@ export function MintWindow() {
             </div>
           )}
 
+          {/* Balance progress - show when threshold met but syncing */}
+          {/* TEMP: was cooldownRemaining */}
+          {buybackBalanceEth >= 0.25 && _cooldownRemaining > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs gap-4">
+                <span className="text-muted">balance</span>
+                <span>{buybackBalanceEth.toFixed(4)} / 0.25 ETH</span>
+              </div>
+              <div className="h-2 bg-border overflow-hidden">
+                <div
+                  className="h-full bg-foreground transition-all duration-500"
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <p className="text-xs text-muted text-start">
+                <strong>threshold reached.</strong> awaiting next buy + burn
+                window
+              </p>
+            </div>
+          )}
+
           {/* How it works */}
           <div className="text-xs text-muted space-y-2 pt-4 border-t border-border">
             <p>
@@ -592,6 +615,14 @@ export function MintWindow() {
               accumulate until the 0.25 ETH threshold is reached. then anyone
               can trigger a burn to open a 90-minute mint window.
             </p>
+            {/* TEMP: was cooldownRemaining */}
+            {/* {buybackBalanceEth >= 0.25 && _cooldownRemaining > 0 && (
+              <p className="pt-2">
+                the sync period ensures fair token buybacks using time-weighted
+                average pricing. trading activity during a window can extend
+                this period by up to 30 minutes after the window closes.
+              </p>
+            )} */}
           </div>
         </div>
       </div>
