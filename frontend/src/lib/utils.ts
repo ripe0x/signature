@@ -89,3 +89,42 @@ export function getAddressUrl(address: string): string {
 export function getTxUrl(txHash: string): string {
   return `${getEtherscanUrl()}/tx/${txHash}`;
 }
+
+// Generate Unicode progress bar (dark shades for filled, light for empty)
+export function generateUnicodeProgressBar(percentage: number, length: number = 20): string {
+  const progressPercent = Math.min(percentage, 100);
+  const filledBlocks = Math.floor((progressPercent / 100) * length);
+  const partialBlock = (progressPercent / 100) * length - filledBlocks;
+
+  let progressBar = "";
+
+  // Add filled blocks (dark)
+  for (let i = 0; i < filledBlocks; i++) {
+    progressBar += "▓";
+  }
+
+  // Add partial block based on remainder (if needed) - use dark shades
+  if (filledBlocks < length && partialBlock > 0) {
+    if (partialBlock < 0.25) {
+      progressBar += "▒"; // Medium-dark shade for small partial
+    } else if (partialBlock < 0.5) {
+      progressBar += "▒"; // Medium-dark shade
+    } else if (partialBlock < 0.75) {
+      progressBar += "▓"; // Dark shade
+    } else {
+      progressBar += "▓"; // Full block
+    }
+  }
+
+  // Fill rest with light shade (empty portion)
+  while (progressBar.length < length) {
+    progressBar += "░";
+  }
+
+  return progressBar;
+}
+
+// Generate Unicode progress bar as array of characters for flex layout
+export function generateUnicodeProgressBarArray(percentage: number, length: number = 20): string[] {
+  return generateUnicodeProgressBar(percentage, length).split("");
+}

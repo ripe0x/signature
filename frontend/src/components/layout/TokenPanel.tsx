@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTokenStats } from "@/hooks/useTokenStats";
 import { formatEther } from "viem";
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
+import { generateUnicodeProgressBar } from "@/lib/utils";
 
 // Initial supply for burn calculations (1 billion with 18 decimals)
 const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
@@ -27,6 +28,75 @@ function formatTimeAgo(timestamp: number): string {
   }
   const days = Math.floor(diff / 86400);
   return `${days}d ago`;
+}
+
+// Unicode progress bar component that measures width and adjusts character count
+function UnicodeProgressBar({
+  percentage,
+  className = "",
+}: {
+  percentage: number;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [barLength, setBarLength] = useState(20);
+  const progressPercent = Math.min(percentage, 100);
+
+  useEffect(() => {
+    const measureWidth = () => {
+      if (!containerRef.current) return;
+
+      // Get computed styles
+      const styles = window.getComputedStyle(containerRef.current);
+      const padding =
+        parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const gap = parseFloat(styles.gap) || 8; // Default gap if not set
+
+      // Measure a single character width (monospace, so all chars are same width)
+      const measureChar = document.createElement("span");
+      measureChar.style.position = "absolute";
+      measureChar.style.visibility = "hidden";
+      measureChar.style.fontFamily = styles.fontFamily;
+      measureChar.style.fontSize = styles.fontSize;
+      measureChar.textContent = "▓";
+      document.body.appendChild(measureChar);
+      const charWidth = measureChar.offsetWidth;
+      document.body.removeChild(measureChar);
+
+      // Calculate available width (subtract space for percentage display)
+      const percentageWidth = 50; // Approximate width for "100.0%"
+      const availableWidth =
+        containerRef.current.offsetWidth - padding - gap - percentageWidth;
+
+      // Calculate how many characters fit
+      const charsThatFit = Math.floor(availableWidth / charWidth);
+      setBarLength(Math.max(10, Math.min(charsThatFit, 50))); // Min 10, max 50 chars
+    };
+
+    measureWidth();
+
+    // Re-measure on resize
+    const resizeObserver = new ResizeObserver(measureWidth);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  const progressBar = generateUnicodeProgressBar(progressPercent, barLength);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`w-full font-mono text-sm flex items-center gap-2 ${className}`}
+    >
+      <div className="flex-1">{progressBar}</div>
+      <span>{progressPercent.toFixed(1)}%</span>
+    </div>
+  );
 }
 
 export function TokenPanel() {
@@ -113,12 +183,10 @@ export function TokenPanel() {
                 </span>
                 <span className="text-xs text-muted">/ {thresholdEth} ETH</span>
               </div>
-              <div className="h-2 bg-border overflow-hidden mb-2">
-                <div
-                  className="h-full bg-foreground transition-all duration-500"
-                  style={{ width: `${thresholdPercent}%` }}
-                />
-              </div>
+              <UnicodeProgressBar
+                percentage={thresholdPercent}
+                className="mb-2"
+              />
               <p className="text-xs text-muted">
                 {thresholdMet
                   ? "threshold met — window can open"

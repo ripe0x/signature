@@ -12,8 +12,79 @@ import {
   formatEth,
   getAddressUrl,
   getTxUrl,
+  generateUnicodeProgressBar,
 } from "@/lib/utils";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
+
+// Unicode progress bar component that measures width and adjusts character count
+function UnicodeProgressBar({
+  percentage,
+  className = "",
+}: {
+  percentage: number;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [barLength, setBarLength] = useState(20);
+  const progressPercent = Math.min(percentage, 100);
+
+  useEffect(() => {
+    const measureWidth = () => {
+      if (!containerRef.current) return;
+
+      // Get computed styles
+      const styles = window.getComputedStyle(containerRef.current);
+      const fontSize = parseFloat(styles.fontSize);
+      const padding =
+        parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const gap = parseFloat(styles.gap) || 8; // Default gap if not set
+
+      // Measure a single character width (monospace, so all chars are same width)
+      const measureChar = document.createElement("span");
+      measureChar.style.position = "absolute";
+      measureChar.style.visibility = "hidden";
+      measureChar.style.fontFamily = styles.fontFamily;
+      measureChar.style.fontSize = styles.fontSize;
+      measureChar.textContent = "▓";
+      document.body.appendChild(measureChar);
+      const charWidth = measureChar.offsetWidth;
+      document.body.removeChild(measureChar);
+
+      // Calculate available width (subtract space for percentage display)
+      const percentageWidth = 50; // Approximate width for "100.0%"
+      const availableWidth =
+        containerRef.current.offsetWidth - padding - gap - percentageWidth;
+
+      // Calculate how many characters fit
+      const charsThatFit = Math.floor(availableWidth / charWidth);
+      setBarLength(Math.max(10, Math.min(charsThatFit, 50))); // Min 10, max 50 chars
+    };
+
+    measureWidth();
+
+    // Re-measure on resize
+    const resizeObserver = new ResizeObserver(measureWidth);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  const progressBar = generateUnicodeProgressBar(progressPercent, barLength);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`w-full font-mono text-sm flex items-center gap-2 ${className}`}
+    >
+      <div className="flex-1">{progressBar}</div>
+      <span>{progressPercent.toFixed(1)}%</span>
+    </div>
+  );
+}
 
 // Progress bar for balance to threshold
 function BalanceProgress({
@@ -33,12 +104,7 @@ function BalanceProgress({
           {current.toFixed(4)} / {threshold} ETH
         </span>
       </div>
-      <div className="h-2 bg-border overflow-hidden">
-        <div
-          className="h-full bg-foreground transition-all duration-500"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      <UnicodeProgressBar percentage={percentage} />
       <p className="text-xs text-muted text-center">
         {percentage < 100
           ? `${(threshold - current).toFixed(4)} ETH until next window`
@@ -553,17 +619,9 @@ export function MintWindow() {
           {/* Progress bar - show when below threshold */}
           {buybackBalanceEth < 0.25 && (
             <div className="space-y-2">
-              <div className="h-2 bg-border overflow-hidden">
-                <div
-                  className="h-full bg-foreground transition-all duration-500"
-                  style={{
-                    width: `${Math.min(
-                      (buybackBalanceEth / 0.25) * 100,
-                      100
-                    )}%`,
-                  }}
-                />
-              </div>
+              <UnicodeProgressBar
+                percentage={Math.min((buybackBalanceEth / 0.25) * 100, 100)}
+              />
               <p className="text-xs text-muted text-center">
                 {ethNeeded.toFixed(4)} ETH until next window
                 {volumeNeededUsd !== null && (
@@ -586,12 +644,7 @@ export function MintWindow() {
                 <span className="text-muted">balance</span>
                 <span>{buybackBalanceEth.toFixed(4)} / 0.25 ETH</span>
               </div>
-              <div className="h-2 bg-border overflow-hidden">
-                <div
-                  className="h-full bg-foreground transition-all duration-500"
-                  style={{ width: "100%" }}
-                />
-              </div>
+              <UnicodeProgressBar percentage={100} />
               <p className="text-xs text-muted text-start">
                 <strong>threshold reached.</strong> awaiting next buy + burn
                 window
