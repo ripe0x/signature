@@ -59,6 +59,13 @@ export function Header() {
 
   const navLinks = (
     <>
+      <Link
+        href="/mint"
+        className="text-sm text-muted hover:text-foreground transition-colors"
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        MINT
+      </Link>
       {!IS_PRE_LAUNCH && (
         <Link
           href="/collection"
@@ -69,19 +76,21 @@ export function Header() {
         </Link>
       )}
       <Link
-        href="/mint"
-        className="text-sm text-muted hover:text-foreground transition-colors"
-        onClick={() => setMobileMenuOpen(false)}
-      >
-        mint
-      </Link>
-      <Link
         href="/about"
         className="text-sm text-muted hover:text-foreground transition-colors"
         onClick={() => setMobileMenuOpen(false)}
       >
         about
       </Link>
+      {!IS_PRE_LAUNCH && (
+        <Link
+          href="/collectors"
+          className="text-sm text-muted hover:text-foreground transition-colors"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          collectors
+        </Link>
+      )}
     </>
   );
 
@@ -142,6 +151,13 @@ export function Header() {
           `}
         >
           <nav className="flex flex-col items-center justify-center h-full gap-8 text-lg">
+            <Link
+              href="/mint"
+              className="text-muted hover:text-foreground transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              MINT
+            </Link>
             {!IS_PRE_LAUNCH && (
               <Link
                 href="/collection"
@@ -152,19 +168,21 @@ export function Header() {
               </Link>
             )}
             <Link
-              href="/mint"
-              className="text-muted hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              mint
-            </Link>
-            <Link
               href="/about"
               className="text-muted hover:text-foreground transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               about
             </Link>
+            {!IS_PRE_LAUNCH && (
+              <Link
+                href="/collectors"
+                className="text-muted hover:text-foreground transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                collectors
+              </Link>
+            )}
           </nav>
         </div>
       )}

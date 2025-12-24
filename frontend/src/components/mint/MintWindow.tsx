@@ -1,20 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContracts } from "wagmi";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
-import { CONTRACTS } from "@/lib/contracts";
+import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { CONTRACTS, LESS_NFT_ABI } from "@/lib/contracts";
 import {
   formatCountdown,
   formatEth,
   getAddressUrl,
   getTxUrl,
   generateUnicodeProgressBar,
+  seedToNumber,
 } from "@/lib/utils";
 import { useMemo, useRef, useEffect, useState } from "react";
+import type { TokenMetadata } from "@/types";
 
 // Unicode progress bar component that measures width and adjusts character count
 function UnicodeProgressBar({
@@ -248,23 +251,129 @@ function MintingPlaceholder({ count }: { count: number }) {
   );
 }
 
-// Simple success message after minting
+// Display minted tokens with artwork
+function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
+  // Fetch seeds for minted tokens
+  const seedContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: "getSeed" as const,
+    args: [BigInt(id)],
+  }));
+
+  const dataContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: "getTokenData" as const,
+    args: [BigInt(id)],
+  }));
+
+  const { data: seedResults, isLoading: seedsLoading } = useReadContracts({
+    contracts: seedContracts,
+  });
+
+  const { data: dataResults, isLoading: dataLoading } = useReadContracts({
+    contracts: dataContracts,
+  });
+
+  const tokens = useMemo(() => {
+    return tokenIds.map((id, index) => {
+      const seed = seedResults?.[index]?.result as `0x${string}` | undefined;
+      const tokenData = dataResults?.[index]?.result as
+        | { windowId: bigint }
+        | undefined;
+
+      return {
+        id,
+        seed: seed ?? ("0x0" as `0x${string}`),
+        windowId: tokenData?.windowId ? Number(tokenData.windowId) : 1,
+      };
+    });
+  }, [tokenIds, seedResults, dataResults]);
+
+  const isLoading = seedsLoading || dataLoading;
+
+  if (isLoading) {
+    return (
+      <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
+        {tokenIds.map((id) => (
+          <div key={id} className="space-y-2">
+            <div
+              className="bg-border animate-pulse"
+              style={{ aspectRatio: "1/1.414" }}
+            >
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-sm text-muted">loading...</span>
+              </div>
+            </div>
+            <div className="text-sm text-center">LESS #{id}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
+      {tokens.map((token) => {
+        const seedNumber =
+          token.seed !== "0x0" ? seedToNumber(token.seed) : 0;
+        const hasSeed = token.seed !== "0x0" && seedNumber > 0;
+
+        return (
+          <Link
+            key={token.id}
+            href={`/token/${token.id}`}
+            className="group block space-y-2"
+          >
+            <div className="relative aspect-[1/1.414] overflow-hidden bg-background border border-border">
+              {hasSeed ? (
+                <ArtworkCanvas
+                  seed={seedNumber}
+                  foldCount={token.windowId}
+                  className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-muted animate-pulse">
+                  generating...
+                </div>
+              )}
+              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
+            </div>
+            <div className="text-sm text-center group-hover:underline">
+              LESS #{token.id} →
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+// Success message after minting with token display
 function MintSuccess({
   quantity,
   txHash,
+  tokenIds,
   onMintMore,
 }: {
   quantity: number;
   txHash?: `0x${string}`;
+  tokenIds: number[];
   onMintMore: () => void;
 }) {
   return (
-    <div className="space-y-6 text-center">
-      <div className="inline-block px-4 py-2 bg-green-100 text-green-800 text-sm">
-        minted {quantity} token{quantity > 1 ? "s" : ""} successfully!
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="inline-block px-4 py-2 bg-green-100 text-green-800 text-sm">
+          minted {quantity} token{quantity > 1 ? "s" : ""} successfully!
+        </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Display minted tokens */}
+      {tokenIds.length > 0 && <MintedTokenDisplay tokenIds={tokenIds} />}
+
+      <div className="space-y-3 text-center">
         {txHash && (
           <a
             href={getTxUrl(txHash)}
@@ -275,12 +384,6 @@ function MintSuccess({
             view transaction →
           </a>
         )}
-        <Link
-          href="/collection"
-          className="block text-sm text-muted hover:text-foreground"
-        >
-          view collection →
-        </Link>
       </div>
 
       <button
@@ -318,6 +421,7 @@ export function MintWindow() {
     mintError,
     mintTxHash,
     mintedQuantity,
+    mintedTokenIds,
     resetMint,
   } = useMintWindow();
 
@@ -390,6 +494,7 @@ export function MintWindow() {
             <MintSuccess
               quantity={mintedQuantity}
               txHash={mintTxHash}
+              tokenIds={mintedTokenIds}
               onMintMore={() => {
                 resetMint();
                 setQuantity(1);
@@ -491,6 +596,7 @@ export function MintWindow() {
             <MintSuccess
               quantity={mintedQuantity}
               txHash={mintTxHash}
+              tokenIds={mintedTokenIds}
               onMintMore={() => {
                 resetMint();
                 setQuantity(1);

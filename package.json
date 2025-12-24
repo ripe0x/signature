@@ -24,7 +24,8 @@
     "twitter-bot:test-mint": "node scripts/twitter-bot.js --test-mint",
     "twitter-bot:dry-run": "node scripts/twitter-bot.js --dry-run",
     "deploy:splitter": "forge script script/DeploySplitter.s.sol --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify",
-    "deploy:splitter:dry-run": "forge script script/DeploySplitter.s.sol --rpc-url $MAINNET_RPC_URL -vv"
+    "deploy:splitter:dry-run": "forge script script/DeploySplitter.s.sol --rpc-url $MAINNET_RPC_URL -vv",
+    "index-collectors": "node scripts/index-collectors.js"
   },
   "dependencies": {
     "dotenv": "^16.4.0",

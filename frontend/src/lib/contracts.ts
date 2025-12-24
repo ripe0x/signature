@@ -4,6 +4,9 @@ export const CONTRACTS = {
   LESS_STRATEGY: "0x9c2ca573009f181eac634c4d6e44a0977c24f335" as `0x${string}`,
 } as const;
 
+// Admin address
+export const ADMIN_ADDRESS = "0xCB43078C32423F5348Cab5885911C3B5faE217F9" as `0x${string}`;
+
 export const CHAIN_ID = 1;
 
 // Token and NFT are both live
@@ -120,12 +123,34 @@ export const LESS_NFT_ABI = [
     inputs: [],
     outputs: [{ type: "uint256" }],
   },
+  // Admin read functions
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "payoutRecipient",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
   // Write functions
   {
     name: "mint",
     type: "function",
     stateMutability: "payable",
     inputs: [{ name: "quantity", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "withdraw",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
     outputs: [],
   },
   {
