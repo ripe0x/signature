@@ -5,7 +5,7 @@ import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, ADMIN_ADDRESS } from '@/lib/cont
 import { useEffect, useState, useCallback } from 'react';
 import { formatEther } from 'viem';
 
-const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
+const TWITTER_BOT_API_URL = process.env.NEXT_PUBLIC_TWITTER_BOT_API_URL || 'https://fold-twitter-bot.fly.dev';
 
 export interface TwitterBotState {
   processedWindows: number[];
@@ -145,7 +145,7 @@ export function useAdminPanel() {
     setIsLoadingBotState(true);
     setTwitterBotError(null);
     try {
-      const res = await fetch(`${IMAGE_API_URL}/api/admin/twitter-status`);
+      const res = await fetch(`${TWITTER_BOT_API_URL}/api/status`);
       if (!res.ok) {
         throw new Error(`Failed to fetch: ${res.status}`);
       }
@@ -172,7 +172,7 @@ export function useAdminPanel() {
     setTweetPreview(null);
     setPostTweetResult(null);
     try {
-      const res = await fetch(`${IMAGE_API_URL}/api/admin/twitter-preview`, {
+      const res = await fetch(`${TWITTER_BOT_API_URL}/api/tweet/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -206,7 +206,7 @@ export function useAdminPanel() {
     setIsPostingTweet(true);
     setPostTweetResult(null);
     try {
-      const res = await fetch(`${IMAGE_API_URL}/api/admin/twitter-post`, {
+      const res = await fetch(`${TWITTER_BOT_API_URL}/api/tweet/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,10 +220,16 @@ export function useAdminPanel() {
         const err = await res.json();
         throw new Error(err.error || `Failed: ${res.status}`);
       }
-      setPostTweetResult({ success: true });
-      setTweetPreview(null);
-      // Refresh bot state after posting
-      fetchTwitterBotState();
+      const data = await res.json();
+      if (data.success) {
+        setPostTweetResult({ success: true });
+        setTweetPreview(null);
+        // Refresh bot state after posting
+        fetchTwitterBotState();
+      } else {
+        // Show the CLI message if posting isn't fully implemented yet
+        setPostTweetResult({ success: false, error: data.message || 'Post not available via API yet' });
+      }
     } catch (err) {
       setPostTweetResult({ success: false, error: err instanceof Error ? err.message : 'Post failed' });
     } finally {

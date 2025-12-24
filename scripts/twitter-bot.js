@@ -15,7 +15,7 @@ import { mainnet, sepolia } from "viem/chains";
 import { TwitterApi } from "twitter-api-v2";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { get as httpsGet } from "https";
-import { get as httpGet } from "http";
+import { get as httpGet, createServer } from "http";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -70,6 +70,10 @@ const pollingInterval =
     args.find((arg) => arg.startsWith("--interval="))?.split("=")[1] || "60",
     10
   ) * 1000;
+
+// Admin HTTP server config
+const ADMIN_PORT = parseInt(process.env.ADMIN_PORT || "8080", 10);
+const ADMIN_ADDRESS = "0xCB43078C32423F5348Cab5885911C3B5faE217F9".toLowerCase();
 
 // Color logging
 const colors = {
@@ -2790,6 +2794,312 @@ async function runBot() {
     }
   }
 }
+
+// ============ ADMIN HTTP SERVER ============
+
+// Create twitter client for admin use (separate from CLI dry-run flag)
+function createAdminTwitterClient() {
+  const apiKey = process.env.TWITTER_API_KEY;
+  const apiSecret = process.env.TWITTER_API_SECRET;
+  const accessToken = process.env.TWITTER_ACCESS_TOKEN;
+  const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
+
+  if (apiKey && apiSecret && accessToken && accessTokenSecret) {
+    return new TwitterApi({
+      appKey: apiKey,
+      appSecret: apiSecret,
+      accessToken: accessToken,
+      accessSecret: accessTokenSecret,
+    });
+  }
+  return null;
+}
+
+// Generate balance progress tweet with live data
+async function generateBalanceTweet() {
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const abi = loadContractABI();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
+  const [strategyAddress, minEthForWindow, windowCount] = await Promise.all([
+    client.readContract({ address: contractAddress, abi, functionName: "strategy" }),
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [], name: "minEthForWindow", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "minEthForWindow",
+    }),
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [], name: "windowCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "windowCount",
+    }),
+  ]);
+
+  const nextWindowId = Number(windowCount) + 1;
+  const [currentBalance, timeUntilFundsMoved] = await Promise.all([
+    client.getBalance({ address: strategyAddress }),
+    client.readContract({
+      address: strategyAddress,
+      abi: [{ inputs: [], name: "timeUntilFundsMoved", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "timeUntilFundsMoved",
+    }),
+  ]);
+
+  const progressPercent = Number((currentBalance * 10000n) / minEthForWindow) / 100;
+  const ethPrice = await fetchEthPrice();
+  const timeUntilOpen = Number(timeUntilFundsMoved);
+
+  return formatBalanceProgressTweet(currentBalance, minEthForWindow, progressPercent, nextWindowId, ethPrice, timeUntilOpen);
+}
+
+// Generate mint tweet with live data
+async function generateMintTweet(tokenId) {
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
+  // Get token data
+  const [windowId, owner, timeUntilClose] = await Promise.all([
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [{ name: "tokenId", type: "uint256" }], name: "getTokenData", outputs: [{ name: "windowId", type: "uint64" }], stateMutability: "view", type: "function" }],
+      functionName: "getTokenData",
+      args: [BigInt(tokenId)],
+    }),
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [{ name: "tokenId", type: "uint256" }], name: "ownerOf", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" }],
+      functionName: "ownerOf",
+      args: [BigInt(tokenId)],
+    }),
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [], name: "timeUntilWindowCloses", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "timeUntilWindowCloses",
+    }).catch(() => 0n),
+  ]);
+
+  const ensName = await resolveEns(owner);
+  const minterDisplay = ensName || truncateAddress(owner);
+  const minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
+
+  return formatMintTweet(tokenId, Number(windowId), minterDisplay, minutesRemaining > 0 ? minutesRemaining : null);
+}
+
+// Generate window tweet with live data
+async function generateWindowTweet(windowId) {
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const abi = loadContractABI();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
+  const [windowDuration, windowCount] = await Promise.all([
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [], name: "windowDuration", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "windowDuration",
+    }),
+    client.readContract({
+      address: contractAddress,
+      abi: [{ inputs: [], name: "windowCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "windowCount",
+    }),
+  ]);
+
+  // Get burn data
+  const burnData = await fetchBurnData();
+  const durationMinutes = Math.floor(Number(windowDuration) / 60);
+  const startTime = Math.floor(Date.now() / 1000);
+  const endTime = startTime + Number(windowDuration);
+
+  return formatTweet(windowId, startTime, endTime, burnData);
+}
+
+function startAdminServer() {
+  const adminTwitterClient = createAdminTwitterClient();
+
+  const server = createServer(async (req, res) => {
+    // CORS headers
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
+    const url = new URL(req.url, `http://localhost:${ADMIN_PORT}`);
+    const path = url.pathname;
+
+    // Helper to send JSON response
+    const sendJson = (statusCode, data) => {
+      res.writeHead(statusCode, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(data));
+    };
+
+    // Helper to read request body
+    const readBody = () => {
+      return new Promise((resolve) => {
+        let body = "";
+        req.on("data", (chunk) => (body += chunk));
+        req.on("end", () => {
+          try {
+            resolve(JSON.parse(body || "{}"));
+          } catch {
+            resolve({});
+          }
+        });
+      });
+    };
+
+    try {
+      // GET /api/status - Return bot state
+      if (path === "/api/status" && req.method === "GET") {
+        if (existsSync(stateFile)) {
+          const data = JSON.parse(readFileSync(stateFile, "utf-8"));
+          sendJson(200, data);
+        } else {
+          sendJson(404, { error: "State file not found" });
+        }
+        return;
+      }
+
+      // POST /api/tweet/preview - Preview a tweet with live data
+      if (path === "/api/tweet/preview" && req.method === "POST") {
+        const body = await readBody();
+        const { type, tokenId, windowId } = body;
+
+        if (!type || !["balance", "window", "mint"].includes(type)) {
+          sendJson(400, { error: "Invalid type" });
+          return;
+        }
+
+        let preview = "";
+        try {
+          if (type === "balance") {
+            preview = await generateBalanceTweet();
+          } else if (type === "window") {
+            if (!windowId) {
+              sendJson(400, { error: "windowId required" });
+              return;
+            }
+            preview = await generateWindowTweet(windowId);
+          } else if (type === "mint") {
+            if (!tokenId) {
+              sendJson(400, { error: "tokenId required" });
+              return;
+            }
+            preview = await generateMintTweet(tokenId);
+          }
+          sendJson(200, { preview, type });
+        } catch (error) {
+          sendJson(500, { error: `Failed to generate preview: ${error.message}` });
+        }
+        return;
+      }
+
+      // POST /api/tweet/post - Post a tweet (requires admin)
+      if (path === "/api/tweet/post" && req.method === "POST") {
+        const body = await readBody();
+        const { type, tokenId, windowId, address } = body;
+
+        // Verify admin
+        if (!address || address.toLowerCase() !== ADMIN_ADDRESS) {
+          sendJson(403, { error: "Not authorized" });
+          return;
+        }
+
+        if (!type || !["balance", "window", "mint"].includes(type)) {
+          sendJson(400, { error: "Invalid type" });
+          return;
+        }
+
+        if (!adminTwitterClient) {
+          sendJson(500, { error: "Twitter client not configured" });
+          return;
+        }
+
+        try {
+          let tweetText = "";
+          let imageBuffer = null;
+
+          if (type === "balance") {
+            tweetText = await generateBalanceTweet();
+          } else if (type === "window") {
+            if (!windowId) {
+              sendJson(400, { error: "windowId required" });
+              return;
+            }
+            tweetText = await generateWindowTweet(windowId);
+          } else if (type === "mint") {
+            if (!tokenId) {
+              sendJson(400, { error: "tokenId required" });
+              return;
+            }
+            tweetText = await generateMintTweet(tokenId);
+            // Fetch image for mint tweets
+            const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+            try {
+              const imgResponse = await fetch(`${imageApiUrl}/images/${tokenId}?width=800&height=1131`);
+              if (imgResponse.ok) {
+                imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
+              }
+            } catch (imgErr) {
+              logWarn(`Failed to fetch image for mint tweet: ${imgErr.message}`);
+            }
+          }
+
+          // Post the tweet
+          const result = await postTweet(adminTwitterClient, tweetText, imageBuffer);
+
+          if (result.success) {
+            logSuccess(`Admin posted ${type} tweet via API`);
+            sendJson(200, { success: true, tweetId: result.tweetId });
+          } else {
+            sendJson(500, { error: result.error || "Failed to post tweet" });
+          }
+        } catch (error) {
+          logError(`Admin tweet post error: ${error.message}`);
+          sendJson(500, { error: error.message });
+        }
+        return;
+      }
+
+      // Health check
+      if (path === "/health" && req.method === "GET") {
+        sendJson(200, { status: "ok", timestamp: new Date().toISOString() });
+        return;
+      }
+
+      // 404 for unknown routes
+      sendJson(404, { error: "Not found" });
+    } catch (error) {
+      logError(`Admin server error: ${error.message}`);
+      sendJson(500, { error: error.message });
+    }
+  });
+
+  server.listen(ADMIN_PORT, "0.0.0.0", () => {
+    logSuccess(`Admin HTTP server listening on port ${ADMIN_PORT}`);
+  });
+
+  return server;
+}
+
+// Start admin server (runs alongside bot)
+const adminServer = startAdminServer();
 
 // Run the bot
 runBot().catch((error) => {

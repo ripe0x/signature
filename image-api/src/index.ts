@@ -9,7 +9,6 @@ import sharp from 'sharp';
 import { get as httpsGet } from 'https';
 import { get as httpGet } from 'http';
 import { readFileSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,15 +24,6 @@ const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const RPC_URL = process.env.RPC_URL || '';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
 const CHAIN = process.env.CHAIN || 'sepolia';
-
-// Admin address for Twitter bot control
-const ADMIN_ADDRESS = '0xCB43078C32423F5348Cab5885911C3B5faE217F9';
-
-// Root directory (for running scripts)
-const ROOT_DIR = join(__dirname, '../..');
-
-// Twitter bot state file
-const TWITTER_BOT_STATE_FILE = join(ROOT_DIR, '.twitter-bot-state.json');
 
 // Leaderboard data file
 const LEADERBOARD_FILE = join(__dirname, '../data/leaderboard.json');
@@ -167,159 +157,6 @@ app.get('/api/collector/:address', (req, res) => {
     console.error('Collector fetch error:', error);
     res.status(500).json({
       error: 'Failed to fetch collector',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-// ============ ADMIN ENDPOINTS ============
-
-// Get Twitter bot state
-app.get('/api/admin/twitter-status', (req, res) => {
-  try {
-    if (!existsSync(TWITTER_BOT_STATE_FILE)) {
-      return res.status(404).json({ error: 'Twitter bot state file not found' });
-    }
-
-    const data = readFileSync(TWITTER_BOT_STATE_FILE, 'utf-8');
-    const state = JSON.parse(data);
-    res.json(state);
-  } catch (error) {
-    console.error('Twitter status error:', error);
-    res.status(500).json({
-      error: 'Failed to read Twitter bot state',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-// Preview tweet (dry-run)
-app.post('/api/admin/twitter-preview', async (req, res) => {
-  try {
-    const { type, tokenId, windowId } = req.body;
-
-    if (!type || !['balance', 'window', 'mint'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid type. Must be: balance, window, or mint' });
-    }
-
-    if (type === 'mint' && !tokenId) {
-      return res.status(400).json({ error: 'tokenId required for mint type' });
-    }
-
-    if (type === 'window' && !windowId) {
-      return res.status(400).json({ error: 'windowId required for window type' });
-    }
-
-    let command = 'node scripts/twitter-bot.js --dry-run';
-    switch (type) {
-      case 'balance':
-        command += ' --post-balance';
-        break;
-      case 'window':
-        command += ` --post-window=${windowId}`;
-        break;
-      case 'mint':
-        command += ` --post-mint=${tokenId}`;
-        break;
-    }
-
-    const output = execSync(command, {
-      cwd: ROOT_DIR,
-      encoding: 'utf-8',
-      timeout: 30000,
-      env: { ...process.env, FORCE_COLOR: '0' },
-    });
-
-    // Parse the tweet text from output
-    // The bot outputs the tweet text after "[DRY RUN]" or similar markers
-    const lines = output.split('\n');
-    let tweetText = '';
-    let capture = false;
-
-    for (const line of lines) {
-      // Look for tweet content markers
-      if (line.includes('Tweet text:') || line.includes('Would post:') || line.includes('[DRY RUN]')) {
-        capture = true;
-        continue;
-      }
-      if (capture && line.trim()) {
-        // Stop if we hit another section
-        if (line.startsWith('[') || line.includes('---')) {
-          break;
-        }
-        tweetText += line + '\n';
-      }
-    }
-
-    // If we couldn't parse it, return the full output for debugging
-    if (!tweetText.trim()) {
-      // Try to find any content between quotes or after specific markers
-      const quotedMatch = output.match(/"([^"]+)"/s);
-      if (quotedMatch) {
-        tweetText = quotedMatch[1];
-      } else {
-        // Return raw output for manual inspection
-        tweetText = output;
-      }
-    }
-
-    res.json({ preview: tweetText.trim(), raw: output });
-  } catch (error) {
-    console.error('Twitter preview error:', error);
-    res.status(500).json({
-      error: 'Failed to preview tweet',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-// Post tweet (with admin verification)
-app.post('/api/admin/twitter-post', async (req, res) => {
-  try {
-    const { type, tokenId, windowId, address } = req.body;
-
-    // Verify admin address
-    if (!address || address.toLowerCase() !== ADMIN_ADDRESS.toLowerCase()) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    if (!type || !['balance', 'window', 'mint'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid type. Must be: balance, window, or mint' });
-    }
-
-    if (type === 'mint' && !tokenId) {
-      return res.status(400).json({ error: 'tokenId required for mint type' });
-    }
-
-    if (type === 'window' && !windowId) {
-      return res.status(400).json({ error: 'windowId required for window type' });
-    }
-
-    let command = 'node scripts/twitter-bot.js';
-    switch (type) {
-      case 'balance':
-        command += ' --post-balance';
-        break;
-      case 'window':
-        command += ` --post-window=${windowId}`;
-        break;
-      case 'mint':
-        command += ` --post-mint=${tokenId}`;
-        break;
-    }
-
-    const output = execSync(command, {
-      cwd: ROOT_DIR,
-      encoding: 'utf-8',
-      timeout: 60000,
-      env: { ...process.env, FORCE_COLOR: '0' },
-    });
-
-    res.json({ success: true, output });
-  } catch (error) {
-    console.error('Twitter post error:', error);
-    res.status(500).json({
-      error: 'Failed to post tweet',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
