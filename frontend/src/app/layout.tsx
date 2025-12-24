@@ -12,7 +12,10 @@ const ibmPlexMono = IBM_Plex_Mono({
   variable: '--font-ibm-plex-mono',
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://less.ripe.wtf';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'LESS',
   description: 'an onchain artwork about what remains when a system keeps taking things away',
   openGraph: {

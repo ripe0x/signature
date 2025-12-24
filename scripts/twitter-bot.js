@@ -52,6 +52,7 @@ const postMintTokenId = args
 const postWindowId = args
   .find((arg) => arg.startsWith("--post-window="))
   ?.split("=")[1]; // Post a window opened tweet for a specific window ID
+const postBalanceMode = args.includes("--post-balance"); // Post a balance status tweet immediately
 const mockBalance = args
   .find((arg) => arg.startsWith("--mock-balance="))
   ?.split("=")[1]; // Mock balance in ETH for testing (e.g., --mock-balance=0.15)
@@ -1197,19 +1198,185 @@ async function runTestBalanceProgressMode() {
     }
     console.log();
 
-    // Format and display the tweet
+    // Format and display the tweet (test mode doesn't fetch timeUntilFundsMoved)
     const tweetMessage = formatBalanceProgressTweet(
       currentBalance,
       minEthForWindow,
       progressPercent,
       nextWindowId,
-      ethPrice
+      ethPrice,
+      0 // timeUntilOpen - not fetched in test mode
     );
 
     await postTweet(null, tweetMessage);
     logSuccess("Test balance progress completed!");
   } catch (error) {
     logError(`Test failed: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
+  }
+}
+
+// Run post balance mode - post a balance progress tweet immediately
+async function runPostBalanceMode() {
+  if (dryRun) {
+    logInfo("DRY-RUN: Previewing balance status tweet...");
+  } else {
+    logInfo("Posting balance status tweet...");
+  }
+  console.log();
+
+  try {
+    // Fetch real data from contract
+    const rpcUrl = getRpcUrl();
+    const contractAddress = getContractAddress();
+    const abi = loadContractABI();
+    const client = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+
+    // Get strategy address, minEthForWindow, and windowCount
+    const [strategyAddress, minEthForWindow, windowCount] = await Promise.all([
+      client.readContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: "strategy",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "minEthForWindow",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "minEthForWindow",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "windowCount",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "windowCount",
+      }),
+    ]);
+
+    if (
+      !strategyAddress ||
+      strategyAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      logError("No strategy address set");
+      process.exit(1);
+    }
+
+    // Next window ID is current windowCount + 1
+    const nextWindowId = Number(windowCount) + 1;
+
+    logInfo(`Strategy address: ${strategyAddress}`);
+    logInfo(`Threshold: ${formatEther(minEthForWindow)} ETH`);
+    logInfo(`Next window ID: ${nextWindowId}`);
+
+    // Get current balance of strategy contract and timeUntilFundsMoved
+    const [currentBalance, timeUntilFundsMoved] = await Promise.all([
+      client.getBalance({
+        address: strategyAddress,
+      }),
+      client.readContract({
+        address: strategyAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilFundsMoved",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilFundsMoved",
+      }),
+    ]);
+
+    logInfo(`Current balance: ${formatEther(currentBalance)} ETH`);
+    if (timeUntilFundsMoved > 0n) {
+      logInfo(`Time until window can open: ${Number(timeUntilFundsMoved)} seconds`);
+    }
+
+    // Calculate progress percentage (capped at 100%)
+    const progressPercent = Math.min(
+      100,
+      Number((currentBalance * 100n) / minEthForWindow)
+    );
+
+    logInfo(`Progress: ${progressPercent.toFixed(1)}%`);
+
+    // Fetch real ETH price
+    const ethPrice = await fetchEthPrice();
+    if (ethPrice) {
+      logInfo(`ETH price: $${ethPrice}`);
+    }
+
+    console.log();
+
+    // Format the tweet
+    const tweetMessage = formatBalanceProgressTweet(
+      currentBalance,
+      minEthForWindow,
+      progressPercent,
+      nextWindowId,
+      ethPrice,
+      Number(timeUntilFundsMoved)
+    );
+
+    if (dryRun) {
+      // Just display the tweet preview
+      displayTweetPreview(tweetMessage);
+      logSuccess("Dry-run completed!");
+      return;
+    }
+
+    // Initialize Twitter client and post
+    const twitterClient = initTwitterClient();
+    if (!twitterClient) {
+      logError("Failed to initialize Twitter client");
+      process.exit(1);
+    }
+
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+    if (tweetId) {
+      logSuccess(`Balance status tweet posted! Tweet ID: ${tweetId}`);
+
+      // Update state with new lastBalanceProgressPost
+      const state = loadState(contractAddress);
+      const now = Math.floor(Date.now() / 1000);
+      saveState(
+        state.processedWindows,
+        state.processedMints,
+        state.fifteenMinReminders,
+        state.processedEndedWindows,
+        state.windowReadyAlerted,
+        now,
+        state.lastBlock,
+        contractAddress
+      );
+      logInfo("State updated with new lastBalanceProgressPost timestamp");
+    } else {
+      logError("Failed to post tweet");
+      process.exit(1);
+    }
+  } catch (error) {
+    logError(`Failed to post balance tweet: ${error.message}`);
     if (error.stack) {
       console.error(error.stack);
     }
@@ -1350,7 +1517,8 @@ function formatBalanceProgressTweet(
   threshold,
   progressPercent,
   windowId,
-  ethPrice = null
+  ethPrice = null,
+  timeUntilOpen = 0
 ) {
   // Create progress bar using unicode shade characters
   // Dark shades (█, ▓, ▒) for filled, light (░) for empty
@@ -1409,12 +1577,16 @@ ${currentEth.toFixed(4)} ETH / ${thresholdEth.toFixed(4)} ETH
 ${
   remainingEth > 0
     ? `${remainingEth.toFixed(4)} ETH remaining${volumeText}`
-    : "ready to open!"
+    : ""
+}${
+  remainingEth <= 0 && timeUntilOpen > 0
+    ? `\nthreshold reached! opens in ${Math.floor(timeUntilOpen / 60)}:${String(timeUntilOpen % 60).padStart(2, '0')}`
+    : remainingEth <= 0
+    ? `\nready to open!`
+    : ""
 }
 
-${formatUrlForTweet(
-  `https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335`
-)}`;
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
 
 // Resolve ENS name for an address (always uses mainnet since ENS lives there)
@@ -1534,32 +1706,42 @@ async function processReminderCheck(
   abi
 ) {
   try {
-    // Get current window info
-    const currentWindowAbi = [
-      {
-        inputs: [],
-        name: "getCurrentWindow",
-        outputs: [
-          { name: "windowId", type: "uint256" },
-          { name: "startTime", type: "uint64" },
-          { name: "endTime", type: "uint64" },
-          { name: "strategyBlock", type: "uint64" },
-        ],
-        stateMutability: "view",
-        type: "function",
-      },
-    ];
+    // Get current window ID
+    const windowCount = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "windowCount",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "windowCount",
+    });
 
-    const [windowId, startTime, endTime, strategyBlock] =
-      await client.readContract({
-        address: contractAddress,
-        abi: currentWindowAbi,
-        functionName: "getCurrentWindow",
-      });
+    const windowId = Number(windowCount);
+    if (windowId === 0) {
+      return null; // No windows yet
+    }
 
-    // Check if window is active (endTime > now)
-    const now = Math.floor(Date.now() / 1000);
-    const timeRemaining = Number(endTime) - now;
+    // Get time until window closes
+    const timeUntilClose = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "timeUntilWindowCloses",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "timeUntilWindowCloses",
+    });
+
+    const timeRemaining = Number(timeUntilClose);
 
     // Skip if window is not active
     if (timeRemaining <= 0) {
@@ -1575,7 +1757,7 @@ async function processReminderCheck(
     }
 
     // Skip if already reminded for this window
-    if (fifteenMinReminders.has(Number(windowId))) {
+    if (fifteenMinReminders.has(windowId)) {
       return null;
     }
 
@@ -1588,7 +1770,7 @@ async function processReminderCheck(
 
     // Format and post tweet
     const tweetMessage = formatReminderTweet(
-      Number(windowId),
+      windowId,
       minutesRemaining,
       burnData
     );
@@ -1598,8 +1780,8 @@ async function processReminderCheck(
 
     if (tweetId) {
       logSuccess(`Reminder tweet posted! Tweet ID: ${tweetId}`);
-      fifteenMinReminders.add(Number(windowId));
-      return Number(windowId);
+      fifteenMinReminders.add(windowId);
+      return windowId;
     } else {
       logError("Failed to post reminder tweet");
       return null;
@@ -1824,8 +2006,8 @@ async function processBalanceProgressCheck(
       return { posted: false, lastPost: lastBalanceProgressPost };
     }
 
-    // Get current balance of strategy contract and window count
-    const [currentBalance, windowCount] = await Promise.all([
+    // Get current balance of strategy contract, window count, and timeUntilFundsMoved
+    const [currentBalance, windowCount, timeUntilFundsMoved] = await Promise.all([
       client.getBalance({
         address: strategyAddress,
       }),
@@ -1841,6 +2023,19 @@ async function processBalanceProgressCheck(
           },
         ],
         functionName: "windowCount",
+      }),
+      client.readContract({
+        address: strategyAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilFundsMoved",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilFundsMoved",
       }),
     ]);
 
@@ -1885,7 +2080,8 @@ async function processBalanceProgressCheck(
       minEthForWindow,
       progressPercent,
       nextWindowId,
-      ethPrice
+      ethPrice,
+      Number(timeUntilFundsMoved)
     );
 
     logInfo("Posting balance progress tweet...");
@@ -1984,108 +2180,102 @@ async function processEndedWindowsCheck(
   abi
 ) {
   try {
-    const now = Math.floor(Date.now() / 1000);
+    // Get current window count
+    const windowCount = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "windowCount",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "windowCount",
+    });
 
-    // Get current window info to find the most recent window
-    const currentWindowAbi = [
-      {
-        inputs: [],
-        name: "getCurrentWindow",
-        outputs: [
-          { name: "windowId", type: "uint256" },
-          { name: "startTime", type: "uint64" },
-          { name: "endTime", type: "uint64" },
-          { name: "strategyBlock", type: "uint64" },
-        ],
-        stateMutability: "view",
-        type: "function",
-      },
-      {
-        inputs: [],
-        name: "windowCount",
-        outputs: [{ name: "", type: "uint256" }],
-        stateMutability: "view",
-        type: "function",
-      },
-    ];
+    const currentWindowId = Number(windowCount);
+    if (currentWindowId === 0) {
+      return null; // No windows yet
+    }
 
-    let currentWindowId;
-    let currentEndTime;
+    // Check if window is currently active
+    const isActive = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "isWindowActive",
+          outputs: [{ name: "", type: "bool" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "isWindowActive",
+    });
 
-    try {
-      const [windowId, startTime, endTime, strategyBlock] =
-        await client.readContract({
-          address: contractAddress,
-          abi: currentWindowAbi,
-          functionName: "getCurrentWindow",
-        });
-      currentWindowId = Number(windowId);
-      currentEndTime = Number(endTime);
-    } catch (error) {
-      // If no current window, we can't easily determine which window just ended
-      // without querying WindowCreated events. For now, skip this check.
-      // The window end check will catch windows as they end when there's an active window.
+    // If window is still active, nothing to do
+    if (isActive) {
       return null;
     }
 
-    // Check if current window has ended (if there is one)
-    if (currentEndTime > 0 && now >= currentEndTime) {
-      // Window has ended, check if we've processed it
-      if (!processedEndedWindows.has(currentWindowId)) {
-        logInfo(
-          `Window ${currentWindowId} has ended, creating summary tweet...`
-        );
-
-        // Get all mints for this window
-        // Use a lookback block for efficiency (last 1000 blocks ~3.5 hours)
-        const currentBlock = await client.getBlockNumber();
-        const fromBlock = currentBlock > 1000n ? currentBlock - 1000n : 0n;
-        const tokenIds = await getMintsForWindow(
-          client,
-          contractAddress,
-          currentWindowId,
-          fromBlock
-        );
-
-        if (tokenIds.length === 0) {
-          logInfo(
-            `Window ${currentWindowId} ended with no mints, skipping summary`
-          );
-          processedEndedWindows.add(currentWindowId);
-          return currentWindowId;
-        }
-
-        // Create grid image
-        let gridImage = null;
-        try {
-          gridImage = await createGridImage(tokenIds);
-        } catch (error) {
-          logError(`Failed to create grid image: ${error.message}`);
-          // Continue without image
-        }
-
-        // Format and post tweet
-        const tweetMessage = formatWindowEndTweet(
-          currentWindowId,
-          tokenIds.length,
-          tokenIds
-        );
-
-        logInfo("Posting window end summary tweet...");
-        const tweetId = await postTweet(twitterClient, tweetMessage, gridImage);
-
-        if (tweetId) {
-          logSuccess(`Window end summary tweet posted! Tweet ID: ${tweetId}`);
-          processedEndedWindows.add(currentWindowId);
-          return currentWindowId;
-        } else {
-          logError("Failed to post window end summary tweet");
-          return null;
-        }
-      }
+    // Window is not active - check if we've already processed this window's end
+    if (processedEndedWindows.has(currentWindowId)) {
+      return null;
     }
 
-    return null;
+    // Window has ended and we haven't processed it
+    logInfo(
+      `Window ${currentWindowId} has ended, creating summary tweet...`
+    );
+
+    // Get all mints for this window
+    // Use a lookback block for efficiency (last 1000 blocks ~3.5 hours)
+    const currentBlock = await client.getBlockNumber();
+    const fromBlock = currentBlock > 1000n ? currentBlock - 1000n : 0n;
+    const tokenIds = await getMintsForWindow(
+      client,
+      contractAddress,
+      currentWindowId,
+      fromBlock
+    );
+
+    if (tokenIds.length === 0) {
+      logInfo(
+        `Window ${currentWindowId} ended with no mints, skipping summary`
+      );
+      processedEndedWindows.add(currentWindowId);
+      return currentWindowId;
+    }
+
+    // Create grid image
+    let gridImage = null;
+    try {
+      gridImage = await createGridImage(tokenIds);
+    } catch (error) {
+      logError(`Failed to create grid image: ${error.message}`);
+      // Continue without image
+    }
+
+    // Format and post tweet
+    const tweetMessage = formatWindowEndTweet(
+      currentWindowId,
+      tokenIds.length,
+      tokenIds
+    );
+
+    logInfo("Posting window end summary tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage, gridImage);
+
+    if (tweetId) {
+      logSuccess(`Window end summary tweet posted! Tweet ID: ${tweetId}`);
+      processedEndedWindows.add(currentWindowId);
+      return currentWindowId;
+    } else {
+      logError("Failed to post window end summary tweet");
+      return null;
+    }
   } catch (error) {
     // Silently handle "no active window" errors
     if (
@@ -2152,6 +2342,12 @@ async function runBot() {
   // Handle test balance progress mode
   if (testBalanceProgressMode) {
     await runTestBalanceProgressMode();
+    return;
+  }
+
+  // Handle post balance mode (post balance status tweet immediately)
+  if (postBalanceMode) {
+    await runPostBalanceMode();
     return;
   }
 

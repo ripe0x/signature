@@ -278,54 +278,62 @@ app.get('/api/grid', async (req, res) => {
       transport: http(RPC_URL),
     });
 
-    const imageBuffers = await Promise.all(
-      ids.map(async (tokenId) => {
-        try {
-          // Fetch tokenURI and render directly (faster than HTTP request)
-          const tokenURI = await client.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
-            abi: LESS_ABI,
-            functionName: 'tokenURI',
-            args: [BigInt(tokenId)],
-          });
+    // Process images in batches to avoid OOM (limit concurrency to pool size)
+    const BATCH_SIZE = 4;
+    const imageBuffers: (Buffer | null)[] = [];
 
-          if (!tokenURI) {
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (tokenId) => {
+          try {
+            // Fetch tokenURI and render directly (faster than HTTP request)
+            const tokenURI = await client.readContract({
+              address: CONTRACT_ADDRESS as `0x${string}`,
+              abi: LESS_ABI,
+              functionName: 'tokenURI',
+              args: [BigInt(tokenId)],
+            });
+
+            if (!tokenURI) {
+              return null;
+            }
+
+            // Parse tokenURI
+            const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+            if (!jsonMatch) {
+              return null;
+            }
+
+            const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+            const animationUrl = metadata.animation_url;
+
+            if (!animationUrl) {
+              return null;
+            }
+
+            // Extract HTML
+            const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+            if (!htmlMatch) {
+              return null;
+            }
+
+            const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+            // Render image directly
+            return await renderer.renderHtml({
+              html: onChainHtml,
+              width: cw,
+              height: ch,
+            });
+          } catch (error) {
+            console.warn(`Error rendering image for token ${tokenId}:`, error);
             return null;
           }
-
-          // Parse tokenURI
-          const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
-          if (!jsonMatch) {
-            return null;
-          }
-
-          const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
-          const animationUrl = metadata.animation_url;
-
-          if (!animationUrl) {
-            return null;
-          }
-
-          // Extract HTML
-          const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
-          if (!htmlMatch) {
-            return null;
-          }
-
-          const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
-
-          // Render image directly
-          return await renderer.renderHtml({
-            html: onChainHtml,
-            width: cw,
-            height: ch,
-          });
-        } catch (error) {
-          console.warn(`Error rendering image for token ${tokenId}:`, error);
-          return null;
-        }
-      })
-    );
+        })
+      );
+      imageBuffers.push(...batchResults);
+    }
 
     // Filter out failed fetches
     const validImages = imageBuffers.filter((img): img is Buffer => img !== null);
