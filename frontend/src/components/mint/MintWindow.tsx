@@ -1,20 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContracts } from "wagmi";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
-import { CONTRACTS } from "@/lib/contracts";
+import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { CONTRACTS, LESS_NFT_ABI } from "@/lib/contracts";
 import {
   formatCountdown,
   formatEth,
   getAddressUrl,
   getTxUrl,
   generateUnicodeProgressBar,
+  seedToNumber,
 } from "@/lib/utils";
 import { useMemo, useRef, useEffect, useState } from "react";
+import type { TokenMetadata } from "@/types";
 
 // Unicode progress bar component that measures width and adjusts character count
 function UnicodeProgressBar({
@@ -248,23 +251,162 @@ function MintingPlaceholder({ count }: { count: number }) {
   );
 }
 
-// Simple success message after minting
+// Minted token display component
+function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
+  // Fetch token data for all minted tokens
+  const seedContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: 'getSeed' as const,
+    args: [BigInt(id)],
+  }));
+
+  const dataContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: 'getTokenData' as const,
+    args: [BigInt(id)],
+  }));
+
+  const uriContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: 'tokenURI' as const,
+    args: [BigInt(id)],
+  }));
+
+  const { data: seedResults } = useReadContracts({
+    contracts: seedContracts,
+  });
+
+  const { data: dataResults } = useReadContracts({
+    contracts: dataContracts,
+  });
+
+  const { data: uriResults } = useReadContracts({
+    contracts: uriContracts,
+  });
+
+  // Parse metadata from tokenURI results
+  const tokens = useMemo(() => {
+    return tokenIds.map((id, index) => {
+      const seed = seedResults?.[index]?.result as `0x${string}` | undefined;
+      const tokenData = dataResults?.[index]?.result as { windowId: bigint } | undefined;
+      const uri = uriResults?.[index]?.result as string | undefined;
+
+      let metadata: TokenMetadata | undefined;
+      if (uri) {
+        try {
+          const jsonStr = uri.startsWith('data:application/json;base64,')
+            ? atob(uri.slice('data:application/json;base64,'.length))
+            : uri.startsWith('data:application/json,')
+            ? decodeURIComponent(uri.slice('data:application/json,'.length))
+            : null;
+          if (jsonStr) {
+            metadata = JSON.parse(jsonStr);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      return {
+        id,
+        seed: seed ?? ('0x0' as `0x${string}`),
+        windowId: tokenData?.windowId ? Number(tokenData.windowId) : 0,
+        metadata,
+      };
+    });
+  }, [tokenIds, seedResults, dataResults, uriResults]);
+
+  const isLoading = !seedResults || !dataResults;
+
+  if (isLoading) {
+    return (
+      <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
+        {tokenIds.map((id) => (
+          <div
+            key={id}
+            className="bg-border animate-pulse"
+            style={{ aspectRatio: "1/1.414" }}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-sm text-muted">loading...</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
+      {tokens.map((token) => {
+        const seedNumber = token.seed !== '0x0' ? seedToNumber(token.seed) : 0;
+        const hasSeed = token.seed !== '0x0' && seedNumber > 0;
+
+        return (
+          <Link
+            key={token.id}
+            href={`/token/${token.id}`}
+            className="group block relative"
+          >
+            <div className="relative aspect-[1/1.414] overflow-hidden bg-background border border-border">
+              {hasSeed ? (
+                <ArtworkCanvas
+                  seed={seedNumber}
+                  foldCount={token.windowId}
+                  animationUrl={token.metadata?.animation_url}
+                  className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+              ) : token.metadata?.animation_url ? (
+                <iframe
+                  src={token.metadata.animation_url}
+                  className="w-full h-full border-0 pointer-events-none"
+                  sandbox="allow-scripts"
+                  title={`LESS #${token.id}`}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-muted">
+                  loading...
+                </div>
+              )}
+              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
+            </div>
+            <div className="mt-2 text-sm text-center">
+              <span>LESS #{token.id}</span>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+// Success message after minting with token display
 function MintSuccess({
   quantity,
   txHash,
+  tokenIds,
   onMintMore,
 }: {
   quantity: number;
   txHash?: `0x${string}`;
+  tokenIds: number[];
   onMintMore: () => void;
 }) {
   return (
-    <div className="space-y-6 text-center">
-      <div className="inline-block px-4 py-2 bg-green-100 text-green-800 text-sm">
-        minted {quantity} token{quantity > 1 ? "s" : ""} successfully!
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="inline-block px-4 py-2 bg-green-100 text-green-800 text-sm">
+          minted {quantity} token{quantity > 1 ? "s" : ""} successfully!
+        </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Display minted tokens */}
+      {tokenIds.length > 0 && <MintedTokenDisplay tokenIds={tokenIds} />}
+
+      <div className="space-y-3 text-center">
         {txHash && (
           <a
             href={getTxUrl(txHash)}
@@ -275,12 +417,6 @@ function MintSuccess({
             view transaction →
           </a>
         )}
-        <Link
-          href="/collection"
-          className="block text-sm text-muted hover:text-foreground"
-        >
-          view collection →
-        </Link>
       </div>
 
       <button
@@ -318,6 +454,7 @@ export function MintWindow() {
     mintError,
     mintTxHash,
     mintedQuantity,
+    mintedTokenIds,
     resetMint,
   } = useMintWindow();
 
@@ -390,6 +527,7 @@ export function MintWindow() {
             <MintSuccess
               quantity={mintedQuantity}
               txHash={mintTxHash}
+              tokenIds={mintedTokenIds}
               onMintMore={() => {
                 resetMint();
                 setQuantity(1);
@@ -491,6 +629,7 @@ export function MintWindow() {
             <MintSuccess
               quantity={mintedQuantity}
               txHash={mintTxHash}
+              tokenIds={mintedTokenIds}
               onMintMore={() => {
                 resetMint();
                 setQuantity(1);

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { cn, seedToNumber } from '@/lib/utils';
+import { useEnsName } from 'wagmi';
+import { cn, seedToNumber, truncateAddress } from '@/lib/utils';
 import { ArtworkCanvas } from './ArtworkCanvas';
 import type { CollectionToken } from '@/hooks/useCollection';
 
@@ -14,6 +15,16 @@ export function ArtworkCard({ token, className }: ArtworkCardProps) {
   // Use same seed conversion as detail page (useToken)
   const seedNumber = token.seed !== '0x0' ? seedToNumber(token.seed) : 0;
   const hasSeed = token.seed !== '0x0' && seedNumber > 0;
+
+  // Resolve ENS name for owner
+  const { data: ensName } = useEnsName({
+    address: token.owner,
+    query: { enabled: !!token.owner },
+  });
+
+  const ownerDisplay = token.owner
+    ? ensName || truncateAddress(token.owner, 3)
+    : null;
 
   return (
     <Link
@@ -50,8 +61,11 @@ export function ArtworkCard({ token, className }: ArtworkCardProps) {
       </div>
 
       {/* Info */}
-      <div className="mt-3 text-sm">
+      <div className="mt-3 flex items-center justify-between text-xs">
         <span>LESS #{token.id}</span>
+        {ownerDisplay && (
+          <span className="text-muted">{ownerDisplay}</span>
+        )}
       </div>
     </Link>
   );

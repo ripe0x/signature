@@ -2,6 +2,7 @@
 
 import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
+import { parseEventLogs } from 'viem';
 import { CONTRACTS, LESS_NFT_ABI, STRATEGY_ABI, CHAIN_ID } from '@/lib/contracts';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 
@@ -186,9 +187,29 @@ export function useMintWindow() {
     reset: resetMint,
   } = useWriteContract();
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, data: txReceipt } = useWaitForTransactionReceipt({
     hash: mintTxHash,
   });
+
+  // Parse minted token IDs from transaction receipt logs
+  const mintedTokenIds = useMemo(() => {
+    if (!txReceipt?.logs) return [];
+
+    try {
+      const mintedEvents = parseEventLogs({
+        abi: LESS_NFT_ABI,
+        eventName: 'Minted',
+        logs: txReceipt.logs,
+      });
+
+      // Extract token IDs from Minted events
+      return mintedEvents
+        .map(event => Number(event.args.tokenId))
+        .sort((a, b) => a - b);
+    } catch {
+      return [];
+    }
+  }, [txReceipt]);
 
   // Refetch data after successful mint
   useEffect(() => {
@@ -277,6 +298,7 @@ export function useMintWindow() {
     mintError: mintError as Error | null,
     mintTxHash,
     mintedQuantity,
+    mintedTokenIds,
     resetMint: handleResetMint,
   };
 }
