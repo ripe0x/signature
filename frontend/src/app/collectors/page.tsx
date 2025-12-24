@@ -226,19 +226,21 @@ export default function CollectorsPage() {
 
           {/* Filters */}
           <div className="flex items-center gap-4 mb-6">
-            <button
-              onClick={() => {
-                setShowFullOnly(!showFullOnly);
-                setPage(0);
-              }}
-              className={`text-sm px-3 py-1.5 border transition-colors ${
-                showFullOnly
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border hover:border-foreground"
-              }`}
-            >
-              full collectors only
-            </button>
+            {data.fullCollectors.filter(a => a.toLowerCase() !== EXCLUDED_ADDRESS).length > 0 && (
+              <button
+                onClick={() => {
+                  setShowFullOnly(!showFullOnly);
+                  setPage(0);
+                }}
+                className={`text-sm px-3 py-1.5 border transition-colors ${
+                  showFullOnly
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border hover:border-foreground"
+                }`}
+              >
+                full collectors only
+              </button>
+            )}
             <span className="text-sm text-muted">
               showing {sortedCollectors.length} of {rankedCollectors.length}
             </span>
