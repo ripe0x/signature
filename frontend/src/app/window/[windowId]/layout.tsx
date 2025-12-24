@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ],
     },
     twitter: {
-      card: 'summary_large_image',
+      card: 'summary',
       title: `Window ${windowIdNum} - LESS`,
       description: `View all pieces minted in window ${windowIdNum} - LESS collection`,
       images: ['/less-logo.png'],

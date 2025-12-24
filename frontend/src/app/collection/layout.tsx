@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Collection - LESS',
     description: 'Browse the LESS collection - an onchain artwork about what remains when a system keeps taking things away',
     images: ['/less-logo.png'],
