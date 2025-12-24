@@ -39,7 +39,7 @@ function CollectorRow({
   return (
     <Link
       href={`/collector/${collector.address}`}
-      className={`grid grid-cols-[2.5rem_1fr_3rem_4.5rem] md:grid-cols-[3rem_1fr_4rem_5rem_4rem] gap-2 md:gap-4 py-2.5 md:py-3 px-3 md:px-4 border-b border-border hover:bg-foreground/5 transition-colors items-center text-xs md:text-sm ${
+      className={`grid grid-cols-[2rem_1fr_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-2 md:py-2.5 px-3 md:px-4 border-b border-border hover:bg-foreground/5 transition-colors items-center text-[11px] md:text-xs ${
         excluded ? "opacity-40" : ""
       }`}
     >
@@ -53,7 +53,7 @@ function CollectorRow({
         <span className="truncate">{displayName}</span>
         {collector.isFullCollector && (
           <span
-            className={`text-[10px] md:text-xs px-1 md:px-1.5 py-0.5 border shrink-0 ${
+            className={`text-[9px] md:text-[10px] px-1 py-0.5 border shrink-0 ${
               excluded ? "border-muted" : "border-foreground"
             }`}
             title="Full collector - owns token from every window"
@@ -84,7 +84,7 @@ function LoadingSkeleton() {
   return (
     <div className="min-h-screen pt-20">
       <div className="px-6 md:px-8 py-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <div className="mb-12">
             <Skeleton className="h-8 w-40 mb-2" />
             <Skeleton className="h-4 w-64" />
@@ -213,7 +213,7 @@ export default function CollectorsPage() {
   return (
     <div className="min-h-screen pt-20">
       <div className="px-6 md:px-8 py-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl mb-2">collectors</h1>
@@ -247,7 +247,7 @@ export default function CollectorsPage() {
           {/* Table */}
           <div className="border border-border">
             {/* Header */}
-            <div className="grid grid-cols-[2.5rem_1fr_3rem_4.5rem] md:grid-cols-[3rem_1fr_4rem_5rem_4rem] gap-2 md:gap-4 py-2 px-3 md:px-4 border-b border-border bg-foreground/5 text-xs text-muted">
+            <div className="grid grid-cols-[2rem_1fr_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-1.5 md:py-2 px-3 md:px-4 border-b border-border bg-foreground/5 text-[10px] md:text-[11px] text-muted">
               <button
                 onClick={() => handleSort("rank")}
                 className="text-left hover:text-foreground transition-colors"
