@@ -12,6 +12,7 @@ export interface CollectionToken {
   id: number;
   windowId: number;
   seed: `0x${string}`;
+  owner?: `0x${string}`;
   metadata?: TokenMetadata;
 }
 
@@ -89,6 +90,19 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
     },
   });
 
+  // Batch read owners
+  const { data: ownerResults, isLoading: isLoadingOwners, refetch: refetchOwners } = useReadContracts({
+    contracts: tokenIds.map((id) => ({
+      address: CONTRACTS.LESS_NFT,
+      abi: LESS_NFT_ABI,
+      functionName: 'ownerOf',
+      args: [BigInt(id)],
+    })),
+    query: {
+      enabled: enabled && tokenIds.length > 0,
+    },
+  });
+
   // Combine results into tokens
   const tokens: CollectionToken[] = useMemo(() => {
     if (!tokenIds.length) return [];
@@ -111,6 +125,7 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
 
       const seedResult = seedResults?.[index]?.result as `0x${string}` | undefined;
       const uriResult = uriResults?.[index]?.result as string | undefined;
+      const ownerResult = ownerResults?.[index]?.result as `0x${string}` | undefined;
 
       const metadata = uriResult
         ? (parseDataUri(uriResult) as TokenMetadata | null) ?? undefined
@@ -120,20 +135,21 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
         id,
         windowId: isNaN(windowId) ? 0 : windowId,
         seed: seedResult ?? '0x0',
+        owner: ownerResult,
         metadata,
       };
     });
-  }, [tokenIds, tokenDataResults, seedResults, uriResults]);
+  }, [tokenIds, tokenDataResults, seedResults, uriResults, ownerResults]);
 
-  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || (!skipMetadata && isLoadingURIs);
+  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || isLoadingOwners || (!skipMetadata && isLoadingURIs);
   const hasMore = total > (page + 1) * BATCH_SIZE;
   const totalPages = Math.ceil(total / BATCH_SIZE);
 
   // Combined refetch function
   const refetch = useCallback(async () => {
     await refetchSupply();
-    await Promise.all([refetchData(), refetchSeeds(), refetchURIs()]);
-  }, [refetchSupply, refetchData, refetchSeeds, refetchURIs]);
+    await Promise.all([refetchData(), refetchSeeds(), refetchURIs(), refetchOwners()]);
+  }, [refetchSupply, refetchData, refetchSeeds, refetchURIs, refetchOwners]);
 
   return {
     tokens,

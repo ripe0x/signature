@@ -202,8 +202,9 @@ export function useMintWindow() {
         logs: txReceipt.logs,
       });
 
+      // Extract token IDs from Minted events
       return mintedEvents
-        .map((event) => Number(event.args.tokenId))
+        .map(event => Number(event.args.tokenId))
         .sort((a, b) => a - b);
     } catch {
       return [];

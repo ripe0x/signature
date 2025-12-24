@@ -251,62 +251,88 @@ function MintingPlaceholder({ count }: { count: number }) {
   );
 }
 
-// Display minted tokens with artwork
+// Minted token display component
 function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
-  // Fetch seeds for minted tokens
+  // Fetch token data for all minted tokens
   const seedContracts = tokenIds.map((id) => ({
     address: CONTRACTS.LESS_NFT as `0x${string}`,
     abi: LESS_NFT_ABI,
-    functionName: "getSeed" as const,
+    functionName: 'getSeed' as const,
     args: [BigInt(id)],
   }));
 
   const dataContracts = tokenIds.map((id) => ({
     address: CONTRACTS.LESS_NFT as `0x${string}`,
     abi: LESS_NFT_ABI,
-    functionName: "getTokenData" as const,
+    functionName: 'getTokenData' as const,
     args: [BigInt(id)],
   }));
 
-  const { data: seedResults, isLoading: seedsLoading } = useReadContracts({
+  const uriContracts = tokenIds.map((id) => ({
+    address: CONTRACTS.LESS_NFT as `0x${string}`,
+    abi: LESS_NFT_ABI,
+    functionName: 'tokenURI' as const,
+    args: [BigInt(id)],
+  }));
+
+  const { data: seedResults } = useReadContracts({
     contracts: seedContracts,
   });
 
-  const { data: dataResults, isLoading: dataLoading } = useReadContracts({
+  const { data: dataResults } = useReadContracts({
     contracts: dataContracts,
   });
 
+  const { data: uriResults } = useReadContracts({
+    contracts: uriContracts,
+  });
+
+  // Parse metadata from tokenURI results
   const tokens = useMemo(() => {
     return tokenIds.map((id, index) => {
       const seed = seedResults?.[index]?.result as `0x${string}` | undefined;
-      const tokenData = dataResults?.[index]?.result as
-        | { windowId: bigint }
-        | undefined;
+      const tokenData = dataResults?.[index]?.result as { windowId: bigint } | undefined;
+      const uri = uriResults?.[index]?.result as string | undefined;
+
+      let metadata: TokenMetadata | undefined;
+      if (uri) {
+        try {
+          const jsonStr = uri.startsWith('data:application/json;base64,')
+            ? atob(uri.slice('data:application/json;base64,'.length))
+            : uri.startsWith('data:application/json,')
+            ? decodeURIComponent(uri.slice('data:application/json,'.length))
+            : null;
+          if (jsonStr) {
+            metadata = JSON.parse(jsonStr);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
 
       return {
         id,
-        seed: seed ?? ("0x0" as `0x${string}`),
-        windowId: tokenData?.windowId ? Number(tokenData.windowId) : 1,
+        seed: seed ?? ('0x0' as `0x${string}`),
+        windowId: tokenData?.windowId ? Number(tokenData.windowId) : 0,
+        metadata,
       };
     });
-  }, [tokenIds, seedResults, dataResults]);
+  }, [tokenIds, seedResults, dataResults, uriResults]);
 
-  const isLoading = seedsLoading || dataLoading;
+  const isLoading = !seedResults || !dataResults;
 
   if (isLoading) {
     return (
       <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
         {tokenIds.map((id) => (
-          <div key={id} className="space-y-2">
-            <div
-              className="bg-border animate-pulse"
-              style={{ aspectRatio: "1/1.414" }}
-            >
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="text-sm text-muted">loading...</span>
-              </div>
+          <div
+            key={id}
+            className="bg-border animate-pulse"
+            style={{ aspectRatio: "1/1.414" }}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-sm text-muted">loading...</span>
             </div>
-            <div className="text-sm text-center">LESS #{id}</div>
           </div>
         ))}
       </div>
@@ -316,32 +342,39 @@ function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
   return (
     <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
       {tokens.map((token) => {
-        const seedNumber =
-          token.seed !== "0x0" ? seedToNumber(token.seed) : 0;
-        const hasSeed = token.seed !== "0x0" && seedNumber > 0;
+        const seedNumber = token.seed !== '0x0' ? seedToNumber(token.seed) : 0;
+        const hasSeed = token.seed !== '0x0' && seedNumber > 0;
 
         return (
           <Link
             key={token.id}
             href={`/token/${token.id}`}
-            className="group block space-y-2"
+            className="group block relative"
           >
             <div className="relative aspect-[1/1.414] overflow-hidden bg-background border border-border">
               {hasSeed ? (
                 <ArtworkCanvas
                   seed={seedNumber}
                   foldCount={token.windowId}
+                  animationUrl={token.metadata?.animation_url}
                   className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
                 />
+              ) : token.metadata?.animation_url ? (
+                <iframe
+                  src={token.metadata.animation_url}
+                  className="w-full h-full border-0 pointer-events-none"
+                  sandbox="allow-scripts"
+                  title={`LESS #${token.id}`}
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-muted animate-pulse">
-                  generating...
+                <div className="w-full h-full flex items-center justify-center text-xs text-muted">
+                  loading...
                 </div>
               )}
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
             </div>
-            <div className="text-sm text-center group-hover:underline">
-              LESS #{token.id} →
+            <div className="mt-2 text-sm text-center">
+              <span>LESS #{token.id}</span>
             </div>
           </Link>
         );
