@@ -213,10 +213,10 @@ contract LessBounty is Ownable, ReentrancyGuard {
                            VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Check if the bounty can be executed
-    /// @return canExecute Whether execute() would succeed
+    /// @notice Check if the bounty can be executed for the current window
+    /// @return canClaim Whether execute() would succeed
     /// @return reason Human-readable reason if cannot execute
-    function canExecute() external view returns (bool canExecute, string memory reason) {
+    function canExecute() external view returns (bool canClaim, string memory reason) {
         if (paused) return (false, "Bounty is paused");
         if (mintsPerWindow == 0) return (false, "Mints per window is 0");
         if (!less.isWindowActive()) return (false, "No active window");
@@ -232,6 +232,37 @@ contract LessBounty is Ownable, ReentrancyGuard {
         return (true, "");
     }
 
+    /// @notice Get comprehensive bounty status for frontend display
+    function getBountyStatus() external view returns (
+        bool isActive,
+        bool isPaused,
+        uint256 currentWindowId,
+        bool windowActive,
+        bool windowMintedAlready,
+        bool windowTargeted,
+        bool canClaim,
+        uint256 mintCost,
+        uint256 incentive,
+        uint256 totalCost,
+        uint256 balance,
+        uint256 configuredMintsPerWindow
+    ) {
+        isPaused = paused;
+        isActive = !paused && mintsPerWindow > 0;
+        currentWindowId = less.windowCount();
+        windowActive = less.isWindowActive();
+        windowMintedAlready = windowMinted[currentWindowId];
+        windowTargeted = !specificWindowsOnly || targetWindows[currentWindowId];
+
+        mintCost = less.getMintCost(address(this), mintsPerWindow);
+        incentive = incentivePerWindow;
+        totalCost = mintCost + incentive;
+        balance = address(this).balance;
+        configuredMintsPerWindow = mintsPerWindow;
+
+        canClaim = isActive && windowActive && !windowMintedAlready && windowTargeted && balance >= totalCost;
+    }
+
     /// @notice Get the cost to execute for the current window
     /// @return mintCost Cost of minting
     /// @return incentive Incentive for executor
@@ -245,6 +276,12 @@ contract LessBounty is Ownable, ReentrancyGuard {
     /// @notice Get the current balance available for bounties
     function getBalance() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    /// @notice Check if a specific window is targeted
+    /// @param windowId The window ID to check
+    function isWindowTargeted(uint256 windowId) external view returns (bool) {
+        return !specificWindowsOnly || targetWindows[windowId];
     }
 
     /// @notice ERC721 receiver hook

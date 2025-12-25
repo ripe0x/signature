@@ -410,6 +410,66 @@ contract LessBountyTest is Test {
         assertFalse(b.targetWindows(7));
     }
 
+    function test_GetBountyStatus() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Unconfigured bounty
+        (
+            bool isActive,
+            bool isPaused,
+            uint256 currentWindowId,
+            bool windowActive,
+            bool windowMintedAlready,
+            bool windowTargeted,
+            bool canClaim,
+            uint256 mintCost,
+            uint256 incentive,
+            uint256 totalCost,
+            uint256 balance,
+            uint256 configuredMintsPerWindow
+        ) = b.getBountyStatus();
+
+        assertFalse(isActive);
+        assertFalse(canClaim);
+        assertEq(configuredMintsPerWindow, 0);
+
+        // Configure and fund
+        vm.prank(bountyOwner);
+        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        vm.deal(address(b), 0.1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        (
+            isActive,
+            isPaused,
+            currentWindowId,
+            windowActive,
+            windowMintedAlready,
+            windowTargeted,
+            canClaim,
+            mintCost,
+            incentive,
+            totalCost,
+            balance,
+            configuredMintsPerWindow
+        ) = b.getBountyStatus();
+
+        assertTrue(isActive);
+        assertFalse(isPaused);
+        assertEq(currentWindowId, 1);
+        assertTrue(windowActive);
+        assertFalse(windowMintedAlready);
+        assertTrue(windowTargeted);
+        assertTrue(canClaim);
+        assertEq(mintCost, 0.0025 ether); // 2 mints: 0.001 + 0.0015
+        assertEq(incentive, INCENTIVE);
+        assertEq(balance, 0.1 ether);
+        assertEq(configuredMintsPerWindow, MINTS_PER_WINDOW);
+    }
+
     function test_CanExecuteReturnsWindowNotTargeted() public {
         vm.prank(bountyOwner);
         address bounty = factory.createBounty();
@@ -442,5 +502,76 @@ contract LessBountyTest is Test {
 
         address[] memory allBounties = factory.getAllBounties();
         assertEq(allBounties.length, 3);
+    }
+
+    function test_FactoryGetAllBountyStatuses() public {
+        // Create 3 bounties, configure 2, fund 1
+        address user1 = address(0x10);
+        address user2 = address(0x11);
+        address user3 = address(0x12);
+
+        factory.createBountyFor(user1);
+        factory.createBountyFor(user2);
+        factory.createBountyFor(user3);
+
+        LessBounty b1 = LessBounty(payable(factory.getBounty(user1)));
+        LessBounty b2 = LessBounty(payable(factory.getBounty(user2)));
+
+        vm.prank(user1);
+        b1.configure(1, 0.01 ether);
+        vm.deal(address(b1), 0.1 ether);
+
+        vm.prank(user2);
+        b2.configure(1, 0.02 ether);
+        // b2 not funded
+
+        // Create window
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Get all statuses
+        LessBountyFactory.BountyInfo[] memory infos = factory.getAllBountyStatuses();
+        assertEq(infos.length, 3);
+
+        // b1 should be claimable (configured + funded)
+        assertEq(infos[0].owner, user1);
+        assertTrue(infos[0].canClaim);
+        assertEq(infos[0].incentive, 0.01 ether);
+
+        // b2 not claimable (not funded)
+        assertEq(infos[1].owner, user2);
+        assertFalse(infos[1].canClaim);
+
+        // b3 not claimable (not configured)
+        assertEq(infos[2].owner, user3);
+        assertFalse(infos[2].canClaim);
+    }
+
+    function test_FactoryPagination() public {
+        // Create 5 bounties
+        for (uint256 i = 0; i < 5; i++) {
+            factory.createBountyFor(address(uint160(0x100 + i)));
+        }
+
+        // Get first 2
+        LessBountyFactory.BountyInfo[] memory page1 = factory.getBountyStatuses(0, 2);
+        assertEq(page1.length, 2);
+        assertEq(page1[0].owner, address(0x100));
+        assertEq(page1[1].owner, address(0x101));
+
+        // Get next 2
+        LessBountyFactory.BountyInfo[] memory page2 = factory.getBountyStatuses(2, 2);
+        assertEq(page2.length, 2);
+        assertEq(page2[0].owner, address(0x102));
+        assertEq(page2[1].owner, address(0x103));
+
+        // Get remaining (1)
+        LessBountyFactory.BountyInfo[] memory page3 = factory.getBountyStatuses(4, 0);
+        assertEq(page3.length, 1);
+        assertEq(page3[0].owner, address(0x104));
+
+        // Out of bounds returns empty
+        LessBountyFactory.BountyInfo[] memory empty = factory.getBountyStatuses(10, 5);
+        assertEq(empty.length, 0);
     }
 }

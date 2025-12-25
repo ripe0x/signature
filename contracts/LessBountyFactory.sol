@@ -9,6 +9,21 @@ import {LessBounty} from "./LessBounty.sol";
 /// @dev Each user gets their own bounty contract
 contract LessBountyFactory {
     /*//////////////////////////////////////////////////////////////
+                                 STRUCTS
+    //////////////////////////////////////////////////////////////*/
+
+    struct BountyInfo {
+        address bountyAddress;
+        address owner;
+        bool canClaim;
+        uint256 incentive;
+        uint256 totalCost;
+        uint256 balance;
+        uint256 currentWindowId;
+        bool windowActive;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
@@ -89,6 +104,56 @@ contract LessBountyFactory {
     /// @notice Get the total number of bounties created
     function totalBounties() external view returns (uint256) {
         return allBounties.length;
+    }
+
+    /// @notice Get status of bounties with pagination
+    /// @param start Starting index
+    /// @param count Number of bounties to return (0 for all remaining)
+    /// @return infos Array of BountyInfo structs
+    function getBountyStatuses(uint256 start, uint256 count) external view returns (BountyInfo[] memory infos) {
+        uint256 len = allBounties.length;
+        if (start >= len) return new BountyInfo[](0);
+
+        uint256 end = count == 0 ? len : start + count;
+        if (end > len) end = len;
+        uint256 size = end - start;
+
+        infos = new BountyInfo[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            LessBounty b = LessBounty(payable(allBounties[start + i]));
+            (
+                ,  // isActive
+                ,  // isPaused
+                uint256 currentWindowId,
+                bool windowActive,
+                ,  // windowMintedAlready
+                ,  // windowTargeted
+                bool canClaim,
+                ,  // mintCost
+                uint256 incentive,
+                uint256 totalCost,
+                uint256 balance,
+                   // configuredMintsPerWindow
+            ) = b.getBountyStatus();
+
+            infos[i] = BountyInfo({
+                bountyAddress: allBounties[start + i],
+                owner: b.owner(),
+                canClaim: canClaim,
+                incentive: incentive,
+                totalCost: totalCost,
+                balance: balance,
+                currentWindowId: currentWindowId,
+                windowActive: windowActive
+            });
+        }
+    }
+
+    /// @notice Get status of all bounties (convenience wrapper)
+    /// @dev May run out of gas with many bounties - use getBountyStatuses() with pagination
+    function getAllBountyStatuses() external view returns (BountyInfo[] memory) {
+        return this.getBountyStatuses(0, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
