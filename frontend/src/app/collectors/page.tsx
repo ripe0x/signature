@@ -39,7 +39,7 @@ function CollectorRow({
   return (
     <Link
       href={`/collector/${collector.address}`}
-      className={`grid grid-cols-[2rem_1fr_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-2 md:py-2.5 px-3 md:px-4 border-b border-border hover:bg-foreground/5 transition-colors items-center text-[11px] md:text-xs ${
+      className={`grid grid-cols-[2rem_1fr_2.5rem_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-2 md:py-2.5 px-3 md:px-4 border-b border-border hover:bg-foreground/5 transition-colors items-center text-[11px] md:text-xs ${
         excluded ? "opacity-40" : ""
       }`}
     >
@@ -63,8 +63,8 @@ function CollectorRow({
         )}
       </div>
 
-      {/* Tokens - hidden on mobile */}
-      <div className="text-right tabular-nums hidden md:block">{collector.tokenCount}</div>
+      {/* Tokens */}
+      <div className="text-right tabular-nums">{collector.tokenCount}</div>
 
       {/* Windows */}
       <div className="text-right tabular-nums">
@@ -249,7 +249,7 @@ export default function CollectorsPage() {
           {/* Table */}
           <div className="border border-border">
             {/* Header */}
-            <div className="grid grid-cols-[2rem_1fr_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-1.5 md:py-2 px-3 md:px-4 border-b border-border bg-foreground/5 text-[10px] md:text-[11px] text-muted">
+            <div className="grid grid-cols-[2rem_1fr_2.5rem_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-1.5 md:py-2 px-3 md:px-4 border-b border-border bg-foreground/5 text-[10px] md:text-[11px] text-muted">
               <button
                 onClick={() => handleSort("rank")}
                 className="text-left hover:text-foreground transition-colors"
@@ -262,7 +262,7 @@ export default function CollectorsPage() {
               <div>collector</div>
               <button
                 onClick={() => handleSort("tokens")}
-                className="text-right hover:text-foreground transition-colors hidden md:block"
+                className="text-right hover:text-foreground transition-colors"
               >
                 tokens
                 {sortField === "tokens" && (

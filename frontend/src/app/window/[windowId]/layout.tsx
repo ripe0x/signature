@@ -24,9 +24,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       images: [
         {
-          url: '/less-logo.png',
-          width: 1200,
-          height: 630,
+          url: '/less-logo.png?v=2',
+          width: 2000,
+          height: 2000,
           alt: `LESS Window ${windowIdNum}`,
         },
       ],
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary',
       title: `Window ${windowIdNum} - LESS`,
       description: `View all pieces minted in window ${windowIdNum} - LESS collection`,
-      images: ['/less-logo.png'],
+      images: ['/less-logo.png?v=2'],
     },
   };
 }

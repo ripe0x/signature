@@ -391,12 +391,10 @@ async function fetchEthPrice() {
   }
 }
 
-// Format URL to prevent Twitter from showing preview card
-// Removes the protocol so Twitter doesn't auto-link and show a preview card
-// Users can still copy/paste the URL and it will work
+// Format URL for tweet - just returns the full URL
+// Cards are suppressed by attaching media to the tweet
 function formatUrlForTweet(url) {
-  // Remove protocol (https:// or http://) - Twitter won't create a card for URLs without protocol
-  return url.replace(/^https?:\/\//, "");
+  return url;
 }
 
 // Fetch burn data from strategy and token contracts

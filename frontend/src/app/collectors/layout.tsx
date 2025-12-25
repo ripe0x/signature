@@ -9,9 +9,9 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/less-logo.png",
-        width: 1200,
-        height: 630,
+        url: "/less-logo.png?v=2",
+        width: 2000,
+        height: 2000,
         alt: "LESS Collectors",
       },
     ],
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Collectors | LESS",
     description: "Leaderboard of LESS collectors ranked by windows and tokens collected",
-    images: ["/less-logo.png"],
+    images: ["/less-logo.png?v=2"],
   },
 };
 
