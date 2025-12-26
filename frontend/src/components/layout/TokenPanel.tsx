@@ -271,7 +271,7 @@ export function TokenPanel() {
               dexscreener →
             </a>
             <a
-              href={`https://opensea.io/collection/less-nft`}
+              href={`https://opensea.io/collection/say-less`}
               target="_blank"
               rel="noopener noreferrer"
               className="block text-sm text-muted hover:text-foreground transition-colors"
