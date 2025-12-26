@@ -45,7 +45,15 @@ function CollectorRow({
     >
       {/* Rank */}
       <div className="text-muted">
-        {excluded ? "—" : rank === 1 ? "1" : rank === 2 ? "2" : rank === 3 ? "3" : rank}
+        {excluded
+          ? "—"
+          : rank === 1
+          ? "1"
+          : rank === 2
+          ? "2"
+          : rank === 3
+          ? "3"
+          : rank}
       </div>
 
       {/* Collector */}
@@ -74,7 +82,9 @@ function CollectorRow({
       {/* Completion with progress bar - hidden on mobile */}
       <div className="text-right hidden md:block">
         <div className="text-muted tabular-nums">{completionPercent}%</div>
-        <div className="text-[8px] text-muted/60 tracking-tighter leading-none mt-0.5">{progressBar}</div>
+        <div className="text-[8px] text-muted/60 tracking-tighter leading-none mt-0.5">
+          {progressBar}
+        </div>
       </div>
     </Link>
   );
@@ -135,9 +145,10 @@ export default function CollectorsPage() {
   } => {
     if (!data) return { rankedCollectors: [], excludedCollector: null };
 
-    const excluded = data.collectors.find(
-      (c) => c.address.toLowerCase() === EXCLUDED_ADDRESS
-    ) || null;
+    const excluded =
+      data.collectors.find(
+        (c) => c.address.toLowerCase() === EXCLUDED_ADDRESS
+      ) || null;
     const ranked = data.collectors.filter(
       (c) => c.address.toLowerCase() !== EXCLUDED_ADDRESS
     );
@@ -219,14 +230,25 @@ export default function CollectorsPage() {
             <h1 className="text-2xl mb-2">collectors</h1>
             <p className="text-sm text-muted">
               {rankedCollectors.length} collectors · {data.totalTokens} tokens ·{" "}
-              {data.fullCollectors.filter(a => a.toLowerCase() !== EXCLUDED_ADDRESS).length} full collector
-              {data.fullCollectors.filter(a => a.toLowerCase() !== EXCLUDED_ADDRESS).length !== 1 ? "s" : ""}
+              {
+                data.fullCollectors.filter(
+                  (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
+                ).length
+              }{" "}
+              full collector
+              {data.fullCollectors.filter(
+                (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
+              ).length !== 1
+                ? "s"
+                : ""}
             </p>
           </div>
 
           {/* Filters */}
           <div className="flex items-center gap-4 mb-6">
-            {data.fullCollectors.filter(a => a.toLowerCase() !== EXCLUDED_ADDRESS).length > 0 && (
+            {data.fullCollectors.filter(
+              (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
+            ).length > 0 && (
               <button
                 onClick={() => {
                   setShowFullOnly(!showFullOnly);
@@ -241,9 +263,9 @@ export default function CollectorsPage() {
                 full collectors only
               </button>
             )}
-            <span className="text-sm text-muted">
+            {/* <span className="text-sm text-muted">
               showing {sortedCollectors.length} of {rankedCollectors.length}
-            </span>
+            </span> */}
           </div>
 
           {/* Table */}
@@ -256,7 +278,9 @@ export default function CollectorsPage() {
               >
                 #
                 {sortField === "rank" && (
-                  <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>
+                  <span className="ml-0.5">
+                    {sortDir === "asc" ? "↑" : "↓"}
+                  </span>
                 )}
               </button>
               <div>collector</div>
@@ -266,7 +290,9 @@ export default function CollectorsPage() {
               >
                 tokens
                 {sortField === "tokens" && (
-                  <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>
+                  <span className="ml-0.5">
+                    {sortDir === "asc" ? "↑" : "↓"}
+                  </span>
                 )}
               </button>
               <button
@@ -275,7 +301,9 @@ export default function CollectorsPage() {
               >
                 windows
                 {sortField === "windows" && (
-                  <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>
+                  <span className="ml-0.5">
+                    {sortDir === "asc" ? "↑" : "↓"}
+                  </span>
                 )}
               </button>
               <div className="hidden md:block"></div>
