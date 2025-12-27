@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://less.ripe.wtf";
+
 export const metadata: Metadata = {
   title: "Collectors | LESS",
   description: "Leaderboard of LESS collectors ranked by windows and tokens collected",
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/less-logo.png?v=2",
+        url: `${siteUrl}/less-og.png`,
         width: 2000,
         height: 2000,
         alt: "LESS Collectors",
@@ -20,7 +22,14 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Collectors | LESS",
     description: "Leaderboard of LESS collectors ranked by windows and tokens collected",
-    images: ["/less-logo.png?v=2"],
+    images: [
+      {
+        url: `${siteUrl}/less-og.png`,
+        width: 2000,
+        height: 2000,
+        alt: "LESS Collectors",
+      },
+    ],
   },
 };
 

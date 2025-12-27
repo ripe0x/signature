@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://less.ripe.wtf';
+
 interface Props {
   params: Promise<{ windowId: string }>;
 }
@@ -7,7 +9,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { windowId } = await params;
   const windowIdNum = parseInt(windowId, 10);
-  
+
   if (isNaN(windowIdNum) || windowIdNum <= 0) {
     return {
       title: 'Window - LESS',
@@ -24,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       images: [
         {
-          url: '/less-logo.png?v=2',
+          url: `${siteUrl}/less-og.png`,
           width: 2000,
           height: 2000,
           alt: `LESS Window ${windowIdNum}`,
@@ -35,7 +37,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary',
       title: `Window ${windowIdNum} - LESS`,
       description: `View all pieces minted in window ${windowIdNum} - LESS collection`,
-      images: ['/less-logo.png?v=2'],
+      images: [
+        {
+          url: `${siteUrl}/less-og.png`,
+          width: 2000,
+          height: 2000,
+          alt: `LESS Window ${windowIdNum}`,
+        },
+      ],
     },
   };
 }
@@ -47,5 +56,3 @@ export default function WindowLayout({
 }) {
   return children;
 }
-
-

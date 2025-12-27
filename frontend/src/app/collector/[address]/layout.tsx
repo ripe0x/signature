@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://less.ripe.wtf";
+
 export async function generateMetadata({
   params,
 }: {
@@ -17,7 +19,7 @@ export async function generateMetadata({
       type: "website",
       images: [
         {
-          url: "/less-logo.png?v=2",
+          url: `${siteUrl}/less-og.png`,
           width: 2000,
           height: 2000,
           alt: `LESS Collector ${shortAddress}`,
@@ -28,7 +30,14 @@ export async function generateMetadata({
       card: "summary",
       title: `${shortAddress} | LESS Collector`,
       description: `View the LESS collection for ${shortAddress}`,
-      images: ["/less-logo.png?v=2"],
+      images: [
+        {
+          url: `${siteUrl}/less-og.png`,
+          width: 2000,
+          height: 2000,
+          alt: `LESS Collector ${shortAddress}`,
+        },
+      ],
     },
   };
 }
