@@ -1,7 +1,7 @@
 'use client';
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount, useBalance } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount, useBalance, usePublicClient } from 'wagmi';
+import { parseEther, formatEther, parseAbiItem } from 'viem';
 import { useState, useEffect, useMemo } from 'react';
 import {
   BOUNTY_FACTORY_ADDRESS,
@@ -478,4 +478,77 @@ export function useTargetWindows(bountyAddress: `0x${string}` | undefined, windo
     targetedWindows: [] as number[],
     refetch,
   };
+}
+
+export interface ClaimedBounty {
+  bountyAddress: `0x${string}`;
+  claimer: `0x${string}`;
+  windowId: number;
+  quantity: number;
+  reward: bigint;
+  blockNumber: bigint;
+  transactionHash: `0x${string}`;
+}
+
+export function useRecentClaims(bountyAddresses: `0x${string}`[]) {
+  const publicClient = usePublicClient();
+  const [claims, setClaims] = useState<ClaimedBounty[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!publicClient || bountyAddresses.length === 0) {
+      setClaims([]);
+      return;
+    }
+
+    const fetchClaims = async () => {
+      setIsLoading(true);
+      try {
+        const allClaims: ClaimedBounty[] = [];
+
+        // Fetch logs from each bounty contract (last ~10000 blocks)
+        const currentBlock = await publicClient.getBlockNumber();
+        const fromBlock = currentBlock > BigInt(10000) ? currentBlock - BigInt(10000) : BigInt(0);
+
+        for (const bountyAddress of bountyAddresses) {
+          try {
+            const logs = await publicClient.getLogs({
+              address: bountyAddress,
+              event: parseAbiItem('event BountyExecuted(address indexed executor, uint256 windowId, uint256 quantity, uint256 reward)'),
+              fromBlock,
+              toBlock: 'latest',
+            });
+
+            for (const log of logs) {
+              allClaims.push({
+                bountyAddress,
+                claimer: log.args.executor as `0x${string}`,
+                windowId: Number(log.args.windowId),
+                quantity: Number(log.args.quantity),
+                reward: log.args.reward as bigint,
+                blockNumber: log.blockNumber,
+                transactionHash: log.transactionHash,
+              });
+            }
+          } catch (e) {
+            // Skip if error fetching logs for this bounty
+            console.error(`Error fetching logs for ${bountyAddress}:`, e);
+          }
+        }
+
+        // Sort by block number descending (most recent first)
+        allClaims.sort((a, b) => Number(b.blockNumber - a.blockNumber));
+
+        setClaims(allClaims);
+      } catch (e) {
+        console.error('Error fetching claims:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClaims();
+  }, [publicClient, bountyAddresses.join(',')]);
+
+  return { claims, isLoading };
 }

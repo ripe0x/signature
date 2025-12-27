@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import Link from 'next/link';
-import { useBounties, useUserBounty, useCreateBounty, useManageBounty } from '@/hooks/useBounties';
+import { useBounties, useUserBounty, useCreateBounty, useManageBounty, useRecentClaims, type ClaimedBounty } from '@/hooks/useBounties';
 import { useTokenStats } from '@/hooks/useTokenStats';
 import { BountyCard } from '@/components/bounties/BountyCard';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
@@ -378,13 +378,25 @@ function ManageBountyCard({ bountyAddress, onUpdate }: { bountyAddress: `0x${str
 
   if (!status) return null;
 
+  // Validation for config
+  const parsedNewMints = parseInt(newMints) || 0;
+  const parsedNewReward = parseFloat(newRewardEth) || 0;
+  const isValidConfig = parsedNewMints >= 1 && parsedNewReward >= 0;
+
+  // Validation for withdraw
+  const parsedWithdrawAmount = parseFloat(withdrawAmount) || 0;
+  const balanceEth = parseFloat(formatEther(status.balance));
+  const isValidWithdraw = parsedWithdrawAmount > 0 && parsedWithdrawAmount <= balanceEth;
+
   const handleConfigure = () => {
+    if (!isValidConfig) return;
     setActiveAction('configure');
     const rewardWei = parseEther(newRewardEth || '0');
-    configure(parseInt(newMints) || 1, rewardWei);
+    configure(parsedNewMints, rewardWei);
   };
 
   const handleWithdraw = () => {
+    if (!isValidWithdraw) return;
     setActiveAction('withdraw');
     withdraw(parseEther(withdrawAmount || '0'));
   };
@@ -525,9 +537,15 @@ function ManageBountyCard({ bountyAddress, onUpdate }: { bountyAddress: `0x${str
                 />
               </div>
             </div>
+            {parsedNewMints < 1 && newMints !== '' && (
+              <p className="text-xs text-red-600">mints must be at least 1</p>
+            )}
+            {parsedNewReward < 0 && (
+              <p className="text-xs text-red-600">reward cannot be negative</p>
+            )}
             <button
               onClick={handleConfigure}
-              disabled={isPending || isConfirming}
+              disabled={isPending || isConfirming || !isValidConfig}
               className="w-full py-1.5 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-50"
             >
               {isPending && activeAction === 'configure' ? 'confirm...' : 'update config'}
@@ -541,6 +559,7 @@ function ManageBountyCard({ bountyAddress, onUpdate }: { bountyAddress: `0x${str
               <input
                 type="number"
                 min="0"
+                max={balanceEth}
                 step="0.001"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -548,9 +567,12 @@ function ManageBountyCard({ bountyAddress, onUpdate }: { bountyAddress: `0x${str
                 className="w-full px-2 py-1 border border-border bg-transparent text-sm"
               />
             </div>
+            {parsedWithdrawAmount > balanceEth && (
+              <p className="text-xs text-red-600">exceeds balance ({formatEth(status.balance, 4)} ETH)</p>
+            )}
             <button
               onClick={handleWithdraw}
-              disabled={isPending || isConfirming || !withdrawAmount}
+              disabled={isPending || isConfirming || !isValidWithdraw}
               className="w-full py-1.5 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-50"
             >
               {isPending && activeAction === 'withdraw' ? 'confirm...' : 'withdraw'}
@@ -658,11 +680,74 @@ function DepositCard({ bountyAddress }: { bountyAddress: `0x${string}` }) {
   );
 }
 
+function RecentClaimsCard({ bountyAddresses }: { bountyAddresses: `0x${string}`[] }) {
+  const { claims, isLoading } = useRecentClaims(bountyAddresses);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 border border-border text-center">
+        <p className="text-muted animate-pulse text-sm">loading claims...</p>
+      </div>
+    );
+  }
+
+  if (claims.length === 0) {
+    return (
+      <div className="p-4 border border-border text-center">
+        <p className="text-muted text-sm">no recent claims</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-border divide-y divide-border">
+      {claims.slice(0, 10).map((claim, i) => (
+        <div key={`${claim.transactionHash}-${i}`} className="p-3 text-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <a
+                href={getAddressUrl(claim.claimer)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono hover:underline"
+              >
+                {truncateAddress(claim.claimer, 4)}
+              </a>
+              <span className="text-muted ml-2">
+                claimed {claim.quantity} LESS
+              </span>
+            </div>
+            <span className="text-xs text-muted">window {claim.windowId}</span>
+          </div>
+          <div className="flex justify-between items-center mt-1">
+            <span className="text-xs text-muted">
+              reward: {formatEth(claim.reward, 4)} ETH
+            </span>
+            <a
+              href={getTxUrl(claim.transactionHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted hover:text-foreground"
+            >
+              tx →
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function BountiesPage() {
   const { isConnected, address } = useAccount();
   const { bounties, claimableBounties, currentWindowId, isWindowActive, isLoading, refetch } = useBounties();
   const { bountyAddress, hasBounty, status } = useUserBounty();
   const { ethPrice } = useTokenStats();
+
+  // Get all bounty addresses for fetching claims
+  const bountyAddresses = useMemo(() => {
+    return bounties.map(b => b.bountyAddress);
+  }, [bounties]);
 
   return (
     <div className="min-h-screen pt-20">
@@ -758,6 +843,14 @@ export default function BountiesPage() {
               )}
             </div>
           </div>
+
+          {/* Recent claims */}
+          {bountyAddresses.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg">recent claims</h2>
+              <RecentClaimsCard bountyAddresses={bountyAddresses} />
+            </div>
+          )}
         </div>
       </div>
     </div>

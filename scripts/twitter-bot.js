@@ -1671,7 +1671,8 @@ function formatMintTweet(
   tokenId,
   minterDisplay,
   minutesRemaining = null,
-  windowId = null
+  windowId = null,
+  isBountyMint = false
 ) {
   const timeText =
     minutesRemaining !== null && minutesRemaining > 0
@@ -1679,7 +1680,10 @@ function formatMintTweet(
           minutesRemaining !== 1 ? "s" : ""
         } remain in mint window ${windowId}`
       : "";
-  return `LESS ${tokenId} minted by ${minterDisplay}${timeText}
+  const mintedBy = isBountyMint
+    ? `minted by ${minterDisplay} via bounty`
+    : `minted by ${minterDisplay}`;
+  return `LESS ${tokenId} ${mintedBy}${timeText}
 
 ${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 }
@@ -2286,6 +2290,61 @@ async function resolveDisplayName(address) {
   return truncateAddress(address);
 }
 
+// Bounty factory address and ABI for detecting bounty mints
+const BOUNTY_FACTORY_ADDRESS = "0x8536a04b2606C9D14Ac1956fFB82Dc988E6e2c0D";
+const BOUNTY_FACTORY_ABI = [
+  {
+    name: "getAllBounties",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address[]" }],
+  },
+];
+const BOUNTY_ABI = [
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+];
+
+// Check if a minter address is a bounty contract and return the bounty owner
+async function checkIfBountyMint(minterAddress, client) {
+  try {
+    // Get all bounty addresses from the factory
+    const allBounties = await client.readContract({
+      address: BOUNTY_FACTORY_ADDRESS,
+      abi: BOUNTY_FACTORY_ABI,
+      functionName: "getAllBounties",
+    });
+
+    // Check if minter is in the list of bounties
+    const isBounty = allBounties.some(
+      (bounty) => bounty.toLowerCase() === minterAddress.toLowerCase()
+    );
+
+    if (!isBounty) {
+      return null;
+    }
+
+    // Get the bounty owner
+    const owner = await client.readContract({
+      address: minterAddress,
+      abi: BOUNTY_ABI,
+      functionName: "owner",
+    });
+
+    logInfo(`Detected bounty mint: bounty=${minterAddress}, owner=${owner}`);
+    return owner;
+  } catch (error) {
+    logWarn(`Bounty check failed: ${error.message}`);
+    return null;
+  }
+}
+
 // Process a Minted event
 async function processMintEvent(
   log,
@@ -2310,8 +2369,20 @@ async function processMintEvent(
       `Detected Minted event: tokenId=${tokenId}, windowId=${windowId}, minter=${minter}, seed=${seed}`
     );
 
-    // Resolve display name (Twitter handle > ENS > truncated address)
-    const minterDisplay = await resolveDisplayName(minter);
+    // Check if this is a bounty mint
+    const bountyOwner = await checkIfBountyMint(minter, client);
+    let minterDisplay;
+    let bountyOwnerDisplay = null;
+
+    if (bountyOwner) {
+      // Bounty mint - resolve the bounty owner's display name
+      bountyOwnerDisplay = await resolveDisplayName(bountyOwner);
+      minterDisplay = bountyOwnerDisplay;
+      logInfo(`Bounty owner display: ${bountyOwnerDisplay}`);
+    } else {
+      // Regular mint - resolve the minter's display name
+      minterDisplay = await resolveDisplayName(minter);
+    }
 
     // Fetch remaining time in window
     let minutesRemaining = null;
@@ -2351,7 +2422,8 @@ async function processMintEvent(
       Number(tokenId),
       minterDisplay,
       minutesRemaining,
-      windowId
+      windowId,
+      bountyOwnerDisplay !== null // isBountyMint
     );
 
     logInfo("Posting mint tweet...");

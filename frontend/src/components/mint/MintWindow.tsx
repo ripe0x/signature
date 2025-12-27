@@ -258,21 +258,21 @@ function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
   const seedContracts = tokenIds.map((id) => ({
     address: CONTRACTS.LESS_NFT as `0x${string}`,
     abi: LESS_NFT_ABI,
-    functionName: 'getSeed' as const,
+    functionName: "getSeed" as const,
     args: [BigInt(id)],
   }));
 
   const dataContracts = tokenIds.map((id) => ({
     address: CONTRACTS.LESS_NFT as `0x${string}`,
     abi: LESS_NFT_ABI,
-    functionName: 'getTokenData' as const,
+    functionName: "getTokenData" as const,
     args: [BigInt(id)],
   }));
 
   const uriContracts = tokenIds.map((id) => ({
     address: CONTRACTS.LESS_NFT as `0x${string}`,
     abi: LESS_NFT_ABI,
-    functionName: 'tokenURI' as const,
+    functionName: "tokenURI" as const,
     args: [BigInt(id)],
   }));
 
@@ -292,16 +292,18 @@ function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
   const tokens = useMemo(() => {
     return tokenIds.map((id, index) => {
       const seed = seedResults?.[index]?.result as `0x${string}` | undefined;
-      const tokenData = dataResults?.[index]?.result as { windowId: bigint } | undefined;
+      const tokenData = dataResults?.[index]?.result as
+        | { windowId: bigint }
+        | undefined;
       const uri = uriResults?.[index]?.result as string | undefined;
 
       let metadata: TokenMetadata | undefined;
       if (uri) {
         try {
-          const jsonStr = uri.startsWith('data:application/json;base64,')
-            ? atob(uri.slice('data:application/json;base64,'.length))
-            : uri.startsWith('data:application/json,')
-            ? decodeURIComponent(uri.slice('data:application/json,'.length))
+          const jsonStr = uri.startsWith("data:application/json;base64,")
+            ? atob(uri.slice("data:application/json;base64,".length))
+            : uri.startsWith("data:application/json,")
+            ? decodeURIComponent(uri.slice("data:application/json,".length))
             : null;
           if (jsonStr) {
             metadata = JSON.parse(jsonStr);
@@ -313,7 +315,7 @@ function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
 
       return {
         id,
-        seed: seed ?? ('0x0' as `0x${string}`),
+        seed: seed ?? ("0x0" as `0x${string}`),
         windowId: tokenData?.windowId ? Number(tokenData.windowId) : 0,
         metadata,
       };
@@ -343,8 +345,8 @@ function MintedTokenDisplay({ tokenIds }: { tokenIds: number[] }) {
   return (
     <div className={tokenIds.length === 1 ? "" : "grid grid-cols-2 gap-4"}>
       {tokens.map((token) => {
-        const seedNumber = token.seed !== '0x0' ? seedToNumber(token.seed) : 0;
-        const hasSeed = token.seed !== '0x0' && seedNumber > 0;
+        const seedNumber = token.seed !== "0x0" ? seedToNumber(token.seed) : 0;
+        const hasSeed = token.seed !== "0x0" && seedNumber > 0;
 
         return (
           <Link
@@ -601,9 +603,9 @@ export function MintWindow() {
           </div>
 
           {/* Open bounties */}
-          <div className="pt-6">
+          {/* <div className="pt-6">
             <BountyList windowId={windowId} isWindowActive={true} />
-          </div>
+          </div> */}
         </div>
       </div>
     );
