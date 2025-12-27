@@ -1,7 +1,7 @@
 {
   "totalWindows": 15,
   "totalTokens": 871,
-  "totalCollectors": 390,
+  "totalCollectors": 389,
   "fullCollectors": [],
   "collectors": [
     {
@@ -3799,6 +3799,28 @@
       ]
     },
     {
+      "address": "0x9edceff0218a87226e28381491f7dfa6775538fa",
+      "tokenCount": 2,
+      "windowsCollected": [
+        1,
+        5
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "tokens": [
+        {
+          "tokenId": 291,
+          "windowId": 1,
+          "seed": "0x326fb0ea0cd3b8757ea4ebeb8a1b294101a678c201475e2f2f65ad2ea29d2b89"
+        },
+        {
+          "tokenId": 582,
+          "windowId": 5,
+          "seed": "0xd2b9bd92baa52a37bcaa0aa45b591292cd7a97aea988c2397a986e8e7aeca226"
+        }
+      ]
+    },
+    {
       "address": "0x97cc34bc7a7c78523f7d9ac70d9a2a3c21a89389",
       "tokenCount": 2,
       "windowsCollected": [
@@ -6638,22 +6660,6 @@
       ]
     },
     {
-      "address": "0xf587641a4e0f11cb106293162d1b2fea4b5c408a",
-      "tokenCount": 1,
-      "windowsCollected": [
-        1
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 291,
-          "windowId": 1,
-          "seed": "0x326fb0ea0cd3b8757ea4ebeb8a1b294101a678c201475e2f2f65ad2ea29d2b89"
-        }
-      ]
-    },
-    {
       "address": "0xae4b6230e0864353a8d19af12d0a215aaa8a6d0b",
       "tokenCount": 1,
       "windowsCollected": [
@@ -7690,22 +7696,6 @@
           "tokenId": 574,
           "windowId": 5,
           "seed": "0xa1448c9149cb4636c8dbbeda97ef45e7ec86381469858be7905dfcaebb7b2d9f"
-        }
-      ]
-    },
-    {
-      "address": "0x9edceff0218a87226e28381491f7dfa6775538fa",
-      "tokenCount": 1,
-      "windowsCollected": [
-        5
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 582,
-          "windowId": 5,
-          "seed": "0xd2b9bd92baa52a37bcaa0aa45b591292cd7a97aea988c2397a986e8e7aeca226"
         }
       ]
     },
@@ -8846,6 +8836,6 @@
       ]
     }
   ],
-  "generatedAt": 1766837177601,
-  "generatedAtISO": "2025-12-27T12:06:17.601Z"
+  "generatedAt": 1766844259562,
+  "generatedAtISO": "2025-12-27T14:04:19.562Z"
 }
