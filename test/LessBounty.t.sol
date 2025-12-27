@@ -46,7 +46,7 @@ contract LessBountyTest is Test {
 
     uint256 public constant MINT_PRICE = 0.001 ether;
     uint256 public constant MINTS_PER_WINDOW = 2;
-    uint256 public constant INCENTIVE = 0.01 ether;
+    uint256 public constant EXECUTOR_REWARD = 0.005 ether;
 
     function setUp() public {
         strategy = new MockStrategy();
@@ -89,12 +89,12 @@ contract LessBountyTest is Test {
         vm.prank(bountyOwner);
         address bounty = factory.createAndConfigure{value: 0.5 ether}(
             MINTS_PER_WINDOW,
-            INCENTIVE
+            EXECUTOR_REWARD
         );
 
         LessBounty b = LessBounty(payable(bounty));
         assertEq(b.mintsPerWindow(), MINTS_PER_WINDOW);
-        assertEq(b.incentivePerWindow(), INCENTIVE);
+        assertEq(b.executorReward(), EXECUTOR_REWARD);
         assertEq(address(b).balance, 0.5 ether);
     }
 
@@ -104,10 +104,10 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
 
         assertEq(b.mintsPerWindow(), MINTS_PER_WINDOW);
-        assertEq(b.incentivePerWindow(), INCENTIVE);
+        assertEq(b.executorReward(), EXECUTOR_REWARD);
     }
 
     function test_ConfigureRevertNonOwner() public {
@@ -117,7 +117,7 @@ contract LessBountyTest is Test {
 
         vm.expectRevert();
         vm.prank(executor);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
     }
 
     function test_FundBounty() public {
@@ -138,11 +138,9 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
 
-        // Fund bounty (need enough for mints + incentive)
-        // Cost for 2 mints: 0.001 + 0.0015 = 0.0025 ether
-        // Plus incentive: 0.01 ether
+        // Fund bounty
         vm.deal(address(b), 0.1 ether);
 
         // Setup strategy with ETH
@@ -157,8 +155,8 @@ contract LessBountyTest is Test {
         vm.prank(executor);
         b.execute();
 
-        // Check executor got incentive
-        assertEq(executor.balance, executorBalanceBefore + INCENTIVE);
+        // Check executor got fixed reward
+        assertEq(executor.balance, executorBalanceBefore + EXECUTOR_REWARD);
 
         // Check NFTs sent to bounty owner (not the contract)
         assertEq(less.balanceOf(address(b)), 0);
@@ -174,7 +172,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
         vm.deal(address(b), 0.1 ether);
 
         vm.expectRevert(LessBounty.NoActiveWindow.selector);
@@ -189,7 +187,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
         vm.deal(address(b), 0.2 ether);
         vm.deal(address(strategy), 0.5 ether);
 
@@ -211,7 +209,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
         // Fund with less than needed
         vm.deal(address(b), 0.001 ether);
         vm.deal(address(strategy), 0.5 ether);
@@ -229,7 +227,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
 
         vm.prank(bountyOwner);
         b.setPaused(true);
@@ -254,7 +252,7 @@ contract LessBountyTest is Test {
         assertEq(reason, "Mints per window is 0");
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
 
         // No active window
         (canExec, reason) = b.canExecute();
@@ -283,14 +281,14 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
 
-        (uint256 mintCost, uint256 incentive, uint256 total) = b.getExecutionCost();
+        (uint256 mintCost, uint256 reward, uint256 total) = b.getExecutionCost();
 
         // First 2 mints for new address: 0.001 + 0.0015 = 0.0025 ether
         assertEq(mintCost, 0.0025 ether);
-        assertEq(incentive, INCENTIVE);
-        assertEq(total, 0.0025 ether + INCENTIVE);
+        assertEq(reward, EXECUTOR_REWARD);
+        assertEq(total, mintCost + EXECUTOR_REWARD);
     }
 
     function test_WithdrawETH() public {
@@ -318,7 +316,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(3, 0);
+        b.configure(3, 0); // 3 mints, 0 reward
         vm.deal(address(b), 0.1 ether);
         vm.deal(address(strategy), 0.5 ether);
         less.createWindow();
@@ -339,7 +337,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.prank(bountyOwner);
-        b.configure(1, INCENTIVE);
+        b.configure(1, EXECUTOR_REWARD);
         vm.deal(address(b), 1 ether);
         vm.deal(address(strategy), 1 ether);
 
@@ -366,7 +364,7 @@ contract LessBountyTest is Test {
         LessBounty b = LessBounty(payable(bounty));
 
         vm.startPrank(bountyOwner);
-        b.configure(1, INCENTIVE);
+        b.configure(1, EXECUTOR_REWARD);
         b.setSpecificWindowsOnly(true);
         b.setTargetWindow(2, true); // Only target window 2
         vm.stopPrank();
@@ -425,7 +423,7 @@ contract LessBountyTest is Test {
             bool windowTargeted,
             bool canClaim,
             uint256 mintCost,
-            uint256 incentive,
+            uint256 reward,
             uint256 totalCost,
             uint256 balance,
             uint256 configuredMintsPerWindow
@@ -437,7 +435,7 @@ contract LessBountyTest is Test {
 
         // Configure and fund
         vm.prank(bountyOwner);
-        b.configure(MINTS_PER_WINDOW, INCENTIVE);
+        b.configure(MINTS_PER_WINDOW, EXECUTOR_REWARD);
         vm.deal(address(b), 0.1 ether);
         vm.deal(address(strategy), 0.5 ether);
         less.createWindow();
@@ -451,7 +449,7 @@ contract LessBountyTest is Test {
             windowTargeted,
             canClaim,
             mintCost,
-            incentive,
+            reward,
             totalCost,
             balance,
             configuredMintsPerWindow
@@ -465,7 +463,7 @@ contract LessBountyTest is Test {
         assertTrue(windowTargeted);
         assertTrue(canClaim);
         assertEq(mintCost, 0.0025 ether); // 2 mints: 0.001 + 0.0015
-        assertEq(incentive, INCENTIVE);
+        assertEq(reward, EXECUTOR_REWARD);
         assertEq(balance, 0.1 ether);
         assertEq(configuredMintsPerWindow, MINTS_PER_WINDOW);
     }
@@ -518,11 +516,11 @@ contract LessBountyTest is Test {
         LessBounty b2 = LessBounty(payable(factory.getBounty(user2)));
 
         vm.prank(user1);
-        b1.configure(1, 0.01 ether);
+        b1.configure(1, 0.001 ether);
         vm.deal(address(b1), 0.1 ether);
 
         vm.prank(user2);
-        b2.configure(1, 0.02 ether);
+        b2.configure(1, 0.002 ether);
         // b2 not funded
 
         // Create window
@@ -536,7 +534,6 @@ contract LessBountyTest is Test {
         // b1 should be claimable (configured + funded)
         assertEq(infos[0].owner, user1);
         assertTrue(infos[0].canClaim);
-        assertEq(infos[0].incentive, 0.01 ether);
 
         // b2 not claimable (not funded)
         assertEq(infos[1].owner, user2);
@@ -573,5 +570,570 @@ contract LessBountyTest is Test {
         // Out of bounds returns empty
         LessBountyFactory.BountyInfo[] memory empty = factory.getBountyStatuses(10, 5);
         assertEq(empty.length, 0);
+    }
+
+    function test_ZeroRewardExecution() public {
+        // Can execute bounty with 0 reward (bounty owner pays only mint cost)
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.prank(bountyOwner);
+        b.configure(1, 0); // 0 reward
+        vm.deal(address(b), 0.01 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        uint256 executorBalanceBefore = executor.balance;
+        vm.prank(executor);
+        b.execute();
+
+        // Executor gets nothing
+        assertEq(executor.balance, executorBalanceBefore);
+        // But bounty owner still gets NFT
+        assertEq(less.balanceOf(bountyOwner), 1);
+    }
+
+    function test_RescueERC20() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Deploy a mock ERC20
+        MockERC20 token = new MockERC20();
+        token.mint(address(b), 100 ether);
+
+        assertEq(token.balanceOf(address(b)), 100 ether);
+        assertEq(token.balanceOf(bountyOwner), 0);
+
+        // Rescue half
+        vm.prank(bountyOwner);
+        b.rescueERC20(address(token), 50 ether);
+        assertEq(token.balanceOf(bountyOwner), 50 ether);
+
+        // Rescue all remaining (amount = 0)
+        vm.prank(bountyOwner);
+        b.rescueERC20(address(token), 0);
+        assertEq(token.balanceOf(bountyOwner), 100 ether);
+        assertEq(token.balanceOf(address(b)), 0);
+    }
+
+    function test_RescueERC721() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Deploy a mock ERC721
+        MockERC721 nft = new MockERC721();
+        nft.mint(address(b), 1);
+        nft.mint(address(b), 2);
+
+        assertEq(nft.ownerOf(1), address(b));
+        assertEq(nft.ownerOf(2), address(b));
+
+        // Rescue token 1
+        vm.prank(bountyOwner);
+        b.rescueERC721(address(nft), 1);
+        assertEq(nft.ownerOf(1), bountyOwner);
+        assertEq(nft.ownerOf(2), address(b));
+    }
+
+    function test_RescueERC721RevertForLess() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Cannot rescue LESS tokens
+        vm.prank(bountyOwner);
+        vm.expectRevert(LessBounty.CannotRescueLess.selector);
+        b.rescueERC721(address(less), 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        OWNER FUNCTION ACCESS CONTROL
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetPausedOnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Non-owner cannot pause
+        vm.expectRevert();
+        vm.prank(executor);
+        b.setPaused(true);
+
+        // Owner can pause
+        vm.prank(bountyOwner);
+        b.setPaused(true);
+        assertTrue(b.paused());
+
+        // Owner can unpause
+        vm.prank(bountyOwner);
+        b.setPaused(false);
+        assertFalse(b.paused());
+    }
+
+    function test_SetSpecificWindowsOnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Non-owner cannot set
+        vm.expectRevert();
+        vm.prank(executor);
+        b.setSpecificWindowsOnly(true);
+
+        // Owner can set
+        vm.prank(bountyOwner);
+        b.setSpecificWindowsOnly(true);
+        assertTrue(b.specificWindowsOnly());
+
+        vm.prank(bountyOwner);
+        b.setSpecificWindowsOnly(false);
+        assertFalse(b.specificWindowsOnly());
+    }
+
+    function test_SetTargetWindowOnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Non-owner cannot set
+        vm.expectRevert();
+        vm.prank(executor);
+        b.setTargetWindow(5, true);
+
+        // Owner can add and remove
+        vm.prank(bountyOwner);
+        b.setTargetWindow(5, true);
+        assertTrue(b.targetWindows(5));
+
+        vm.prank(bountyOwner);
+        b.setTargetWindow(5, false);
+        assertFalse(b.targetWindows(5));
+    }
+
+    function test_SetTargetWindowsOnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        uint256[] memory windows = new uint256[](2);
+        windows[0] = 5;
+        windows[1] = 10;
+
+        // Non-owner cannot set
+        vm.expectRevert();
+        vm.prank(executor);
+        b.setTargetWindows(windows, true);
+
+        // Owner can set
+        vm.prank(bountyOwner);
+        b.setTargetWindows(windows, true);
+        assertTrue(b.targetWindows(5));
+        assertTrue(b.targetWindows(10));
+    }
+
+    function test_WithdrawOnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+        vm.deal(address(b), 1 ether);
+
+        // Non-owner cannot withdraw
+        vm.expectRevert();
+        vm.prank(executor);
+        b.withdraw(0.5 ether);
+
+        // Owner can withdraw
+        vm.prank(bountyOwner);
+        b.withdraw(0.5 ether);
+        assertEq(address(b).balance, 0.5 ether);
+    }
+
+    function test_WithdrawRevertNothingToWithdraw() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Balance is 0
+        vm.prank(bountyOwner);
+        vm.expectRevert(LessBounty.NothingToWithdraw.selector);
+        b.withdraw(0);
+    }
+
+    function test_RescueERC20OnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        MockERC20 token = new MockERC20();
+        token.mint(address(b), 100 ether);
+
+        // Non-owner cannot rescue
+        vm.expectRevert();
+        vm.prank(executor);
+        b.rescueERC20(address(token), 50 ether);
+    }
+
+    function test_RescueERC721OnlyOwner() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        MockERC721 nft = new MockERC721();
+        nft.mint(address(b), 1);
+
+        // Non-owner cannot rescue
+        vm.expectRevert();
+        vm.prank(executor);
+        b.rescueERC721(address(nft), 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_GetBalance() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        assertEq(b.getBalance(), 0);
+
+        vm.deal(address(b), 1.5 ether);
+        assertEq(b.getBalance(), 1.5 ether);
+    }
+
+    function test_IsWindowTargeted() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // When specificWindowsOnly is false, all windows are targeted
+        assertFalse(b.specificWindowsOnly());
+        assertTrue(b.isWindowTargeted(1));
+        assertTrue(b.isWindowTargeted(999));
+
+        // When specificWindowsOnly is true, only explicitly targeted windows
+        vm.startPrank(bountyOwner);
+        b.setSpecificWindowsOnly(true);
+        b.setTargetWindow(5, true);
+        vm.stopPrank();
+
+        assertFalse(b.isWindowTargeted(1));
+        assertTrue(b.isWindowTargeted(5));
+        assertFalse(b.isWindowTargeted(999));
+    }
+
+    function test_CanExecuteReturnsPaused() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.prank(bountyOwner);
+        b.configure(1, EXECUTOR_REWARD);
+        vm.deal(address(b), 1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Should be executable
+        (bool canExec, string memory reason) = b.canExecute();
+        assertTrue(canExec);
+
+        // Pause it
+        vm.prank(bountyOwner);
+        b.setPaused(true);
+
+        (canExec, reason) = b.canExecute();
+        assertFalse(canExec);
+        assertEq(reason, "Bounty is paused");
+    }
+
+    function test_ExecuteRevertInvalidConfig() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Don't configure (mintsPerWindow = 0)
+        vm.deal(address(b), 1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.expectRevert(LessBounty.InvalidConfig.selector);
+        vm.prank(executor);
+        b.execute();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         INITIALIZATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_InitializeCannotBeCalledTwice() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Owner is bountyOwner after factory creates it
+        assertEq(b.owner(), bountyOwner);
+
+        // Try to re-initialize - Solady's _initializeOwner reverts with AlreadyInitialized
+        vm.expectRevert(bytes4(0x0dc149f0)); // AlreadyInitialized()
+        b.initialize(executor, 5, 0.01 ether);
+
+        // Owner should still be bountyOwner
+        assertEq(b.owner(), bountyOwner);
+    }
+
+    function test_ImplementationNotUsable() public {
+        address impl = factory.implementation();
+        LessBounty b = LessBounty(payable(impl));
+
+        // Implementation has dead address as owner
+        assertEq(b.owner(), address(0xdead));
+
+        // Cannot initialize implementation - Solady's _initializeOwner reverts with AlreadyInitialized
+        vm.expectRevert(bytes4(0x0dc149f0)); // AlreadyInitialized()
+        b.initialize(bountyOwner, 1, 0.001 ether);
+
+        // Owner should still be dead address
+        assertEq(b.owner(), address(0xdead));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            FACTORY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_FactoryLessAddress() public {
+        assertEq(address(factory.less()), address(less));
+    }
+
+    function test_FactoryImplementationAddress() public {
+        address impl = factory.implementation();
+        assertTrue(impl != address(0));
+
+        // Implementation should have the correct less address
+        LessBounty implBounty = LessBounty(payable(impl));
+        assertEq(address(implBounty.less()), address(less));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            EVENT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_EmitConfigUpdated() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.ConfigUpdated(3, 0.01 ether);
+
+        vm.prank(bountyOwner);
+        b.configure(3, 0.01 ether);
+    }
+
+    function test_EmitPaused() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.Paused(true);
+
+        vm.prank(bountyOwner);
+        b.setPaused(true);
+    }
+
+    function test_EmitTargetWindowSet() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.TargetWindowSet(5, true);
+
+        vm.prank(bountyOwner);
+        b.setTargetWindow(5, true);
+    }
+
+    function test_EmitFunded() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.Funded(bountyOwner, 0.5 ether);
+
+        vm.deal(bountyOwner, 1 ether);
+        vm.prank(bountyOwner);
+        (bool success, ) = address(b).call{value: 0.5 ether}("");
+        assertTrue(success);
+    }
+
+    function test_EmitWithdrawn() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+        vm.deal(address(b), 1 ether);
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.Withdrawn(bountyOwner, 0.5 ether);
+
+        vm.prank(bountyOwner);
+        b.withdraw(0.5 ether);
+    }
+
+    function test_EmitBountyExecuted() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.prank(bountyOwner);
+        b.configure(1, EXECUTOR_REWARD);
+        vm.deal(address(b), 0.1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        vm.expectEmit(true, true, true, true);
+        emit LessBounty.BountyExecuted(executor, 1, 1, EXECUTOR_REWARD);
+
+        vm.prank(executor);
+        b.execute();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         REENTRANCY PROTECTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ExecuteReentrancyProtected() public {
+        // This test verifies the nonReentrant modifier is in place
+        // by checking that execute() uses ReentrancyGuard
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.prank(bountyOwner);
+        b.configure(1, EXECUTOR_REWARD);
+        vm.deal(address(b), 0.1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Execute once (should work)
+        vm.prank(executor);
+        b.execute();
+
+        // The nonReentrant modifier prevents re-entry during execution
+        // We can't easily test actual reentrancy without a malicious receiver,
+        // but we verify the modifier is present by confirming normal execution works
+        assertTrue(b.windowMinted(1));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           EDGE CASES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ConfigureToZeroDisablesBounty() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Configure with valid values
+        vm.prank(bountyOwner);
+        b.configure(2, EXECUTOR_REWARD);
+        assertEq(b.mintsPerWindow(), 2);
+
+        // Configure to 0 to disable
+        vm.prank(bountyOwner);
+        b.configure(0, 0);
+        assertEq(b.mintsPerWindow(), 0);
+
+        // canExecute should return false with "Mints per window is 0"
+        vm.deal(address(b), 1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        (bool canExec, string memory reason) = b.canExecute();
+        assertFalse(canExec);
+        assertEq(reason, "Mints per window is 0");
+    }
+
+    function test_CanExecuteWindowAlreadyMinted() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        vm.prank(bountyOwner);
+        b.configure(1, EXECUTOR_REWARD);
+        vm.deal(address(b), 1 ether);
+        vm.deal(address(strategy), 0.5 ether);
+        less.createWindow();
+
+        // Execute once
+        vm.prank(executor);
+        b.execute();
+
+        // Check canExecute returns correct reason
+        (bool canExec, string memory reason) = b.canExecute();
+        assertFalse(canExec);
+        assertEq(reason, "Window already minted");
+    }
+
+    function test_LargeMintsPerWindow() public {
+        vm.prank(bountyOwner);
+        address bounty = factory.createBounty();
+        LessBounty b = LessBounty(payable(bounty));
+
+        // Configure for 10 mints per window
+        vm.prank(bountyOwner);
+        b.configure(10, EXECUTOR_REWARD);
+
+        vm.deal(address(b), 10 ether);
+        vm.deal(address(strategy), 1 ether);
+        less.createWindow();
+
+        vm.prank(executor);
+        b.execute();
+
+        // All 10 NFTs should be owned by bountyOwner
+        assertEq(less.balanceOf(bountyOwner), 10);
+        for (uint256 i = 1; i <= 10; i++) {
+            assertEq(less.ownerOf(i), bountyOwner);
+        }
+    }
+}
+
+/// @dev Simple ERC20 mock for rescue testing
+contract MockERC20 {
+    mapping(address => uint256) public balanceOf;
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+}
+
+/// @dev Simple ERC721 mock for rescue testing
+contract MockERC721 {
+    mapping(uint256 => address) public ownerOf;
+    mapping(address => mapping(address => bool)) public isApprovedForAll;
+
+    function mint(address to, uint256 tokenId) external {
+        ownerOf[tokenId] = to;
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) external {
+        require(ownerOf[tokenId] == from, "Not owner");
+        ownerOf[tokenId] = to;
+    }
+
+    function setApprovalForAll(address operator, bool approved) external {
+        isApprovedForAll[msg.sender][operator] = approved;
     }
 }

@@ -21,6 +21,18 @@ export function Footer() {
               mint
             </Link>
             <Link
+              href="/collectors"
+              className="text-muted hover:text-foreground transition-colors"
+            >
+              collectors
+            </Link>
+            <Link
+              href="/bounties"
+              className="text-muted hover:text-foreground transition-colors"
+            >
+              bounties
+            </Link>
+            <Link
               href="/about"
               className="text-muted hover:text-foreground transition-colors"
             >

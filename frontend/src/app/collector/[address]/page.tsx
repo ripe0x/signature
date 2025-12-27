@@ -7,6 +7,7 @@ import { useCollector, type CollectorToken } from "@/hooks/useLeaderboard";
 import { truncateAddress, seedToNumber } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { CollectorBounty } from "@/components/bounties/CollectorBounty";
 
 function TokenCard({ token }: { token: CollectorToken }) {
   const seedNumber = seedToNumber(token.seed as `0x${string}`);
@@ -171,7 +172,7 @@ export default function CollectorPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="border border-border p-4">
               <div className="text-2xl mb-1">{collector.tokenCount}</div>
               <div className="text-sm text-muted">tokens</div>
@@ -190,6 +191,11 @@ export default function CollectorPage() {
               <div className="text-2xl mb-1">{completionPercent}%</div>
               <div className="text-sm text-muted">completion</div>
             </div>
+          </div>
+
+          {/* Bounty */}
+          <div className="mb-12">
+            <CollectorBounty address={address} />
           </div>
 
           {/* Window Progress */}

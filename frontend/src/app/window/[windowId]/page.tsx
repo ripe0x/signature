@@ -177,3 +177,4 @@ export default function WindowPage({ params }: WindowPageProps) {
   return <WindowCollection windowId={windowId} />;
 }
 
+

@@ -32,6 +32,47 @@ const rootDir = join(__dirname, "..");
 const dataDir = existsSync("/data") ? "/data" : rootDir;
 const stateFile = join(dataDir, ".twitter-bot-state.json");
 
+// Load Twitter handles mapping (address -> handle) - serves as cache + manual fallback
+// Use /data on Fly.io for persistence, fallback to scripts dir locally
+const handlesPath = join(dataDir, "twitter-handles.json");
+const localHandlesPath = join(__dirname, "twitter-handles.json");
+let twitterHandles = {};
+try {
+  // First load from persistent storage (or local cache)
+  if (existsSync(handlesPath)) {
+    twitterHandles = JSON.parse(readFileSync(handlesPath, "utf8"));
+    console.log(`Loaded ${Object.keys(twitterHandles).length} Twitter handle mappings from ${handlesPath}`);
+  }
+  // Also merge in any manual entries from the repo file (local dev or deploy-time additions)
+  if (existsSync(localHandlesPath) && localHandlesPath !== handlesPath) {
+    const localHandles = JSON.parse(readFileSync(localHandlesPath, "utf8"));
+    twitterHandles = { ...twitterHandles, ...localHandles };
+    console.log(`Merged ${Object.keys(localHandles).length} manual Twitter handle mappings`);
+  }
+  // Normalize addresses to lowercase for lookup
+  twitterHandles = Object.fromEntries(
+    Object.entries(twitterHandles).map(([addr, handle]) => [addr.toLowerCase(), handle])
+  );
+} catch (e) {
+  console.log("No twitter-handles.json found, starting fresh");
+}
+
+// Save a Twitter handle to the cache file
+function saveTwitterHandle(address, handle) {
+  try {
+    twitterHandles[address.toLowerCase()] = handle;
+    // Read current file to preserve formatting and any manual entries
+    let fileData = {};
+    if (existsSync(handlesPath)) {
+      fileData = JSON.parse(readFileSync(handlesPath, "utf8"));
+    }
+    fileData[address.toLowerCase()] = handle;
+    writeFileSync(handlesPath, JSON.stringify(fileData, null, 2) + "\n");
+  } catch (e) {
+    console.log(`Failed to save Twitter handle: ${e.message}`);
+  }
+}
+
 // Parse command line arguments
 const args = process.argv.slice(2);
 const network =
@@ -42,6 +83,10 @@ const testMintMode = args.includes("--test-mint");
 const testReminderMode = args.includes("--test-reminder");
 const testWindowReadyMode = args.includes("--test-window-ready");
 const testBalanceProgressMode = args.includes("--test-balance-progress");
+const testSaleMode = args.includes("--test-sale");
+const previewSaleTokenId = args
+  .find((arg) => arg.startsWith("--preview-sale="))
+  ?.split("=")[1]; // Preview a real sale tweet for a specific token ID
 const verifyMode = args.includes("--verify");
 const postTestTweet = args.includes("--post-test");
 const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
@@ -142,6 +187,8 @@ function loadState(contractAddress) {
       windowReadyAlerted: false,
       lastBalanceProgressPost: null,
       lastBlock: 0n,
+      processedSales: new Set(),
+      lastSalesTimestamp: 0,
     };
   }
 
@@ -163,6 +210,8 @@ function loadState(contractAddress) {
           windowReadyAlerted: false,
           lastBalanceProgressPost: null,
           lastBlock: 0n,
+          processedSales: new Set(),
+          lastSalesTimestamp: 0,
         };
       }
 
@@ -176,6 +225,8 @@ function loadState(contractAddress) {
         windowReadyAlerted: data.windowReadyAlerted || false,
         lastBalanceProgressPost: data.lastBalanceProgressPost || null,
         lastBlock: BigInt(data.lastBlock || 0),
+        processedSales: new Set(data.processedSales || []),
+        lastSalesTimestamp: data.lastSalesTimestamp || 0,
       };
     }
   } catch (error) {
@@ -189,6 +240,8 @@ function loadState(contractAddress) {
     windowReadyAlerted: false,
     lastBalanceProgressPost: null,
     lastBlock: 0n,
+    processedSales: new Set(),
+    lastSalesTimestamp: 0,
   };
 }
 
@@ -200,7 +253,9 @@ function saveState(
   windowReadyAlerted,
   lastBalanceProgressPost,
   lastBlock,
-  contractAddress
+  contractAddress,
+  processedSales = new Set(),
+  lastSalesTimestamp = 0
 ) {
   try {
     const data = {
@@ -212,6 +267,8 @@ function saveState(
       windowReadyAlerted,
       lastBalanceProgressPost,
       lastBlock: lastBlock.toString(),
+      processedSales: Array.from(processedSales),
+      lastSalesTimestamp: lastSalesTimestamp,
       updatedAt: new Date().toISOString(),
     };
     writeFileSync(stateFile, JSON.stringify(data, null, 2));
@@ -775,9 +832,8 @@ async function runTestMintMode() {
   // Fetch image using token ID (uses /images/:tokenId which fetches windowId for correct foldCount)
   const imageBuffer = await fetchImage(testTokenId);
 
-  // Resolve ENS or use truncated address
-  const ensName = await resolveEns(testMinter);
-  const minterDisplay = ensName || truncateAddress(testMinter);
+  // Resolve display name (Twitter handle > ENS > truncated address)
+  const minterDisplay = await resolveDisplayName(testMinter);
 
   // Fetch remaining time in window (if contract is configured)
   let minutesRemaining = null;
@@ -849,9 +905,8 @@ async function runPostMintMode(tokenId) {
     process.exit(1);
   }
 
-  // Resolve ENS or use truncated address
-  const ensName = await resolveEns(minter);
-  const minterDisplay = ensName || truncateAddress(minter);
+  // Resolve display name (Twitter handle > ENS > truncated address)
+  const minterDisplay = await resolveDisplayName(minter);
   logInfo(`Minter display: ${minterDisplay}`);
 
   // Fetch remaining time in window
@@ -914,6 +969,16 @@ async function runPostMintMode(tokenId) {
     minutesRemaining,
     windowId
   );
+
+  // Check for dry-run mode
+  if (dryRun) {
+    logInfo("=== DRY RUN - Tweet would be posted ===");
+    console.log();
+    console.log(tweetMessage);
+    console.log();
+    logInfo("=== END DRY RUN ===");
+    return;
+  }
 
   // Initialize Twitter client and post
   const twitterClient = initTwitterClient();
@@ -1214,6 +1279,152 @@ async function runTestBalanceProgressMode() {
     logSuccess("Test balance progress completed!");
   } catch (error) {
     logError(`Test failed: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
+  }
+}
+
+// Run test sale mode - simulates a secondary sale tweet
+async function runTestSaleMode() {
+  logInfo("Running in TEST SALE MODE - simulating a secondary sale");
+  console.log();
+
+  try {
+    // Use mock values
+    const testTokenIds = [7];
+    const testBuyer = "0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c";
+    const testPriceEth = "0.4200";
+
+    logInfo(`Mock sale data:`);
+    logInfo(`  Token ID(s): ${testTokenIds.join(", ")}`);
+    logInfo(`  Buyer: ${testBuyer}`);
+    logInfo(`  Price: ${testPriceEth} ETH`);
+    console.log();
+
+    // Resolve display name (Twitter handle > ENS > truncated address)
+    const buyerDisplay = await resolveDisplayName(testBuyer);
+    logInfo(`Buyer display: ${buyerDisplay}`);
+
+    // Fetch image for token
+    const imageBuffer = await fetchImage(testTokenIds[0]);
+    if (!imageBuffer) {
+      logWarn("Could not fetch image for token - tweet will not have image");
+    }
+
+    // Format and display tweet
+    const tweetMessage = formatSaleTweet(testTokenIds, buyerDisplay, testPriceEth);
+
+    if (imageBuffer) {
+      await postTweetWithMultipleImages(null, tweetMessage, [imageBuffer]);
+    } else {
+      await postTweet(null, tweetMessage);
+    }
+
+    logSuccess("Test sale mode completed!");
+  } catch (error) {
+    logError(`Test failed: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
+  }
+}
+
+// Preview a real sale from OpenSea - fetches actual sale data and shows tweet preview
+async function runPreviewSaleMode(tokenId) {
+  logInfo(`Running in PREVIEW SALE MODE - fetching real sale data for token #${tokenId}`);
+  console.log();
+
+  try {
+    const apiKey = process.env.OPENSEA_API_KEY;
+    if (!apiKey) {
+      logError("OPENSEA_API_KEY not set");
+      process.exit(1);
+    }
+
+    // Fetch sales for this specific token from OpenSea
+    const collectionSlug = "say-less";
+    const url = `https://api.opensea.io/api/v2/events/collection/${collectionSlug}?event_type=sale&limit=50`;
+
+    logInfo(`Fetching sales from OpenSea...`);
+    const response = await fetch(url, {
+      headers: {
+        "accept": "application/json",
+        "x-api-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logError(`OpenSea API returned ${response.status}: ${errorText}`);
+      process.exit(1);
+    }
+
+    const data = await response.json();
+    const events = data.asset_events || [];
+
+    // Find the most recent sale for this token
+    const sale = events.find(e => e.nft?.identifier === tokenId);
+
+    if (!sale) {
+      logError(`No sale found for token #${tokenId} in recent sales`);
+      logInfo(`Available token IDs in recent sales: ${events.map(e => e.nft?.identifier).join(", ")}`);
+      process.exit(1);
+    }
+
+    const buyer = sale.buyer;
+    const priceWei = BigInt(sale.payment?.quantity || "0");
+    const priceEth = Number(formatEther(priceWei)).toFixed(4);
+    const txHash = sale.transaction;
+    const timestamp = new Date(sale.event_timestamp * 1000).toISOString();
+
+    logInfo(`Found sale:`);
+    logInfo(`  Token ID: ${tokenId}`);
+    logInfo(`  Buyer: ${buyer}`);
+    logInfo(`  Price: ${priceEth} ETH`);
+    logInfo(`  Tx: ${txHash}`);
+    logInfo(`  Time: ${timestamp}`);
+    console.log();
+
+    // Resolve display name (Twitter handle > ENS > truncated address)
+    const buyerDisplay = await resolveDisplayName(buyer);
+    logInfo(`Buyer display: ${buyerDisplay}`);
+
+    // Set up contract client to fetch collector stats
+    const rpcUrl = getRpcUrl();
+    const contractAddress = getContractAddress();
+    const abi = loadContractABI();
+    const client = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+
+    // Get collector stats for the buyer
+    const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
+
+    // Fetch image for token
+    const imageBuffer = await fetchImage(parseInt(tokenId, 10));
+    if (!imageBuffer) {
+      logWarn("Could not fetch image for token - tweet will not have image");
+    }
+
+    // Format and display tweet with collector stats
+    const tweetMessage = formatSaleTweet([parseInt(tokenId, 10)], buyerDisplay, priceEth, collectorStats);
+
+    // Initialize Twitter client if not in dry-run mode
+    const twitterClient = dryRun ? null : initTwitterClient();
+
+    if (imageBuffer) {
+      await postTweetWithMultipleImages(twitterClient, tweetMessage, [imageBuffer]);
+    } else {
+      await postTweet(twitterClient, tweetMessage);
+    }
+
+    logSuccess(dryRun ? "Preview sale mode completed!" : "Sale tweet posted!");
+  } catch (error) {
+    logError(`Preview failed: ${error.message}`);
     if (error.stack) {
       console.error(error.stack);
     }
@@ -1591,6 +1802,355 @@ ${
 ${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
 
+// Fetch NFT sales from OpenSea API
+async function fetchNFTSales(fromBlock, toBlock) {
+  const apiKey = process.env.OPENSEA_API_KEY;
+  if (!apiKey) {
+    logWarn("OPENSEA_API_KEY not set, skipping sales check");
+    return [];
+  }
+
+  const collectionSlug = "say-less";
+  const url = `https://api.opensea.io/api/v2/events/collection/${collectionSlug}?event_type=sale&limit=50`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "accept": "application/json",
+        "x-api-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logError(`OpenSea API returned ${response.status}: ${errorText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const events = data.asset_events || [];
+
+    // Transform OpenSea format to our expected format
+    return events.map((event) => ({
+      buyerAddress: event.buyer,
+      sellerAddress: event.seller,
+      tokenId: event.nft?.identifier || "0",
+      transactionHash: event.transaction,
+      // OpenSea gives us the total payment directly
+      payment: {
+        amount: event.payment?.quantity || "0",
+        symbol: event.payment?.symbol || "ETH",
+      },
+      eventTimestamp: event.event_timestamp,
+    }));
+  } catch (error) {
+    logError(`Failed to fetch NFT sales: ${error.message}`);
+    return [];
+  }
+}
+
+// Get collector stats for an address - token count and windows covered
+async function getCollectorStats(address, client, contractAddress, abi) {
+  try {
+    // First get totalSupply and windowCount
+    const [totalSupply, totalWindows] = await Promise.all([
+      client.readContract({
+        address: contractAddress,
+        abi,
+        functionName: "totalSupply",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi,
+        functionName: "windowCount",
+      }),
+    ]);
+
+    const supply = Number(totalSupply);
+    const windows = Number(totalWindows);
+
+    if (supply === 0) {
+      return { tokenCount: 0, windowCount: 0, totalWindows: windows, isFullCollector: false };
+    }
+
+    // Use multicall to batch ownerOf and getTokenData calls
+    // We'll check all tokens and filter by owner
+    const BATCH_SIZE = 100;
+    const collectedTokens = [];
+    const windowsSet = new Set();
+
+    for (let start = 1; start <= supply; start += BATCH_SIZE) {
+      const end = Math.min(start + BATCH_SIZE - 1, supply);
+      const tokenIds = [];
+      for (let i = start; i <= end; i++) {
+        tokenIds.push(i);
+      }
+
+      // Batch fetch owner and windowId for each token
+      const calls = tokenIds.flatMap((tokenId) => [
+        {
+          address: contractAddress,
+          abi,
+          functionName: "ownerOf",
+          args: [BigInt(tokenId)],
+        },
+        {
+          address: contractAddress,
+          abi,
+          functionName: "getTokenData",
+          args: [BigInt(tokenId)],
+        },
+      ]);
+
+      const results = await client.multicall({ contracts: calls });
+
+      // Process results (2 results per token: owner, tokenData)
+      for (let i = 0; i < tokenIds.length; i++) {
+        const tokenId = tokenIds[i];
+        const ownerResult = results[i * 2];
+        const tokenDataResult = results[i * 2 + 1];
+
+        if (ownerResult.status === "success" && tokenDataResult.status === "success") {
+          const owner = ownerResult.result.toLowerCase();
+          if (owner === address.toLowerCase()) {
+            collectedTokens.push(tokenId);
+            // getTokenData returns { windowId, seed } - extract windowId
+            const windowId = tokenDataResult.result.windowId ?? tokenDataResult.result;
+            windowsSet.add(Number(windowId));
+          }
+        }
+      }
+    }
+
+    const tokenCount = collectedTokens.length;
+    const windowCount = windowsSet.size;
+    const isFullCollector = windowCount === windows;
+
+    logInfo(`Collector stats for ${address.slice(0, 8)}...: ${tokenCount} tokens, ${windowCount}/${windows} windows${isFullCollector ? " (FULL)" : ""}`);
+
+    return { tokenCount, windowCount, totalWindows: windows, isFullCollector };
+  } catch (error) {
+    logWarn(`Failed to get collector stats: ${error.message}`);
+    return null;
+  }
+}
+
+// Format sale tweet - handles single or multiple tokens
+function formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats = null) {
+  const isSingle = tokenIds.length === 1;
+  const tokenList = tokenIds.join(", ");
+
+  // Build collector stats line
+  let statsLine = "";
+  if (collectorStats) {
+    const { tokenCount, windowCount, totalWindows, isFullCollector } = collectorStats;
+    if (isFullCollector) {
+      statsLine = `\n\nowns ${tokenCount} LESS across all ${totalWindows} mint windows`;
+    } else {
+      statsLine = `\n\nowns ${tokenCount} LESS across ${windowCount}/${totalWindows} mint windows`;
+    }
+  }
+
+  if (isSingle) {
+    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}`;
+  } else {
+    // Multiple tokens bought by same collector
+    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}`;
+  }
+}
+
+// Process grouped sales (same buyer) as a single tweet
+async function processGroupedSales(
+  sales,
+  processedSales,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    // All sales should have same buyer
+    const buyer = sales[0].buyerAddress;
+    const tokenIds = sales.map((s) => parseInt(s.tokenId, 10)).sort((a, b) => a - b);
+    const txHashes = sales.map((s) => s.transactionHash);
+
+    // Skip if any tx already processed
+    if (txHashes.some((hash) => processedSales.has(hash))) {
+      logInfo(`Skipping already processed sales for tokens: ${tokenIds.join(", ")}`);
+      return false;
+    }
+
+    // Calculate total price across all sales
+    let totalPrice = 0n;
+    for (const sale of sales) {
+      // OpenSea gives us the payment amount directly
+      const paymentAmount = BigInt(sale.payment?.amount || "0");
+      totalPrice += paymentAmount;
+    }
+    const priceEth = Number(formatEther(totalPrice)).toFixed(4);
+
+    logInfo(
+      `Detected ${sales.length > 1 ? "multi-token " : ""}sale: token${sales.length > 1 ? "s" : ""} #${tokenIds.join(", #")} for ${priceEth} ETH`
+    );
+
+    // Resolve display name (Twitter handle > ENS > truncated address)
+    const buyerDisplay = await resolveDisplayName(buyer);
+
+    // Get collector stats for the buyer
+    const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
+
+    // Fetch images for all tokens (up to 4 for Twitter)
+    const imagesToFetch = tokenIds.slice(0, 4);
+    const imageBuffers = [];
+    for (const tokenId of imagesToFetch) {
+      const imageBuffer = await fetchImage(tokenId);
+      if (imageBuffer) {
+        imageBuffers.push(imageBuffer);
+      }
+    }
+
+    if (imageBuffers.length === 0) {
+      logWarn(`Skipping sale tweet - no images available for tokens: ${tokenIds.join(", ")}`);
+      return false;
+    }
+
+    // Format and post tweet with collector stats
+    const tweetMessage = formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats);
+
+    logInfo("Posting sale tweet...");
+    const tweetId = await postTweetWithMultipleImages(twitterClient, tweetMessage, imageBuffers);
+
+    if (tweetId) {
+      logSuccess(`Sale tweet posted! Tweet ID: ${tweetId}`);
+      // Mark all tx hashes as processed
+      for (const hash of txHashes) {
+        processedSales.add(hash);
+      }
+      return true;
+    }
+    return false;
+  } catch (error) {
+    logError(`Error processing grouped sales: ${error.message}`);
+    return false;
+  }
+}
+
+// Post tweet with multiple images (up to 4)
+async function postTweetWithMultipleImages(twitterClient, message, imageBuffers) {
+  // In dry-run or test mode, just preview
+  if (dryRun || testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode) {
+    displayTweetPreview(message);
+    logInfo(`[DRY-RUN] Would attach ${imageBuffers.length} image(s)`);
+    return "dry-run-id";
+  }
+
+  try {
+    const mediaIds = [];
+
+    // Upload all images
+    for (let i = 0; i < imageBuffers.length && i < 4; i++) {
+      const mediaId = await twitterClient.v1.uploadMedia(imageBuffers[i], {
+        mimeType: "image/png",
+      });
+      mediaIds.push(mediaId);
+      logSuccess(`Image ${i + 1} uploaded, media_id: ${mediaId}`);
+    }
+
+    // Post tweet with all media
+    const tweetOptions = mediaIds.length > 0 ? { media: { media_ids: mediaIds } } : {};
+    const tweet = await twitterClient.v2.tweet(message, tweetOptions);
+    return tweet.data.id;
+  } catch (error) {
+    if (error.code === 187) {
+      logError("Tweet failed: duplicate content");
+      return null;
+    }
+    if (error.code === 429 || error.message?.includes("429")) {
+      const waitSeconds = error.rateLimit?.reset
+        ? Math.max(error.rateLimit.reset - Math.floor(Date.now() / 1000), 60)
+        : 900;
+      logWarn(`Rate limited. Waiting ${Math.ceil(waitSeconds / 60)} minutes...`);
+      await sleep(waitSeconds * 1000);
+      // Retry without images
+      const tweet = await twitterClient.v2.tweet(message);
+      return tweet.data.id;
+    }
+    logError(`Tweet failed: ${error.message}`);
+    return null;
+  }
+}
+
+// Check for and process NFT sales
+async function processSalesCheck(
+  processedSales,
+  lastSalesTimestamp,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+
+    // On first run (no lastSalesTimestamp), set to current time to avoid posting historical sales
+    if (lastSalesTimestamp === 0) {
+      logInfo("First sales check run - setting baseline timestamp to now (no historical posts)");
+      return { processed: 0, lastTimestamp: currentTimestamp };
+    }
+
+    // Fetch recent sales from OpenSea
+    const allSales = await fetchNFTSales();
+
+    if (allSales.length === 0) {
+      return { processed: 0, lastTimestamp: lastSalesTimestamp };
+    }
+
+    // Filter to only sales AFTER our last check
+    const newSales = allSales.filter(sale => sale.eventTimestamp > lastSalesTimestamp);
+
+    if (newSales.length === 0) {
+      return { processed: 0, lastTimestamp: lastSalesTimestamp };
+    }
+
+    logInfo(`Found ${newSales.length} new sale(s) to process (after timestamp ${lastSalesTimestamp})`);
+
+    // Group sales by buyer address (for multi-token purchases)
+    const salesByBuyer = new Map();
+    for (const sale of newSales) {
+      const buyerKey = sale.buyerAddress.toLowerCase();
+      if (!salesByBuyer.has(buyerKey)) {
+        salesByBuyer.set(buyerKey, []);
+      }
+      salesByBuyer.get(buyerKey).push(sale);
+    }
+
+    let processedCount = 0;
+    let newestTimestamp = lastSalesTimestamp;
+
+    for (const [buyer, buyerSales] of salesByBuyer) {
+      const success = await processGroupedSales(buyerSales, processedSales, twitterClient, client, contractAddress, abi);
+      if (success) {
+        processedCount++;
+        // Track the newest timestamp we've processed
+        for (const sale of buyerSales) {
+          if (sale.eventTimestamp > newestTimestamp) {
+            newestTimestamp = sale.eventTimestamp;
+          }
+        }
+        // Delay between tweets to avoid rate limiting
+        if (salesByBuyer.size > 1) {
+          await sleep(5000);
+        }
+      }
+    }
+
+    return { processed: processedCount, lastTimestamp: newestTimestamp };
+  } catch (error) {
+    logError(`Sales check error: ${error.message}`);
+    return { processed: 0, lastTimestamp: lastSalesTimestamp };
+  }
+}
+
 // Resolve ENS name for an address (always uses mainnet since ENS lives there)
 async function resolveEns(address) {
   try {
@@ -1611,6 +2171,119 @@ async function resolveEns(address) {
     logWarn(`ENS lookup failed: ${error.message}`);
     return null;
   }
+}
+
+// Resolve Twitter handle from Farcaster via Neynar API
+async function resolveFarcasterTwitterHandle(address) {
+  try {
+    const apiKey = process.env.NEYNAR_API_KEY;
+    if (!apiKey) {
+      return null;
+    }
+
+    const url = `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`;
+    const response = await fetch(url, {
+      headers: {
+        "accept": "application/json",
+        "x-api-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    // Response is keyed by address (lowercase)
+    const users = data[address.toLowerCase()];
+    if (!users || users.length === 0) {
+      return null;
+    }
+
+    // Check verified_accounts for X/Twitter
+    const user = users[0];
+    if (user.verified_accounts && Array.isArray(user.verified_accounts)) {
+      const xAccount = user.verified_accounts.find(acc => acc.platform === "x");
+      if (xAccount && xAccount.username) {
+        logInfo(`Resolved Twitter from Farcaster: ${address} -> @${xAccount.username}`);
+        return xAccount.username;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    logWarn(`Farcaster lookup failed: ${error.message}`);
+    return null;
+  }
+}
+
+// Resolve Twitter handle from ENS text records
+async function resolveTwitterHandle(address) {
+  try {
+    const mainnetRpc = process.env.MAINNET_RPC_URL;
+    if (!mainnetRpc) {
+      return null;
+    }
+    const mainnetClient = createPublicClient({
+      chain: mainnet,
+      transport: http(mainnetRpc),
+    });
+
+    // First get ENS name for the address
+    const ensName = await mainnetClient.getEnsName({ address });
+    if (!ensName) {
+      return null;
+    }
+
+    // Try com.twitter first (standard ENS text record), then twitter
+    let handle = await mainnetClient.getEnsText({ name: ensName, key: "com.twitter" });
+    if (!handle) {
+      handle = await mainnetClient.getEnsText({ name: ensName, key: "twitter" });
+    }
+
+    if (handle) {
+      // Strip @ if present and log
+      handle = handle.replace(/^@/, "");
+      logInfo(`Resolved Twitter from ENS: ${address} -> @${handle}`);
+    }
+    return handle || null;
+  } catch (error) {
+    logWarn(`Twitter handle lookup failed: ${error.message}`);
+    return null;
+  }
+}
+
+// Resolve display name with priority: cached handle > Farcaster > ENS Twitter > ENS name > truncated address
+async function resolveDisplayName(address) {
+  // 1. Check cache first (twitter-handles.json)
+  const cachedHandle = twitterHandles[address.toLowerCase()];
+  if (cachedHandle) {
+    logInfo(`Resolved Twitter from cache: ${address} -> @${cachedHandle}`);
+    return `@${cachedHandle}`;
+  }
+
+  // 2. Try Farcaster connected Twitter (via Neynar)
+  const farcasterHandle = await resolveFarcasterTwitterHandle(address);
+  if (farcasterHandle) {
+    saveTwitterHandle(address, farcasterHandle);
+    return `@${farcasterHandle}`;
+  }
+
+  // 3. Try ENS Twitter handle
+  const twitterHandle = await resolveTwitterHandle(address);
+  if (twitterHandle) {
+    saveTwitterHandle(address, twitterHandle);
+    return `@${twitterHandle}`;
+  }
+
+  // 4. Try ENS name
+  const ensName = await resolveEns(address);
+  if (ensName) {
+    return ensName;
+  }
+
+  // 5. Fallback to truncated address
+  return truncateAddress(address);
 }
 
 // Process a Minted event
@@ -1637,9 +2310,8 @@ async function processMintEvent(
       `Detected Minted event: tokenId=${tokenId}, windowId=${windowId}, minter=${minter}, seed=${seed}`
     );
 
-    // Resolve ENS or use truncated address
-    const ensName = await resolveEns(minter);
-    const minterDisplay = ensName || truncateAddress(minter);
+    // Resolve display name (Twitter handle > ENS > truncated address)
+    const minterDisplay = await resolveDisplayName(minter);
 
     // Fetch remaining time in window
     let minutesRemaining = null;
@@ -2347,6 +3019,18 @@ async function runBot() {
     return;
   }
 
+  // Handle test sale mode
+  if (testSaleMode) {
+    await runTestSaleMode();
+    return;
+  }
+
+  // Handle preview sale mode (show real sale data from OpenSea)
+  if (previewSaleTokenId) {
+    await runPreviewSaleMode(previewSaleTokenId);
+    return;
+  }
+
   // Handle post balance mode (post balance status tweet immediately)
   if (postBalanceMode) {
     await runPostBalanceMode();
@@ -2389,6 +3073,8 @@ async function runBot() {
   let windowReadyAlerted = state.windowReadyAlerted;
   let lastBalanceProgressPost = state.lastBalanceProgressPost;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
+  const processedSales = state.processedSales;
+  let lastSalesTimestamp = rescanMode ? 0 : state.lastSalesTimestamp;
 
   if (rescanMode) {
     logInfo("Rescan mode: ignoring saved lastBlock, will scan from lookback");
@@ -2526,7 +3212,9 @@ async function runBot() {
         windowReadyAlerted,
         lastBalanceProgressPost,
         lastProcessedBlock,
-        contractAddress
+        contractAddress,
+        processedSales,
+        lastSalesTimestamp
       );
 
       // Reset retry count on successful connection
@@ -2560,7 +3248,9 @@ async function runBot() {
                 windowReadyAlerted,
                 lastBalanceProgressPost,
                 lastProcessedBlock,
-                contractAddress
+                contractAddress,
+                processedSales,
+                lastSalesTimestamp
               );
             }
           }
@@ -2595,7 +3285,9 @@ async function runBot() {
                 windowReadyAlerted,
                 lastBalanceProgressPost,
                 lastProcessedBlock,
-                contractAddress
+                contractAddress,
+                processedSales,
+                lastSalesTimestamp
               );
             }
           }
@@ -2635,7 +3327,9 @@ async function runBot() {
               windowReadyAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
-              contractAddress
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp
             );
           }
         } catch (error) {
@@ -2663,7 +3357,9 @@ async function runBot() {
               windowReadyAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
-              contractAddress
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp
             );
           }
         } catch (error) {
@@ -2690,7 +3386,9 @@ async function runBot() {
               windowReadyAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
-              contractAddress
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp
             );
           }
         } catch (error) {
@@ -2719,13 +3417,46 @@ async function runBot() {
               windowReadyAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
-              contractAddress
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp
             );
           }
         } catch (error) {
           logError(`Balance progress check error: ${error.message}`);
         }
       }, 6 * 60 * 60 * 1000); // 6 hours in milliseconds
+
+      // Secondary sales checker (every 2 minutes)
+      const salesInterval = setInterval(async () => {
+        try {
+          const result = await processSalesCheck(
+            processedSales,
+            lastSalesTimestamp,
+            twitterClient,
+            client,
+            contractAddress,
+            abi
+          );
+          if (result.processed > 0 || result.lastTimestamp > lastSalesTimestamp) {
+            lastSalesTimestamp = result.lastTimestamp;
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp
+            );
+          }
+        } catch (error) {
+          logError(`Sales check error: ${error.message}`);
+        }
+      }, 120000); // 2 minutes
 
       // Graceful shutdown handler
       const shutdown = () => {
@@ -2735,6 +3466,7 @@ async function runBot() {
         clearInterval(windowReadyInterval);
         clearInterval(endedWindowsInterval);
         clearInterval(balanceProgressInterval);
+        clearInterval(salesInterval);
         saveState(
           processedWindows,
           processedMints,
@@ -2743,7 +3475,9 @@ async function runBot() {
           windowReadyAlerted,
           lastBalanceProgressPost,
           lastProcessedBlock,
-          contractAddress
+          contractAddress,
+          processedSales,
+          lastSalesTimestamp
         );
         logSuccess("State saved. Bot stopped.");
         process.exit(0);
@@ -2759,7 +3493,7 @@ async function runBot() {
           try {
             const block = await client.getBlockNumber();
             logInfo(
-              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints, ${fifteenMinReminders.size} reminders, ${processedEndedWindows.size} ended windows`
+              `Heartbeat: block ${block}, processed ${processedWindows.size} windows, ${processedMints.size} mints, ${fifteenMinReminders.size} reminders, ${processedEndedWindows.size} ended windows, ${processedSales.size} sales`
             );
           } catch (error) {
             clearInterval(healthCheck);
@@ -2767,6 +3501,7 @@ async function runBot() {
             clearInterval(windowReadyInterval);
             clearInterval(endedWindowsInterval);
             clearInterval(balanceProgressInterval);
+            clearInterval(salesInterval);
             reject(error);
           }
         }, 300000);
@@ -2915,7 +3650,7 @@ async function generateWindowTweet(windowId) {
   ]);
 
   // Get burn data
-  const burnData = await fetchBurnData();
+  const burnData = await fetchBurnData(client, contractAddress, abi);
   const durationMinutes = Math.floor(Number(windowDuration) / 60);
   const startTime = Math.floor(Date.now() / 1000);
   const endTime = startTime + Number(windowDuration);
@@ -3096,8 +3831,9 @@ function startAdminServer() {
   return server;
 }
 
-// Start admin server (runs alongside bot)
-const adminServer = startAdminServer();
+// Start admin server (runs alongside bot, but not for test/preview modes)
+const isTestOrPreviewMode = testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode || testSaleMode || previewSaleTokenId || verifyMode;
+const adminServer = isTestOrPreviewMode ? null : startAdminServer();
 
 // Run the bot
 runBot().catch((error) => {

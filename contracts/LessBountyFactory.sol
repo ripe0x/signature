@@ -2,11 +2,12 @@
 pragma solidity ^0.8.26;
 
 import {LessBounty} from "./LessBounty.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @title LessBountyFactory
 /// @author ripe
 /// @notice Factory for creating individual LessBounty contracts
-/// @dev Each user gets their own bounty contract
+/// @dev Uses EIP-1167 minimal proxies for gas-efficient deployment (~45k vs ~500k)
 contract LessBountyFactory {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
@@ -16,7 +17,7 @@ contract LessBountyFactory {
         address bountyAddress;
         address owner;
         bool canClaim;
-        uint256 incentive;
+        uint256 reward;
         uint256 totalCost;
         uint256 balance;
         uint256 currentWindowId;
@@ -36,6 +37,9 @@ contract LessBountyFactory {
     /// @notice The LESS NFT contract address
     address public immutable less;
 
+    /// @notice The LessBounty implementation contract (clones point to this)
+    address public immutable implementation;
+
     /// @notice Mapping of user address to their bounty contract
     mapping(address => address) public bounties;
 
@@ -46,10 +50,11 @@ contract LessBountyFactory {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates the factory
+    /// @notice Creates the factory and deploys the implementation contract
     /// @param _less Address of the LESS NFT contract
     constructor(address _less) {
         less = _less;
+        implementation = address(new LessBounty(_less));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -71,13 +76,13 @@ contract LessBountyFactory {
 
     /// @notice Create and configure a bounty in one transaction
     /// @param mintsPerWindow Number of mints per window
-    /// @param incentivePerWindow ETH incentive for executor
+    /// @param executorReward Fixed reward for executor (e.g., 0.001 ETH)
     /// @return bounty Address of the created bounty contract
     function createAndConfigure(
         uint256 mintsPerWindow,
-        uint256 incentivePerWindow
+        uint256 executorReward
     ) external payable returns (address bounty) {
-        bounty = _createBountyFor(msg.sender, mintsPerWindow, incentivePerWindow);
+        bounty = _createBountyFor(msg.sender, mintsPerWindow, executorReward);
         if (msg.value > 0) {
             (bool success, ) = bounty.call{value: msg.value}("");
             require(success, "ETH transfer failed");
@@ -131,7 +136,7 @@ contract LessBountyFactory {
                 ,  // windowTargeted
                 bool canClaim,
                 ,  // mintCost
-                uint256 incentive,
+                uint256 reward,
                 uint256 totalCost,
                 uint256 balance,
                    // configuredMintsPerWindow
@@ -141,7 +146,7 @@ contract LessBountyFactory {
                 bountyAddress: allBounties[start + i],
                 owner: b.owner(),
                 canClaim: canClaim,
-                incentive: incentive,
+                reward: reward,
                 totalCost: totalCost,
                 balance: balance,
                 currentWindowId: currentWindowId,
@@ -163,11 +168,14 @@ contract LessBountyFactory {
     function _createBountyFor(
         address owner,
         uint256 mintsPerWindow,
-        uint256 incentivePerWindow
+        uint256 executorReward
     ) internal returns (address bounty) {
         require(bounties[owner] == address(0), "Bounty already exists");
 
-        bounty = address(new LessBounty(less, owner, mintsPerWindow, incentivePerWindow));
+        // Deploy minimal proxy clone (~45k gas vs ~500k for full deployment)
+        bounty = LibClone.clone(implementation);
+        LessBounty(payable(bounty)).initialize(owner, mintsPerWindow, executorReward);
+
         bounties[owner] = bounty;
         allBounties.push(bounty);
 

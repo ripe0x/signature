@@ -10,7 +10,7 @@ primary_region = "iad"
   # LESS NFT contract address (Sepolia testnet)
   LESS_CONTRACT_ADDRESS = "0x008B66385ed2346E6895031E250B2ac8dc14605C"
   # LESS ERC20 token address (mainnet) - used for burn/supply data
-  LESS_TOKEN_ADDRESS = "0x32f223e5c09878823934a8116f289bae2b657b8e"
+  LESS_TOKEN_ADDRESS = "0x9C2CA573009F181EAc634C4d6e44A0977C24f335"
   # Admin HTTP server port
   ADMIN_PORT = "8080"
 

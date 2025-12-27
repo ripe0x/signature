@@ -17,19 +17,17 @@ interface ILess {
 /// @title LessBounty
 /// @author ripe
 /// @notice Individual bounty contract for automated LESS minting
-/// @dev Created by LessBountyFactory. Allows owner to set mint targets and incentives.
-///      Anyone can execute mints and claim the incentive.
+/// @dev Created by LessBountyFactory as EIP-1167 clones. Pays a fixed reward to executors.
 contract LessBounty is Ownable, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event ConfigUpdated(uint256 mintsPerWindow, uint256 incentivePerWindow);
-    event BountyExecuted(address indexed executor, uint256 windowId, uint256 quantity, uint256 incentive);
+    event ConfigUpdated(uint256 mintsPerWindow, uint256 executorReward);
+    event BountyExecuted(address indexed executor, uint256 windowId, uint256 quantity, uint256 reward);
     event TargetWindowSet(uint256 indexed windowId, bool enabled);
     event Funded(address indexed funder, uint256 amount);
     event Withdrawn(address indexed recipient, uint256 amount);
-    event NFTWithdrawn(address indexed recipient, uint256 tokenId);
     event Paused(bool paused);
 
     /*//////////////////////////////////////////////////////////////
@@ -43,6 +41,7 @@ contract LessBounty is Ownable, ReentrancyGuard {
     error NothingToWithdraw();
     error BountyPaused();
     error InvalidConfig();
+    error CannotRescueLess();
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -54,8 +53,8 @@ contract LessBounty is Ownable, ReentrancyGuard {
     /// @notice Number of mints to execute per window
     uint256 public mintsPerWindow;
 
-    /// @notice ETH incentive paid to executor per window
-    uint256 public incentivePerWindow;
+    /// @notice Fixed reward paid to executor per execution
+    uint256 public executorReward;
 
     /// @notice Whether the bounty is paused
     bool public paused;
@@ -73,18 +72,37 @@ contract LessBounty is Ownable, ReentrancyGuard {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates a new LessBounty contract
-    /// @param _less Address of the LESS NFT contract
-    /// @param _owner Address of the bounty owner
-    /// @param _mintsPerWindow Initial mints per window (0 to skip)
-    /// @param _incentivePerWindow Initial incentive per window
-    constructor(address _less, address _owner, uint256 _mintsPerWindow, uint256 _incentivePerWindow) {
+    /// @dev Enable Solady's double-initialization guard
+    function _guardInitializeOwner() internal pure virtual override returns (bool) {
+        return true;
+    }
+
+    /// @notice Creates the implementation contract
+    /// @param _less Address of the LESS NFT contract (shared by all clones)
+    constructor(address _less) {
         less = ILess(_less);
+        // Implementation contract should not be used directly
+        _initializeOwner(address(0xdead));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            INITIALIZER
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Initialize a clone with owner and optional config
+    /// @param _owner Address of the bounty owner
+    /// @param _mintsPerWindow Number of NFTs to mint per window (0 to skip config)
+    /// @param _executorReward Fixed reward for executor (e.g., 0.001 ETH)
+    function initialize(
+        address _owner,
+        uint256 _mintsPerWindow,
+        uint256 _executorReward
+    ) external {
         _initializeOwner(_owner);
         if (_mintsPerWindow > 0) {
             mintsPerWindow = _mintsPerWindow;
-            incentivePerWindow = _incentivePerWindow;
-            emit ConfigUpdated(_mintsPerWindow, _incentivePerWindow);
+            executorReward = _executorReward;
+            emit ConfigUpdated(_mintsPerWindow, _executorReward);
         }
     }
 
@@ -102,38 +120,32 @@ contract LessBounty is Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Configure the bounty parameters
-    /// @param _mintsPerWindow Number of mints per window (0 to disable)
-    /// @param _incentivePerWindow ETH incentive for executor per window
-    function configure(uint256 _mintsPerWindow, uint256 _incentivePerWindow) external onlyOwner {
+    /// @param _mintsPerWindow Number of NFTs to mint per window (0 to disable)
+    /// @param _executorReward Fixed reward for executor
+    function configure(uint256 _mintsPerWindow, uint256 _executorReward) external onlyOwner {
         mintsPerWindow = _mintsPerWindow;
-        incentivePerWindow = _incentivePerWindow;
-        emit ConfigUpdated(_mintsPerWindow, _incentivePerWindow);
+        executorReward = _executorReward;
+        emit ConfigUpdated(_mintsPerWindow, _executorReward);
     }
 
     /// @notice Pause or unpause the bounty
-    /// @param _paused Whether to pause
     function setPaused(bool _paused) external onlyOwner {
         paused = _paused;
         emit Paused(_paused);
     }
 
     /// @notice Enable or disable specific windows mode
-    /// @param _enabled If true, only executes for targeted windows
     function setSpecificWindowsOnly(bool _enabled) external onlyOwner {
         specificWindowsOnly = _enabled;
     }
 
     /// @notice Set a target window
-    /// @param windowId The window to target
-    /// @param enabled Whether to enable this window as a target
     function setTargetWindow(uint256 windowId, bool enabled) external onlyOwner {
         targetWindows[windowId] = enabled;
         emit TargetWindowSet(windowId, enabled);
     }
 
     /// @notice Set multiple target windows at once
-    /// @param windowIds Array of window IDs to set
-    /// @param enabled Whether to enable these windows as targets
     function setTargetWindows(uint256[] calldata windowIds, bool enabled) external onlyOwner {
         for (uint256 i = 0; i < windowIds.length; i++) {
             targetWindows[windowIds[i]] = enabled;
@@ -150,20 +162,17 @@ contract LessBounty is Ownable, ReentrancyGuard {
         emit Withdrawn(msg.sender, toWithdraw);
     }
 
-    /// @notice Withdraw an NFT from the contract
-    /// @param tokenId The token ID to withdraw
-    function withdrawNFT(uint256 tokenId) external onlyOwner {
-        ERC721(address(less)).safeTransferFrom(address(this), msg.sender, tokenId);
-        emit NFTWithdrawn(msg.sender, tokenId);
+    /// @notice Rescue accidentally sent ERC20 tokens
+    function rescueERC20(address token, uint256 amount) external onlyOwner {
+        uint256 balance = SafeTransferLib.balanceOf(token, address(this));
+        uint256 toRescue = amount == 0 ? balance : amount;
+        SafeTransferLib.safeTransfer(token, msg.sender, toRescue);
     }
 
-    /// @notice Withdraw multiple NFTs from the contract
-    /// @param tokenIds Array of token IDs to withdraw
-    function withdrawNFTs(uint256[] calldata tokenIds) external onlyOwner {
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            ERC721(address(less)).safeTransferFrom(address(this), msg.sender, tokenIds[i]);
-            emit NFTWithdrawn(msg.sender, tokenIds[i]);
-        }
+    /// @notice Rescue accidentally sent ERC721 tokens (cannot rescue LESS tokens)
+    function rescueERC721(address token, uint256 tokenId) external onlyOwner {
+        if (token == address(less)) revert CannotRescueLess();
+        ERC721(token).transferFrom(address(this), msg.sender, tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -171,7 +180,7 @@ contract LessBounty is Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Execute the bounty for the current window
-    /// @dev Anyone can call this. Executor receives the incentive. NFTs sent to bounty owner.
+    /// @dev Anyone can call this. Executor receives fixed reward. NFTs sent to bounty owner.
     function execute() external nonReentrant {
         if (paused) revert BountyPaused();
         if (mintsPerWindow == 0) revert InvalidConfig();
@@ -181,9 +190,9 @@ contract LessBounty is Ownable, ReentrancyGuard {
         if (windowMinted[windowId]) revert WindowAlreadyMinted();
         if (specificWindowsOnly && !targetWindows[windowId]) revert WindowNotTargeted();
 
-        // Calculate cost
+        // Calculate total cost
         uint256 mintCost = less.getMintCost(address(this), mintsPerWindow);
-        uint256 totalCost = mintCost + incentivePerWindow;
+        uint256 totalCost = mintCost + executorReward;
         if (address(this).balance < totalCost) revert InsufficientFunds();
 
         // Mark window as minted before external calls
@@ -201,12 +210,12 @@ contract LessBounty is Ownable, ReentrancyGuard {
             ERC721(address(less)).transferFrom(address(this), bountyOwner, startTokenId + i);
         }
 
-        // Pay executor incentive
-        if (incentivePerWindow > 0) {
-            SafeTransferLib.safeTransferETH(msg.sender, incentivePerWindow);
+        // Pay executor reward
+        if (executorReward > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, executorReward);
         }
 
-        emit BountyExecuted(msg.sender, windowId, mintsPerWindow, incentivePerWindow);
+        emit BountyExecuted(msg.sender, windowId, mintsPerWindow, executorReward);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -226,7 +235,7 @@ contract LessBounty is Ownable, ReentrancyGuard {
         if (specificWindowsOnly && !targetWindows[windowId]) return (false, "Window not targeted");
 
         uint256 mintCost = less.getMintCost(address(this), mintsPerWindow);
-        uint256 totalCost = mintCost + incentivePerWindow;
+        uint256 totalCost = mintCost + executorReward;
         if (address(this).balance < totalCost) return (false, "Insufficient funds");
 
         return (true, "");
@@ -242,7 +251,7 @@ contract LessBounty is Ownable, ReentrancyGuard {
         bool windowTargeted,
         bool canClaim,
         uint256 mintCost,
-        uint256 incentive,
+        uint256 reward,
         uint256 totalCost,
         uint256 balance,
         uint256 configuredMintsPerWindow
@@ -255,8 +264,8 @@ contract LessBounty is Ownable, ReentrancyGuard {
         windowTargeted = !specificWindowsOnly || targetWindows[currentWindowId];
 
         mintCost = less.getMintCost(address(this), mintsPerWindow);
-        incentive = incentivePerWindow;
-        totalCost = mintCost + incentive;
+        reward = executorReward;
+        totalCost = mintCost + reward;
         balance = address(this).balance;
         configuredMintsPerWindow = mintsPerWindow;
 
@@ -265,12 +274,12 @@ contract LessBounty is Ownable, ReentrancyGuard {
 
     /// @notice Get the cost to execute for the current window
     /// @return mintCost Cost of minting
-    /// @return incentive Incentive for executor
-    /// @return total Total cost (mintCost + incentive)
-    function getExecutionCost() external view returns (uint256 mintCost, uint256 incentive, uint256 total) {
+    /// @return reward Fixed reward for executor
+    /// @return total Total cost (mintCost + reward)
+    function getExecutionCost() external view returns (uint256 mintCost, uint256 reward, uint256 total) {
         mintCost = less.getMintCost(address(this), mintsPerWindow);
-        incentive = incentivePerWindow;
-        total = mintCost + incentive;
+        reward = executorReward;
+        total = mintCost + reward;
     }
 
     /// @notice Get the current balance available for bounties
@@ -279,7 +288,6 @@ contract LessBounty is Ownable, ReentrancyGuard {
     }
 
     /// @notice Check if a specific window is targeted
-    /// @param windowId The window ID to check
     function isWindowTargeted(uint256 windowId) external view returns (bool) {
         return !specificWindowsOnly || targetWindows[windowId];
     }

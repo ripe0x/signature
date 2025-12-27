@@ -65,8 +65,11 @@ TWITTER_ACCESS_TOKEN_SECRET=
 IMAGE_API_URL=https://fold-image-api.fly.dev
 
 # $LESS token address (mainnet) - for burn data in tweets
-# TODO: Update when real token is deployed
-LESS_TOKEN_ADDRESS=0x32f223e5c09878823934a8116f289bae2b657b8e
+LESS_TOKEN_ADDRESS=0x9C2CA573009F181EAc634C4d6e44A0977C24f335
+
+# Neynar API key (optional) - for Farcaster Twitter handle lookups
+# Get a free key at https://neynar.com
+NEYNAR_API_KEY=
 ```
 
 ## Fly.io Deployment

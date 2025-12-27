@@ -7,6 +7,7 @@ import { useTokenStats } from "@/hooks/useTokenStats";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
+import { BountyList } from "@/components/bounties/BountyList";
 import { CONTRACTS, LESS_NFT_ABI } from "@/lib/contracts";
 import {
   formatCountdown,
@@ -598,6 +599,11 @@ export function MintWindow() {
               </a>
             </div>
           </div>
+
+          {/* Open bounties */}
+          <div className="pt-6">
+            <BountyList windowId={windowId} isWindowActive={true} />
+          </div>
         </div>
       </div>
     );
@@ -701,6 +707,11 @@ export function MintWindow() {
                 view contract →
               </a>
             </div>
+          </div>
+
+          {/* Open bounties - window ready to open */}
+          <div className="pt-6">
+            <BountyList windowId={nextWindowId} isWindowActive={false} />
           </div>
         </div>
 
@@ -808,6 +819,11 @@ export function MintWindow() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Bounties waiting */}
+      <div className="max-w-md mx-auto">
+        <BountyList windowId={windowCount + 1} isWindowActive={false} />
       </div>
 
       {/* Actions */}

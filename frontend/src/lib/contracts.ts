@@ -223,3 +223,253 @@ export const STRATEGY_ABI = [
 
 // Dead address for burn tracking
 export const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD" as `0x${string}`;
+
+// Bounty Factory (mainnet)
+export const BOUNTY_FACTORY_ADDRESS = "0x8536a04b2606C9D14Ac1956fFB82Dc988E6e2c0D" as `0x${string}`;
+
+// LessBountyFactory ABI
+export const BOUNTY_FACTORY_ABI = [
+  {
+    name: "less",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "implementation",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "totalBounties",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "getBounty",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "getAllBounties",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address[]" }],
+  },
+  {
+    name: "getBountyStatuses",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "start", type: "uint256" },
+      { name: "count", type: "uint256" },
+    ],
+    outputs: [
+      {
+        type: "tuple[]",
+        components: [
+          { name: "bountyAddress", type: "address" },
+          { name: "owner", type: "address" },
+          { name: "canClaim", type: "bool" },
+          { name: "reward", type: "uint256" },
+          { name: "totalCost", type: "uint256" },
+          { name: "balance", type: "uint256" },
+          { name: "currentWindowId", type: "uint256" },
+          { name: "windowActive", type: "bool" },
+        ],
+      },
+    ],
+  },
+  {
+    name: "createBounty",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "createAndConfigure",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      { name: "mintsPerWindow", type: "uint256" },
+      { name: "executorReward", type: "uint256" },
+    ],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "BountyCreated",
+    type: "event",
+    inputs: [
+      { name: "owner", type: "address", indexed: true },
+      { name: "bounty", type: "address", indexed: true },
+    ],
+  },
+] as const;
+
+// LessBounty ABI (individual bounty contract)
+export const BOUNTY_ABI = [
+  {
+    name: "less",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    name: "mintsPerWindow",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "executorReward",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "paused",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "specificWindowsOnly",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "windowMinted",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "windowId", type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "targetWindows",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "windowId", type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "canExecute",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "canClaim", type: "bool" },
+      { name: "reason", type: "string" },
+    ],
+  },
+  {
+    name: "getBountyStatus",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "isActive", type: "bool" },
+      { name: "isPaused", type: "bool" },
+      { name: "currentWindowId", type: "uint256" },
+      { name: "windowActive", type: "bool" },
+      { name: "windowMintedAlready", type: "bool" },
+      { name: "windowTargeted", type: "bool" },
+      { name: "canClaim", type: "bool" },
+      { name: "mintCost", type: "uint256" },
+      { name: "reward", type: "uint256" },
+      { name: "totalCost", type: "uint256" },
+      { name: "balance", type: "uint256" },
+      { name: "configuredMintsPerWindow", type: "uint256" },
+    ],
+  },
+  {
+    name: "getExecutionCost",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "mintCost", type: "uint256" },
+      { name: "reward", type: "uint256" },
+      { name: "total", type: "uint256" },
+    ],
+  },
+  {
+    name: "execute",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: "configure",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_mintsPerWindow", type: "uint256" },
+      { name: "_executorReward", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "setPaused",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "_paused", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "setSpecificWindowsOnly",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "_enabled", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "setTargetWindow",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "windowId", type: "uint256" },
+      { name: "enabled", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "withdraw",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "BountyExecuted",
+    type: "event",
+    inputs: [
+      { name: "executor", type: "address", indexed: true },
+      { name: "windowId", type: "uint256", indexed: false },
+      { name: "quantity", type: "uint256", indexed: false },
+      { name: "reward", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
