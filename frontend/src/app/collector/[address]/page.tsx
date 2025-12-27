@@ -59,7 +59,7 @@ function WindowProgress({
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           <Skeleton className="h-4 w-32 mb-8" />
@@ -107,7 +107,7 @@ export default function CollectorPage() {
 
   if (error || !collector) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto">
             <Link
@@ -147,7 +147,7 @@ export default function CollectorPage() {
   );
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Back link */}

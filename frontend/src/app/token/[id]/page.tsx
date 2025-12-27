@@ -123,7 +123,7 @@ export default function TokenPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -142,7 +142,7 @@ export default function TokenPage() {
 
   if (error || !id) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto text-center py-20">
             <p className="text-muted">token not found</p>
@@ -159,7 +159,7 @@ export default function TokenPage() {
   }
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Back link */}

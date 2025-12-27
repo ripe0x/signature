@@ -13,7 +13,7 @@ interface WindowPageProps {
 
 function WindowSkeleton() {
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-12">
@@ -37,7 +37,7 @@ function WindowSkeleton() {
 
 function WindowNotFound({ windowId }: { windowId: number }) {
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           <Link
@@ -83,7 +83,7 @@ function WindowCollection({ windowId }: { windowId: number }) {
   }
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Back navigation */}
@@ -151,7 +151,7 @@ export default function WindowPage({ params }: WindowPageProps) {
 
   if (IS_PRE_LAUNCH) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto text-center py-20">
             <h1 className="text-2xl mb-4">coming soon</h1>

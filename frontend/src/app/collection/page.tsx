@@ -22,7 +22,7 @@ interface WindowGroup {
 
 function PreLaunchCollection() {
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -138,7 +138,7 @@ function LiveCollection() {
 
   if (isLoading && tokens.length === 0) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-7xl mx-auto">
             <div className="mb-12">
@@ -160,7 +160,7 @@ function LiveCollection() {
   }
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

@@ -33,7 +33,7 @@ export default function AboutPage() {
   }, []);
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12 md:py-20">
         <div className="max-w-5xl mx-auto space-y-16">
           <div className="max-w-2xl">
@@ -148,20 +148,28 @@ export default function AboutPage() {
           <div className="max-w-2xl space-y-16">
             <section className="space-y-4">
               <h2 className="text-lg">$LESS</h2>
-              <p className="text-sm leading-relaxed text-muted">
-                underneath this project is a{" "}
+              <div className="text-sm leading-relaxed text-muted space-y-4">
+                <p>
+                  underneath this project is a{" "}
+                  <Link
+                    href="https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted hover:text-foreground transition-colors underline hover:no-underline"
+                  >
+                    TokenWorks recursive strategy token
+                  </Link>
+                  . every trade on its uniswap pool pushes a little eth into a
+                  contract. over time that pressure is used to buy and burn the
+                  token itself.
+                </p>
                 <Link
-                  href="https://www.nftstrategy.fun/strategies/0x9c2ca573009f181eac634c4d6e44a0977c24f335"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted hover:text-foreground transition-colors underline hover:no-underline"
+                  href="/token"
+                  className="inline-block text-muted hover:text-foreground transition-colors"
                 >
-                  TokenWorks recursive strategy token
+                  view token stats and trade →
                 </Link>
-                . every trade on its uniswap pool pushes a little eth into a
-                contract. over time that pressure is used to buy and burn the
-                token itself.
-              </p>
+              </div>
             </section>
 
             <section className="space-y-4">

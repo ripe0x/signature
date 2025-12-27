@@ -7,6 +7,11 @@ import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
 import { useEffect, useState, useCallback } from "react";
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
+import { formatEther } from "viem";
+import { generateUnicodeProgressBar } from "@/lib/utils";
+
+// Initial supply for burn calculations (1 billion with 18 decimals)
+const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
 
 // Generate random seed and fold count
 function generateRandom() {
@@ -36,6 +41,82 @@ const CGA_PALETTE = [
   "#FFFFFF",
 ];
 
+// Token Stats Widget for Hero
+function TokenStatsWidget() {
+  const {
+    tokenPrice,
+    burnedBalance,
+    buybackBalance,
+    minEthForWindow,
+    windowCount,
+  } = useTokenStats();
+
+  const burnedPercent =
+    burnedBalance > 0
+      ? Number((burnedBalance * BigInt(10000)) / INITIAL_SUPPLY) / 100
+      : 0;
+
+  const buybackEth =
+    IS_TOKEN_LIVE && buybackBalance > 0
+      ? parseFloat(formatEther(buybackBalance))
+      : 0;
+
+  const thresholdEth =
+    minEthForWindow > 0 ? parseFloat(formatEther(minEthForWindow)) : 0.25;
+
+  const thresholdPercent = Math.min((buybackEth / thresholdEth) * 100, 100);
+
+  const formattedPrice =
+    tokenPrice !== null
+      ? tokenPrice < 0.0001
+        ? tokenPrice.toExponential(2)
+        : tokenPrice < 1
+        ? tokenPrice.toFixed(6)
+        : tokenPrice.toFixed(4)
+      : "—";
+
+  if (!IS_TOKEN_LIVE) return null;
+
+  return (
+    <div className="border border-border p-4 space-y-3">
+      {/* <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">$LESS</span>
+        <Link href="/token" className="text-xs text-muted hover:text-foreground transition-colors">
+          view details →
+        </Link>
+      </div> */}
+      {/* <div className="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div className="text-lg font-mono tabular-nums">${formattedPrice}</div>
+          <div className="text-xs text-muted">price</div>
+        </div>
+        <div>
+          <div className="text-lg font-mono tabular-nums">{burnedPercent.toFixed(1)}%</div>
+          <div className="text-xs text-muted">burned</div>
+        </div>
+        <div>
+          <div className="text-lg font-mono tabular-nums">{windowCount}</div>
+          <div className="text-xs text-muted">burns</div>
+        </div>
+      </div> */}
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs text-muted">
+          <span>
+            {buybackEth.toFixed(3)} / {thresholdEth} ETH
+          </span>
+          <span>{thresholdPercent.toFixed(0)}%</span>
+        </div>
+        <div className="font-mono text-xs">
+          {generateUnicodeProgressBar(thresholdPercent, 30)}
+        </div>
+        <div className="text-[10px] text-muted/70">
+          at threshold → token burns → mint window opens
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main landing page (used for both pre-launch and NFT live states)
 function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
   const [sample, setSample] = useState({ seed: 42069, foldCount: 100 });
@@ -59,7 +140,7 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
   }, []);
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12 md:py-20">
         <div className="max-w-5xl mx-auto space-y-20">
           {/* Hero */}
@@ -77,21 +158,30 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
                   supply goes down. art comes out.
                 </p>
               </div>
+
+              {/* Token Stats Widget */}
+              <TokenStatsWidget />
+
+              {/* Primary CTAs - Trade $LESS is now more prominent */}
               <div className="flex flex-wrap gap-3 pt-2">
                 <a
                   href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Button size="lg">trade $LESS</Button>
+                  <Button size="lg" className="text-base px-8">
+                    trade $LESS
+                  </Button>
                 </a>
                 {nftLive ? (
                   <>
                     <Link href="/mint">
-                      <Button size="lg">mint NFT</Button>
+                      <Button variant="outline" size="lg">
+                        mint NFT
+                      </Button>
                     </Link>
                     <Link href="/collection">
-                      <Button variant="outline" size="lg">
+                      <Button variant="ghost" size="lg">
                         browse collection
                       </Button>
                     </Link>
@@ -190,6 +280,14 @@ function TokenLiveLanding({ nftLive = false }: { nftLive?: boolean }) {
                   ? "the token and the NFT collection are live now."
                   : "the token is live now. the NFT collection will launch soon."}
               </p>
+              <div className="pt-2">
+                <Link
+                  href="/token"
+                  className="text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  learn more about $LESS →
+                </Link>
+              </div>
             </div>
           </section>
 
@@ -298,7 +396,7 @@ function StandardHome() {
   }, []);
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       {/* Hero Section */}
       <section className="px-6 md:px-8 py-12 md:py-20">
         <div className="max-w-7xl mx-auto">

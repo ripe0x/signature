@@ -48,7 +48,7 @@ export default function AdminPage() {
   // Not connected
   if (!isConnected) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-4xl mx-auto flex flex-col items-center justify-center gap-6 py-20">
             <p className="text-muted">connect wallet to access admin panel</p>
@@ -62,7 +62,7 @@ export default function AdminPage() {
   // Not admin
   if (!isAdmin) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-4xl mx-auto flex flex-col items-center justify-center gap-4 py-20">
             <p className="text-muted">access denied</p>
@@ -74,7 +74,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Header */}

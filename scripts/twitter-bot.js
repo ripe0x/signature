@@ -84,9 +84,11 @@ const testReminderMode = args.includes("--test-reminder");
 const testWindowReadyMode = args.includes("--test-window-ready");
 const testBalanceProgressMode = args.includes("--test-balance-progress");
 const testSaleMode = args.includes("--test-sale");
-const previewSaleTokenId = args
+const previewSaleTokenIds = args
   .find((arg) => arg.startsWith("--preview-sale="))
-  ?.split("=")[1]; // Preview a real sale tweet for a specific token ID
+  ?.split("=")[1]
+  ?.split(",")
+  .map((id) => id.trim()); // Preview a real sale tweet for one or more token IDs (comma-separated)
 const verifyMode = args.includes("--verify");
 const postTestTweet = args.includes("--post-test");
 const rescanMode = args.includes("--rescan"); // Force rescan from lookback, ignoring saved lastBlock
@@ -1333,8 +1335,10 @@ async function runTestSaleMode() {
 }
 
 // Preview a real sale from OpenSea - fetches actual sale data and shows tweet preview
-async function runPreviewSaleMode(tokenId) {
-  logInfo(`Running in PREVIEW SALE MODE - fetching real sale data for token #${tokenId}`);
+// Supports multiple token IDs (comma-separated) for grouped sales
+async function runPreviewSaleMode(tokenIds) {
+  const tokenIdList = Array.isArray(tokenIds) ? tokenIds : [tokenIds];
+  logInfo(`Running in PREVIEW SALE MODE - fetching real sale data for token(s) #${tokenIdList.join(", #")}`);
   console.log();
 
   try {
@@ -1344,7 +1348,7 @@ async function runPreviewSaleMode(tokenId) {
       process.exit(1);
     }
 
-    // Fetch sales for this specific token from OpenSea
+    // Fetch sales from OpenSea
     const collectionSlug = "say-less";
     const url = `https://api.opensea.io/api/v2/events/collection/${collectionSlug}?event_type=sale&limit=50`;
 
@@ -1365,27 +1369,39 @@ async function runPreviewSaleMode(tokenId) {
     const data = await response.json();
     const events = data.asset_events || [];
 
-    // Find the most recent sale for this token
-    const sale = events.find(e => e.nft?.identifier === tokenId);
-
-    if (!sale) {
-      logError(`No sale found for token #${tokenId} in recent sales`);
-      logInfo(`Available token IDs in recent sales: ${events.map(e => e.nft?.identifier).join(", ")}`);
-      process.exit(1);
+    // Find sales for all requested tokens
+    const sales = [];
+    for (const tokenId of tokenIdList) {
+      const sale = events.find(e => e.nft?.identifier === tokenId);
+      if (!sale) {
+        logError(`No sale found for token #${tokenId} in recent sales`);
+        logInfo(`Available token IDs in recent sales: ${events.map(e => e.nft?.identifier).join(", ")}`);
+        process.exit(1);
+      }
+      sales.push({ tokenId, sale });
     }
 
-    const buyer = sale.buyer;
-    const priceWei = BigInt(sale.payment?.quantity || "0");
-    const priceEth = Number(formatEther(priceWei)).toFixed(4);
-    const txHash = sale.transaction;
-    const timestamp = new Date(sale.event_timestamp * 1000).toISOString();
+    // Verify all sales are from the same buyer
+    const buyer = sales[0].sale.buyer;
+    for (const { tokenId, sale } of sales) {
+      if (sale.buyer.toLowerCase() !== buyer.toLowerCase()) {
+        logError(`Token #${tokenId} was bought by ${sale.buyer}, not ${buyer}`);
+        logError("All tokens must be from the same buyer for grouped sales");
+        process.exit(1);
+      }
+    }
 
-    logInfo(`Found sale:`);
-    logInfo(`  Token ID: ${tokenId}`);
-    logInfo(`  Buyer: ${buyer}`);
-    logInfo(`  Price: ${priceEth} ETH`);
-    logInfo(`  Tx: ${txHash}`);
-    logInfo(`  Time: ${timestamp}`);
+    // Calculate total price
+    let totalPriceWei = 0n;
+    for (const { tokenId, sale } of sales) {
+      const priceWei = BigInt(sale.payment?.quantity || "0");
+      totalPriceWei += priceWei;
+      const priceEth = Number(formatEther(priceWei)).toFixed(4);
+      const timestamp = new Date(sale.event_timestamp * 1000).toISOString();
+      logInfo(`Found sale: Token #${tokenId} - ${priceEth} ETH - ${timestamp}`);
+    }
+    const totalPriceEth = Number(formatEther(totalPriceWei)).toFixed(4);
+    logInfo(`Total: ${totalPriceEth} ETH for ${sales.length} token(s)`);
     console.log();
 
     // Resolve display name (Twitter handle > ENS > truncated address)
@@ -1404,20 +1420,29 @@ async function runPreviewSaleMode(tokenId) {
     // Get collector stats for the buyer
     const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
 
-    // Fetch image for token
-    const imageBuffer = await fetchImage(parseInt(tokenId, 10));
-    if (!imageBuffer) {
-      logWarn("Could not fetch image for token - tweet will not have image");
+    // Fetch images for all tokens (up to 4 for Twitter)
+    const imagesToFetch = tokenIdList.slice(0, 4);
+    const imageBuffers = [];
+    for (const tokenId of imagesToFetch) {
+      const imageBuffer = await fetchImage(parseInt(tokenId, 10));
+      if (imageBuffer) {
+        imageBuffers.push(imageBuffer);
+      }
     }
 
-    // Format and display tweet with collector stats
-    const tweetMessage = formatSaleTweet([parseInt(tokenId, 10)], buyerDisplay, priceEth, collectorStats);
+    if (imageBuffers.length === 0) {
+      logWarn("Could not fetch any images - tweet will not have images");
+    }
+
+    // Format tweet with all token IDs
+    const sortedTokenIds = tokenIdList.map(id => parseInt(id, 10)).sort((a, b) => a - b);
+    const tweetMessage = formatSaleTweet(sortedTokenIds, buyerDisplay, totalPriceEth, collectorStats);
 
     // Initialize Twitter client if not in dry-run mode
     const twitterClient = dryRun ? null : initTwitterClient();
 
-    if (imageBuffer) {
-      await postTweetWithMultipleImages(twitterClient, tweetMessage, [imageBuffer]);
+    if (imageBuffers.length > 0) {
+      await postTweetWithMultipleImages(twitterClient, tweetMessage, imageBuffers);
     } else {
       await postTweet(twitterClient, tweetMessage);
     }
@@ -2246,7 +2271,12 @@ async function resolveTwitterHandle(address) {
     }
 
     if (handle) {
-      // Strip @ if present and log
+      // Extract handle from URL if needed (e.g., https://twitter.com/username or https://x.com/username)
+      const urlMatch = handle.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/i);
+      if (urlMatch) {
+        handle = urlMatch[1];
+      }
+      // Strip @ if present
       handle = handle.replace(/^@/, "");
       logInfo(`Resolved Twitter from ENS: ${address} -> @${handle}`);
     }
@@ -3098,8 +3128,8 @@ async function runBot() {
   }
 
   // Handle preview sale mode (show real sale data from OpenSea)
-  if (previewSaleTokenId) {
-    await runPreviewSaleMode(previewSaleTokenId);
+  if (previewSaleTokenIds) {
+    await runPreviewSaleMode(previewSaleTokenIds);
     return;
   }
 
@@ -3904,7 +3934,7 @@ function startAdminServer() {
 }
 
 // Start admin server (runs alongside bot, but not for test/preview modes)
-const isTestOrPreviewMode = testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode || testSaleMode || previewSaleTokenId || verifyMode;
+const isTestOrPreviewMode = testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode || testSaleMode || previewSaleTokenIds || verifyMode;
 const adminServer = isTestOrPreviewMode ? null : startAdminServer();
 
 // Run the bot

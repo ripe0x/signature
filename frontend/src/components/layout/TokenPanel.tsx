@@ -211,16 +211,6 @@ export function TokenPanel() {
               </div>
             </div>
 
-            {/* Holders */}
-            {IS_TOKEN_LIVE && holderCount !== null && (
-              <div>
-                <div className="text-xs text-muted mb-1">holders</div>
-                <div className="text-lg tabular-nums">
-                  {holderCount.toLocaleString()}
-                </div>
-              </div>
-            )}
-
             {/* Burns / Windows */}
             <div className={IS_PRE_LAUNCH ? "opacity-40" : ""}>
               <div className="text-xs text-muted mb-1">burn cycles</div>

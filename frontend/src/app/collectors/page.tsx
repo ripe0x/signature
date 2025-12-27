@@ -92,7 +92,7 @@ function CollectorRow({
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-2xl mx-auto">
           <div className="mb-12">
@@ -202,7 +202,7 @@ export default function CollectorsPage() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen pt-20">
+      <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
           <div className="max-w-4xl mx-auto text-center py-20">
             <p className="text-muted mb-4">
@@ -222,7 +222,7 @@ export default function CollectorsPage() {
   };
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-2xl mx-auto">
           {/* Header */}

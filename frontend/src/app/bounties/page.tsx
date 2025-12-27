@@ -750,7 +750,7 @@ export default function BountiesPage() {
   }, [bounties]);
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-20 lg:pt-28">
       <div className="px-6 md:px-8 py-12">
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Header */}

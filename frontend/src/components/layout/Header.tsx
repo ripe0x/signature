@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE } from '@/lib/contracts';
+import { useTokenStats } from '@/hooks/useTokenStats';
+import { formatEther } from 'viem';
+
+// Initial supply for burn calculations (1 billion with 18 decimals)
+const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
 
 // Token-only state: token is live but NFT isn't deployed yet
 const IS_TOKEN_ONLY = IS_TOKEN_LIVE && IS_PRE_LAUNCH;
@@ -33,6 +38,55 @@ function MenuIcon({ open }: { open: boolean }) {
         </>
       )}
     </svg>
+  );
+}
+
+// Mini token stats bar component
+function TokenStatsBar() {
+  const { tokenPrice, burnedBalance, buybackBalance, minEthForWindow } = useTokenStats();
+
+  const burnedPercent =
+    burnedBalance > 0
+      ? Number((burnedBalance * BigInt(10000)) / INITIAL_SUPPLY) / 100
+      : 0;
+
+  const buybackEth =
+    IS_TOKEN_LIVE && buybackBalance > 0
+      ? parseFloat(formatEther(buybackBalance))
+      : 0;
+
+  const thresholdEth =
+    minEthForWindow > 0 ? parseFloat(formatEther(minEthForWindow)) : 0.25;
+
+  const thresholdPercent = Math.min((buybackEth / thresholdEth) * 100, 100);
+
+  const formattedPrice =
+    tokenPrice !== null
+      ? tokenPrice < 0.0001
+        ? tokenPrice.toExponential(2)
+        : tokenPrice < 1
+        ? tokenPrice.toFixed(6)
+        : tokenPrice.toFixed(4)
+      : '—';
+
+  if (!IS_TOKEN_LIVE) return null;
+
+  return (
+    <div className="hidden lg:flex items-center gap-4 text-xs text-muted font-mono">
+      <span className="text-foreground font-medium">$LESS</span>
+      <span className="opacity-30">|</span>
+      <span>${formattedPrice}</span>
+      <span className="opacity-30">|</span>
+      <span>{burnedPercent.toFixed(1)}% burned</span>
+      <span className="opacity-30">|</span>
+      <span title={`${buybackEth.toFixed(4)} / ${thresholdEth} ETH to next window`}>
+        {thresholdPercent.toFixed(0)}% to window
+      </span>
+      <span className="opacity-30">|</span>
+      <Link href="/token" className="hover:text-foreground transition-colors">
+        more →
+      </Link>
+    </div>
   );
 }
 
@@ -66,6 +120,13 @@ export function Header() {
       >
         MINT
       </Link>
+      <Link
+        href="/about"
+        className="text-sm text-muted hover:text-foreground transition-colors"
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        about
+      </Link>
       {!IS_PRE_LAUNCH && (
         <Link
           href="/collection"
@@ -75,13 +136,6 @@ export function Header() {
           collection
         </Link>
       )}
-      <Link
-        href="/about"
-        className="text-sm text-muted hover:text-foreground transition-colors"
-        onClick={() => setMobileMenuOpen(false)}
-      >
-        about
-      </Link>
       {!IS_PRE_LAUNCH && (
         <Link
           href="/collectors"
@@ -96,8 +150,17 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-6 py-4 md:px-8">
+      {/* Token stats ticker bar - desktop only */}
+      {IS_TOKEN_LIVE && (
+        <div className="hidden lg:block fixed top-0 left-0 right-0 z-50 bg-foreground/5 backdrop-blur-sm border-b border-border/50">
+          <div className="flex items-center justify-center px-6 py-1.5">
+            <TokenStatsBar />
+          </div>
+        </div>
+      )}
+
+      <header className={`fixed left-0 right-0 z-50 bg-background/80 backdrop-blur-sm top-0 ${IS_TOKEN_LIVE ? 'lg:top-[30px]' : ''}`}>
+        <div className="flex items-center justify-between px-6 py-3 md:px-8">
           <div className="flex flex-col">
             <Link
               href="/"
@@ -158,6 +221,13 @@ export function Header() {
             >
               MINT
             </Link>
+            <Link
+              href="/about"
+              className="text-muted hover:text-foreground transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              about
+            </Link>
             {!IS_PRE_LAUNCH && (
               <Link
                 href="/collection"
@@ -167,13 +237,6 @@ export function Header() {
                 collection
               </Link>
             )}
-            <Link
-              href="/about"
-              className="text-muted hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              about
-            </Link>
             {!IS_PRE_LAUNCH && (
               <Link
                 href="/collectors"
