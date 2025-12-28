@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE } from '@/lib/contracts';
 import { useTokenStats } from '@/hooks/useTokenStats';
+import { useMintWindow } from '@/hooks/useMintWindow';
 import { formatEther } from 'viem';
 
 // Initial supply for burn calculations (1 billion with 18 decimals)
@@ -93,6 +94,7 @@ function TokenStatsBar() {
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { isActive: isMintActive } = useMintWindow();
 
   // Close menu on route change
   useEffect(() => {
@@ -115,10 +117,20 @@ export function Header() {
     <>
       <Link
         href="/mint"
-        className="text-sm text-muted hover:text-foreground transition-colors"
+        className={`text-sm transition-colors flex items-center gap-1.5 ${
+          isMintActive
+            ? 'text-foreground font-medium'
+            : 'text-muted hover:text-foreground'
+        }`}
         onClick={() => setMobileMenuOpen(false)}
       >
+        {isMintActive && (
+          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+        )}
         MINT
+        {isMintActive && (
+          <span className="text-[10px] text-green-600 font-normal">LIVE</span>
+        )}
       </Link>
       <Link
         href="/about"
@@ -216,10 +228,20 @@ export function Header() {
           <nav className="flex flex-col items-center justify-center h-full gap-8 text-lg">
             <Link
               href="/mint"
-              className="text-muted hover:text-foreground transition-colors"
+              className={`transition-colors flex items-center gap-2 ${
+                isMintActive
+                  ? 'text-foreground font-medium'
+                  : 'text-muted hover:text-foreground'
+              }`}
               onClick={() => setMobileMenuOpen(false)}
             >
+              {isMintActive && (
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
               MINT
+              {isMintActive && (
+                <span className="text-sm text-green-600 font-normal">LIVE</span>
+              )}
             </Link>
             <Link
               href="/about"

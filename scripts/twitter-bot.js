@@ -2684,7 +2684,7 @@ async function createGridImage(tokenIds) {
 }
 
 // Format window end summary tweet
-function formatWindowEndTweet(windowId, mintCount, tokenIds) {
+function formatWindowEndTweet(windowId, mintCount, tokenIds, progressInfo = null) {
   const tokenRange =
     tokenIds.length > 0
       ? tokenIds.length === 1
@@ -2692,10 +2692,24 @@ function formatWindowEndTweet(windowId, mintCount, tokenIds) {
         : `tokens ${tokenIds[0]}-${tokenIds[tokenIds.length - 1]}`
       : "no tokens";
 
+  let progressLine = "";
+  if (progressInfo) {
+    const { currentBalance, minEthForWindow, progressPercent, nextWindowId } = progressInfo;
+    const balanceEth = parseFloat(formatEther(currentBalance)).toFixed(4);
+    const thresholdEth = parseFloat(formatEther(minEthForWindow)).toFixed(2);
+
+    // Create progress bar
+    const barLength = 15;
+    const filledBlocks = Math.floor((progressPercent / 100) * barLength);
+    let progressBar = "▓".repeat(filledBlocks) + "░".repeat(barLength - filledBlocks);
+
+    progressLine = `\n\nprogress to window ${nextWindowId}:\n${progressBar} ${progressPercent.toFixed(0)}%`;
+  }
+
   return `LESS mint window ${windowId} closed
 
 ${mintCount} pieces minted
-${tokenRange}
+${tokenRange}${progressLine}
 
 ${formatUrlForTweet(`${BASE_URL}/window/${windowId}`)}`;
 }
@@ -3034,11 +3048,57 @@ async function processEndedWindowsCheck(
       // Continue without image
     }
 
+    // Fetch progress towards next window
+    let progressInfo = null;
+    try {
+      const [strategyAddress, minEthForWindow] = await Promise.all([
+        client.readContract({
+          address: contractAddress,
+          abi: abi,
+          functionName: "strategy",
+        }),
+        client.readContract({
+          address: contractAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "minEthForWindow",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "minEthForWindow",
+        }),
+      ]);
+
+      if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
+        const currentBalance = await client.getBalance({
+          address: strategyAddress,
+        });
+        const progressPercent = Math.min(
+          100,
+          Number((currentBalance * 100n) / minEthForWindow)
+        );
+        progressInfo = {
+          currentBalance,
+          minEthForWindow,
+          progressPercent,
+          nextWindowId: currentWindowId + 1,
+        };
+        logInfo(`Progress towards window ${currentWindowId + 1}: ${progressPercent.toFixed(1)}%`);
+      }
+    } catch (error) {
+      logError(`Failed to fetch progress info: ${error.message}`);
+      // Continue without progress info
+    }
+
     // Format and post tweet
     const tweetMessage = formatWindowEndTweet(
       currentWindowId,
       tokenIds.length,
-      tokenIds
+      tokenIds,
+      progressInfo
     );
 
     logInfo("Posting window end summary tweet...");

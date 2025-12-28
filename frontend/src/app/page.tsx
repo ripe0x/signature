@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
 import { formatEther } from "viem";
 import { generateUnicodeProgressBar } from "@/lib/utils";
@@ -51,6 +51,26 @@ function TokenStatsWidget() {
     windowCount,
   } = useTokenStats();
 
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barLength, setBarLength] = useState(30);
+
+  // Calculate bar length based on container width
+  useEffect(() => {
+    const updateBarLength = () => {
+      if (barRef.current) {
+        // Approximate character width for text-xs monospace (~7.2px per char)
+        const charWidth = 7.2;
+        const containerWidth = barRef.current.offsetWidth;
+        const chars = Math.floor(containerWidth / charWidth);
+        setBarLength(Math.max(20, chars));
+      }
+    };
+
+    updateBarLength();
+    window.addEventListener("resize", updateBarLength);
+    return () => window.removeEventListener("resize", updateBarLength);
+  }, []);
+
   const burnedPercent =
     burnedBalance > 0
       ? Number((burnedBalance * BigInt(10000)) / INITIAL_SUPPLY) / 100
@@ -79,26 +99,6 @@ function TokenStatsWidget() {
 
   return (
     <div className="border border-border p-4 space-y-3">
-      {/* <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">$LESS</span>
-        <Link href="/token" className="text-xs text-muted hover:text-foreground transition-colors">
-          view details →
-        </Link>
-      </div> */}
-      {/* <div className="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <div className="text-lg font-mono tabular-nums">${formattedPrice}</div>
-          <div className="text-xs text-muted">price</div>
-        </div>
-        <div>
-          <div className="text-lg font-mono tabular-nums">{burnedPercent.toFixed(1)}%</div>
-          <div className="text-xs text-muted">burned</div>
-        </div>
-        <div>
-          <div className="text-lg font-mono tabular-nums">{windowCount}</div>
-          <div className="text-xs text-muted">burns</div>
-        </div>
-      </div> */}
       <div className="space-y-1.5">
         <div className="flex justify-between text-xs text-muted">
           <span>
@@ -106,8 +106,8 @@ function TokenStatsWidget() {
           </span>
           <span>{thresholdPercent.toFixed(0)}%</span>
         </div>
-        <div className="font-mono text-xs">
-          {generateUnicodeProgressBar(thresholdPercent, 30)}
+        <div ref={barRef} className="font-mono text-xs overflow-hidden">
+          {generateUnicodeProgressBar(thresholdPercent, barLength)}
         </div>
         <div className="text-[10px] text-muted/70">
           at threshold → token burns → mint window opens
