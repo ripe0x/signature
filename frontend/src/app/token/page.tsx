@@ -42,8 +42,8 @@ export default function TokenPage() {
       ? tokenPrice < 0.0001
         ? tokenPrice.toExponential(2)
         : tokenPrice < 1
-        ? tokenPrice.toFixed(6)
-        : tokenPrice.toFixed(4)
+        ? tokenPrice.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+        : tokenPrice.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
       : "—";
 
   const burnedTokens =
@@ -106,31 +106,31 @@ export default function TokenPage() {
           <section className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">price</div>
-              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+              <div className="text-lg md:text-xl font-mono tabular-nums">
                 ${formattedPrice}
               </div>
             </div>
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">market cap</div>
-              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+              <div className="text-lg md:text-xl font-mono tabular-nums">
                 {formattedMarketCap}
               </div>
             </div>
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">supply burned</div>
-              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+              <div className="text-lg md:text-xl font-mono tabular-nums">
                 {burnedPercent.toFixed(2)}%
               </div>
             </div>
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">burn cycles</div>
-              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+              <div className="text-lg md:text-xl font-mono tabular-nums">
                 {windowCount}
               </div>
             </div>
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">NFTs minted</div>
-              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+              <div className="text-lg md:text-xl font-mono tabular-nums">
                 {nftsMinted}
               </div>
             </div>

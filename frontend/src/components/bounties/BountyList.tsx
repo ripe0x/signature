@@ -98,13 +98,19 @@ interface BountyListProps {
 
 export function BountyList({ windowId, isWindowActive, compact = false }: BountyListProps) {
   const [expanded, setExpanded] = useState(false);
-  const { claimableBounties, isLoading, refetch } = useBounties();
+  const { bounties, claimableBounties, isLoading, refetch } = useBounties();
+
+  // For active windows, show claimable bounties
+  // For future windows, show all bounties that have enough balance to fund the next mint
+  const relevantBounties = isWindowActive
+    ? claimableBounties
+    : bounties.filter(b => b.balance >= b.totalCost && b.totalCost > BigInt(0));
 
   if (isLoading) {
     return null;
   }
 
-  if (claimableBounties.length === 0) {
+  if (relevantBounties.length === 0) {
     if (compact) return null;
     return (
       <div className="text-sm text-muted text-center py-4">
@@ -113,15 +119,15 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
     );
   }
 
-  const displayBounties = expanded ? claimableBounties : claimableBounties.slice(0, 3);
-  const hasMore = claimableBounties.length > 3;
+  const displayBounties = expanded ? relevantBounties : relevantBounties.slice(0, 3);
+  const hasMore = relevantBounties.length > 3;
 
-  // Calculate total available
-  const totalReward = claimableBounties.reduce(
-    (sum, b) => sum + b.reward,
+  // Calculate total cost (mint + reward) available
+  const totalCost = relevantBounties.reduce(
+    (sum, b) => sum + b.totalCost,
     BigInt(0)
   );
-  const totalEth = Number(formatEther(totalReward)).toFixed(4);
+  const totalEth = Number(formatEther(totalCost)).toFixed(4);
 
   return (
     <div className="border border-border">
@@ -132,7 +138,7 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
             {isWindowActive ? (
               <>open bounties for window {windowId}</>
             ) : (
-              <>{claimableBounties.length} bounties waiting</>
+              <>{relevantBounties.length} bounties waiting</>
             )}
           </span>
           <span className="text-xs text-muted">{totalEth} ETH total</span>
@@ -156,7 +162,7 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
         >
           {expanded
             ? 'show less'
-            : `+ ${claimableBounties.length - 3} more bounties`}
+            : `+ ${relevantBounties.length - 3} more bounties`}
         </button>
       )}
 
