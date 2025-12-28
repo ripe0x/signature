@@ -159,6 +159,11 @@ function logWarn(message) {
   log(`⚠ ${message}`, "yellow");
 }
 
+// Format ETH value without trailing zeros
+function formatEthValue(value, decimals = 4) {
+  return Number(value).toFixed(decimals).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 // State persistence - tracks processed windows, mints, and last block
 // Clears state automatically if contract address changes
 // Supports RESET_PROCESSED_MINTS and RESET_PROCESSED_WINDOWS env vars to initialize state
@@ -1396,11 +1401,11 @@ async function runPreviewSaleMode(tokenIds) {
     for (const { tokenId, sale } of sales) {
       const priceWei = BigInt(sale.payment?.quantity || "0");
       totalPriceWei += priceWei;
-      const priceEth = Number(formatEther(priceWei)).toFixed(4);
+      const priceEth = formatEthValue(formatEther(priceWei));
       const timestamp = new Date(sale.event_timestamp * 1000).toISOString();
       logInfo(`Found sale: Token #${tokenId} - ${priceEth} ETH - ${timestamp}`);
     }
-    const totalPriceEth = Number(formatEther(totalPriceWei)).toFixed(4);
+    const totalPriceEth = formatEthValue(formatEther(totalPriceWei));
     logInfo(`Total: ${totalPriceEth} ETH for ${sales.length} token(s)`);
     console.log();
 
@@ -2016,7 +2021,7 @@ async function processGroupedSales(
       const paymentAmount = BigInt(sale.payment?.amount || "0");
       totalPrice += paymentAmount;
     }
-    const priceEth = Number(formatEther(totalPrice)).toFixed(4);
+    const priceEth = formatEthValue(formatEther(totalPrice));
 
     logInfo(
       `Detected ${sales.length > 1 ? "multi-token " : ""}sale: token${sales.length > 1 ? "s" : ""} #${tokenIds.join(", #")} for ${priceEth} ETH`
