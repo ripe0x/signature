@@ -54,15 +54,25 @@ function TokenStatsWidget() {
   const barRef = useRef<HTMLDivElement>(null);
   const [barLength, setBarLength] = useState(30);
 
-  // Calculate bar length based on container width
+  // Calculate bar length based on container width by measuring actual character width
   useEffect(() => {
     const updateBarLength = () => {
       if (barRef.current) {
-        // Approximate character width for text-xs monospace (~7.2px per char)
-        const charWidth = 7.2;
+        // Create a temporary element to measure actual character width
+        const measureChar = document.createElement("span");
+        const styles = window.getComputedStyle(barRef.current);
+        measureChar.style.position = "absolute";
+        measureChar.style.visibility = "hidden";
+        measureChar.style.fontFamily = styles.fontFamily;
+        measureChar.style.fontSize = styles.fontSize;
+        measureChar.textContent = "▓";
+        document.body.appendChild(measureChar);
+        const charWidth = measureChar.offsetWidth;
+        document.body.removeChild(measureChar);
+
         const containerWidth = barRef.current.offsetWidth;
         const chars = Math.floor(containerWidth / charWidth);
-        setBarLength(Math.max(20, chars));
+        setBarLength(Math.max(20, Math.min(chars, 80)));
       }
     };
 
@@ -106,7 +116,7 @@ function TokenStatsWidget() {
           </span>
           <span>{thresholdPercent.toFixed(0)}%</span>
         </div>
-        <div ref={barRef} className="font-mono text-xs overflow-hidden">
+        <div ref={barRef} className="font-mono text-xs overflow-hidden whitespace-nowrap">
           {generateUnicodeProgressBar(thresholdPercent, barLength)}
         </div>
         <div className="text-[10px] text-muted/70">

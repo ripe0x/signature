@@ -11,6 +11,11 @@ import { ConnectButton } from '@/components/wallet/ConnectButton';
 import { formatEth, truncateAddress, getAddressUrl, getTxUrl } from '@/lib/utils';
 import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 
+// Format number without trailing zeros
+function formatNum(value: number, decimals = 4): string {
+  return parseFloat(value.toFixed(decimals)).toString();
+}
+
 // Format USD value
 function formatUsd(ethAmount: number, ethPrice: number | null): string {
   if (!ethPrice) return '';
@@ -165,7 +170,7 @@ function CreateBountyForm({ onSuccess, ethPrice, currentWindowId }: { onSuccess?
       {/* Base mint price info */}
       {baseMintPrice > 0 && (
         <div className="text-xs text-muted">
-          current mint price: {baseMintPrice.toFixed(4)} ETH {ethPrice && `(${formatUsd(baseMintPrice, ethPrice)})`} per NFT
+          current mint price: {formatNum(baseMintPrice)} ETH {ethPrice && `(${formatUsd(baseMintPrice, ethPrice)})`} per NFT
         </div>
       )}
 
@@ -240,7 +245,7 @@ function CreateBountyForm({ onSuccess, ethPrice, currentWindowId }: { onSuccess?
       <div className="p-4 bg-foreground/5 border border-border">
         <div className="text-center space-y-1">
           <div className="text-2xl font-medium">
-            {totalPerWindow.toFixed(4)} ETH
+            {formatNum(totalPerWindow)} ETH
             {ethPrice && <span className="text-base text-muted ml-2">({formatUsd(totalPerWindow, ethPrice)})</span>}
           </div>
           <div className="text-sm text-muted">per window for {mintsPerWindow} LESS</div>
@@ -306,16 +311,16 @@ function CreateBountyForm({ onSuccess, ethPrice, currentWindowId }: { onSuccess?
         {mintsPerWindow > 1 && (
           <div className="flex justify-between">
             <span>base mint price</span>
-            <span>{baseMintPrice.toFixed(4)} ETH {ethPrice && `(${formatUsd(baseMintPrice, ethPrice)})`}</span>
+            <span>{formatNum(baseMintPrice)} ETH {ethPrice && `(${formatUsd(baseMintPrice, ethPrice)})`}</span>
           </div>
         )}
         <div className="flex justify-between">
           <span>mint cost ({mintsPerWindow} NFT{mintsPerWindow > 1 ? 's' : ''})</span>
-          <span>{mintCost.toFixed(4)} ETH {ethPrice && `(${formatUsd(mintCost, ethPrice)})`}</span>
+          <span>{formatNum(mintCost)} ETH {ethPrice && `(${formatUsd(mintCost, ethPrice)})`}</span>
         </div>
         <div className="flex justify-between">
           <span>claimer reward per window</span>
-          <span>{claimerReward.toFixed(4)} ETH {ethPrice && `(${formatUsd(claimerReward, ethPrice)})`}</span>
+          <span>{formatNum(claimerReward)} ETH {ethPrice && `(${formatUsd(claimerReward, ethPrice)})`}</span>
         </div>
         {deposit > 0 && windowsCovered > 0 && (
           <div className="flex justify-between pt-1.5 mt-1.5 border-t border-border">
@@ -751,21 +756,27 @@ export default function BountiesPage() {
   }, [bounties]);
 
   // Split bounties into active (can fund next window) and inactive (underfunded)
-  const { activeBounties, inactiveBounties } = useMemo(() => {
+  const { activeBounties, inactiveBounties, totalReservedEth } = useMemo(() => {
     const active: typeof bounties = [];
     const inactive: typeof bounties = [];
+    let reserved = BigInt(0);
 
     for (const bounty of bounties) {
       // Inactive if balance can't cover the next mint
       const canFundNextWindow = bounty.balance >= bounty.totalCost && bounty.totalCost > BigInt(0);
       if (canFundNextWindow) {
         active.push(bounty);
+        reserved += bounty.totalCost;
       } else {
         inactive.push(bounty);
       }
     }
 
-    return { activeBounties: active, inactiveBounties: inactive };
+    return {
+      activeBounties: active,
+      inactiveBounties: inactive,
+      totalReservedEth: parseFloat(formatEther(reserved))
+    };
   }, [bounties]);
 
   return (
@@ -784,15 +795,23 @@ export default function BountiesPage() {
           {/* Current window status */}
           <div className="p-4 border border-border flex justify-between items-center">
             <div>
-              <span className="text-muted text-sm">window {currentWindowId}</span>
+              <span className="text-muted text-sm">next window: {currentWindowId + 1}</span>
               {isWindowActive && (
                 <span className="ml-2 inline-block px-2 py-0.5 bg-green-100 text-green-800 text-xs">
-                  active
+                  window {currentWindowId} active
                 </span>
               )}
             </div>
-            <div className="text-sm">
-              <span className="text-muted">{claimableBounties.length} claimable</span>
+            <div className="text-sm text-right">
+              <div>
+                <span className="text-muted">{activeBounties.length} active</span>
+                {claimableBounties.length > 0 && (
+                  <span className="ml-2 text-green-600">{claimableBounties.length} claimable now</span>
+                )}
+              </div>
+              {totalReservedEth > 0 && (
+                <div className="text-xs text-muted">{formatNum(totalReservedEth)} ETH reserved</div>
+              )}
             </div>
           </div>
 

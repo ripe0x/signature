@@ -5,6 +5,7 @@ import { formatEther } from "viem";
 import { IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
 import { Button } from "@/components/ui/Button";
 import { generateUnicodeProgressBar } from "@/lib/utils";
+import { useRef, useState, useEffect } from "react";
 
 // Initial supply for burn calculations (1 billion with 18 decimals)
 const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
@@ -18,6 +19,35 @@ export default function TokenPage() {
     burnedBalance,
     nftsMinted,
   } = useTokenStats();
+
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barLength, setBarLength] = useState(20);
+
+  // Calculate bar length based on container width
+  useEffect(() => {
+    const updateBarLength = () => {
+      if (barRef.current) {
+        const measureChar = document.createElement("span");
+        const styles = window.getComputedStyle(barRef.current);
+        measureChar.style.position = "absolute";
+        measureChar.style.visibility = "hidden";
+        measureChar.style.fontFamily = styles.fontFamily;
+        measureChar.style.fontSize = styles.fontSize;
+        measureChar.textContent = "▓";
+        document.body.appendChild(measureChar);
+        const charWidth = measureChar.offsetWidth;
+        document.body.removeChild(measureChar);
+
+        const containerWidth = barRef.current.offsetWidth;
+        const chars = Math.floor(containerWidth / charWidth);
+        setBarLength(Math.max(15, Math.min(chars - 10, 50))); // Leave room for percentage
+      }
+    };
+
+    updateBarLength();
+    window.addEventListener("resize", updateBarLength);
+    return () => window.removeEventListener("resize", updateBarLength);
+  }, []);
 
   // Calculate burn percentage from dead address balance
   const burnedPercent =
@@ -87,9 +117,7 @@ export default function TokenPage() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button size="lg" className="text-lg px-8 py-4">
-                trade $LESS
-              </Button>
+              <Button size="lg">trade $LESS</Button>
             </a>
             <a
               href={`https://dexscreener.com/ethereum/${CONTRACTS.LESS_STRATEGY}`}
@@ -137,27 +165,26 @@ export default function TokenPage() {
           </section>
 
           {/* Next Window Progress */}
-          <section className="p-8 border border-border space-y-4">
-            <div className="flex justify-between items-start">
+          <section className="p-6 md:p-8 border border-border space-y-4">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-3 md:gap-4">
               <div>
-                <h2 className="text-lg mb-1">next window threshold</h2>
-                <p className="text-sm text-muted">
-                  ETH accumulated from trades, waiting to trigger the next buy
-                  and burn
+                <h2 className="text-base md:text-lg mb-1">next window threshold</h2>
+                <p className="text-xs md:text-sm text-muted">
+                  ETH accumulated from trades, waiting to trigger the next buy and burn
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-mono tabular-nums">
+              <div className="md:text-right">
+                <div className="text-xl md:text-2xl font-mono tabular-nums">
                   {buybackEth.toFixed(4)} ETH
                 </div>
-                <div className="text-sm text-muted">
+                <div className="text-xs md:text-sm text-muted">
                   / {thresholdEth} ETH required
                 </div>
               </div>
             </div>
-            <div className="font-mono text-lg">
-              {generateUnicodeProgressBar(thresholdPercent, 40)}
-              <span className="ml-3 text-sm">
+            <div ref={barRef} className="font-mono text-base md:text-lg overflow-hidden whitespace-nowrap">
+              {generateUnicodeProgressBar(thresholdPercent, barLength)}
+              <span className="ml-2 md:ml-3 text-xs md:text-sm">
                 {thresholdPercent.toFixed(1)}%
               </span>
             </div>

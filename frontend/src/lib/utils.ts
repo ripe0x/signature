@@ -1,10 +1,10 @@
 import { formatEther } from 'viem';
 
-// Format ETH value for display
+// Format ETH value for display (strips trailing zeros)
 export function formatEth(value: bigint, decimals = 4): string {
   const formatted = formatEther(value);
   const num = parseFloat(formatted);
-  return num.toFixed(decimals);
+  return parseFloat(num.toFixed(decimals)).toString();
 }
 
 // Truncate address for display
@@ -90,33 +90,19 @@ export function getTxUrl(txHash: string): string {
   return `${getEtherscanUrl()}/tx/${txHash}`;
 }
 
-// Generate Unicode progress bar (dark shades for filled, light for empty)
+// Generate Unicode progress bar (dark shade for filled, light shade for empty)
 export function generateUnicodeProgressBar(percentage: number, length: number = 20): string {
   const progressPercent = Math.min(percentage, 100);
   const filledBlocks = Math.floor((progressPercent / 100) * length);
-  const partialBlock = (progressPercent / 100) * length - filledBlocks;
 
   let progressBar = "";
 
-  // Add filled blocks (dark)
+  // Add filled blocks (dark shade ▓)
   for (let i = 0; i < filledBlocks; i++) {
     progressBar += "▓";
   }
 
-  // Add partial block based on remainder (if needed) - use dark shades
-  if (filledBlocks < length && partialBlock > 0) {
-    if (partialBlock < 0.25) {
-      progressBar += "▒"; // Medium-dark shade for small partial
-    } else if (partialBlock < 0.5) {
-      progressBar += "▒"; // Medium-dark shade
-    } else if (partialBlock < 0.75) {
-      progressBar += "▓"; // Dark shade
-    } else {
-      progressBar += "▓"; // Full block
-    }
-  }
-
-  // Fill rest with light shade (empty portion)
+  // Fill rest with light shade (░)
   while (progressBar.length < length) {
     progressBar += "░";
   }
