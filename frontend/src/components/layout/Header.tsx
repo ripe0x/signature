@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ConnectButton } from '@/components/wallet/ConnectButton';
-import { IS_PRE_LAUNCH, IS_TOKEN_LIVE } from '@/lib/contracts';
-import { useTokenStats } from '@/hooks/useTokenStats';
-import { useMintWindow } from '@/hooks/useMintWindow';
-import { formatEther } from 'viem';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
+import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
+import { useTokenStats } from "@/hooks/useTokenStats";
+import { useMintWindow } from "@/hooks/useMintWindow";
+import { formatEther } from "viem";
 
 // Initial supply for burn calculations (1 billion with 18 decimals)
 const INITIAL_SUPPLY = BigInt(1_000_000_000) * BigInt(10 ** 18);
@@ -44,7 +44,8 @@ function MenuIcon({ open }: { open: boolean }) {
 
 // Mini token stats bar component
 function TokenStatsBar() {
-  const { tokenPrice, burnedBalance, buybackBalance, minEthForWindow } = useTokenStats();
+  const { tokenPrice, burnedBalance, buybackBalance, minEthForWindow } =
+    useTokenStats();
 
   const burnedPercent =
     burnedBalance > 0
@@ -68,20 +69,47 @@ function TokenStatsBar() {
         : tokenPrice < 1
         ? tokenPrice.toFixed(6)
         : tokenPrice.toFixed(4)
-      : '—';
+      : "—";
+
+  // Calculate market cap (circulating supply × price)
+  const circulatingSupply = INITIAL_SUPPLY - burnedBalance;
+  const marketCap =
+    tokenPrice !== null && circulatingSupply > 0
+      ? tokenPrice * Number(circulatingSupply / BigInt(10 ** 18))
+      : null;
+
+  const formattedMarketCap =
+    marketCap !== null
+      ? marketCap >= 1_000_000
+        ? `$${(marketCap / 1_000_000).toFixed(2)}M`
+        : marketCap >= 1_000
+        ? `$${(marketCap / 1_000).toFixed(1)}K`
+        : `$${marketCap.toFixed(0)}`
+      : "—";
 
   if (!IS_TOKEN_LIVE) return null;
 
   return (
     <div className="hidden lg:flex items-center gap-4 text-xs text-muted font-mono">
-      <span className="text-foreground font-medium">$LESS</span>
+      <a
+        href={`https://www.nftstrategy.fun/strategies/${CONTRACTS.LESS_STRATEGY}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-foreground font-medium hover:opacity-70 transition-opacity"
+      >
+        $LESS
+      </a>
       <span className="opacity-30">|</span>
       <span>${formattedPrice}</span>
       <span className="opacity-30">|</span>
+      <span title="Market cap based on circulating supply">{formattedMarketCap} mcap</span>
+      <span className="opacity-30">|</span>
       <span>{burnedPercent.toFixed(1)}% burned</span>
       <span className="opacity-30">|</span>
-      <span title={`${buybackEth.toFixed(4)} / ${thresholdEth} ETH to next window`}>
-        {thresholdPercent.toFixed(0)}% to window
+      <span
+        title={`${buybackEth.toFixed(4)} / ${thresholdEth} ETH to next window`}
+      >
+        {thresholdPercent.toFixed(0)}% to next window
       </span>
       <span className="opacity-30">|</span>
       <Link href="/token" className="hover:text-foreground transition-colors">
@@ -104,12 +132,12 @@ export function Header() {
   // Prevent body scroll when menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
 
@@ -119,8 +147,8 @@ export function Header() {
         href="/mint"
         className={`text-sm transition-colors flex items-center gap-1.5 ${
           isMintActive
-            ? 'text-foreground font-medium'
-            : 'text-muted hover:text-foreground'
+            ? "text-foreground font-medium"
+            : "text-muted hover:text-foreground"
         }`}
         onClick={() => setMobileMenuOpen(false)}
       >
@@ -171,7 +199,11 @@ export function Header() {
         </div>
       )}
 
-      <header className={`fixed left-0 right-0 z-50 bg-background/80 backdrop-blur-sm top-0 ${IS_TOKEN_LIVE ? 'lg:top-[30px]' : ''}`}>
+      <header
+        className={`fixed left-0 right-0 z-50 bg-background/80 backdrop-blur-sm top-0 ${
+          IS_TOKEN_LIVE ? "lg:top-[30px]" : ""
+        }`}
+      >
         <div className="flex items-center justify-between px-6 py-3 md:px-8">
           <div className="flex flex-col">
             <Link
@@ -192,9 +224,7 @@ export function Header() {
 
           {/* Desktop nav */}
           {!IS_TOKEN_ONLY && (
-            <nav className="hidden md:flex items-center gap-8">
-              {navLinks}
-            </nav>
+            <nav className="hidden md:flex items-center gap-8">{navLinks}</nav>
           )}
 
           <div className="flex items-center gap-4">
@@ -205,7 +235,7 @@ export function Header() {
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="md:hidden p-1 text-muted hover:text-foreground transition-colors"
-                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileMenuOpen}
               >
                 <MenuIcon open={mobileMenuOpen} />
@@ -222,7 +252,11 @@ export function Header() {
             fixed inset-0 z-40 bg-background/95 backdrop-blur-sm
             md:hidden
             transition-opacity duration-200
-            ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+            ${
+              mobileMenuOpen
+                ? "opacity-100 pointer-events-auto"
+                : "opacity-0 pointer-events-none"
+            }
           `}
         >
           <nav className="flex flex-col items-center justify-center h-full gap-8 text-lg">
@@ -230,8 +264,8 @@ export function Header() {
               href="/mint"
               className={`transition-colors flex items-center gap-2 ${
                 isMintActive
-                  ? 'text-foreground font-medium'
-                  : 'text-muted hover:text-foreground'
+                  ? "text-foreground font-medium"
+                  : "text-muted hover:text-foreground"
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >

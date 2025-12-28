@@ -743,10 +743,29 @@ export default function BountiesPage() {
   const { bounties, claimableBounties, currentWindowId, isWindowActive, isLoading, refetch } = useBounties();
   const { bountyAddress, hasBounty, status } = useUserBounty();
   const { ethPrice } = useTokenStats();
+  const [showInactive, setShowInactive] = useState(false);
 
   // Get all bounty addresses for fetching claims
   const bountyAddresses = useMemo(() => {
     return bounties.map(b => b.bountyAddress);
+  }, [bounties]);
+
+  // Split bounties into active (can fund next window) and inactive (underfunded)
+  const { activeBounties, inactiveBounties } = useMemo(() => {
+    const active: typeof bounties = [];
+    const inactive: typeof bounties = [];
+
+    for (const bounty of bounties) {
+      // Inactive if balance can't cover the next mint
+      const canFundNextWindow = bounty.balance >= bounty.totalCost && bounty.totalCost > BigInt(0);
+      if (canFundNextWindow) {
+        active.push(bounty);
+      } else {
+        inactive.push(bounty);
+      }
+    }
+
+    return { activeBounties: active, inactiveBounties: inactive };
   }, [bounties]);
 
   return (
@@ -826,19 +845,50 @@ export default function BountiesPage() {
                 <div className="p-6 border border-border text-center">
                   <p className="text-muted animate-pulse">loading...</p>
                 </div>
-              ) : bounties.length === 0 ? (
+              ) : activeBounties.length === 0 && inactiveBounties.length === 0 ? (
                 <div className="p-6 border border-border text-center">
                   <p className="text-muted">no bounties yet</p>
                 </div>
+              ) : activeBounties.length === 0 ? (
+                <div className="p-6 border border-border text-center">
+                  <p className="text-muted">no active bounties</p>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {bounties.map((bounty) => (
+                  {activeBounties.map((bounty) => (
                     <BountyCard
                       key={bounty.bountyAddress}
                       bounty={bounty}
                       onExecuteSuccess={refetch}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Inactive bounties collapsible section */}
+              {inactiveBounties.length > 0 && (
+                <div className="border border-border">
+                  <button
+                    onClick={() => setShowInactive(!showInactive)}
+                    className="w-full px-4 py-3 flex items-center justify-between text-sm text-muted hover:text-foreground transition-colors"
+                  >
+                    <span>inactive bounties ({inactiveBounties.length})</span>
+                    <span className="text-xs">{showInactive ? '−' : '+'}</span>
+                  </button>
+                  {showInactive && (
+                    <div className="border-t border-border p-4 space-y-4">
+                      <p className="text-xs text-muted">
+                        these bounties don&apos;t have enough balance to fund the next mint window
+                      </p>
+                      {inactiveBounties.map((bounty) => (
+                        <BountyCard
+                          key={bounty.bountyAddress}
+                          bounty={bounty}
+                          onExecuteSuccess={refetch}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

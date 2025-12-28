@@ -46,9 +46,26 @@ export default function TokenPage() {
         : tokenPrice.toFixed(4)
       : "—";
 
-  const burnedTokens = burnedBalance > 0
-    ? Number(burnedBalance / BigInt(10 ** 18)).toLocaleString()
-    : "0";
+  const burnedTokens =
+    burnedBalance > 0
+      ? Number(burnedBalance / BigInt(10 ** 18)).toLocaleString()
+      : "0";
+
+  // Calculate market cap (circulating supply × price)
+  const circulatingSupply = INITIAL_SUPPLY - burnedBalance;
+  const marketCap =
+    tokenPrice !== null && circulatingSupply > 0
+      ? tokenPrice * Number(circulatingSupply / BigInt(10 ** 18))
+      : null;
+
+  const formattedMarketCap =
+    marketCap !== null
+      ? marketCap >= 1_000_000
+        ? `$${(marketCap / 1_000_000).toFixed(2)}M`
+        : marketCap >= 1_000
+        ? `$${(marketCap / 1_000).toFixed(1)}K`
+        : `$${marketCap.toFixed(0)}`
+      : "—";
 
   return (
     <div className="min-h-screen pt-20 lg:pt-28">
@@ -58,8 +75,8 @@ export default function TokenPage() {
           <section className="space-y-4">
             <h1 className="text-3xl md:text-4xl font-medium">$LESS</h1>
             <p className="text-lg text-muted max-w-2xl">
-              A recursive strategy token that continuously buys and burns itself.
-              Every trade adds pressure. Every burn opens a mint window.
+              A recursive strategy token that continuously buys and burns
+              itself. Every trade adds pressure. Every burn opens a mint window.
             </p>
           </section>
 
@@ -86,11 +103,17 @@ export default function TokenPage() {
           </section>
 
           {/* Stats Grid */}
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <section className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="p-6 border border-border">
               <div className="text-xs text-muted mb-2">price</div>
               <div className="text-2xl md:text-3xl font-mono tabular-nums">
                 ${formattedPrice}
+              </div>
+            </div>
+            <div className="p-6 border border-border">
+              <div className="text-xs text-muted mb-2">market cap</div>
+              <div className="text-2xl md:text-3xl font-mono tabular-nums">
+                {formattedMarketCap}
               </div>
             </div>
             <div className="p-6 border border-border">
@@ -119,24 +142,31 @@ export default function TokenPage() {
               <div>
                 <h2 className="text-lg mb-1">next window threshold</h2>
                 <p className="text-sm text-muted">
-                  ETH accumulated from trades, waiting to trigger the next buy and burn
+                  ETH accumulated from trades, waiting to trigger the next buy
+                  and burn
                 </p>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-mono tabular-nums">
                   {buybackEth.toFixed(4)} ETH
                 </div>
-                <div className="text-sm text-muted">/ {thresholdEth} ETH required</div>
+                <div className="text-sm text-muted">
+                  / {thresholdEth} ETH required
+                </div>
               </div>
             </div>
             <div className="font-mono text-lg">
               {generateUnicodeProgressBar(thresholdPercent, 40)}
-              <span className="ml-3 text-sm">{thresholdPercent.toFixed(1)}%</span>
+              <span className="ml-3 text-sm">
+                {thresholdPercent.toFixed(1)}%
+              </span>
             </div>
             <p className="text-sm text-muted">
               {thresholdMet
                 ? "threshold met — a mint window can be opened"
-                : `${(thresholdEth - buybackEth).toFixed(4)} ETH to go until next window`}
+                : `${(thresholdEth - buybackEth).toFixed(
+                    4
+                  )} ETH to go until next window`}
             </p>
           </section>
 
@@ -149,12 +179,12 @@ export default function TokenPage() {
                 <div className="text-xl font-mono tabular-nums">
                   {burnedTokens} LESS
                 </div>
-                <div className="text-sm text-muted mt-2">
-                  sent to 0x...dEaD
-                </div>
+                <div className="text-sm text-muted mt-2">sent to 0x...dEaD</div>
               </div>
               <div className="p-6 border border-border">
-                <div className="text-xs text-muted mb-2">NFTs created from burns</div>
+                <div className="text-xs text-muted mb-2">
+                  NFTs created from burns
+                </div>
                 <div className="text-xl font-mono tabular-nums">
                   {nftsMinted} pieces
                 </div>
@@ -172,25 +202,29 @@ export default function TokenPage() {
               <div className="flex gap-4 p-4 border-l-2 border-border">
                 <span className="text-muted w-8 shrink-0 font-mono">01</span>
                 <span className="text-muted">
-                  every trade on the $LESS uniswap pool contributes a small fee to the strategy contract
+                  every trade on the $LESS uniswap pool contributes a small fee
+                  to the strategy contract
                 </span>
               </div>
               <div className="flex gap-4 p-4 border-l-2 border-border">
                 <span className="text-muted w-8 shrink-0 font-mono">02</span>
                 <span className="text-muted">
-                  when enough ETH accumulates (currently {thresholdEth} ETH), anyone can trigger a buyback
+                  when enough ETH accumulates (currently {thresholdEth} ETH),
+                  anyone can trigger a buyback
                 </span>
               </div>
               <div className="flex gap-4 p-4 border-l-2 border-border">
                 <span className="text-muted w-8 shrink-0 font-mono">03</span>
                 <span className="text-muted">
-                  the accumulated ETH buys $LESS from the pool and sends it to the dead address
+                  the accumulated ETH buys $LESS from the pool and sends it to
+                  the dead address
                 </span>
               </div>
               <div className="flex gap-4 p-4 border-l-2 border-border">
                 <span className="text-muted w-8 shrink-0 font-mono">04</span>
                 <span className="text-muted">
-                  each burn opens a 90-minute window where LESS NFTs can be minted
+                  each burn opens a 90-minute window where LESS NFTs can be
+                  minted
                 </span>
               </div>
             </div>
@@ -246,8 +280,9 @@ export default function TokenPage() {
               {CONTRACTS.LESS_STRATEGY}
             </div>
             <p>
-              $LESS is a TokenWorks recursive strategy token deployed on Ethereum mainnet.
-              It has no admin functions and runs autonomously forever.
+              $LESS is a TokenWorks recursive strategy token deployed on
+              Ethereum mainnet.
+              {/* It has no admin functions and runs autonomously forever. */}
             </p>
           </section>
         </div>
