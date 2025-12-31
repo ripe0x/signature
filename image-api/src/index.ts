@@ -25,8 +25,12 @@ const RPC_URL = process.env.RPC_URL || '';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
 const CHAIN = process.env.CHAIN || 'sepolia';
 
-// Leaderboard data file
-const LEADERBOARD_FILE = join(__dirname, '../data/leaderboard.json');
+// Leaderboard data file - use persistent storage on fly.dev, fallback to local
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, '../data');
+const LEADERBOARD_FILE = join(DATA_DIR, 'leaderboard.json');
+
+// Admin address for protected endpoints
+const ADMIN_ADDRESS = '0xCB43078C32423F5348Cab5885911C3B5faE217F9'.toLowerCase();
 
 const LESS_ABI = [
   {
@@ -47,6 +51,20 @@ const LESS_ABI = [
     inputs: [],
     name: 'totalSupply',
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'windowCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -283,6 +301,212 @@ app.post('/api/cache/clear', async (req, res) => {
   }
 });
 
+// Index collectors endpoint - runs the collector indexer
+// Protected by admin address check
+let isIndexingInProgress = false;
+let lastIndexResult: {
+  success: boolean;
+  totalTokens?: number;
+  totalCollectors?: number;
+  fullCollectors?: number;
+  duration?: number;
+  error?: string;
+  completedAt?: string;
+} | null = null;
+
+app.post('/api/admin/index-collectors', async (req, res) => {
+  try {
+    // Validate admin address
+    const { address } = req.body;
+    if (!address || address.toLowerCase() !== ADMIN_ADDRESS) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Prevent concurrent indexing
+    if (isIndexingInProgress) {
+      return res.status(409).json({ error: 'Indexing already in progress' });
+    }
+
+    isIndexingInProgress = true;
+    const startTime = Date.now();
+
+    // Create viem client
+    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(RPC_URL),
+    });
+
+    // Get total supply and window count
+    const [totalSupply, windowCount] = await Promise.all([
+      client.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: LESS_ABI,
+        functionName: 'totalSupply',
+      }),
+      client.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: LESS_ABI,
+        functionName: 'windowCount',
+      }),
+    ]);
+
+    const total = Number(totalSupply);
+    const windows = Number(windowCount);
+
+    if (total === 0) {
+      isIndexingInProgress = false;
+      lastIndexResult = { success: true, totalTokens: 0, totalCollectors: 0, fullCollectors: 0, duration: Date.now() - startTime, completedAt: new Date().toISOString() };
+      return res.json({ success: true, message: 'No tokens minted yet', ...lastIndexResult });
+    }
+
+    // Fetch all token data in batches
+    const BATCH_SIZE = 100;
+    const tokenData: { tokenId: number; owner: string; windowId: number; seed: string }[] = [];
+
+    for (let start = 1; start <= total; start += BATCH_SIZE) {
+      const end = Math.min(start + BATCH_SIZE - 1, total);
+      const tokenIds: number[] = [];
+      for (let i = start; i <= end; i++) {
+        tokenIds.push(i);
+      }
+
+      // Batch fetch owner, windowId, and seed for each token
+      const calls = tokenIds.flatMap(tokenId => [
+        {
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'ownerOf' as const,
+          args: [BigInt(tokenId)],
+        },
+        {
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'getTokenData' as const,
+          args: [BigInt(tokenId)],
+        },
+        {
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'getSeed' as const,
+          args: [BigInt(tokenId)],
+        },
+      ]);
+
+      const results = await client.multicall({ contracts: calls });
+
+      // Process results (3 results per token: owner, windowId, seed)
+      for (let i = 0; i < tokenIds.length; i++) {
+        const tokenId = tokenIds[i];
+        const ownerResult = results[i * 3];
+        const windowResult = results[i * 3 + 1];
+        const seedResult = results[i * 3 + 2];
+
+        if (ownerResult.status === 'success' && windowResult.status === 'success' && seedResult.status === 'success') {
+          tokenData.push({
+            tokenId,
+            owner: (ownerResult.result as string).toLowerCase(),
+            windowId: Number(windowResult.result),
+            seed: seedResult.result as string,
+          });
+        }
+      }
+    }
+
+    // Group by collector
+    const collectorMap = new Map<string, { address: string; tokens: { tokenId: number; windowId: number; seed: string }[]; windowsSet: Set<number> }>();
+
+    for (const token of tokenData) {
+      const existing = collectorMap.get(token.owner) || {
+        address: token.owner,
+        tokens: [],
+        windowsSet: new Set<number>(),
+      };
+
+      existing.tokens.push({
+        tokenId: token.tokenId,
+        windowId: token.windowId,
+        seed: token.seed,
+      });
+      existing.windowsSet.add(token.windowId);
+
+      collectorMap.set(token.owner, existing);
+    }
+
+    // Convert to array and calculate stats
+    const collectors = Array.from(collectorMap.values()).map(c => ({
+      address: c.address,
+      tokenCount: c.tokens.length,
+      windowsCollected: Array.from(c.windowsSet).sort((a, b) => a - b),
+      windowCount: c.windowsSet.size,
+      isFullCollector: c.windowsSet.size === windows,
+      tokens: c.tokens.sort((a, b) => a.tokenId - b.tokenId),
+    }));
+
+    // Sort by token count descending, then by window count
+    collectors.sort((a, b) => {
+      if (b.tokenCount !== a.tokenCount) return b.tokenCount - a.tokenCount;
+      return b.windowCount - a.windowCount;
+    });
+
+    // Build final leaderboard object
+    const leaderboard = {
+      totalWindows: windows,
+      totalTokens: total,
+      totalCollectors: collectors.length,
+      fullCollectors: collectors.filter(c => c.isFullCollector).map(c => c.address),
+      collectors,
+      generatedAt: Date.now(),
+      generatedAtISO: new Date().toISOString(),
+    };
+
+    // Ensure data directory exists
+    const { mkdirSync } = await import('fs');
+    try {
+      mkdirSync(DATA_DIR, { recursive: true });
+    } catch {
+      // Directory might already exist
+    }
+
+    // Write to file
+    const { writeFileSync } = await import('fs');
+    writeFileSync(LEADERBOARD_FILE, JSON.stringify(leaderboard, null, 2));
+
+    const duration = Date.now() - startTime;
+    lastIndexResult = {
+      success: true,
+      totalTokens: total,
+      totalCollectors: collectors.length,
+      fullCollectors: leaderboard.fullCollectors.length,
+      duration,
+      completedAt: new Date().toISOString(),
+    };
+    isIndexingInProgress = false;
+
+    res.json({
+      success: true,
+      ...lastIndexResult,
+    });
+  } catch (error) {
+    isIndexingInProgress = false;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    lastIndexResult = { success: false, error: errorMessage, completedAt: new Date().toISOString() };
+    console.error('Indexer error:', error);
+    res.status(500).json({
+      error: 'Indexing failed',
+      message: errorMessage,
+    });
+  }
+});
+
+// Get indexer status
+app.get('/api/admin/index-status', (req, res) => {
+  res.json({
+    isIndexing: isIndexingInProgress,
+    lastResult: lastIndexResult,
+  });
+});
+
 // Calculate optimal grid dimensions for social media
 function calculateGridDimensions(count: number) {
   if (count === 0) return { cols: 1, rows: 1 };
@@ -468,6 +692,610 @@ app.get('/api/grid', async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.status(500).json({
       error: 'Grid generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Collector grid endpoint - generates a grid of a collector's owned pieces
+// Highlighted tokens (new acquisitions) are displayed larger with a visual highlight
+app.get('/api/collector-grid/:address', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    // Validate address
+    const address = req.params.address.toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(address)) {
+      return res.status(400).json({ error: 'Invalid address format' });
+    }
+
+    // Parse highlighted token IDs (the newly acquired tokens to emphasize)
+    const highlightParam = req.query.highlight as string | undefined;
+    const highlightTokenIds = highlightParam
+      ? highlightParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
+      : [];
+
+    // Load leaderboard data
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Find collector
+    const collector = leaderboard.collectors.find(
+      (c: any) => c.address.toLowerCase() === address
+    );
+
+    if (!collector || !collector.tokens || collector.tokens.length === 0) {
+      return res.status(404).json({ error: 'Collector not found or has no tokens' });
+    }
+
+    // Separate highlighted and regular tokens
+    const highlightedTokens = collector.tokens.filter((t: any) => highlightTokenIds.includes(t.tokenId));
+    const regularTokens = collector.tokens.filter((t: any) => !highlightTokenIds.includes(t.tokenId));
+
+    // Twitter optimal dimensions
+    const CANVAS_WIDTH = 1200;
+    const CANVAS_HEIGHT = 675; // Twitter card ratio (16:9)
+
+    // Calculate layout based on token counts
+    const highlightCount = highlightedTokens.length;
+    const regularCount = regularTokens.length;
+    const totalCount = highlightCount + regularCount;
+
+    // Layout parameters - highlighted tokens are 2x the size of regular tokens
+    // We'll use a flexible layout where highlighted tokens appear on the left side larger
+    // and regular tokens fill a grid on the right side
+
+    let layout: {
+      highlightCellSize: number;
+      regularCellSize: number;
+      highlightCols: number;
+      highlightRows: number;
+      regularCols: number;
+      regularRows: number;
+      highlightAreaWidth: number;
+      regularAreaWidth: number;
+    };
+
+    if (highlightCount === 0) {
+      // No highlighted tokens - just a regular grid
+      const { cols, rows } = calculateGridDimensions(totalCount);
+      const cellWidth = Math.floor(CANVAS_WIDTH / cols);
+      const cellHeight = Math.floor(CANVAS_HEIGHT / rows);
+      const cellSize = Math.min(cellWidth, cellHeight);
+
+      layout = {
+        highlightCellSize: 0,
+        regularCellSize: cellSize,
+        highlightCols: 0,
+        highlightRows: 0,
+        regularCols: cols,
+        regularRows: rows,
+        highlightAreaWidth: 0,
+        regularAreaWidth: CANVAS_WIDTH,
+      };
+    } else if (regularCount === 0) {
+      // Only highlighted tokens
+      const { cols, rows } = calculateGridDimensions(highlightCount);
+      const cellWidth = Math.floor(CANVAS_WIDTH / cols);
+      const cellHeight = Math.floor(CANVAS_HEIGHT / rows);
+      const cellSize = Math.min(cellWidth, cellHeight);
+
+      layout = {
+        highlightCellSize: cellSize,
+        regularCellSize: 0,
+        highlightCols: cols,
+        highlightRows: rows,
+        regularCols: 0,
+        regularRows: 0,
+        highlightAreaWidth: CANVAS_WIDTH,
+        regularAreaWidth: 0,
+      };
+    } else {
+      // Mixed layout - highlighted on left (larger), regular on right (smaller grid)
+      // Highlighted tokens take up ~40% of width, regular tokens take ~60%
+      const highlightAreaWidth = Math.floor(CANVAS_WIDTH * 0.4);
+      const regularAreaWidth = CANVAS_WIDTH - highlightAreaWidth;
+
+      // Calculate highlighted token layout (bigger cells)
+      const hCols = Math.ceil(Math.sqrt(highlightCount * (highlightAreaWidth / CANVAS_HEIGHT)));
+      const hRows = Math.ceil(highlightCount / hCols);
+      const hCellW = Math.floor(highlightAreaWidth / hCols);
+      const hCellH = Math.floor(CANVAS_HEIGHT / hRows);
+      const highlightCellSize = Math.min(hCellW, hCellH);
+
+      // Calculate regular token layout (smaller cells)
+      const rCols = Math.max(2, Math.ceil(Math.sqrt(regularCount * (regularAreaWidth / CANVAS_HEIGHT))));
+      const rRows = Math.ceil(regularCount / rCols);
+      const rCellW = Math.floor(regularAreaWidth / rCols);
+      const rCellH = Math.floor(CANVAS_HEIGHT / rRows);
+      const regularCellSize = Math.min(rCellW, rCellH);
+
+      layout = {
+        highlightCellSize,
+        regularCellSize,
+        highlightCols: hCols,
+        highlightRows: hRows,
+        regularCols: rCols,
+        regularRows: rRows,
+        highlightAreaWidth,
+        regularAreaWidth,
+      };
+    }
+
+    // Check cache
+    const sortedHighlight = [...highlightTokenIds].sort((a, b) => a - b);
+    const cacheKey = `collector-grid-${address}-h${sortedHighlight.join('_') || 'none'}`;
+    const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
+    if (cached) {
+      res.set('Content-Type', 'image/png');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+      res.set('X-Token-Count', totalCount.toString());
+      res.set('X-Highlighted-Count', highlightCount.toString());
+      return res.send(cached);
+    }
+
+    // Create viem client for fetching token data
+    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(RPC_URL),
+    });
+
+    // Render function for a single token
+    async function renderToken(tokenId: number, size: number): Promise<Buffer | null> {
+      try {
+        const tokenURI = await client.readContract({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'tokenURI',
+          args: [BigInt(tokenId)],
+        });
+
+        if (!tokenURI) return null;
+
+        const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+        if (!jsonMatch) return null;
+
+        const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+        const animationUrl = metadata.animation_url;
+        if (!animationUrl) return null;
+
+        const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+        if (!htmlMatch) return null;
+
+        const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+        // Render at A4 ratio for the cell
+        const renderHeight = Math.round(size / A4_RATIO);
+        return await renderer.renderHtml({
+          html: onChainHtml,
+          width: size,
+          height: renderHeight,
+        });
+      } catch (error) {
+        console.warn(`Error rendering token ${tokenId}:`, error);
+        return null;
+      }
+    }
+
+    // Render all tokens in batches
+    const BATCH_SIZE = 4;
+    const highlightedImages: { tokenId: number; buffer: Buffer }[] = [];
+    const regularImages: { tokenId: number; buffer: Buffer }[] = [];
+
+    // Render highlighted tokens
+    if (highlightCount > 0 && layout.highlightCellSize > 0) {
+      for (let i = 0; i < highlightedTokens.length; i += BATCH_SIZE) {
+        const batch = highlightedTokens.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(async (token: any) => {
+            const buffer = await renderToken(token.tokenId, layout.highlightCellSize);
+            return buffer ? { tokenId: token.tokenId, buffer } : null;
+          })
+        );
+        highlightedImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
+      }
+    }
+
+    // Render regular tokens
+    if (regularCount > 0 && layout.regularCellSize > 0) {
+      for (let i = 0; i < regularTokens.length; i += BATCH_SIZE) {
+        const batch = regularTokens.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(async (token: any) => {
+            const buffer = await renderToken(token.tokenId, layout.regularCellSize);
+            return buffer ? { tokenId: token.tokenId, buffer } : null;
+          })
+        );
+        regularImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
+      }
+    }
+
+    if (highlightedImages.length === 0 && regularImages.length === 0) {
+      return res.status(500).json({ error: 'Failed to render any tokens' });
+    }
+
+    // Build composite array
+    const composites: { input: Buffer; left: number; top: number }[] = [];
+
+    // Highlight border color (subtle gold/amber glow)
+    const HIGHLIGHT_BORDER = 4;
+    const HIGHLIGHT_COLOR = { r: 255, g: 200, b: 50 };
+
+    // Position highlighted tokens on the left side
+    if (highlightedImages.length > 0) {
+      const cellSize = layout.highlightCellSize;
+      const cols = layout.highlightCols;
+      const areaWidth = layout.highlightAreaWidth;
+
+      // Center the grid within the highlight area
+      const gridWidth = cols * cellSize;
+      const gridHeight = layout.highlightRows * cellSize;
+      const offsetX = Math.floor((areaWidth - gridWidth) / 2);
+      const offsetY = Math.floor((CANVAS_HEIGHT - gridHeight) / 2);
+
+      for (let i = 0; i < highlightedImages.length; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = offsetX + col * cellSize;
+        const y = offsetY + row * cellSize;
+
+        // Resize to fit cell with A4 ratio crop
+        const resized = await sharp(highlightedImages[i].buffer)
+          .resize(cellSize - HIGHLIGHT_BORDER * 2, cellSize - HIGHLIGHT_BORDER * 2, {
+            fit: 'cover',
+            position: 'center',
+          })
+          .toBuffer();
+
+        // Create highlighted version with border
+        const withBorder = await sharp({
+          create: {
+            width: cellSize,
+            height: cellSize,
+            channels: 4,
+            background: { ...HIGHLIGHT_COLOR, alpha: 255 },
+          },
+        })
+          .composite([{
+            input: resized,
+            left: HIGHLIGHT_BORDER,
+            top: HIGHLIGHT_BORDER,
+          }])
+          .png()
+          .toBuffer();
+
+        composites.push({ input: withBorder, left: x, top: y });
+      }
+    }
+
+    // Position regular tokens on the right side
+    if (regularImages.length > 0) {
+      const cellSize = layout.regularCellSize;
+      const cols = layout.regularCols;
+      const startX = layout.highlightAreaWidth;
+      const areaWidth = layout.regularAreaWidth;
+
+      // Center the grid within the regular area
+      const gridWidth = cols * cellSize;
+      const gridHeight = layout.regularRows * cellSize;
+      const offsetX = startX + Math.floor((areaWidth - gridWidth) / 2);
+      const offsetY = Math.floor((CANVAS_HEIGHT - gridHeight) / 2);
+
+      for (let i = 0; i < regularImages.length; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = offsetX + col * cellSize;
+        const y = offsetY + row * cellSize;
+
+        // Resize to fit cell with A4 ratio crop
+        const resized = await sharp(regularImages[i].buffer)
+          .resize(cellSize, cellSize, {
+            fit: 'cover',
+            position: 'center',
+          })
+          .toBuffer();
+
+        composites.push({ input: resized, left: x, top: y });
+      }
+    }
+
+    // Create final canvas and composite all images
+    const finalImage = await sharp({
+      create: {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 255 },
+      },
+    })
+      .composite(composites)
+      .png()
+      .toBuffer();
+
+    // Cache result
+    await cache.set(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT, finalImage);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+    res.set('X-Token-Count', totalCount.toString());
+    res.set('X-Highlighted-Count', highlightCount.toString());
+    res.send(finalImage);
+  } catch (error) {
+    console.error('Collector grid error:', error);
+    res.status(500).json({
+      error: 'Collector grid generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Collector profile Twitter card - generates an OG image for collector profiles
+// Shows a grid of tokens with collector stats overlay
+app.get('/api/collector-card/:address', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    // Validate address
+    const address = req.params.address.toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(address)) {
+      return res.status(400).json({ error: 'Invalid address format' });
+    }
+
+    // Load leaderboard data
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Find collector
+    const collectorIndex = leaderboard.collectors.findIndex(
+      (c: any) => c.address.toLowerCase() === address
+    );
+
+    if (collectorIndex === -1) {
+      return res.status(404).json({ error: 'Collector not found' });
+    }
+
+    const collector = leaderboard.collectors[collectorIndex];
+    const rank = collectorIndex + 1;
+
+    if (!collector.tokens || collector.tokens.length === 0) {
+      return res.status(404).json({ error: 'Collector has no tokens' });
+    }
+
+    // Twitter card dimensions (16:9 ratio for summary_large_image)
+    const CANVAS_WIDTH = 1200;
+    const CANVAS_HEIGHT = 630;
+
+    // Check cache
+    const cacheKey = `collector-card-${address}-${collector.tokenCount}`;
+    const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
+    if (cached) {
+      res.set('Content-Type', 'image/png');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      res.set('X-Render-Time', `${Date.now() - startTime}ms`);
+      return res.send(cached);
+    }
+
+    // Create viem client for fetching token data
+    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(RPC_URL),
+    });
+
+    // Render function for a single token
+    async function renderToken(tokenId: number, size: number): Promise<Buffer | null> {
+      try {
+        const tokenURI = await client.readContract({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'tokenURI',
+          args: [BigInt(tokenId)],
+        });
+
+        if (!tokenURI) return null;
+
+        const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+        if (!jsonMatch) return null;
+
+        const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+        const animationUrl = metadata.animation_url;
+        if (!animationUrl) return null;
+
+        const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+        if (!htmlMatch) return null;
+
+        const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+        // Render at A4 ratio for the cell
+        const renderHeight = Math.round(size / A4_RATIO);
+        return await renderer.renderHtml({
+          html: onChainHtml,
+          width: size,
+          height: renderHeight,
+        });
+      } catch (error) {
+        console.warn(`Error rendering token ${tokenId}:`, error);
+        return null;
+      }
+    }
+
+    // Layout: tokens on left (70%), stats panel on right (30%)
+    const GRID_WIDTH = Math.floor(CANVAS_WIDTH * 0.7);
+    const STATS_WIDTH = CANVAS_WIDTH - GRID_WIDTH;
+
+    // Calculate grid layout for tokens
+    const tokenCount = collector.tokens.length;
+    const maxTokensToShow = Math.min(tokenCount, 16); // Limit to 16 for performance
+    const tokensToRender = collector.tokens.slice(0, maxTokensToShow);
+
+    // Calculate optimal grid
+    const { cols, rows } = calculateGridDimensions(maxTokensToShow);
+    const cellWidth = Math.floor(GRID_WIDTH / cols);
+    const cellHeight = Math.floor(CANVAS_HEIGHT / rows);
+    const cellSize = Math.min(cellWidth, cellHeight);
+
+    // Render tokens in batches
+    const BATCH_SIZE = 4;
+    const tokenImages: { tokenId: number; buffer: Buffer }[] = [];
+
+    for (let i = 0; i < tokensToRender.length; i += BATCH_SIZE) {
+      const batch = tokensToRender.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (token: any) => {
+          const buffer = await renderToken(token.tokenId, cellSize);
+          return buffer ? { tokenId: token.tokenId, buffer } : null;
+        })
+      );
+      tokenImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
+    }
+
+    if (tokenImages.length === 0) {
+      return res.status(500).json({ error: 'Failed to render any tokens' });
+    }
+
+    // Build composites for token grid
+    const composites: { input: Buffer; left: number; top: number }[] = [];
+
+    // Center the grid vertically
+    const gridHeight = rows * cellSize;
+    const gridOffsetY = Math.floor((CANVAS_HEIGHT - gridHeight) / 2);
+
+    for (let i = 0; i < tokenImages.length; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = col * cellSize;
+      const y = gridOffsetY + row * cellSize;
+
+      // Resize to square cell
+      const resized = await sharp(tokenImages[i].buffer)
+        .resize(cellSize, cellSize, {
+          fit: 'cover',
+          position: 'center',
+        })
+        .toBuffer();
+
+      composites.push({ input: resized, left: x, top: y });
+    }
+
+    // Create stats panel as SVG overlay
+    const truncatedAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+    const completionPercent = Math.round((collector.windowCount / leaderboard.totalWindows) * 100);
+
+    const statsPanelSvg = `
+      <svg width="${STATS_WIDTH}" height="${CANVAS_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <style>
+            @font-face {
+              font-family: 'Inter';
+              src: local('Inter'), local('Arial'), local('sans-serif');
+            }
+            .title { font-family: 'Inter', Arial, sans-serif; font-size: 24px; fill: white; font-weight: 600; }
+            .address { font-family: monospace; font-size: 14px; fill: #888888; }
+            .stat-value { font-family: 'Inter', Arial, sans-serif; font-size: 48px; fill: white; font-weight: 700; }
+            .stat-label { font-family: 'Inter', Arial, sans-serif; font-size: 14px; fill: #888888; text-transform: uppercase; letter-spacing: 0.1em; }
+            .badge { font-family: 'Inter', Arial, sans-serif; font-size: 12px; fill: black; font-weight: 600; }
+          </style>
+        </defs>
+
+        <!-- Background -->
+        <rect width="${STATS_WIDTH}" height="${CANVAS_HEIGHT}" fill="#0a0a0a"/>
+
+        <!-- Left border -->
+        <rect x="0" y="0" width="1" height="${CANVAS_HEIGHT}" fill="#333333"/>
+
+        <!-- Content -->
+        <g transform="translate(40, 80)">
+          <!-- Title -->
+          <text class="title" y="0">LESS Collector</text>
+          <text class="address" y="30">${truncatedAddress}</text>
+
+          ${collector.isFullCollector ? `
+          <!-- Full Collector Badge -->
+          <g transform="translate(0, 50)">
+            <rect width="120" height="24" fill="white" rx="2"/>
+            <text class="badge" x="10" y="16">FULL COLLECTOR</text>
+          </g>
+          ` : ''}
+
+          <!-- Stats -->
+          <g transform="translate(0, ${collector.isFullCollector ? 120 : 80})">
+            <!-- Rank -->
+            <text class="stat-value" y="0">#${rank}</text>
+            <text class="stat-label" y="30">Rank</text>
+
+            <!-- Tokens -->
+            <text class="stat-value" y="100">${collector.tokenCount}</text>
+            <text class="stat-label" y="130">Tokens</text>
+
+            <!-- Windows -->
+            <text class="stat-value" y="200">${collector.windowCount}/${leaderboard.totalWindows}</text>
+            <text class="stat-label" y="230">Windows</text>
+
+            <!-- Completion -->
+            <text class="stat-value" y="300">${completionPercent}%</text>
+            <text class="stat-label" y="330">Complete</text>
+          </g>
+        </g>
+
+        <!-- LESS branding -->
+        <text x="${STATS_WIDTH - 40}" y="${CANVAS_HEIGHT - 30}"
+              font-family="'Inter', Arial, sans-serif" font-size="14px" fill="#444444"
+              text-anchor="end">less.ripe.wtf</text>
+      </svg>
+    `;
+
+    const statsPanelBuffer = await sharp(Buffer.from(statsPanelSvg))
+      .png()
+      .toBuffer();
+
+    composites.push({ input: statsPanelBuffer, left: GRID_WIDTH, top: 0 });
+
+    // Create final canvas and composite all elements
+    const finalImage = await sharp({
+      create: {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        channels: 4,
+        background: { r: 10, g: 10, b: 10, alpha: 255 },
+      },
+    })
+      .composite(composites)
+      .png()
+      .toBuffer();
+
+    // Cache result
+    await cache.set(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT, finalImage);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Render-Time', `${Date.now() - startTime}ms`);
+    res.set('X-Token-Count', collector.tokenCount.toString());
+    res.send(finalImage);
+  } catch (error) {
+    console.error('Collector card error:', error);
+    res.status(500).json({
+      error: 'Collector card generation failed',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }

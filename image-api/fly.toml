@@ -7,8 +7,10 @@ primary_region = "iad"
 [env]
   NODE_ENV = "production"
   CACHE_ENABLED = "true"
+  CACHE_DIR = "/data/cache"
   CHAIN = "mainnet"
   CONTRACT_ADDRESS = "0x008B66385ed2346E6895031E250B2ac8dc14605C"
+  DATA_DIR = "/data"
   # RPC_URL must be set as a secret: fly secrets set RPC_URL="https://..."
 
 [http_service]
@@ -19,8 +21,8 @@ primary_region = "iad"
   min_machines_running = 1
 
 [mounts]
-  source = "image_cache"
-  destination = "/data/cache"
+  source = "image_data"
+  destination = "/data"
 
 [[vm]]
   memory = "4gb"

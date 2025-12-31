@@ -1301,11 +1301,13 @@ async function runTestSaleMode() {
   try {
     // Use mock values
     const testTokenIds = [7];
+    const testWindowIds = [1]; // Mock window ID
     const testBuyer = "0x4fa58fFc00D973fD222d573C256Eb3Cc81A8569c";
     const testPriceEth = "0.4200";
 
     logInfo(`Mock sale data:`);
     logInfo(`  Token ID(s): ${testTokenIds.join(", ")}`);
+    logInfo(`  Window ID(s): ${testWindowIds.join(", ")}`);
     logInfo(`  Buyer: ${testBuyer}`);
     logInfo(`  Price: ${testPriceEth} ETH`);
     console.log();
@@ -1320,8 +1322,8 @@ async function runTestSaleMode() {
       logWarn("Could not fetch image for token - tweet will not have image");
     }
 
-    // Format and display tweet
-    const tweetMessage = formatSaleTweet(testTokenIds, buyerDisplay, testPriceEth);
+    // Format and display tweet with window IDs
+    const tweetMessage = formatSaleTweet(testTokenIds, buyerDisplay, testPriceEth, null, testWindowIds);
 
     if (imageBuffer) {
       await postTweetWithMultipleImages(null, tweetMessage, [imageBuffer]);
@@ -1425,6 +1427,32 @@ async function runPreviewSaleMode(tokenIds) {
     // Get collector stats for the buyer
     const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
 
+    // Format token IDs and fetch window IDs for them
+    const sortedTokenIds = tokenIdList.map(id => parseInt(id, 10)).sort((a, b) => a - b);
+
+    // Fetch window IDs for the sold tokens
+    let windowIds = null;
+    try {
+      const windowCalls = sortedTokenIds.map((tokenId) => ({
+        address: contractAddress,
+        abi,
+        functionName: "getTokenData",
+        args: [BigInt(tokenId)],
+      }));
+      const windowResults = await client.multicall({ contracts: windowCalls });
+      windowIds = windowResults.map((result) => {
+        if (result.status === "success") {
+          return Number(result.result.windowId ?? result.result);
+        }
+        return null;
+      });
+      if (windowIds.some((w) => w === null)) {
+        windowIds = null;
+      }
+    } catch (error) {
+      logWarn(`Failed to fetch window IDs: ${error.message}`);
+    }
+
     // Fetch images for all tokens (up to 4 for Twitter)
     const imagesToFetch = tokenIdList.slice(0, 4);
     const imageBuffers = [];
@@ -1439,9 +1467,8 @@ async function runPreviewSaleMode(tokenIds) {
       logWarn("Could not fetch any images - tweet will not have images");
     }
 
-    // Format tweet with all token IDs
-    const sortedTokenIds = tokenIdList.map(id => parseInt(id, 10)).sort((a, b) => a - b);
-    const tweetMessage = formatSaleTweet(sortedTokenIds, buyerDisplay, totalPriceEth, collectorStats);
+    // Format tweet with all token IDs and window IDs
+    const tweetMessage = formatSaleTweet(sortedTokenIds, buyerDisplay, totalPriceEth, collectorStats, windowIds);
 
     // Initialize Twitter client if not in dry-run mode
     const twitterClient = dryRun ? null : initTwitterClient();
@@ -1970,9 +1997,16 @@ async function getCollectorStats(address, client, contractAddress, abi) {
 }
 
 // Format sale tweet - handles single or multiple tokens
-function formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats = null) {
+function formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats = null, windowIds = null) {
   const isSingle = tokenIds.length === 1;
-  const tokenList = tokenIds.join(", ");
+
+  // Build token list with window IDs in parentheses
+  let tokenList;
+  if (windowIds && windowIds.length === tokenIds.length) {
+    tokenList = tokenIds.map((id, i) => `${id} (window ${windowIds[i]})`).join(", ");
+  } else {
+    tokenList = tokenIds.join(", ");
+  }
 
   // Build collector stats line
   let statsLine = "";
@@ -2033,6 +2067,30 @@ async function processGroupedSales(
     // Get collector stats for the buyer
     const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
 
+    // Fetch window IDs for the sold tokens
+    let windowIds = null;
+    try {
+      const windowCalls = tokenIds.map((tokenId) => ({
+        address: contractAddress,
+        abi,
+        functionName: "getTokenData",
+        args: [BigInt(tokenId)],
+      }));
+      const windowResults = await client.multicall({ contracts: windowCalls });
+      windowIds = windowResults.map((result) => {
+        if (result.status === "success") {
+          return Number(result.result.windowId ?? result.result);
+        }
+        return null;
+      });
+      // If any failed, set to null so we fall back to no window display
+      if (windowIds.some((w) => w === null)) {
+        windowIds = null;
+      }
+    } catch (error) {
+      logWarn(`Failed to fetch window IDs: ${error.message}`);
+    }
+
     // Fetch images for all tokens (up to 4 for Twitter)
     const imagesToFetch = tokenIds.slice(0, 4);
     const imageBuffers = [];
@@ -2048,8 +2106,8 @@ async function processGroupedSales(
       return false;
     }
 
-    // Format and post tweet with collector stats
-    const tweetMessage = formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats);
+    // Format and post tweet with collector stats and window IDs
+    const tweetMessage = formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats, windowIds);
 
     logInfo("Posting sale tweet...");
     const tweetId = await postTweetWithMultipleImages(twitterClient, tweetMessage, imageBuffers);

@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+env:
+  IMAGE_API_URL: https://fold-image-api.fly.dev
+  ADMIN_ADDRESS: '0xCB43078C32423F5348Cab5885911C3B5faE217F9'
+
 jobs:
   index:
     runs-on: ubuntu-latest
@@ -19,10 +23,25 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Trigger image-api indexer
+        run: |
+          echo "Triggering image-api indexer..."
+          response=$(curl -s -w "\n%{http_code}" -X POST "$IMAGE_API_URL/api/admin/index-collectors" \
+            -H "Content-Type: application/json" \
+            -d "{\"address\": \"$ADMIN_ADDRESS\"}")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "Image-api indexer completed successfully"
+          else
+            echo "Warning: Image-api indexer returned $http_code (continuing with local indexer)"
+          fi
+
       - name: Install dependencies
         run: npm install
 
-      - name: Run indexer
+      - name: Run local indexer (backup)
         run: node scripts/index-collectors.js
         env:
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}

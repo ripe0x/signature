@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { formatEther } from 'viem';
 
 const TWITTER_BOT_API_URL = process.env.NEXT_PUBLIC_TWITTER_BOT_API_URL || 'https://fold-twitter-bot.fly.dev';
+const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
 
 export interface TwitterBotState {
   processedWindows: number[];
@@ -25,6 +26,19 @@ export interface TweetPreview {
   windowId?: number;
 }
 
+export interface IndexerStatus {
+  isIndexing: boolean;
+  lastResult: {
+    success: boolean;
+    totalTokens?: number;
+    totalCollectors?: number;
+    fullCollectors?: number;
+    duration?: number;
+    error?: string;
+    completedAt?: string;
+  } | null;
+}
+
 export function useAdminPanel() {
   const { address, isConnected } = useAccount();
   const [twitterBotState, setTwitterBotState] = useState<TwitterBotState | null>(null);
@@ -34,6 +48,12 @@ export function useAdminPanel() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPostingTweet, setIsPostingTweet] = useState(false);
   const [postTweetResult, setPostTweetResult] = useState<{ success: boolean; error?: string } | null>(null);
+
+  // Indexer state
+  const [indexerStatus, setIndexerStatus] = useState<IndexerStatus | null>(null);
+  const [indexerError, setIndexerError] = useState<string | null>(null);
+  const [isLoadingIndexerStatus, setIsLoadingIndexerStatus] = useState(false);
+  const [isRunningIndexer, setIsRunningIndexer] = useState(false);
 
   // Check if current user is admin
   const isAdmin = isConnected && address?.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
@@ -242,6 +262,67 @@ export function useAdminPanel() {
     setPostTweetResult(null);
   }, []);
 
+  // Fetch indexer status
+  const fetchIndexerStatus = useCallback(async () => {
+    if (!isAdmin) return;
+    setIsLoadingIndexerStatus(true);
+    setIndexerError(null);
+    try {
+      const res = await fetch(`${IMAGE_API_URL}/api/admin/index-status`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+      const data = await res.json();
+      setIndexerStatus(data);
+    } catch (err) {
+      setIndexerError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoadingIndexerStatus(false);
+    }
+  }, [isAdmin]);
+
+  // Run indexer
+  const runIndexer = useCallback(async () => {
+    if (!isAdmin || !address) return;
+    setIsRunningIndexer(true);
+    setIndexerError(null);
+    try {
+      const res = await fetch(`${IMAGE_API_URL}/api/admin/index-collectors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || err.message || `Failed: ${res.status}`);
+      }
+      const data = await res.json();
+      // Update status with the result
+      setIndexerStatus({
+        isIndexing: false,
+        lastResult: {
+          success: data.success,
+          totalTokens: data.totalTokens,
+          totalCollectors: data.totalCollectors,
+          fullCollectors: data.fullCollectors,
+          duration: data.duration,
+          completedAt: data.completedAt,
+        },
+      });
+    } catch (err) {
+      setIndexerError(err instanceof Error ? err.message : 'Indexing failed');
+    } finally {
+      setIsRunningIndexer(false);
+    }
+  }, [isAdmin, address]);
+
+  // Fetch indexer status on mount if admin
+  useEffect(() => {
+    if (isAdmin) {
+      fetchIndexerStatus();
+    }
+  }, [isAdmin, fetchIndexerStatus]);
+
   // Format helpers
   const formatContractBalance = contractBalance ? formatEther(contractBalance.value) : '0';
   const formatStrategyBalance = strategyBalance ? formatEther(strategyBalance.value) : '0';
@@ -293,5 +374,13 @@ export function useAdminPanel() {
     isPostingTweet,
     postTweetResult,
     clearTweetPreview,
+
+    // Indexer
+    indexerStatus,
+    indexerError,
+    isLoadingIndexerStatus,
+    fetchIndexerStatus,
+    runIndexer,
+    isRunningIndexer,
   };
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 
+const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
+
 export interface CollectorToken {
   tokenId: number;
   windowId: number;
@@ -38,14 +40,24 @@ export function useLeaderboard() {
     const fetchLeaderboard = async () => {
       try {
         setIsLoading(true);
-        // Fetch from static JSON file in public/data/
-        const response = await fetch('/data/leaderboard.json');
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch leaderboard');
+        // Try image-api first, fallback to static file
+        let leaderboard: LeaderboardData;
+        try {
+          const apiResponse = await fetch(`${IMAGE_API_URL}/api/leaderboard`);
+          if (!apiResponse.ok) {
+            throw new Error('API unavailable');
+          }
+          leaderboard = await apiResponse.json();
+        } catch {
+          // Fallback to static JSON file
+          const staticResponse = await fetch('/data/leaderboard.json');
+          if (!staticResponse.ok) {
+            throw new Error('Failed to fetch leaderboard');
+          }
+          leaderboard = await staticResponse.json();
         }
 
-        const leaderboard = await response.json();
         setData(leaderboard);
         setError(null);
       } catch (err) {
@@ -79,29 +91,46 @@ export function useCollector(address: string) {
     const fetchCollector = async () => {
       try {
         setIsLoading(true);
-        // Fetch from static JSON and find collector
-        const response = await fetch('/data/leaderboard.json');
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch leaderboard');
-        }
-
-        const leaderboard: LeaderboardData = await response.json();
         const normalizedAddress = address.toLowerCase();
 
-        const collectorIndex = leaderboard.collectors.findIndex(
-          (c) => c.address.toLowerCase() === normalizedAddress
-        );
+        // Try image-api first (has dedicated collector endpoint)
+        try {
+          const apiResponse = await fetch(`${IMAGE_API_URL}/api/collector/${normalizedAddress}`);
+          if (apiResponse.ok) {
+            const collector = await apiResponse.json();
+            setData(collector);
+            setError(null);
+            return;
+          }
+          // 404 means collector not found, which is valid
+          if (apiResponse.status === 404) {
+            setData(null);
+            setError(null);
+            return;
+          }
+          throw new Error('API unavailable');
+        } catch {
+          // Fallback to static JSON and find collector
+          const staticResponse = await fetch('/data/leaderboard.json');
+          if (!staticResponse.ok) {
+            throw new Error('Failed to fetch leaderboard');
+          }
 
-        if (collectorIndex === -1) {
-          setData(null);
-        } else {
-          const collector = leaderboard.collectors[collectorIndex];
-          setData({
-            ...collector,
-            rank: collectorIndex + 1,
-            totalWindows: leaderboard.totalWindows,
-          });
+          const leaderboard: LeaderboardData = await staticResponse.json();
+          const collectorIndex = leaderboard.collectors.findIndex(
+            (c) => c.address.toLowerCase() === normalizedAddress
+          );
+
+          if (collectorIndex === -1) {
+            setData(null);
+          } else {
+            const collector = leaderboard.collectors[collectorIndex];
+            setData({
+              ...collector,
+              rank: collectorIndex + 1,
+              totalWindows: leaderboard.totalWindows,
+            });
+          }
         }
         setError(null);
       } catch (err) {

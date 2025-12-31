@@ -6,6 +6,7 @@ import { ContractStatusCard } from '@/components/admin/ContractStatusCard';
 import { StrategyStatusCard } from '@/components/admin/StrategyStatusCard';
 import { TwitterBotCard } from '@/components/admin/TwitterBotCard';
 import { WithdrawCard } from '@/components/admin/WithdrawCard';
+import { IndexCollectorsCard } from '@/components/admin/IndexCollectorsCard';
 
 export default function AdminPage() {
   const {
@@ -43,6 +44,13 @@ export default function AdminPage() {
     isPostingTweet,
     postTweetResult,
     clearTweetPreview,
+    // Indexer
+    indexerStatus,
+    indexerError,
+    isLoadingIndexerStatus,
+    fetchIndexerStatus,
+    runIndexer,
+    isRunningIndexer,
   } = useAdminPanel();
 
   // Not connected
@@ -117,6 +125,15 @@ export default function AdminPage() {
             isPostingTweet={isPostingTweet}
             postResult={postTweetResult}
             onClearPreview={clearTweetPreview}
+          />
+
+          <IndexCollectorsCard
+            status={indexerStatus}
+            isLoading={isLoadingIndexerStatus}
+            error={indexerError}
+            onRefresh={fetchIndexerStatus}
+            onIndex={runIndexer}
+            isIndexing={isRunningIndexer}
           />
 
           <WithdrawCard
