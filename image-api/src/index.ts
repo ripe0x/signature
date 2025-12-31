@@ -728,6 +728,9 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     }
 
     const tokenCount = collector.tokens.length;
+    const windowCount = collector.windowsCollected?.length || 0;
+    const totalWindows = leaderboard.totalWindows || 18;
+    const rank = leaderboard.collectors.indexOf(collector) + 1;
 
     // Twitter card dimensions
     const CANVAS_WIDTH = 1200;
@@ -738,7 +741,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const cacheKey = `collector-grid-v8-${address}-${tokenCount}`;
+    const cacheKey = `collector-grid-v9-${address}-${tokenCount}-${windowCount}-${rank}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
@@ -918,12 +921,48 @@ app.get('/api/collector-grid/:address', async (req, res) => {
             font-size: 32px;
             font-weight: 500;
             color: white;
+            margin-bottom: 32px;
+          }
+          .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+          .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .stat-label {
+            font-size: 11px;
+            font-weight: 400;
+            color: #666666;
+            letter-spacing: 0.15em;
+          }
+          .stat-value {
+            font-size: 24px;
+            font-weight: 500;
+            color: white;
           }
         </style>
       </head>
       <body>
         <div class="label">COLLECTOR</div>
         <div class="name">${displayName}</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">RANK</div>
+            <div class="stat-value">#${rank}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">TOKENS</div>
+            <div class="stat-value">${tokenCount}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">WINDOWS</div>
+            <div class="stat-value">${windowCount}/${totalWindows}</div>
+          </div>
+        </div>
       </body>
       </html>
     `;
