@@ -170,11 +170,12 @@ export default function WindowPage({ params }: WindowPageProps) {
     );
   }
 
-  if (isNaN(windowId) || windowId < 1) {
+  if (isNaN(windowId) || windowId < 0) {
     return <WindowNotFound windowId={windowId || 0} />;
   }
 
   return <WindowCollection windowId={windowId} />;
 }
+
 
 

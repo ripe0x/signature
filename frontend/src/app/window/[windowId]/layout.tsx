@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { windowId } = await params;
   const windowIdNum = parseInt(windowId, 10);
 
-  if (isNaN(windowIdNum) || windowIdNum <= 0) {
+  if (isNaN(windowIdNum) || windowIdNum < 0) {
     return {
       title: 'Window - LESS',
       description: 'Mint window - LESS',
@@ -56,3 +56,4 @@ export default function WindowLayout({
 }) {
   return children;
 }
+

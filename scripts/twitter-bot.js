@@ -1928,7 +1928,7 @@ async function getCollectorStats(address, client, contractAddress, abi) {
     ]);
 
     const supply = Number(totalSupply);
-    const windows = Number(totalWindows);
+    const windows = Number(totalWindows) + 1; // +1 to include Window 0
 
     if (supply === 0) {
       return { tokenCount: 0, windowCount: 0, totalWindows: windows, isFullCollector: false };
@@ -3979,7 +3979,7 @@ function startAdminServer() {
           return;
         }
 
-        if (!type || !["balance", "window", "mint"].includes(type)) {
+        if (!type || !["balance", "window", "mint", "window-ended"].includes(type)) {
           sendJson(400, { error: "Invalid type" });
           return;
         }
@@ -4017,16 +4017,92 @@ function startAdminServer() {
             } catch (imgErr) {
               logWarn(`Failed to fetch image for mint tweet: ${imgErr.message}`);
             }
+          } else if (type === "window-ended") {
+            if (!windowId) {
+              sendJson(400, { error: "windowId required" });
+              return;
+            }
+            // Fetch token IDs for this window from leaderboard
+            const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+            const leaderboardRes = await fetch(`${imageApiUrl}/api/leaderboard`);
+            if (!leaderboardRes.ok) {
+              sendJson(500, { error: "Failed to fetch leaderboard" });
+              return;
+            }
+            const leaderboard = await leaderboardRes.json();
+            const tokenIds = leaderboard.collectors
+              .flatMap(c => c.tokens)
+              .filter(t => t.windowId === windowId)
+              .map(t => t.tokenId)
+              .sort((a, b) => a - b);
+
+            if (tokenIds.length === 0) {
+              sendJson(400, { error: `No tokens found for window ${windowId}` });
+              return;
+            }
+
+            // Fetch progress info for next window
+            let progressInfo = null;
+            try {
+              const rpcUrl = getRpcUrl();
+              const contractAddress = getContractAddress();
+              const abi = loadContractABI();
+              const client = createPublicClient({
+                chain: getChain(),
+                transport: http(rpcUrl),
+              });
+
+              const [strategyAddress, minEthForWindow] = await Promise.all([
+                client.readContract({
+                  address: contractAddress,
+                  abi: abi,
+                  functionName: "strategy",
+                }),
+                client.readContract({
+                  address: contractAddress,
+                  abi: [{ inputs: [], name: "minEthForWindow", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+                  functionName: "minEthForWindow",
+                }),
+              ]);
+
+              if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
+                const currentBalance = await client.getBalance({ address: strategyAddress });
+                const progressPercent = Math.min(100, Number((currentBalance * 100n) / minEthForWindow));
+                progressInfo = {
+                  currentBalance,
+                  minEthForWindow,
+                  progressPercent,
+                  nextWindowId: windowId + 1,
+                };
+              }
+            } catch (progressErr) {
+              logWarn(`Failed to fetch progress info: ${progressErr.message}`);
+            }
+
+            // Generate tweet text using the standard formatter
+            tweetText = formatWindowEndTweet(windowId, tokenIds.length, tokenIds, progressInfo);
+
+            // Fetch grid image
+            try {
+              const gridUrl = `${imageApiUrl}/api/grid?tokenIds=${tokenIds.join(",")}&cellWidth=300&cellHeight=424`;
+              const gridRes = await fetch(gridUrl);
+              if (gridRes.ok) {
+                imageBuffer = Buffer.from(await gridRes.arrayBuffer());
+                logSuccess(`Grid image fetched: ${imageBuffer.length} bytes`);
+              }
+            } catch (imgErr) {
+              logWarn(`Failed to fetch grid image: ${imgErr.message}`);
+            }
           }
 
           // Post the tweet
-          const result = await postTweet(adminTwitterClient, tweetText, imageBuffer);
+          const tweetId = await postTweet(adminTwitterClient, tweetText, imageBuffer);
 
-          if (result.success) {
-            logSuccess(`Admin posted ${type} tweet via API`);
-            sendJson(200, { success: true, tweetId: result.tweetId });
+          if (tweetId) {
+            logSuccess(`Admin posted ${type} tweet via API, ID: ${tweetId}`);
+            sendJson(200, { success: true, tweetId });
           } else {
-            sendJson(500, { error: result.error || "Failed to post tweet" });
+            sendJson(500, { error: "Failed to post tweet" });
           }
         } catch (error) {
           logError(`Admin tweet post error: ${error.message}`);

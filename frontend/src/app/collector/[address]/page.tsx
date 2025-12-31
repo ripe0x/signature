@@ -38,7 +38,8 @@ function WindowProgress({
   total: number;
 }) {
   const windows = [];
-  for (let i = 1; i <= total; i++) {
+  // Start at 0 to include Window 0
+  for (let i = 0; i < total; i++) {
     const hasWindow = collected.includes(i);
     windows.push(
       <div
@@ -210,7 +211,7 @@ export default function CollectorPage() {
                 missing windows:{" "}
                 {Array.from(
                   { length: collector.totalWindows },
-                  (_, i) => i + 1
+                  (_, i) => i // Start at 0 to include Window 0
                 )
                   .filter((w) => !collector.windowsCollected.includes(w))
                   .join(", ")}

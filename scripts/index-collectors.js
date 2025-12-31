@@ -89,10 +89,10 @@ async function main() {
   ]);
 
   const total = Number(totalSupply);
-  const windows = Number(windowCount);
+  const windows = Number(windowCount) + 1; // +1 to include Window 0
 
   console.log(`Total tokens: ${total}`);
-  console.log(`Total windows: ${windows}`);
+  console.log(`Total windows: ${windows} (including window 0)`);
 
   if (total === 0) {
     console.log('No tokens minted yet. Exiting.');

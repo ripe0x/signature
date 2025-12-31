@@ -352,12 +352,12 @@ app.post('/api/admin/index-collectors', async (req, res) => {
     ]);
 
     const total = Number(totalSupply);
-    const windows = Number(windowCount);
+    const windows = Number(windowCount) + 1; // +1 to include Window 0
 
     if (total === 0) {
       isIndexingInProgress = false;
       lastIndexResult = { success: true, totalTokens: 0, totalCollectors: 0, fullCollectors: 0, duration: Date.now() - startTime, completedAt: new Date().toISOString() };
-      return res.json({ success: true, message: 'No tokens minted yet', ...lastIndexResult });
+      return res.json({ message: 'No tokens minted yet', ...lastIndexResult });
     }
 
     // Fetch all token data in batches
@@ -483,10 +483,7 @@ app.post('/api/admin/index-collectors', async (req, res) => {
     };
     isIndexingInProgress = false;
 
-    res.json({
-      success: true,
-      ...lastIndexResult,
-    });
+    res.json(lastIndexResult);
   } catch (error) {
     isIndexingInProgress = false;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
