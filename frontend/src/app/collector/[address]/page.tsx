@@ -259,7 +259,7 @@ export default function CollectorPage() {
               etherscan →
             </a>
             <a
-              href={`https://opensea.io/${address}?search[collections][0]=less-by-int-art`}
+              href={`https://opensea.io/${address}/say-less`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-muted hover:text-foreground transition-colors"

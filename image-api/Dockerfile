@@ -2,6 +2,9 @@ FROM mcr.microsoft.com/playwright:v1.57.0-noble
 
 WORKDIR /app
 
+# Install IBM Plex Mono font
+RUN apt-get update && apt-get install -y fonts-ibm-plex && rm -rf /var/lib/apt/lists/*
+
 # Copy package files
 COPY package*.json ./
 

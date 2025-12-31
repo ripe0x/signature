@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useReadContract, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import Link from 'next/link';
 import { useBounties, useUserBounty, useCreateBounty, useManageBounty, useRecentClaims, type ClaimedBounty } from '@/hooks/useBounties';
@@ -650,12 +650,70 @@ function ManageBountyCard({ bountyAddress, onUpdate }: { bountyAddress: `0x${str
   );
 }
 
-function DepositCard({ bountyAddress }: { bountyAddress: `0x${string}` }) {
+function DepositCard({ bountyAddress, onSuccess }: { bountyAddress: `0x${string}`; onSuccess?: () => void }) {
   const [amount, setAmount] = useState('0.01');
-  const [isPending, setIsPending] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Simple deposit via sending ETH directly to the contract
-  // The bounty contract should accept ETH via receive()
+  const parsedAmount = parseFloat(amount) || 0;
+  const isValidAmount = parsedAmount > 0;
+
+  const {
+    data: txHash,
+    sendTransaction,
+    isPending,
+    error: sendError,
+    reset: resetSend,
+  } = useSendTransaction();
+
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  // Handle successful confirmation
+  useEffect(() => {
+    if (isConfirmed && txHash) {
+      setShowSuccess(true);
+      onSuccess?.();
+    }
+  }, [isConfirmed, txHash, onSuccess]);
+
+  const handleDeposit = () => {
+    if (!isValidAmount) return;
+    sendTransaction({
+      to: bountyAddress,
+      value: parseEther(amount),
+    });
+  };
+
+  const handleReset = () => {
+    setShowSuccess(false);
+    resetSend();
+    setAmount('0.01');
+  };
+
+  if (showSuccess && txHash) {
+    return (
+      <div className="p-4 border border-border space-y-3">
+        <div className="p-3 bg-green-50 border border-green-200 text-sm space-y-2">
+          <p className="text-green-800">deposit successful!</p>
+          <a
+            href={getTxUrl(txHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-600 hover:underline text-xs block"
+          >
+            view transaction
+          </a>
+          <button onClick={handleReset} className="text-green-600 hover:underline text-xs">
+            deposit more
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 border border-border space-y-3">
@@ -670,8 +728,28 @@ function DepositCard({ bountyAddress }: { bountyAddress: `0x${string}` }) {
         />
         <span className="py-1.5 text-sm text-muted">ETH</span>
       </div>
+
+      {sendError && (
+        <div className="p-2 bg-red-50 border border-red-200 text-xs">
+          <p className="text-red-800">
+            {sendError.message.includes('User rejected') ? 'cancelled' : 'deposit failed'}
+          </p>
+          <button onClick={resetSend} className="text-red-600 hover:underline text-xs mt-1">
+            dismiss
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={handleDeposit}
+        disabled={isPending || isConfirming || !isValidAmount}
+        className="w-full py-1.5 border border-foreground bg-foreground text-background hover:bg-background hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+      >
+        {isPending ? 'confirm in wallet...' : isConfirming ? 'confirming...' : 'deposit'}
+      </button>
+
       <p className="text-xs text-muted">
-        send ETH directly to{' '}
+        or send ETH directly to{' '}
         <a
           href={getAddressUrl(bountyAddress)}
           target="_blank"
@@ -849,7 +927,7 @@ export default function BountiesPage() {
               ) : hasBounty && bountyAddress ? (
                 <>
                   <ManageBountyCard bountyAddress={bountyAddress} onUpdate={refetch} />
-                  <DepositCard bountyAddress={bountyAddress} />
+                  <DepositCard bountyAddress={bountyAddress} onSuccess={refetch} />
                 </>
               ) : (
                 <CreateBountyForm onSuccess={refetch} ethPrice={ethPrice} currentWindowId={currentWindowId} />
