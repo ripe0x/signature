@@ -738,7 +738,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const cacheKey = `collector-grid-v7-${address}-${tokenCount}`;
+    const cacheKey = `collector-grid-v8-${address}-${tokenCount}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
@@ -869,10 +869,9 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     // Build composite array
     const composites: { input: Buffer; left: number; top: number }[] = [];
 
-    // Calculate grid positioning - align to top, center horizontally in grid area
+    // Calculate grid positioning - align to top-right (right edge flush with canvas edge)
     const gridTotalWidth = grid.cols * grid.cellWidth;
-    const gridTotalHeight = grid.rows * grid.cellHeight;
-    const gridOffsetX = INFO_PANEL_WIDTH + Math.floor((GRID_WIDTH - gridTotalWidth) / 2);
+    const gridOffsetX = CANVAS_WIDTH - gridTotalWidth;
     const gridOffsetY = 0; // No top margin - align to top
 
     // Position tokens in grid
