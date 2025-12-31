@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useEnsName } from "wagmi";
@@ -23,8 +24,8 @@ function TokenCard({ token }: { token: CollectorToken }) {
         <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
-        <span>LESS #{token.tokenId}</span>
-        <span className="text-muted">W{token.windowId}</span>
+        <span>LESS {token.tokenId}</span>
+        <span className="text-muted">Window {token.windowId}</span>
       </div>
     </Link>
   );
@@ -33,26 +34,35 @@ function TokenCard({ token }: { token: CollectorToken }) {
 function WindowProgress({
   collected,
   total,
+  selectedWindow,
+  onSelectWindow,
 }: {
   collected: number[];
   total: number;
+  selectedWindow: number | null;
+  onSelectWindow: (windowId: number | null) => void;
 }) {
   const windows = [];
   // Start at 0 to include Window 0
   for (let i = 0; i < total; i++) {
     const hasWindow = collected.includes(i);
+    const isSelected = selectedWindow === i;
     windows.push(
-      <div
+      <button
         key={i}
-        className={`w-8 h-8 flex items-center justify-center text-xs border ${
-          hasWindow
-            ? "border-foreground bg-foreground text-background"
-            : "border-border text-muted"
+        onClick={() => onSelectWindow(isSelected ? null : (hasWindow ? i : null))}
+        disabled={!hasWindow}
+        className={`w-8 h-8 flex items-center justify-center text-xs border transition-all ${
+          isSelected
+            ? "border-foreground bg-foreground text-background ring-2 ring-foreground ring-offset-2 ring-offset-background"
+            : hasWindow
+            ? "border-foreground bg-foreground text-background hover:opacity-80 cursor-pointer"
+            : "border-border text-muted cursor-not-allowed"
         }`}
-        title={hasWindow ? `Window ${i} - collected` : `Window ${i} - missing`}
+        title={hasWindow ? `Filter to Window ${i}` : `Window ${i} - not collected`}
       >
         {i}
-      </div>
+      </button>
     );
   }
   return <div className="flex flex-wrap gap-2">{windows}</div>;
@@ -97,6 +107,8 @@ export default function CollectorPage() {
   const params = useParams();
   const address = params.address as string;
 
+  const [selectedWindow, setSelectedWindow] = useState<number | null>(null);
+
   const { data: collector, isLoading, error } = useCollector(address);
   const { data: ensName } = useEnsName({
     address: address as `0x${string}`,
@@ -134,18 +146,10 @@ export default function CollectorPage() {
     (collector.windowCount / (collector.totalWindows || 1)) * 100
   );
 
-  // Group tokens by window
-  const tokensByWindow = new Map<number, CollectorToken[]>();
-  for (const token of collector.tokens) {
-    const existing = tokensByWindow.get(token.windowId) || [];
-    existing.push(token);
-    tokensByWindow.set(token.windowId, existing);
-  }
-
-  // Sort windows descending
-  const sortedWindows = Array.from(tokensByWindow.entries()).sort(
-    (a, b) => b[0] - a[0]
-  );
+  // Sort all tokens by tokenId, optionally filter by window
+  const sortedTokens = [...collector.tokens]
+    .filter((token) => selectedWindow === null || token.windowId === selectedWindow)
+    .sort((a, b) => a.tokenId - b.tokenId);
 
   return (
     <div className="min-h-screen pt-20 lg:pt-28">
@@ -205,51 +209,37 @@ export default function CollectorPage() {
             <WindowProgress
               collected={collector.windowsCollected}
               total={collector.totalWindows || 0}
+              selectedWindow={selectedWindow}
+              onSelectWindow={setSelectedWindow}
             />
-            {!collector.isFullCollector && collector.totalWindows && (
-              <p className="text-sm text-muted mt-4">
-                missing windows:{" "}
-                {Array.from(
-                  { length: collector.totalWindows },
-                  (_, i) => i // Start at 0 to include Window 0
-                )
-                  .filter((w) => !collector.windowsCollected.includes(w))
-                  .join(", ")}
-              </p>
-            )}
           </div>
 
           {/* Collection */}
           <div>
-            <h2 className="text-lg mb-6">collection</h2>
+            <div className="flex items-center gap-4 mb-6">
+              <h2 className="text-lg">collection</h2>
+              {selectedWindow !== null && (
+                <span className="text-sm text-muted">
+                  showing Window {selectedWindow} · {sortedTokens.length} piece{sortedTokens.length !== 1 ? "s" : ""}
+                  <button
+                    onClick={() => setSelectedWindow(null)}
+                    className="ml-2 text-muted hover:text-foreground transition-colors"
+                  >
+                    (clear)
+                  </button>
+                </span>
+              )}
+            </div>
 
-            {sortedWindows.map(([windowId, tokens]) => (
-              <section key={windowId} className="mb-12">
-                <Link
-                  href={`/window/${windowId}`}
-                  className="flex items-baseline gap-4 mb-4 pb-2 border-b border-border group"
-                >
-                  <h3 className="text-sm group-hover:underline underline-offset-4">
-                    window {windowId}
-                  </h3>
-                  <span className="text-sm text-muted">
-                    {tokens.length} piece{tokens.length !== 1 ? "s" : ""}
-                  </span>
-                </Link>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {tokens
-                    .sort((a, b) => a.tokenId - b.tokenId)
-                    .map((token) => (
-                      <TokenCard key={token.tokenId} token={token} />
-                    ))}
-                </div>
-              </section>
-            ))}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {sortedTokens.map((token) => (
+                <TokenCard key={token.tokenId} token={token} />
+              ))}
+            </div>
           </div>
 
           {/* External links */}
-          <div className="flex gap-4 pt-8 border-t border-border">
+          <div className="flex gap-4 pt-8 mt-16 border-t border-border">
             <a
               href={`https://etherscan.io/address/${address}`}
               target="_blank"

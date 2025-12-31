@@ -16,10 +16,12 @@ export class DiskCache {
   }
 
   private getCacheKey(identifier: string, width: number, height: number, foldCount?: number): string {
-    // Use identifier as-is for token-based keys, or first 16 chars for seed-based keys
-    const keyPrefix = identifier.startsWith('token-')
-      ? identifier
-      : identifier.replace('0x', '').slice(0, 16);
+    // Use identifier as-is for token-based keys and collector-grid/collector-card keys
+    // Use first 16 chars for seed-based keys (which are hex strings)
+    const keyPrefix =
+      identifier.startsWith('token-') || identifier.startsWith('collector-')
+        ? identifier
+        : identifier.replace('0x', '').slice(0, 16);
     const foldSuffix = foldCount !== undefined ? `-f${foldCount}` : '';
     return `${keyPrefix}-${width}x${height}${foldSuffix}.png`;
   }
