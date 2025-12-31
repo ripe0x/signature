@@ -738,7 +738,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const cacheKey = `collector-grid-v2-${address}-${tokenCount}`;
+    const cacheKey = `collector-grid-v3-${address}-${tokenCount}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
@@ -765,37 +765,52 @@ app.get('/api/collector-grid/:address', async (req, res) => {
       displayName = `${address.slice(0, 6)}...${address.slice(-4)}`;
     }
 
-    // Calculate optimal grid layout preserving A4 ratio
-    // A4 ratio is ~0.707 (width/height), so cells are taller than wide
-    const cellRatio = A4_RATIO; // width / height
-
-    // Find best grid arrangement to fill the space
-    function calculateOptimalGrid(count: number, areaWidth: number, areaHeight: number) {
-      let bestCols = 1;
-      let bestRows = count;
-      let bestCellWidth = 0;
-
-      for (let cols = 1; cols <= count; cols++) {
-        const rows = Math.ceil(count / cols);
-        // Cell width limited by available width
-        const cellWidthByWidth = Math.floor(areaWidth / cols);
-        // Cell height limited by available height, then convert to width via ratio
-        const cellHeightByHeight = Math.floor(areaHeight / rows);
-        const cellWidthByHeight = Math.floor(cellHeightByHeight * cellRatio);
-        // Use the smaller constraint
-        const cellWidth = Math.min(cellWidthByWidth, cellWidthByHeight);
-
-        if (cellWidth > bestCellWidth) {
-          bestCellWidth = cellWidth;
-          bestCols = cols;
-          bestRows = rows;
-        }
-      }
-
-      return { cols: bestCols, rows: bestRows, cellWidth: bestCellWidth, cellHeight: Math.floor(bestCellWidth / cellRatio) };
+    // Calculate optimal grid dimensions (matches twitter-bot approach)
+    function getGridDimensions(count: number) {
+      if (count === 1) return { cols: 1, rows: 1 };
+      if (count === 2) return { cols: 2, rows: 1 };
+      if (count === 3) return { cols: 3, rows: 1 };
+      if (count === 4) return { cols: 2, rows: 2 };
+      if (count <= 6) return { cols: 3, rows: 2 };
+      if (count <= 9) return { cols: 3, rows: 3 };
+      if (count <= 12) return { cols: 4, rows: 3 };
+      if (count <= 16) return { cols: 4, rows: 4 };
+      if (count <= 20) return { cols: 5, rows: 4 };
+      if (count <= 25) return { cols: 5, rows: 5 };
+      if (count <= 30) return { cols: 6, rows: 5 };
+      if (count <= 36) return { cols: 6, rows: 6 };
+      if (count <= 42) return { cols: 7, rows: 6 };
+      if (count <= 49) return { cols: 7, rows: 7 };
+      if (count <= 56) return { cols: 8, rows: 7 };
+      if (count <= 64) return { cols: 8, rows: 8 };
+      const cols = Math.ceil(Math.sqrt(count));
+      const rows = Math.ceil(count / cols);
+      return { cols, rows };
     }
 
-    const grid = calculateOptimalGrid(tokenCount, GRID_WIDTH, CANVAS_HEIGHT);
+    const { cols, rows } = getGridDimensions(tokenCount);
+
+    // Calculate cell dimensions to fill the grid area completely (no margins)
+    // Cells maintain A4 ratio
+    const cellWidthByWidth = Math.floor(GRID_WIDTH / cols);
+    const cellHeightByHeight = Math.floor(CANVAS_HEIGHT / rows);
+    // Determine which dimension is the constraint
+    const cellHeightFromWidth = Math.floor(cellWidthByWidth / A4_RATIO);
+    const cellWidthFromHeight = Math.floor(cellHeightByHeight * A4_RATIO);
+
+    let cellWidth: number;
+    let cellHeight: number;
+    if (cellHeightFromWidth <= cellHeightByHeight) {
+      // Width is the constraint
+      cellWidth = cellWidthByWidth;
+      cellHeight = cellHeightFromWidth;
+    } else {
+      // Height is the constraint
+      cellWidth = cellWidthFromHeight;
+      cellHeight = cellHeightByHeight;
+    }
+
+    const grid = { cols, rows, cellWidth, cellHeight };
 
     // Render function for a single token
     async function renderToken(tokenId: number, width: number, height: number): Promise<Buffer | null> {
@@ -854,11 +869,11 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     // Build composite array
     const composites: { input: Buffer; left: number; top: number }[] = [];
 
-    // Calculate grid positioning (centered in grid area)
+    // Calculate grid positioning - align to top, center horizontally in grid area
     const gridTotalWidth = grid.cols * grid.cellWidth;
     const gridTotalHeight = grid.rows * grid.cellHeight;
     const gridOffsetX = INFO_PANEL_WIDTH + Math.floor((GRID_WIDTH - gridTotalWidth) / 2);
-    const gridOffsetY = Math.floor((CANVAS_HEIGHT - gridTotalHeight) / 2);
+    const gridOffsetY = 0; // No top margin - align to top
 
     // Position tokens in grid
     for (let i = 0; i < tokenImages.length; i++) {
@@ -875,23 +890,22 @@ app.get('/api/collector-grid/:address', async (req, res) => {
       composites.push({ input: resized, left: x, top: y });
     }
 
-    // Create info panel SVG
+    // Create info panel SVG - left-aligned, larger text
+    const PANEL_PADDING = 40;
     const infoPanelSvg = `
       <svg width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
         <rect width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" fill="black"/>
-        <text x="${INFO_PANEL_WIDTH / 2}" y="${CANVAS_HEIGHT / 2 - 20}"
+        <text x="${PANEL_PADDING}" y="${CANVAS_HEIGHT / 2 - 30}"
               font-family="system-ui, -apple-system, sans-serif"
-              font-size="14"
+              font-size="16"
               font-weight="300"
               fill="#666666"
-              text-anchor="middle"
-              letter-spacing="0.1em">COLLECTOR</text>
-        <text x="${INFO_PANEL_WIDTH / 2}" y="${CANVAS_HEIGHT / 2 + 20}"
+              letter-spacing="0.15em">COLLECTOR</text>
+        <text x="${PANEL_PADDING}" y="${CANVAS_HEIGHT / 2 + 20}"
               font-family="system-ui, -apple-system, sans-serif"
-              font-size="${displayName.length > 20 ? 18 : 24}"
-              font-weight="400"
-              fill="white"
-              text-anchor="middle">${displayName}</text>
+              font-size="36"
+              font-weight="500"
+              fill="white">${displayName}</text>
       </svg>
     `;
 
