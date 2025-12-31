@@ -695,7 +695,8 @@ app.get('/api/grid', async (req, res) => {
 });
 
 // Collector grid endpoint - generates a grid of a collector's owned pieces
-// Highlighted tokens (new acquisitions) are displayed larger with a visual highlight
+// Left 1/3: black panel with collector label and ENS/address
+// Right 2/3: token grid preserving A4 ratio
 app.get('/api/collector-grid/:address', async (req, res) => {
   const startTime = Date.now();
 
@@ -705,12 +706,6 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     if (!/^0x[a-f0-9]{40}$/.test(address)) {
       return res.status(400).json({ error: 'Invalid address format' });
     }
-
-    // Parse highlighted token IDs (the newly acquired tokens to emphasize)
-    const highlightParam = req.query.highlight as string | undefined;
-    const highlightTokenIds = highlightParam
-      ? highlightParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
-      : [];
 
     // Load leaderboard data
     if (!existsSync(LEADERBOARD_FILE)) {
@@ -732,123 +727,78 @@ app.get('/api/collector-grid/:address', async (req, res) => {
       return res.status(404).json({ error: 'Collector not found or has no tokens' });
     }
 
-    // Separate highlighted and regular tokens
-    const highlightedTokens = collector.tokens.filter((t: any) => highlightTokenIds.includes(t.tokenId));
-    const regularTokens = collector.tokens.filter((t: any) => !highlightTokenIds.includes(t.tokenId));
+    const tokenCount = collector.tokens.length;
 
-    // Twitter optimal dimensions
+    // Twitter card dimensions
     const CANVAS_WIDTH = 1200;
-    const CANVAS_HEIGHT = 675; // Twitter card ratio (16:9)
+    const CANVAS_HEIGHT = 675;
 
-    // Calculate layout based on token counts
-    const highlightCount = highlightedTokens.length;
-    const regularCount = regularTokens.length;
-    const totalCount = highlightCount + regularCount;
-
-    // Layout parameters - highlighted tokens are 2x the size of regular tokens
-    // We'll use a flexible layout where highlighted tokens appear on the left side larger
-    // and regular tokens fill a grid on the right side
-
-    let layout: {
-      highlightCellSize: number;
-      regularCellSize: number;
-      highlightCols: number;
-      highlightRows: number;
-      regularCols: number;
-      regularRows: number;
-      highlightAreaWidth: number;
-      regularAreaWidth: number;
-    };
-
-    if (highlightCount === 0) {
-      // No highlighted tokens - just a regular grid
-      const { cols, rows } = calculateGridDimensions(totalCount);
-      const cellWidth = Math.floor(CANVAS_WIDTH / cols);
-      const cellHeight = Math.floor(CANVAS_HEIGHT / rows);
-      const cellSize = Math.min(cellWidth, cellHeight);
-
-      layout = {
-        highlightCellSize: 0,
-        regularCellSize: cellSize,
-        highlightCols: 0,
-        highlightRows: 0,
-        regularCols: cols,
-        regularRows: rows,
-        highlightAreaWidth: 0,
-        regularAreaWidth: CANVAS_WIDTH,
-      };
-    } else if (regularCount === 0) {
-      // Only highlighted tokens
-      const { cols, rows } = calculateGridDimensions(highlightCount);
-      const cellWidth = Math.floor(CANVAS_WIDTH / cols);
-      const cellHeight = Math.floor(CANVAS_HEIGHT / rows);
-      const cellSize = Math.min(cellWidth, cellHeight);
-
-      layout = {
-        highlightCellSize: cellSize,
-        regularCellSize: 0,
-        highlightCols: cols,
-        highlightRows: rows,
-        regularCols: 0,
-        regularRows: 0,
-        highlightAreaWidth: CANVAS_WIDTH,
-        regularAreaWidth: 0,
-      };
-    } else {
-      // Mixed layout - highlighted on left (larger), regular on right (smaller grid)
-      // Highlighted tokens take up ~40% of width, regular tokens take ~60%
-      const highlightAreaWidth = Math.floor(CANVAS_WIDTH * 0.4);
-      const regularAreaWidth = CANVAS_WIDTH - highlightAreaWidth;
-
-      // Calculate highlighted token layout (bigger cells)
-      const hCols = Math.ceil(Math.sqrt(highlightCount * (highlightAreaWidth / CANVAS_HEIGHT)));
-      const hRows = Math.ceil(highlightCount / hCols);
-      const hCellW = Math.floor(highlightAreaWidth / hCols);
-      const hCellH = Math.floor(CANVAS_HEIGHT / hRows);
-      const highlightCellSize = Math.min(hCellW, hCellH);
-
-      // Calculate regular token layout (smaller cells)
-      const rCols = Math.max(2, Math.ceil(Math.sqrt(regularCount * (regularAreaWidth / CANVAS_HEIGHT))));
-      const rRows = Math.ceil(regularCount / rCols);
-      const rCellW = Math.floor(regularAreaWidth / rCols);
-      const rCellH = Math.floor(CANVAS_HEIGHT / rRows);
-      const regularCellSize = Math.min(rCellW, rCellH);
-
-      layout = {
-        highlightCellSize,
-        regularCellSize,
-        highlightCols: hCols,
-        highlightRows: hRows,
-        regularCols: rCols,
-        regularRows: rRows,
-        highlightAreaWidth,
-        regularAreaWidth,
-      };
-    }
+    // Layout: left 1/3 for info panel, right 2/3 for grid
+    const INFO_PANEL_WIDTH = Math.floor(CANVAS_WIDTH / 3);
+    const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const sortedHighlight = [...highlightTokenIds].sort((a, b) => a - b);
-    const cacheKey = `collector-grid-${address}-h${sortedHighlight.join('_') || 'none'}`;
+    const cacheKey = `collector-grid-v2-${address}-${tokenCount}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
       res.set('Access-Control-Allow-Origin', '*');
       res.set('X-Cache', 'HIT');
       res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
-      res.set('X-Token-Count', totalCount.toString());
-      res.set('X-Highlighted-Count', highlightCount.toString());
+      res.set('X-Token-Count', tokenCount.toString());
       return res.send(cached);
     }
 
-    // Create viem client for fetching token data
+    // Create viem client
     const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
     const client = createPublicClient({
       chain,
       transport: http(RPC_URL),
     });
 
+    // Try to resolve ENS name
+    let displayName: string;
+    try {
+      const ensName = await client.getEnsName({ address: address as `0x${string}` });
+      displayName = ensName || `${address.slice(0, 6)}...${address.slice(-4)}`;
+    } catch {
+      displayName = `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+
+    // Calculate optimal grid layout preserving A4 ratio
+    // A4 ratio is ~0.707 (width/height), so cells are taller than wide
+    const cellRatio = A4_RATIO; // width / height
+
+    // Find best grid arrangement to fill the space
+    function calculateOptimalGrid(count: number, areaWidth: number, areaHeight: number) {
+      let bestCols = 1;
+      let bestRows = count;
+      let bestCellWidth = 0;
+
+      for (let cols = 1; cols <= count; cols++) {
+        const rows = Math.ceil(count / cols);
+        // Cell width limited by available width
+        const cellWidthByWidth = Math.floor(areaWidth / cols);
+        // Cell height limited by available height, then convert to width via ratio
+        const cellHeightByHeight = Math.floor(areaHeight / rows);
+        const cellWidthByHeight = Math.floor(cellHeightByHeight * cellRatio);
+        // Use the smaller constraint
+        const cellWidth = Math.min(cellWidthByWidth, cellWidthByHeight);
+
+        if (cellWidth > bestCellWidth) {
+          bestCellWidth = cellWidth;
+          bestCols = cols;
+          bestRows = rows;
+        }
+      }
+
+      return { cols: bestCols, rows: bestRows, cellWidth: bestCellWidth, cellHeight: Math.floor(bestCellWidth / cellRatio) };
+    }
+
+    const grid = calculateOptimalGrid(tokenCount, GRID_WIDTH, CANVAS_HEIGHT);
+
     // Render function for a single token
-    async function renderToken(tokenId: number, size: number): Promise<Buffer | null> {
+    async function renderToken(tokenId: number, width: number, height: number): Promise<Buffer | null> {
       try {
         const tokenURI = await client.readContract({
           address: CONTRACT_ADDRESS as `0x${string}`,
@@ -871,12 +821,10 @@ app.get('/api/collector-grid/:address', async (req, res) => {
 
         const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
 
-        // Render at A4 ratio for the cell
-        const renderHeight = Math.round(size / A4_RATIO);
         return await renderer.renderHtml({
           html: onChainHtml,
-          width: size,
-          height: renderHeight,
+          width,
+          height,
         });
       } catch (error) {
         console.warn(`Error rendering token ${tokenId}:`, error);
@@ -886,125 +834,72 @@ app.get('/api/collector-grid/:address', async (req, res) => {
 
     // Render all tokens in batches
     const BATCH_SIZE = 4;
-    const highlightedImages: { tokenId: number; buffer: Buffer }[] = [];
-    const regularImages: { tokenId: number; buffer: Buffer }[] = [];
+    const tokenImages: { tokenId: number; buffer: Buffer }[] = [];
 
-    // Render highlighted tokens
-    if (highlightCount > 0 && layout.highlightCellSize > 0) {
-      for (let i = 0; i < highlightedTokens.length; i += BATCH_SIZE) {
-        const batch = highlightedTokens.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(
-          batch.map(async (token: any) => {
-            const buffer = await renderToken(token.tokenId, layout.highlightCellSize);
-            return buffer ? { tokenId: token.tokenId, buffer } : null;
-          })
-        );
-        highlightedImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
-      }
+    for (let i = 0; i < collector.tokens.length; i += BATCH_SIZE) {
+      const batch = collector.tokens.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (token: any) => {
+          const buffer = await renderToken(token.tokenId, grid.cellWidth, grid.cellHeight);
+          return buffer ? { tokenId: token.tokenId, buffer } : null;
+        })
+      );
+      tokenImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
     }
 
-    // Render regular tokens
-    if (regularCount > 0 && layout.regularCellSize > 0) {
-      for (let i = 0; i < regularTokens.length; i += BATCH_SIZE) {
-        const batch = regularTokens.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(
-          batch.map(async (token: any) => {
-            const buffer = await renderToken(token.tokenId, layout.regularCellSize);
-            return buffer ? { tokenId: token.tokenId, buffer } : null;
-          })
-        );
-        regularImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
-      }
-    }
-
-    if (highlightedImages.length === 0 && regularImages.length === 0) {
+    if (tokenImages.length === 0) {
       return res.status(500).json({ error: 'Failed to render any tokens' });
     }
 
     // Build composite array
     const composites: { input: Buffer; left: number; top: number }[] = [];
 
-    // Highlight border color (subtle gold/amber glow)
-    const HIGHLIGHT_BORDER = 4;
-    const HIGHLIGHT_COLOR = { r: 255, g: 200, b: 50 };
+    // Calculate grid positioning (centered in grid area)
+    const gridTotalWidth = grid.cols * grid.cellWidth;
+    const gridTotalHeight = grid.rows * grid.cellHeight;
+    const gridOffsetX = INFO_PANEL_WIDTH + Math.floor((GRID_WIDTH - gridTotalWidth) / 2);
+    const gridOffsetY = Math.floor((CANVAS_HEIGHT - gridTotalHeight) / 2);
 
-    // Position highlighted tokens on the left side
-    if (highlightedImages.length > 0) {
-      const cellSize = layout.highlightCellSize;
-      const cols = layout.highlightCols;
-      const areaWidth = layout.highlightAreaWidth;
+    // Position tokens in grid
+    for (let i = 0; i < tokenImages.length; i++) {
+      const col = i % grid.cols;
+      const row = Math.floor(i / grid.cols);
+      const x = gridOffsetX + col * grid.cellWidth;
+      const y = gridOffsetY + row * grid.cellHeight;
 
-      // Center the grid within the highlight area
-      const gridWidth = cols * cellSize;
-      const gridHeight = layout.highlightRows * cellSize;
-      const offsetX = Math.floor((areaWidth - gridWidth) / 2);
-      const offsetY = Math.floor((CANVAS_HEIGHT - gridHeight) / 2);
+      // Resize to exact cell dimensions (already rendered at correct ratio)
+      const resized = await sharp(tokenImages[i].buffer)
+        .resize(grid.cellWidth, grid.cellHeight, { fit: 'fill' })
+        .toBuffer();
 
-      for (let i = 0; i < highlightedImages.length; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = offsetX + col * cellSize;
-        const y = offsetY + row * cellSize;
-
-        // Resize to fit cell with A4 ratio crop
-        const resized = await sharp(highlightedImages[i].buffer)
-          .resize(cellSize - HIGHLIGHT_BORDER * 2, cellSize - HIGHLIGHT_BORDER * 2, {
-            fit: 'cover',
-            position: 'center',
-          })
-          .toBuffer();
-
-        // Create highlighted version with border
-        const withBorder = await sharp({
-          create: {
-            width: cellSize,
-            height: cellSize,
-            channels: 4,
-            background: { ...HIGHLIGHT_COLOR, alpha: 255 },
-          },
-        })
-          .composite([{
-            input: resized,
-            left: HIGHLIGHT_BORDER,
-            top: HIGHLIGHT_BORDER,
-          }])
-          .png()
-          .toBuffer();
-
-        composites.push({ input: withBorder, left: x, top: y });
-      }
+      composites.push({ input: resized, left: x, top: y });
     }
 
-    // Position regular tokens on the right side
-    if (regularImages.length > 0) {
-      const cellSize = layout.regularCellSize;
-      const cols = layout.regularCols;
-      const startX = layout.highlightAreaWidth;
-      const areaWidth = layout.regularAreaWidth;
+    // Create info panel SVG
+    const infoPanelSvg = `
+      <svg width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" fill="black"/>
+        <text x="${INFO_PANEL_WIDTH / 2}" y="${CANVAS_HEIGHT / 2 - 20}"
+              font-family="system-ui, -apple-system, sans-serif"
+              font-size="14"
+              font-weight="300"
+              fill="#666666"
+              text-anchor="middle"
+              letter-spacing="0.1em">COLLECTOR</text>
+        <text x="${INFO_PANEL_WIDTH / 2}" y="${CANVAS_HEIGHT / 2 + 20}"
+              font-family="system-ui, -apple-system, sans-serif"
+              font-size="${displayName.length > 20 ? 18 : 24}"
+              font-weight="400"
+              fill="white"
+              text-anchor="middle">${displayName}</text>
+      </svg>
+    `;
 
-      // Center the grid within the regular area
-      const gridWidth = cols * cellSize;
-      const gridHeight = layout.regularRows * cellSize;
-      const offsetX = startX + Math.floor((areaWidth - gridWidth) / 2);
-      const offsetY = Math.floor((CANVAS_HEIGHT - gridHeight) / 2);
+    const infoPanelBuffer = await sharp(Buffer.from(infoPanelSvg))
+      .png()
+      .toBuffer();
 
-      for (let i = 0; i < regularImages.length; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = offsetX + col * cellSize;
-        const y = offsetY + row * cellSize;
-
-        // Resize to fit cell with A4 ratio crop
-        const resized = await sharp(regularImages[i].buffer)
-          .resize(cellSize, cellSize, {
-            fit: 'cover',
-            position: 'center',
-          })
-          .toBuffer();
-
-        composites.push({ input: resized, left: x, top: y });
-      }
-    }
+    composites.unshift({ input: infoPanelBuffer, left: 0, top: 0 });
 
     // Create final canvas and composite all images
     const finalImage = await sharp({
@@ -1026,8 +921,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('X-Cache', 'MISS');
     res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
-    res.set('X-Token-Count', totalCount.toString());
-    res.set('X-Highlighted-Count', highlightCount.toString());
+    res.set('X-Token-Count', tokenCount.toString());
     res.send(finalImage);
   } catch (error) {
     console.error('Collector grid error:', error);
