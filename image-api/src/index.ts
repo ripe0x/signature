@@ -738,7 +738,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const cacheKey = `collector-grid-v3-${address}-${tokenCount}`;
+    const cacheKey = `collector-grid-v7-${address}-${tokenCount}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
@@ -890,28 +890,50 @@ app.get('/api/collector-grid/:address', async (req, res) => {
       composites.push({ input: resized, left: x, top: y });
     }
 
-    // Create info panel SVG - left-aligned, larger text
+    // Create info panel using Playwright (to use system fonts properly)
     const PANEL_PADDING = 40;
-    const infoPanelSvg = `
-      <svg width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="${INFO_PANEL_WIDTH}" height="${CANVAS_HEIGHT}" fill="black"/>
-        <text x="${PANEL_PADDING}" y="${CANVAS_HEIGHT / 2 - 30}"
-              font-family="system-ui, -apple-system, sans-serif"
-              font-size="16"
-              font-weight="300"
-              fill="#666666"
-              letter-spacing="0.15em">COLLECTOR</text>
-        <text x="${PANEL_PADDING}" y="${CANVAS_HEIGHT / 2 + 20}"
-              font-family="system-ui, -apple-system, sans-serif"
-              font-size="36"
-              font-weight="500"
-              fill="white">${displayName}</text>
-      </svg>
+    const infoPanelHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            width: ${INFO_PANEL_WIDTH}px;
+            height: ${CANVAS_HEIGHT}px;
+            background: black;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-left: ${PANEL_PADDING}px;
+            font-family: 'IBM Plex Mono', 'Courier New', monospace;
+          }
+          .label {
+            font-size: 14px;
+            font-weight: 400;
+            color: #666666;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+          }
+          .name {
+            font-size: 32px;
+            font-weight: 500;
+            color: white;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label">COLLECTOR</div>
+        <div class="name">${displayName}</div>
+      </body>
+      </html>
     `;
 
-    const infoPanelBuffer = await sharp(Buffer.from(infoPanelSvg))
-      .png()
-      .toBuffer();
+    const infoPanelBuffer = await renderer.renderHtml({
+      html: infoPanelHtml,
+      width: INFO_PANEL_WIDTH,
+      height: CANVAS_HEIGHT,
+    });
 
     composites.unshift({ input: infoPanelBuffer, left: 0, top: 0 });
 
