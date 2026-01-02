@@ -1104,32 +1104,18 @@ async function runTestReminderMode() {
   // Simulate event data
   const testWindowId = 42;
   const testMinutesRemaining = 15;
+  const testMintCount = 25;
 
   logInfo(
-    `Simulated: Window #${testWindowId} with ${testMinutesRemaining} minutes remaining`
+    `Simulated: Window #${testWindowId} with ${testMinutesRemaining} minutes remaining, ${testMintCount} mints`
   );
   console.log();
-
-  // Fetch burn data (if configured)
-  let burnData = null;
-  try {
-    const rpcUrl = getRpcUrl();
-    const contractAddress = getContractAddress();
-    const abi = loadContractABI();
-    const client = createPublicClient({
-      chain: getChain(),
-      transport: http(rpcUrl),
-    });
-    burnData = await fetchBurnData(client, contractAddress, abi);
-  } catch (error) {
-    logWarn(`Could not fetch burn data: ${error.message}`);
-  }
 
   // Format and display the tweet
   const tweetMessage = formatReminderTweet(
     testWindowId,
     testMinutesRemaining,
-    burnData
+    testMintCount
   );
 
   await postTweet(null, tweetMessage);
@@ -1746,32 +1732,14 @@ ${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 }
 
 // Format 15-minute reminder tweet
-function formatReminderTweet(windowId, minutesRemaining, burnData = null) {
-  // If we have full burn data (amount + supply), include both lines
-  if (burnData && burnData.amountBurned && burnData.supplyRemaining) {
-    return `only ~${minutesRemaining} minutes left to mint!
+function formatReminderTweet(windowId, minutesRemaining, mintCount = 0) {
+  const mintText = mintCount === 1
+    ? `${mintCount} piece minted so far`
+    : `${mintCount} pieces minted so far`;
 
-window ${windowId}
-${burnData.amountBurned} $LESS burned
-${burnData.supplyRemaining}% supply remaining
+  return `~${minutesRemaining} minutes remain in mint window ${windowId}
 
-${formatUrlForTweet(`${BASE_URL}/mint`)}`;
-  }
-
-  // If we have only supply data (no burn amount), show just supply
-  if (burnData && burnData.supplyRemaining) {
-    return `only ~${minutesRemaining} minutes left to mint!
-
-window ${windowId}
-${burnData.supplyRemaining}% supply remaining
-
-${formatUrlForTweet(`${BASE_URL}/mint`)}`;
-  }
-
-  // Simple format without any burn/supply data
-  return `only ~${minutesRemaining} minutes left to mint!
-
-window ${windowId}
+${mintText}
 
 ${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
@@ -2604,14 +2572,17 @@ async function processReminderCheck(
       `15-minute reminder triggered for window #${windowId} (${minutesRemaining} minutes remaining)`
     );
 
-    // Fetch burn data
-    const burnData = await fetchBurnData(client, contractAddress, abi);
+    // Get mint count for this window
+    const currentBlock = await client.getBlockNumber();
+    const fromBlock = currentBlock > 10000n ? currentBlock - 10000n : 0n;
+    const tokenIds = await getMintsForWindow(client, contractAddress, windowId, fromBlock);
+    const mintCount = tokenIds.length;
 
     // Format and post tweet
     const tweetMessage = formatReminderTweet(
       windowId,
       minutesRemaining,
-      burnData
+      mintCount
     );
 
     logInfo("Posting 15-minute reminder tweet...");
@@ -3848,7 +3819,7 @@ async function generateMintTweet(tokenId) {
   const minterDisplay = ensName || truncateAddress(owner);
   const minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
 
-  return formatMintTweet(tokenId, Number(windowId), minterDisplay, minutesRemaining > 0 ? minutesRemaining : null);
+  return formatMintTweet(tokenId, minterDisplay, minutesRemaining > 0 ? minutesRemaining : null, Number(windowId));
 }
 
 // Generate window tweet with live data
@@ -4022,19 +3993,23 @@ function startAdminServer() {
               sendJson(400, { error: "windowId required" });
               return;
             }
-            // Fetch token IDs for this window from leaderboard
             const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
-            const leaderboardRes = await fetch(`${imageApiUrl}/api/leaderboard`);
-            if (!leaderboardRes.ok) {
-              sendJson(500, { error: "Failed to fetch leaderboard" });
-              return;
-            }
-            const leaderboard = await leaderboardRes.json();
-            const tokenIds = leaderboard.collectors
-              .flatMap(c => c.tokens)
-              .filter(t => t.windowId === windowId)
-              .map(t => t.tokenId)
-              .sort((a, b) => a - b);
+            const targetWindowId = Number(windowId);
+
+            // Create client for blockchain queries
+            const rpcUrl = getRpcUrl();
+            const contractAddress = getContractAddress();
+            const abi = loadContractABI();
+            const client = createPublicClient({
+              chain: getChain(),
+              transport: http(rpcUrl),
+            });
+
+            // Fetch token IDs directly from blockchain (more reliable than leaderboard)
+            // Use fromBlock 0n to get all historical events for this window
+            const tokenIds = await getMintsForWindow(client, contractAddress, targetWindowId, 0n);
+
+            logInfo(`Window ${targetWindowId} ended: found ${tokenIds.length} tokens (${tokenIds[0]}-${tokenIds[tokenIds.length-1]})`);
 
             if (tokenIds.length === 0) {
               sendJson(400, { error: `No tokens found for window ${windowId}` });
@@ -4044,14 +4019,6 @@ function startAdminServer() {
             // Fetch progress info for next window
             let progressInfo = null;
             try {
-              const rpcUrl = getRpcUrl();
-              const contractAddress = getContractAddress();
-              const abi = loadContractABI();
-              const client = createPublicClient({
-                chain: getChain(),
-                transport: http(rpcUrl),
-              });
-
               const [strategyAddress, minEthForWindow] = await Promise.all([
                 client.readContract({
                   address: contractAddress,
@@ -4072,15 +4039,16 @@ function startAdminServer() {
                   currentBalance,
                   minEthForWindow,
                   progressPercent,
-                  nextWindowId: windowId + 1,
+                  nextWindowId: targetWindowId + 1,
                 };
+                logInfo(`Progress towards window ${targetWindowId + 1}: ${progressPercent.toFixed(1)}%`);
               }
             } catch (progressErr) {
               logWarn(`Failed to fetch progress info: ${progressErr.message}`);
             }
 
-            // Generate tweet text using the standard formatter
-            tweetText = formatWindowEndTweet(windowId, tokenIds.length, tokenIds, progressInfo);
+            // Format tweet
+            tweetText = formatWindowEndTweet(targetWindowId, tokenIds.length, tokenIds, progressInfo);
 
             // Fetch grid image
             try {
@@ -4100,6 +4068,24 @@ function startAdminServer() {
 
           if (tweetId) {
             logSuccess(`Admin posted ${type} tweet via API, ID: ${tweetId}`);
+
+            // Update state file to mark mint as processed (prevents duplicate posts on restart)
+            if (type === "mint" && tokenId) {
+              try {
+                const stateData = existsSync(stateFile)
+                  ? JSON.parse(readFileSync(stateFile, "utf8"))
+                  : { processedMints: [] };
+                const processedMints = new Set(stateData.processedMints || []);
+                processedMints.add(Number(tokenId));
+                stateData.processedMints = Array.from(processedMints);
+                stateData.updatedAt = new Date().toISOString();
+                writeFileSync(stateFile, JSON.stringify(stateData, null, 2));
+                logInfo(`Updated state: marked token ${tokenId} as processed`);
+              } catch (stateErr) {
+                logWarn(`Failed to update state file: ${stateErr.message}`);
+              }
+            }
+
             sendJson(200, { success: true, tweetId });
           } else {
             sendJson(500, { error: "Failed to post tweet" });

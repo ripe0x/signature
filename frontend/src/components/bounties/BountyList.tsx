@@ -114,7 +114,7 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
     if (compact) return null;
     return (
       <div className="text-sm text-muted text-center py-4">
-        no open bounties for window {windowId}
+        no open bounties for window {windowId}. <Link href="/bounties" className="text-foreground hover:underline">create one</Link>
       </div>
     );
   }
@@ -136,9 +136,9 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
         <div className="flex items-center justify-between">
           <span className="text-sm">
             {isWindowActive ? (
-              <>open bounties for window {windowId}</>
+              <Link href="/bounties" className="hover:underline">open bounties for window {windowId}</Link>
             ) : (
-              <>{relevantBounties.length} bounties waiting</>
+              <Link href="/bounties" className="hover:underline">{relevantBounties.length} mint bounties waiting</Link>
             )}
           </span>
           <span className="text-xs text-muted">{totalEth} ETH total</span>
@@ -168,8 +168,9 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
 
       {/* When window not active, show summary only */}
       {!isWindowActive && (
-        <div className="px-4 py-3 text-xs text-muted">
-          bounties can be claimed when mint window opens
+        <div className="px-4 py-3 text-xs text-muted space-y-1">
+          <div>bounties can be claimed when mint window opens</div>
+          <div><Link href="/bounties" className="text-foreground hover:underline">create a bounty</Link></div>
         </div>
       )}
     </div>

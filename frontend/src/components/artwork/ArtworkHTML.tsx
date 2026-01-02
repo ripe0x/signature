@@ -46,15 +46,18 @@ export function ArtworkHTML({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const params = (foldCore as any).generateAllParams(seed, 1200, 1697, 0, foldCount ?? null);
 
-        // Render to HTML at display size (not high-DPI)
-        // Browser fonts are vector-based so they render crisp regardless
-        // This matches canvas which renders at display size then upscales
+        // Render at 2x resolution to match canvas (which uses dpr=2 internally)
+        // Then scale down with CSS transform for display
+        const dpr = 2;
+        const renderWidth = width * dpr;
+        const renderHeight = height * dpr;
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = (renderModule as any).renderToHTML({
           folds: params.folds,
           seed: params.seed,
-          outputWidth: width,
-          outputHeight: height,
+          outputWidth: renderWidth,
+          outputHeight: renderHeight,
           bgColor: params.palette.bg,
           textColor: params.palette.text,
           accentColor: params.palette.accent,
@@ -71,9 +74,15 @@ export function ArtworkHTML({
 
         if (cancelled) return;
 
-        // Insert HTML directly (no scaling needed - fonts render crisp at any size)
+        // Create wrapper that renders at 2x then scales down to display size
+        // This matches canvas behavior (internal 2x buffer, displayed at 1x)
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = `width: ${width}px; height: ${height}px;`;
+        wrapper.style.cssText = `
+          width: ${renderWidth}px;
+          height: ${renderHeight}px;
+          transform: scale(${1/dpr});
+          transform-origin: top left;
+        `;
         wrapper.innerHTML = result.html;
 
         containerRef.current.innerHTML = '';

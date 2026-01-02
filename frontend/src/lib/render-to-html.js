@@ -19,6 +19,9 @@ import {
   seededRandom,
   hexToHsl,
   hslToHex,
+  findVGAColor,
+  CGA_PALETTE,
+  colorDistance,
 } from './fold-core.js';
 
 // Constants matching fold-core.js exactly
@@ -160,6 +163,43 @@ export function renderToHTML({
     return textColor;
   };
 
+  // Shadow/offset effect - 25% chance (matching canvas exactly)
+  const shadowRng = seededRandom(seed + 22222);
+  const hasShadowEffect = shadowRng() < 0.25;
+  const baseOffsetX = Math.round(2 + shadowRng() * 2) * scaleX; // 2-4px
+  const baseOffsetY = Math.round(1 + shadowRng() * 2) * scaleY; // 1-3px
+  const shadowAlpha = hasShadowEffect ? 0.4 + shadowRng() * 0.3 : 0; // 40-70% opacity
+
+  // Direction varies per cell: 0 = horizontal only, 1 = vertical only, 2 = both
+  const getShadowOffsets = (row, col) => {
+    const cellRng = seededRandom(seed + 22222 + row * 1000 + col);
+    const direction = Math.floor(cellRng() * 3);
+    return {
+      x: direction !== 1 ? baseOffsetX : 0,
+      y: direction !== 0 ? baseOffsetY : 0,
+    };
+  };
+
+  // Shadow color: use accent if distinct, otherwise pick contrasting CGA color
+  const getShadowColor = () => {
+    if (accentColor && accentColor !== textColor) {
+      return accentColor;
+    }
+    // Pick a CGA color that contrasts with text
+    const textVGA = findVGAColor(textColor);
+    const candidates = CGA_PALETTE.filter(
+      (c) =>
+        c.hex !== textColor &&
+        c.hex !== bgColor &&
+        colorDistance(c, textVGA) > 100
+    );
+    // Pick deterministically based on seed
+    const pickIdx = Math.floor(shadowRng() * candidates.length);
+    const picked = candidates.length > 0 ? candidates[pickIdx] : CGA_PALETTE[0];
+    return picked.hex;
+  };
+  const shadowColor = hasShadowEffect ? getShadowColor() : null;
+
   // Margin boundaries (same as canvas)
   const marginLeft = (padding + 145) * scaleX;
   const marginLeftWithOffset = marginLeft + lightLeftOffset;
@@ -283,6 +323,18 @@ export function renderToHTML({
 
       if (!char) continue;
 
+      // Final color calculation (matching canvas behavior)
+      // Canvas recalculates color using raw level from weight, not the modified level
+      // This ensures color reflects actual weight even in inverted/binary modes
+      // Exception: fold target cells keep their color, empty cells use textColor
+      if (firstFoldCellKey !== cellKey && lastFoldCellKey !== cellKey && !isEmptyCell) {
+        const rawLevel = countToLevelAdaptive(weight, thresholds);
+        const finalColor = getColorForLevel(rawLevel);
+        color = (extremeGapCells.has(cellKey) && weight > 0) ? accentColor : finalColor;
+      } else if (isEmptyCell) {
+        color = textColor; // Empty cells always use textColor
+      }
+
       // Cell boundaries
       const cellRight = cellX + scaledCellW;
       const clampedRight = Math.min(cellRight, marginRight);
@@ -370,6 +422,20 @@ export function renderToHTML({
           }
         }
 
+        // Draw shadow first (behind main character) - matching canvas exactly
+        if (hasShadowEffect && !isEmptyCell) {
+          const shadowOffsets = getShadowOffsets(row, col);
+          spans.push({
+            char: charToRender,
+            x: x + shadowOffsets.x,
+            y: cellY + shadowOffsets.y,
+            color: shadowColor,
+            opacity: shadowAlpha,
+            isShadow: true,
+          });
+        }
+
+        // Main character
         spans.push({
           char: charToRender,
           x: x,
@@ -403,8 +469,22 @@ export function renderToHTML({
 
   // Build spans HTML
   const spansHtml = spans.map(s =>
-    `<span style="left:${s.x.toFixed(1)}px;top:${s.y.toFixed(1)}px;color:${s.color};${s.opacity < 1 ? `opacity:${s.opacity};` : ''}">${s.char}</span>`
+    `<span style="left:${s.x.toFixed(2)}px;top:${s.y}px;color:${s.color};${s.opacity < 1 ? `opacity:${s.opacity};` : ''}">${s.char}</span>`
   ).join('');
+
+  // Background texture pattern (matching canvas: 2x2 checkerboard at 5% opacity)
+  const pixelSize = Math.max(1, Math.round(scaleX * 2));
+  const tileSize = pixelSize * 2;
+  const backgroundTextureHtml = `
+    <svg class="fold-bg-texture" style="position:absolute;inset:0;pointer-events:none;width:100%;height:100%;">
+      <defs>
+        <pattern id="checkerboard-${seed}" patternUnits="userSpaceOnUse" width="${tileSize}" height="${tileSize}">
+          <rect x="0" y="0" width="${pixelSize}" height="${pixelSize}" fill="${textColor}"/>
+          <rect x="${pixelSize}" y="${pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${textColor}"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#checkerboard-${seed})" opacity="0.05"/>
+    </svg>`;
 
   // Build final HTML
   const html = `
@@ -421,8 +501,11 @@ export function renderToHTML({
       font-size: ${fontSize.toFixed(1)}px;
       line-height: 1;
       white-space: pre;
+      margin: 0;
+      padding: 0;
     }
   </style>
+  ${backgroundTextureHtml}
   ${spansHtml}
   ${creaseLinesHtml}
 </div>`.trim();

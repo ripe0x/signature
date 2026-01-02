@@ -7,15 +7,46 @@ import type { PooledPage, RenderOptions } from '../types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const POOL_SIZE = 4;
+const POOL_SIZE = 3; // Reduced from 4 to lower memory baseline
+const MAX_CONCURRENT_RENDERS = 4; // Max concurrent renders (queue the rest)
 const RENDER_TIMEOUT = 30000;
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1697; // A4 aspect ratio (1:√2)
+const RESTART_AFTER_RENDERS = 100; // Restart browser after N renders to prevent memory leaks
+const RESTART_AFTER_MS = 30 * 60 * 1000; // Or after 30 minutes
+
+// Chromium args for reduced memory usage
+const CHROMIUM_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
+  '--disable-extensions',
+  '--disable-background-networking',
+  '--disable-default-apps',
+  '--disable-sync',
+  '--disable-translate',
+  '--metrics-recording-only',
+  '--no-first-run',
+  '--safebrowsing-disable-auto-update',
+  '--js-flags=--max-old-space-size=256', // Limit JS heap per context
+];
+
+interface QueuedRequest {
+  resolve: (value: { page: Page; poolIndex: number }) => void;
+  reject: (error: Error) => void;
+}
 
 export class PlaywrightRenderer {
   private browser: Browser | null = null;
   private pagePool: PooledPage[] = [];
   private foldScript: string = '';
+  private renderCount: number = 0;
+  private lastRestartTime: number = Date.now();
+  private isRestarting: boolean = false;
+  private activeRenders: number = 0;
+  private requestQueue: QueuedRequest[] = [];
 
   async initialize(): Promise<void> {
     // Load and prepare fold-core.js
@@ -28,18 +59,18 @@ export class PlaywrightRenderer {
       throw new Error('fold-core.js not found. Run: npm run copy-sketch');
     }
 
-    // Launch browser (use system Chromium if available)
+    await this.launchBrowser();
+    console.log(`Playwright initialized with ${POOL_SIZE} pooled pages, max ${MAX_CONCURRENT_RENDERS} concurrent renders`);
+  }
+
+  private async launchBrowser(): Promise<void> {
     console.log('Launching Chromium browser...');
     const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
     this.browser = await chromium.launch({
       headless: true,
       timeout: 60000,
       executablePath: executablePath || undefined,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
+      args: CHROMIUM_ARGS,
     });
     console.log('Chromium browser launched');
 
@@ -49,8 +80,61 @@ export class PlaywrightRenderer {
       await page.setViewportSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
       this.pagePool.push({ page, inUse: false, lastUsed: Date.now() });
     }
+  }
 
-    console.log(`Playwright initialized with ${POOL_SIZE} pooled pages`);
+  // Graceful browser restart - launches new browser before closing old
+  private async gracefulRestart(): Promise<void> {
+    if (this.isRestarting) return;
+    this.isRestarting = true;
+
+    console.log(`Graceful browser restart (after ${this.renderCount} renders)...`);
+
+    try {
+      // Launch new browser first
+      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      const newBrowser = await chromium.launch({
+        headless: true,
+        timeout: 60000,
+        executablePath: executablePath || undefined,
+        args: CHROMIUM_ARGS,
+      });
+
+      // Create new page pool
+      const newPool: PooledPage[] = [];
+      for (let i = 0; i < POOL_SIZE; i++) {
+        const page = await newBrowser.newPage();
+        await page.setViewportSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+        newPool.push({ page, inUse: false, lastUsed: Date.now() });
+      }
+
+      // Atomically swap browser and pool
+      const oldBrowser = this.browser;
+      const oldPool = this.pagePool;
+      this.browser = newBrowser;
+      this.pagePool = newPool;
+      this.renderCount = 0;
+      this.lastRestartTime = Date.now();
+
+      // Close old resources (after swap, so no requests are lost)
+      for (const p of oldPool) {
+        await p.page.close().catch(() => {});
+      }
+      if (oldBrowser) {
+        await oldBrowser.close().catch(() => {});
+      }
+
+      console.log('Browser restarted successfully');
+    } catch (error) {
+      console.error('Failed to restart browser:', error);
+    } finally {
+      this.isRestarting = false;
+    }
+  }
+
+  private shouldRestart(): boolean {
+    const renderThreshold = this.renderCount >= RESTART_AFTER_RENDERS;
+    const timeThreshold = Date.now() - this.lastRestartTime >= RESTART_AFTER_MS;
+    return (renderThreshold || timeThreshold) && !this.isRestarting;
   }
 
   private stripESModuleExports(script: string): string {
@@ -61,6 +145,20 @@ export class PlaywrightRenderer {
   }
 
   private async acquirePage(): Promise<{ page: Page; poolIndex: number }> {
+    // Check if we need to queue this request
+    if (this.activeRenders >= MAX_CONCURRENT_RENDERS) {
+      console.log(`Queueing request (${this.requestQueue.length + 1} in queue, ${this.activeRenders} active)`);
+      return new Promise((resolve, reject) => {
+        this.requestQueue.push({ resolve, reject });
+      });
+    }
+
+    return this.getPage();
+  }
+
+  private async getPage(): Promise<{ page: Page; poolIndex: number }> {
+    this.activeRenders++;
+
     // Find available page in pool
     for (let i = 0; i < this.pagePool.length; i++) {
       if (!this.pagePool[i].inUse) {
@@ -70,7 +168,7 @@ export class PlaywrightRenderer {
       }
     }
 
-    // All pages in use, create overflow page
+    // All pages in use, create overflow page (but we limit via MAX_CONCURRENT_RENDERS)
     if (!this.browser) throw new Error('Browser not initialized');
     const page = await this.browser.newPage();
     await page.setViewportSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
@@ -78,6 +176,9 @@ export class PlaywrightRenderer {
   }
 
   private async releasePage(page: Page, poolIndex: number, crashed: boolean = false): Promise<void> {
+    this.activeRenders--;
+    this.renderCount++;
+
     if (poolIndex >= 0) {
       if (crashed) {
         // Page crashed, replace it with a fresh one
@@ -99,6 +200,17 @@ export class PlaywrightRenderer {
     } else {
       // Overflow page, close it
       await page.close().catch(() => {});
+    }
+
+    // Process next queued request if any
+    if (this.requestQueue.length > 0) {
+      const next = this.requestQueue.shift()!;
+      this.getPage().then(next.resolve).catch(next.reject);
+    }
+
+    // Check if we should restart the browser (do it after releasing page)
+    if (this.shouldRestart() && this.activeRenders === 0) {
+      this.gracefulRestart().catch(console.error);
     }
   }
 
@@ -176,16 +288,24 @@ export class PlaywrightRenderer {
     }
   }
 
-  getPoolStats(): { total: number; available: number; inUse: number } {
+  getPoolStats(): { total: number; available: number; inUse: number; queued: number; renderCount: number } {
     const available = this.pagePool.filter(p => !p.inUse).length;
     return {
       total: this.pagePool.length,
       available,
       inUse: this.pagePool.length - available,
+      queued: this.requestQueue.length,
+      renderCount: this.renderCount,
     };
   }
 
   async close(): Promise<void> {
+    // Reject any queued requests
+    for (const req of this.requestQueue) {
+      req.reject(new Error('Renderer is shutting down'));
+    }
+    this.requestQueue = [];
+
     for (const pooled of this.pagePool) {
       await pooled.page.close();
     }
