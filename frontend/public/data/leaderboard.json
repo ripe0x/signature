@@ -1,7 +1,7 @@
 {
   "totalWindows": 19,
   "totalTokens": 991,
-  "totalCollectors": 397,
+  "totalCollectors": 398,
   "fullCollectors": [],
   "collectors": [
     {
@@ -4965,27 +4965,6 @@
       ]
     },
     {
-      "address": "0xf21ae414c02e02321258a31fa41cff6a7dc1c36f",
-      "tokenCount": 2,
-      "windowsCollected": [
-        0
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 6,
-          "windowId": 0,
-          "seed": "0x905ec1a0f09e63d10a167386f0ac733988645405be34cc967348c0fe763cbb3d"
-        },
-        {
-          "tokenId": 7,
-          "windowId": 0,
-          "seed": "0x15bb78fad6d2aa37caace88e59ba38aba90e38f40a7179ef51644b876af0cdf5"
-        }
-      ]
-    },
-    {
       "address": "0x142e6ee40bd42643aa4d3f7a0ae066997f902788",
       "tokenCount": 2,
       "windowsCollected": [
@@ -6274,6 +6253,38 @@
           "tokenId": 5,
           "windowId": 0,
           "seed": "0xe6d18efc11adbde98225681dc65c4fdda929e329175375568fcae72574de3848"
+        }
+      ]
+    },
+    {
+      "address": "0xbdde100544020fc3dd072bf4ce9a62845e6c9884",
+      "tokenCount": 1,
+      "windowsCollected": [
+        0
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "tokens": [
+        {
+          "tokenId": 6,
+          "windowId": 0,
+          "seed": "0x905ec1a0f09e63d10a167386f0ac733988645405be34cc967348c0fe763cbb3d"
+        }
+      ]
+    },
+    {
+      "address": "0xf21ae414c02e02321258a31fa41cff6a7dc1c36f",
+      "tokenCount": 1,
+      "windowsCollected": [
+        0
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "tokens": [
+        {
+          "tokenId": 7,
+          "windowId": 0,
+          "seed": "0x15bb78fad6d2aa37caace88e59ba38aba90e38f40a7179ef51644b876af0cdf5"
         }
       ]
     },
@@ -9606,6 +9617,6 @@
       ]
     }
   ],
-  "generatedAt": 1767327561199,
-  "generatedAtISO": "2026-01-02T04:19:21.199Z"
+  "generatedAt": 1767334026268,
+  "generatedAtISO": "2026-01-02T06:07:06.268Z"
 }
