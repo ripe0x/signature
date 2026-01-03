@@ -189,6 +189,7 @@ function loadState(contractAddress) {
     return {
       processedWindows,
       processedMints,
+      pendingMints: new Map(),
       fifteenMinReminders: new Set(),
       processedEndedWindows: new Set(),
       windowReadyAlerted: false,
@@ -212,6 +213,7 @@ function loadState(contractAddress) {
         return {
           processedWindows: new Set(),
           processedMints: new Set(),
+          pendingMints: new Map(),
           fifteenMinReminders: new Set(),
           processedEndedWindows: new Set(),
           windowReadyAlerted: false,
@@ -227,6 +229,7 @@ function loadState(contractAddress) {
           data.processedWindows || data.processedFolds || []
         ),
         processedMints: new Set(data.processedMints || []),
+        pendingMints: new Map(Object.entries(data.pendingMints || {}).map(([k, v]) => [Number(k), v])),
         fifteenMinReminders: new Set(data.fifteenMinReminders || []),
         processedEndedWindows: new Set(data.processedEndedWindows || []),
         windowReadyAlerted: data.windowReadyAlerted || false,
@@ -242,6 +245,7 @@ function loadState(contractAddress) {
   return {
     processedWindows: new Set(),
     processedMints: new Set(),
+    pendingMints: new Map(),
     fifteenMinReminders: new Set(),
     processedEndedWindows: new Set(),
     windowReadyAlerted: false,
@@ -262,13 +266,15 @@ function saveState(
   lastBlock,
   contractAddress,
   processedSales = new Set(),
-  lastSalesTimestamp = 0
+  lastSalesTimestamp = 0,
+  pendingMints = new Map()
 ) {
   try {
     const data = {
       contractAddress,
       processedWindows: Array.from(processedWindows),
       processedMints: Array.from(processedMints),
+      pendingMints: Object.fromEntries(pendingMints),
       fifteenMinReminders: Array.from(fifteenMinReminders),
       processedEndedWindows: Array.from(processedEndedWindows),
       windowReadyAlerted,
@@ -289,16 +295,19 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Fetch image from image API using token ID
-async function fetchImage(tokenId) {
+// Fetch image from image API using token ID (with timeout and retry)
+const IMAGE_FETCH_TIMEOUT = 60000; // 60 seconds (allows for queue wait + render)
+const IMAGE_FETCH_RETRIES = 3;
+const IMAGE_FETCH_RETRY_DELAY = 5000; // 5 seconds between retries
+
+async function fetchImageOnce(tokenId) {
   const imageApiUrl =
     process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
   const url = `${imageApiUrl}/images/${tokenId}`;
-  logInfo(`Fetching image from ${url}`);
 
   return new Promise((resolve) => {
     const get = url.startsWith("https") ? httpsGet : httpGet;
-    get(url, (res) => {
+    const req = get(url, (res) => {
       if (res.statusCode !== 200) {
         logError(`Image API returned status ${res.statusCode}`);
         resolve(null);
@@ -320,7 +329,36 @@ async function fetchImage(tokenId) {
       logError(`Image fetch error: ${err.message}`);
       resolve(null);
     });
+
+    // Add timeout
+    req.setTimeout(IMAGE_FETCH_TIMEOUT, () => {
+      logError(`Image fetch timeout after ${IMAGE_FETCH_TIMEOUT}ms`);
+      req.destroy();
+      resolve(null);
+    });
   });
+}
+
+async function fetchImage(tokenId) {
+  const imageApiUrl =
+    process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+  const url = `${imageApiUrl}/images/${tokenId}`;
+  logInfo(`Fetching image from ${url}`);
+
+  for (let attempt = 1; attempt <= IMAGE_FETCH_RETRIES; attempt++) {
+    const buffer = await fetchImageOnce(tokenId);
+    if (buffer) {
+      return buffer;
+    }
+
+    if (attempt < IMAGE_FETCH_RETRIES) {
+      logInfo(`Retry ${attempt}/${IMAGE_FETCH_RETRIES} for image ${tokenId} in ${IMAGE_FETCH_RETRY_DELAY / 1000}s...`);
+      await sleep(IMAGE_FETCH_RETRY_DELAY);
+    }
+  }
+
+  logError(`Failed to fetch image for token ${tokenId} after ${IMAGE_FETCH_RETRIES} attempts`);
+  return null;
 }
 
 // Get RPC URL
@@ -1624,7 +1662,10 @@ async function runPostBalanceMode() {
         state.windowReadyAlerted,
         now,
         state.lastBlock,
-        contractAddress
+        contractAddress,
+        state.processedSales,
+        state.lastSalesTimestamp,
+        state.pendingMints
       );
       logInfo("State updated with new lastBalanceProgressPost timestamp");
     } else {
@@ -2059,14 +2100,24 @@ async function processGroupedSales(
       logWarn(`Failed to fetch window IDs: ${error.message}`);
     }
 
-    // Fetch images for all tokens (up to 4 for Twitter)
-    const imagesToFetch = tokenIds.slice(0, 4);
-    const imageBuffers = [];
-    for (const tokenId of imagesToFetch) {
-      const imageBuffer = await fetchImage(tokenId);
-      if (imageBuffer) {
-        imageBuffers.push(imageBuffer);
+    // For multi-token sales, use a grid image to show all tokens
+    let imageBuffers = [];
+    if (tokenIds.length > 1) {
+      try {
+        const gridImage = await createGridImage(tokenIds);
+        imageBuffers = [gridImage];
+      } catch (error) {
+        logWarn(`Grid creation failed, falling back to individual images: ${error.message}`);
+        // Fall back to individual images (up to 4)
+        for (const tokenId of tokenIds.slice(0, 4)) {
+          const imageBuffer = await fetchImage(tokenId);
+          if (imageBuffer) imageBuffers.push(imageBuffer);
+        }
       }
+    } else {
+      // Single token - just fetch the one image
+      const imageBuffer = await fetchImage(tokenIds[0]);
+      if (imageBuffer) imageBuffers.push(imageBuffer);
     }
 
     if (imageBuffers.length === 0) {
@@ -2410,6 +2461,7 @@ async function checkIfBountyMint(minterAddress, client) {
 async function processMintEvent(
   log,
   processedMints,
+  pendingMints,
   twitterClient,
   client,
   contractAddress
@@ -2470,11 +2522,29 @@ async function processMintEvent(
     // Fetch image using the token ID (uses /images/:tokenId which fetches windowId for correct foldCount)
     const imageBuffer = await fetchImage(tokenId);
 
-    // Skip posting if image failed - will retry on next poll
+    // If image failed, add to pending mints for retry
     if (!imageBuffer) {
-      logWarn(
-        `Skipping mint tweet for #${tokenId} - image not available, will retry later`
-      );
+      const existing = pendingMints.get(Number(tokenId));
+      const retries = existing ? existing.retries + 1 : 0;
+      const maxPendingRetries = 10;
+
+      if (retries >= maxPendingRetries) {
+        logError(`Giving up on mint #${tokenId} after ${retries} retries`);
+        // Mark as processed so we don't keep trying forever
+        processedMints.add(Number(tokenId));
+        pendingMints.delete(Number(tokenId));
+      } else {
+        pendingMints.set(Number(tokenId), {
+          windowId: Number(windowId),
+          minter,
+          seed,
+          retries,
+          addedAt: existing?.addedAt || Date.now(),
+        });
+        logWarn(
+          `Added mint #${tokenId} to pending queue (retry ${retries}/${maxPendingRetries}) - will retry on next poll`
+        );
+      }
       return;
     }
 
@@ -2493,6 +2563,7 @@ async function processMintEvent(
     if (tweetId) {
       logSuccess(`Mint tweet posted! Tweet ID: ${tweetId}`);
       processedMints.add(Number(tokenId));
+      pendingMints.delete(Number(tokenId)); // Remove from pending if it was there
     } else {
       logError("Failed to post mint tweet");
     }
@@ -2649,24 +2720,36 @@ async function getMintsForWindow(
 }
 
 // Calculate optimal grid dimensions for social media
+// Minimizes empty cells while preferring reasonable aspect ratios (not too wide or tall)
 function calculateGridDimensions(count) {
-  if (count === 0) return { cols: 1, rows: 1 };
+  if (count <= 0) return { cols: 1, rows: 1 };
   if (count === 1) return { cols: 1, rows: 1 };
-  if (count === 2) return { cols: 2, rows: 1 };
-  if (count === 3) return { cols: 3, rows: 1 };
-  if (count === 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return { cols: 3, rows: 2 };
-  if (count <= 9) return { cols: 3, rows: 3 };
-  if (count <= 12) return { cols: 4, rows: 3 };
-  if (count <= 16) return { cols: 4, rows: 4 };
-  if (count <= 20) return { cols: 5, rows: 4 };
-  if (count <= 25) return { cols: 5, rows: 5 };
-  if (count <= 30) return { cols: 6, rows: 5 };
-  if (count <= 36) return { cols: 6, rows: 6 };
-  // For larger counts, use a reasonable max
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  return { cols, rows };
+
+  let best = { cols: count, rows: 1, score: Infinity };
+
+  // Try all possible row counts
+  const maxRows = count;
+
+  for (let rows = 1; rows <= maxRows; rows++) {
+    const cols = Math.ceil(count / rows);
+    if (cols < rows) break; // Only consider landscape or square (cols >= rows)
+
+    const waste = (cols * rows) - count;
+    const ratio = cols / rows;
+
+    // Ideal ratio is around 1.5-2 (mild landscape). Penalize extremes.
+    // Single row (ratio=10) or near-square with lots of waste are both bad.
+    const idealRatio = 1.5;
+    const ratioPenalty = Math.abs(ratio - idealRatio) * 2;
+    const wastePenalty = waste * 1.5;
+    const score = wastePenalty + ratioPenalty;
+
+    if (score < best.score) {
+      best = { cols, rows, score };
+    }
+  }
+
+  return { cols: best.cols, rows: best.rows };
 }
 
 // Create a grid image from multiple token images using image-api
@@ -3264,6 +3347,7 @@ async function runBot() {
   const state = loadState(contractAddress);
   const processedWindows = state.processedWindows;
   const processedMints = state.processedMints;
+  const pendingMints = state.pendingMints; // Map of tokenId -> { windowId, minter, seed, retries, addedAt }
   const fifteenMinReminders = state.fifteenMinReminders;
   const processedEndedWindows = state.processedEndedWindows;
   let windowReadyAlerted = state.windowReadyAlerted;
@@ -3283,6 +3367,11 @@ async function runBot() {
   if (processedMints.size > 0) {
     logInfo(
       `Loaded ${processedMints.size} previously processed mints from state`
+    );
+  }
+  if (pendingMints.size > 0) {
+    logInfo(
+      `Loaded ${pendingMints.size} pending mints to retry from state`
     );
   }
   if (fifteenMinReminders.size > 0) {
@@ -3382,6 +3471,7 @@ async function runBot() {
             await processMintEvent(
               log,
               processedMints,
+              pendingMints,
               twitterClient,
               client,
               contractAddress
@@ -3410,7 +3500,8 @@ async function runBot() {
         lastProcessedBlock,
         contractAddress,
         processedSales,
-        lastSalesTimestamp
+        lastSalesTimestamp,
+        pendingMints
       );
 
       // Reset retry count on successful connection
@@ -3446,7 +3537,8 @@ async function runBot() {
                 lastProcessedBlock,
                 contractAddress,
                 processedSales,
-                lastSalesTimestamp
+                lastSalesTimestamp,
+                pendingMints
               );
             }
           }
@@ -3467,6 +3559,7 @@ async function runBot() {
             await processMintEvent(
               log,
               processedMints,
+              pendingMints,
               twitterClient,
               client,
               contractAddress
@@ -3483,7 +3576,8 @@ async function runBot() {
                 lastProcessedBlock,
                 contractAddress,
                 processedSales,
-                lastSalesTimestamp
+                lastSalesTimestamp,
+                pendingMints
               );
             }
           }
@@ -3525,7 +3619,8 @@ async function runBot() {
               lastProcessedBlock,
               contractAddress,
               processedSales,
-              lastSalesTimestamp
+              lastSalesTimestamp,
+              pendingMints
             );
           }
         } catch (error) {
@@ -3555,7 +3650,8 @@ async function runBot() {
               lastProcessedBlock,
               contractAddress,
               processedSales,
-              lastSalesTimestamp
+              lastSalesTimestamp,
+              pendingMints
             );
           }
         } catch (error) {
@@ -3584,7 +3680,8 @@ async function runBot() {
               lastProcessedBlock,
               contractAddress,
               processedSales,
-              lastSalesTimestamp
+              lastSalesTimestamp,
+              pendingMints
             );
           }
         } catch (error) {
@@ -3615,7 +3712,8 @@ async function runBot() {
               lastProcessedBlock,
               contractAddress,
               processedSales,
-              lastSalesTimestamp
+              lastSalesTimestamp,
+              pendingMints
             );
           }
         } catch (error) {
@@ -3646,7 +3744,8 @@ async function runBot() {
               lastProcessedBlock,
               contractAddress,
               processedSales,
-              lastSalesTimestamp
+              lastSalesTimestamp,
+              pendingMints
             );
           }
         } catch (error) {
@@ -3673,7 +3772,8 @@ async function runBot() {
           lastProcessedBlock,
           contractAddress,
           processedSales,
-          lastSalesTimestamp
+          lastSalesTimestamp,
+          pendingMints
         );
         logSuccess("State saved. Bot stopped.");
         process.exit(0);

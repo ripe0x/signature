@@ -505,24 +505,36 @@ app.get('/api/admin/index-status', (req, res) => {
 });
 
 // Calculate optimal grid dimensions for social media
+// Minimizes empty cells while preferring reasonable aspect ratios (not too wide or tall)
 function calculateGridDimensions(count: number) {
-  if (count === 0) return { cols: 1, rows: 1 };
+  if (count <= 0) return { cols: 1, rows: 1 };
   if (count === 1) return { cols: 1, rows: 1 };
-  if (count === 2) return { cols: 2, rows: 1 };
-  if (count === 3) return { cols: 3, rows: 1 };
-  if (count === 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return { cols: 3, rows: 2 };
-  if (count <= 9) return { cols: 3, rows: 3 };
-  if (count <= 12) return { cols: 4, rows: 3 };
-  if (count <= 16) return { cols: 4, rows: 4 };
-  if (count <= 20) return { cols: 5, rows: 4 };
-  if (count <= 25) return { cols: 5, rows: 5 };
-  if (count <= 30) return { cols: 6, rows: 5 };
-  if (count <= 36) return { cols: 6, rows: 6 };
-  // For larger counts, use a reasonable max
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  return { cols, rows };
+
+  let best = { cols: count, rows: 1, score: Infinity };
+
+  // Try all possible row counts
+  const maxRows = count;
+
+  for (let rows = 1; rows <= maxRows; rows++) {
+    const cols = Math.ceil(count / rows);
+    if (cols < rows) break; // Only consider landscape or square (cols >= rows)
+
+    const waste = (cols * rows) - count;
+    const ratio = cols / rows;
+
+    // Ideal ratio is around 1.5-2 (mild landscape). Penalize extremes.
+    // Single row (ratio=10) or near-square with lots of waste are both bad.
+    const idealRatio = 1.5;
+    const ratioPenalty = Math.abs(ratio - idealRatio) * 2;
+    const wastePenalty = waste * 1.5;
+    const score = wastePenalty + ratioPenalty;
+
+    if (score < best.score) {
+      best = { cols, rows, score };
+    }
+  }
+
+  return { cols: best.cols, rows: best.rows };
 }
 
 // Grid endpoint - generates a grid image from multiple token IDs
