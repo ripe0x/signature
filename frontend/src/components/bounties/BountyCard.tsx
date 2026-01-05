@@ -3,7 +3,7 @@
 import { formatEth, truncateAddress, getAddressUrl, getTxUrl } from '@/lib/utils';
 import { useExecuteBounty } from '@/hooks/useBounties';
 import { useAccount, useReadContract, useEnsName } from 'wagmi';
-import { BOUNTY_ABI } from '@/lib/contracts';
+import { BOUNTY_ABI, CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 import type { BountyStatus } from '@/hooks/useBounties';
 
 interface BountyCardProps {
@@ -42,6 +42,13 @@ export function BountyCard({ bounty, onExecuteSuccess }: BountyCardProps) {
     functionName: 'paused',
   });
 
+  // Fetch base mint price for estimating costs when window is not active
+  const { data: baseMintPriceWei } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'mintPrice',
+  });
+
   const handleExecute = () => {
     execute();
   };
@@ -57,7 +64,16 @@ export function BountyCard({ bounty, onExecuteSuccess }: BountyCardProps) {
   const mintsPerWindowNum = mintsPerWindow ? Number(mintsPerWindow) : 1;
 
   // Calculate how many windows this bounty can fund
-  const totalCostPerWindow = bounty.totalCost;
+  // When window is NOT active, use base mint price (mint counts reset each window)
+  let totalCostPerWindow: bigint;
+  if (bounty.windowActive) {
+    // Window is active - use on-chain totalCost (includes escalating pricing)
+    totalCostPerWindow = bounty.totalCost;
+  } else {
+    // Window is NOT active - estimate using base mint price
+    const baseCost = baseMintPriceWei ?? BigInt(0);
+    totalCostPerWindow = baseCost + bounty.reward;
+  }
   const windowsRemaining = totalCostPerWindow > BigInt(0)
     ? Math.floor(Number(bounty.balance) / Number(totalCostPerWindow))
     : 0;

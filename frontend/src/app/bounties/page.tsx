@@ -828,23 +828,45 @@ export default function BountiesPage() {
   const { ethPrice } = useTokenStats();
   const [showInactive, setShowInactive] = useState(false);
 
+  // Get base mint price - used to estimate costs when window is not active
+  const { data: baseMintPriceWei } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'mintPrice',
+    query: { refetchInterval: 30000 },
+  });
+
   // Get all bounty addresses for fetching claims
   const bountyAddresses = useMemo(() => {
     return bounties.map(b => b.bountyAddress);
   }, [bounties]);
 
   // Split bounties into active (can fund next window) and inactive (underfunded)
+  // When window is NOT active, use base mint price to estimate cost (mint counts reset each window)
   const { activeBounties, inactiveBounties, totalReservedEth } = useMemo(() => {
     const active: typeof bounties = [];
     const inactive: typeof bounties = [];
     let reserved = BigInt(0);
 
     for (const bounty of bounties) {
-      // Inactive if balance can't cover the next mint
-      const canFundNextWindow = bounty.balance >= bounty.totalCost && bounty.totalCost > BigInt(0);
+      let canFundNextWindow: boolean;
+      let estimatedCost: bigint;
+
+      if (isWindowActive) {
+        // Window is active - use the on-chain totalCost (accounts for escalating pricing)
+        canFundNextWindow = bounty.balance >= bounty.totalCost && bounty.totalCost > BigInt(0);
+        estimatedCost = bounty.totalCost;
+      } else {
+        // Window is NOT active - mint counts will reset, so use base mint price
+        // Estimate: baseMintPrice + reward (for 1 mint per window - most common case)
+        const baseCost = baseMintPriceWei ?? BigInt(0);
+        estimatedCost = baseCost + bounty.reward;
+        canFundNextWindow = bounty.balance >= estimatedCost && estimatedCost > BigInt(0);
+      }
+
       if (canFundNextWindow) {
         active.push(bounty);
-        reserved += bounty.totalCost;
+        reserved += estimatedCost;
       } else {
         inactive.push(bounty);
       }
@@ -855,7 +877,7 @@ export default function BountiesPage() {
       inactiveBounties: inactive,
       totalReservedEth: parseFloat(formatEther(reserved))
     };
-  }, [bounties]);
+  }, [bounties, isWindowActive, baseMintPriceWei]);
 
   return (
     <div className="min-h-screen pt-20 lg:pt-28">

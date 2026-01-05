@@ -80,7 +80,7 @@ for (const refund of refundList) {
   console.log(`${refund.address}: ${weiToEth(refund.totalWei)} ETH (${refund.txHashes.length} tx)`);
 }
 
-const MAINNET_RPC = process.env.MAINNET_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/vCDlbqYLHrl_dZJkGmX2FgpAUpRs-iTI';
+const MAINNET_RPC = process.env.MAINNET_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/wcVCsHfUB7c_weUJ2Laps';
 const EXECUTE = process.env.EXECUTE === 'true';
 
 if (!process.env.PK) {

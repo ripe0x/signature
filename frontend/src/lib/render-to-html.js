@@ -214,12 +214,15 @@ export function renderToHTML({
 
   // Build character spans
   const spans = [];
+  // Cell-level data for interactive text replacement
+  const cellData = [];
 
   for (let row = 0; row < rows; row++) {
     const cellY = Math.round(adjustedGridStartY + row * scaledStrideY);
 
     for (let col = 0; col < cols; col++) {
       const cellX = Math.round(adjustedGridStartX + col * scaledStrideX);
+      const spanStartIndex = spans.length;
       const cellKey = `${col},${row}`;
       const weight = cellWeights[cellKey] || 0;
 
@@ -432,6 +435,8 @@ export function renderToHTML({
             color: shadowColor,
             opacity: shadowAlpha,
             isShadow: true,
+            row,
+            col,
           });
         }
 
@@ -442,6 +447,27 @@ export function renderToHTML({
           y: cellY,
           color,
           opacity: isEmptyCell ? 0.1 : 1,
+          row,
+          col,
+        });
+      }
+
+      // Record cell-level data for text replacement (only if we rendered spans)
+      const spanCount = spans.length - spanStartIndex;
+      if (spanCount > 0) {
+        cellData.push({
+          row,
+          col,
+          editChar: char,           // Single shade character for this cell
+          originalChar: char,       // For restore on backspace
+          color,
+          x: cellX,
+          y: cellY,
+          fontSize,
+          charWidth,
+          step,
+          spanStartIndex,
+          spanCount,
         });
       }
     }
@@ -467,9 +493,9 @@ export function renderToHTML({
       </svg>`;
   }
 
-  // Build spans HTML
+  // Build spans HTML with data attributes for cell grouping and text replacement
   const spansHtml = spans.map(s =>
-    `<span style="left:${s.x.toFixed(2)}px;top:${s.y}px;color:${s.color};${s.opacity < 1 ? `opacity:${s.opacity};` : ''}">${s.char}</span>`
+    `<span data-cell="${s.col},${s.row}"${s.isShadow ? ' data-shadow="1"' : ''} style="left:${s.x.toFixed(2)}px;top:${s.y}px;color:${s.color};${s.opacity < 1 ? `opacity:${s.opacity};` : ''}">${s.char}</span>`
   ).join('');
 
   // Background texture pattern (matching canvas: 2x2 checkerboard at 5% opacity)
@@ -514,8 +540,17 @@ export function renderToHTML({
     html,
     width: outputWidth,
     height: outputHeight,
-    cells: spans.length,
+    spanCount: spans.length,
     creaseCount: creases.length,
+    // Cell-level data for interactive text replacement
+    // Each entry has: row, col, editChar, originalChar, color, x, y, fontSize, charWidth, step, spanStartIndex, spanCount
+    cellData,
+    // Grid info for positioning replacement characters
+    gridInfo: {
+      fontSize,
+      charWidth,
+      fontFamily,
+    },
   };
 }
 

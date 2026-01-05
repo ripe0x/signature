@@ -7,7 +7,7 @@ const LESS_NFT = '0x008B66385ed2346E6895031E250B2ac8dc14605C';
 const WINDOW_CREATED_TOPIC = '0xe06ce442afd483033ce0a251188ca4c4d1c81a74bf69c6d3699cede668afda47';
 
 // Alchemy RPC URL (public key from the project)
-const RPC_URL = 'https://eth-mainnet.g.alchemy.com/v2/vCDlbqYLHrl_dZJkGmX2FgpAUpRs-iTI';
+const RPC_URL = 'https://eth-mainnet.g.alchemy.com/v2/wcVCsHfUB7c_weUJ2Laps';
 
 export async function GET() {
   const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;

@@ -103,8 +103,8 @@ export default function HTMLRenderTestPage() {
           {/* HTML Output */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm text-muted">HTML (Selectable Text)</h2>
-              <span className="text-xs text-muted/60">Try selecting text!</span>
+              <h2 className="text-sm text-muted">HTML (Interactive)</h2>
+              <span className="text-xs text-muted/60">Double-click to edit text!</span>
             </div>
             <div
               className="bg-black rounded overflow-hidden"
@@ -116,6 +116,7 @@ export default function HTMLRenderTestPage() {
                 foldCount={foldCount}
                 width={RENDER_WIDTH}
                 height={RENDER_HEIGHT}
+                interactive
               />
             </div>
           </div>
@@ -126,7 +127,8 @@ export default function HTMLRenderTestPage() {
           <h3 className="text-sm font-medium mb-2">Notes</h3>
           <ul className="text-sm text-muted space-y-1">
             <li>- The HTML output uses absolutely positioned spans for each character</li>
-            <li>- Text in the HTML version can be selected and copied</li>
+            <li>- Double-click any character to start editing, type to replace</li>
+            <li>- Use arrow keys to navigate, Backspace to restore, ESC to exit</li>
             <li>- Minor visual differences may occur due to browser font rendering</li>
             <li>- Both outputs use the same seed-based generation algorithms</li>
           </ul>
