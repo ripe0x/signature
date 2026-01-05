@@ -7,8 +7,8 @@ import type { PooledPage, RenderOptions } from '../types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const POOL_SIZE = 3; // Reduced from 4 to lower memory baseline
-const MAX_CONCURRENT_RENDERS = 4; // Max concurrent renders (queue the rest)
+const POOL_SIZE = 4; // Number of pre-warmed pages
+const MAX_CONCURRENT_RENDERS = 6; // Max concurrent renders (queue the rest)
 const RENDER_TIMEOUT = 30000;
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1697; // A4 aspect ratio (1:√2)
@@ -272,8 +272,18 @@ export class PlaywrightRenderer {
       await page.goto('about:blank');
       await page.setContent(html, { waitUntil: 'load' });
 
-      // Wait for render to complete
-      await page.waitForTimeout(5000);
+      // Wait for render to complete - check for RENDER_COMPLETE or canvas, with timeout
+      try {
+        await page.waitForFunction(
+          () => (window as any).RENDER_COMPLETE === true || document.querySelector('canvas'),
+          { timeout: 10000 }
+        );
+        // Small buffer for any final draws
+        await page.waitForTimeout(100);
+      } catch {
+        // Fallback: wait a bit longer if no signal
+        await page.waitForTimeout(2000);
+      }
 
       // Take full page screenshot (avoids canvas stability issues)
       return await page.screenshot({ type: 'png', fullPage: false });

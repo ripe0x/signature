@@ -3915,8 +3915,7 @@ async function generateMintTweet(tokenId) {
     }).catch(() => 0n),
   ]);
 
-  const ensName = await resolveEns(owner);
-  const minterDisplay = ensName || truncateAddress(owner);
+  const minterDisplay = await resolveDisplayName(owner);
   const minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
 
   return formatMintTweet(tokenId, minterDisplay, minutesRemaining > 0 ? minutesRemaining : null, Number(windowId));
@@ -4078,15 +4077,10 @@ function startAdminServer() {
               return;
             }
             tweetText = await generateMintTweet(tokenId);
-            // Fetch image for mint tweets
-            const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
-            try {
-              const imgResponse = await fetch(`${imageApiUrl}/images/${tokenId}?width=800&height=1131`);
-              if (imgResponse.ok) {
-                imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
-              }
-            } catch (imgErr) {
-              logWarn(`Failed to fetch image for mint tweet: ${imgErr.message}`);
+            // Fetch image for mint tweets using the robust fetchImage function
+            imageBuffer = await fetchImage(tokenId);
+            if (!imageBuffer) {
+              logWarn(`Failed to fetch image for mint tweet`);
             }
           } else if (type === "window-ended") {
             if (!windowId) {
@@ -4174,10 +4168,14 @@ function startAdminServer() {
               try {
                 const stateData = existsSync(stateFile)
                   ? JSON.parse(readFileSync(stateFile, "utf8"))
-                  : { processedMints: [] };
+                  : { processedMints: [], pendingMints: {} };
                 const processedMints = new Set(stateData.processedMints || []);
                 processedMints.add(Number(tokenId));
                 stateData.processedMints = Array.from(processedMints);
+                // Also remove from pendingMints if it was there
+                if (stateData.pendingMints && stateData.pendingMints[tokenId]) {
+                  delete stateData.pendingMints[tokenId];
+                }
                 stateData.updatedAt = new Date().toISOString();
                 writeFileSync(stateFile, JSON.stringify(stateData, null, 2));
                 logInfo(`Updated state: marked token ${tokenId} as processed`);
