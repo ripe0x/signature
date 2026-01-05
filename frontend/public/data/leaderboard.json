@@ -8698,7 +8698,7 @@
       ]
     },
     {
-      "address": "0x52c63228e972c2950792ff650af3d777cfdb1ada",
+      "address": "0x6fa3508f67dab24e4bc1d491fc53aa4185528f43",
       "tokenCount": 1,
       "windowsCollected": [
         9
@@ -9498,6 +9498,6 @@
       ]
     }
   ],
-  "generatedAt": 1767564803266,
-  "generatedAtISO": "2026-01-04T22:13:23.266Z"
+  "generatedAt": 1767572346510,
+  "generatedAtISO": "2026-01-05T00:19:06.510Z"
 }
