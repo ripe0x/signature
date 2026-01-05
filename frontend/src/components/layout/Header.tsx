@@ -7,6 +7,7 @@ import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { IS_PRE_LAUNCH, IS_TOKEN_LIVE, CONTRACTS } from "@/lib/contracts";
 import { useTokenStats } from "@/hooks/useTokenStats";
 import { useMintWindow } from "@/hooks/useMintWindow";
+import { useBounties } from "@/hooks/useBounties";
 import { formatEther } from "viem";
 
 // Initial supply for burn calculations (1 billion with 18 decimals)
@@ -123,6 +124,9 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { isActive: isMintActive } = useMintWindow();
+  const { claimableBounties } = useBounties();
+
+  const hasClaimableBounties = isMintActive && claimableBounties.length > 0;
 
   // Close menu on route change
   useEffect(() => {
@@ -199,9 +203,29 @@ export function Header() {
         </div>
       )}
 
+      {/* Claimable bounties callout */}
+      {hasClaimableBounties && (
+        <div className="fixed left-0 right-0 z-40 bg-green-50 border-b border-green-200 top-0 lg:top-[30px]">
+          <Link
+            href="/bounties"
+            className="flex items-center justify-center gap-2 px-4 py-1.5 hover:bg-green-100 transition-colors"
+          >
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-xs text-green-800">
+              {claimableBounties.length} bounty reward{claimableBounties.length !== 1 ? 's' : ''} available — claim ETH for minting
+            </span>
+            <span className="text-xs text-green-600">→</span>
+          </Link>
+        </div>
+      )}
+
       <header
-        className={`fixed left-0 right-0 z-50 bg-background/80 backdrop-blur-sm top-0 ${
-          IS_TOKEN_LIVE ? "lg:top-[30px]" : ""
+        className={`fixed left-0 right-0 z-50 bg-background/80 backdrop-blur-sm ${
+          hasClaimableBounties
+            ? "top-[30px] lg:top-[60px]"
+            : IS_TOKEN_LIVE
+            ? "top-0 lg:top-[30px]"
+            : "top-0"
         }`}
       >
         <div className="flex items-center justify-between px-6 py-3 md:px-8">

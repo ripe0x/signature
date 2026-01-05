@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAccount, useReadContracts } from "wagmi";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
+import { useBounties } from "@/hooks/useBounties";
 import { CountdownTimer } from "./CountdownTimer";
 import { MintButton } from "./MintButton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
@@ -464,6 +465,8 @@ export function MintWindow() {
   const { windowCount, buybackBalance, tokenSupply, ethPrice } =
     useTokenStats();
 
+  const { claimableBounties } = useBounties();
+
   // Convert buyback balance to ETH (from wei)
   const buybackBalanceEth = Number(buybackBalance) / 1e18;
 
@@ -602,10 +605,27 @@ export function MintWindow() {
             </div>
           </div>
 
-          {/* Open bounties */}
-          {/* <div className="pt-6">
-            <BountyList windowId={windowId} isWindowActive={true} />
-          </div> */}
+          {/* Open bounties callout */}
+          {claimableBounties.length > 0 && (
+            <div className="pt-6">
+              <Link
+                href="/bounties"
+                className="block p-4 border border-green-200 bg-green-50 hover:bg-green-100 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-green-800">
+                      {claimableBounties.length} bounty{claimableBounties.length !== 1 ? ' rewards' : ' reward'} available
+                    </div>
+                    <div className="text-xs text-green-600 mt-0.5">
+                      claim ETH for triggering mints
+                    </div>
+                  </div>
+                  <span className="text-green-600 text-sm">claim →</span>
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );
