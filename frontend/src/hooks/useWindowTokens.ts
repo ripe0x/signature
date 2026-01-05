@@ -10,6 +10,7 @@ export interface WindowToken {
   id: number;
   windowId: number;
   seed: `0x${string}`;
+  owner?: `0x${string}`;
   metadata?: TokenMetadata;
 }
 
@@ -92,6 +93,19 @@ export function useWindowTokens(windowId: number, options?: { skipMetadata?: boo
     },
   });
 
+  // Batch read owners
+  const { data: ownerResults, isLoading: isLoadingOwners, refetch: refetchOwners } = useReadContracts({
+    contracts: windowTokenIds.map((id) => ({
+      address: CONTRACTS.LESS_NFT,
+      abi: LESS_NFT_ABI,
+      functionName: 'ownerOf',
+      args: [BigInt(id)],
+    })),
+    query: {
+      enabled: windowTokenIds.length > 0,
+    },
+  });
+
   // Batch read tokenURIs (optional)
   const { data: uriResults, isLoading: isLoadingURIs, refetch: refetchURIs } = useReadContracts({
     contracts: windowTokenIds.map((id) => ({
@@ -111,6 +125,7 @@ export function useWindowTokens(windowId: number, options?: { skipMetadata?: boo
 
     return windowTokenIds.map((id, index) => {
       const seedResult = seedResults?.[index]?.result as `0x${string}` | undefined;
+      const ownerResult = ownerResults?.[index]?.result as `0x${string}` | undefined;
       const uriResult = uriResults?.[index]?.result as string | undefined;
 
       const metadata = uriResult
@@ -121,16 +136,17 @@ export function useWindowTokens(windowId: number, options?: { skipMetadata?: boo
         id,
         windowId,
         seed: seedResult ?? '0x0',
+        owner: ownerResult,
         metadata,
       };
     });
-  }, [windowTokenIds, windowId, seedResults, uriResults]);
+  }, [windowTokenIds, windowId, seedResults, ownerResults, uriResults]);
 
-  const isLoading = isLoadingSupply || isLoadingWindowIds || isLoadingSeeds || (!skipMetadata && isLoadingURIs);
+  const isLoading = isLoadingSupply || isLoadingWindowIds || isLoadingSeeds || isLoadingOwners || (!skipMetadata && isLoadingURIs);
 
   const refetch = useCallback(async () => {
-    await Promise.all([refetchSeeds(), refetchURIs()]);
-  }, [refetchSeeds, refetchURIs]);
+    await Promise.all([refetchSeeds(), refetchOwners(), refetchURIs()]);
+  }, [refetchSeeds, refetchOwners, refetchURIs]);
 
   return {
     tokens,

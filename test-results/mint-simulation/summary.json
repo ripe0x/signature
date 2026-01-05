@@ -1,0 +1,388 @@
+{
+  "timestamp": "2026-01-05T19:18:54.642Z",
+  "totalTime": 17350,
+  "stats": {
+    "total": 25,
+    "succeeded": 25,
+    "failed": 0,
+    "cacheHits": 0,
+    "cacheMisses": 25
+  },
+  "tokens": [
+    {
+      "tokenId": 1014,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 2216,
+        "cacheStatus": "MISS",
+        "size": 76918
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 604,
+        "text": "LESS 1014 minted by 0x0eF5...EF5d\n\nhttps://less.ripe.wtf/1014"
+      }
+    },
+    {
+      "tokenId": 1015,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 17307,
+        "cacheStatus": "MISS",
+        "size": 772245
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 592,
+        "text": "LESS 1015 minted by 0xDEf6...9c8a\n\nhttps://less.ripe.wtf/1015"
+      }
+    },
+    {
+      "tokenId": 1016,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11333,
+        "cacheStatus": "MISS",
+        "size": 814901
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 377,
+        "text": "LESS 1016 minted by @pizzacheeks_nft\n\nhttps://less.ripe.wtf/1016"
+      }
+    },
+    {
+      "tokenId": 1017,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 1833,
+        "cacheStatus": "MISS",
+        "size": 53368
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 349,
+        "text": "LESS 1017 minted by @nogweidotcom\n\nhttps://less.ripe.wtf/1017"
+      }
+    },
+    {
+      "tokenId": 1018,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 4959,
+        "cacheStatus": "MISS",
+        "size": 70483
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 589,
+        "text": "LESS 1018 minted by 0x323e...D7D6\n\nhttps://less.ripe.wtf/1018"
+      }
+    },
+    {
+      "tokenId": 1019,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 6323,
+        "cacheStatus": "MISS",
+        "size": 424251
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 357,
+        "text": "LESS 1019 minted by @ap0ll_0\n\nhttps://less.ripe.wtf/1019"
+      }
+    },
+    {
+      "tokenId": 1020,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 7118,
+        "cacheStatus": "MISS",
+        "size": 54536
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 588,
+        "text": "LESS 1020 minted by 0xfc08...c8F5\n\nhttps://less.ripe.wtf/1020"
+      }
+    },
+    {
+      "tokenId": 1021,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 17294,
+        "cacheStatus": "MISS",
+        "size": 805457
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 614,
+        "text": "LESS 1021 minted by 0xe72C...226E\n\nhttps://less.ripe.wtf/1021"
+      }
+    },
+    {
+      "tokenId": 1022,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11196,
+        "cacheStatus": "MISS",
+        "size": 49805
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 586,
+        "text": "LESS 1022 minted by 0x8565...7813\n\nhttps://less.ripe.wtf/1022"
+      }
+    },
+    {
+      "tokenId": 1023,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 17240,
+        "cacheStatus": "MISS",
+        "size": 47779
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 607,
+        "text": "LESS 1023 minted by 0x811b...0642\n\nhttps://less.ripe.wtf/1023"
+      }
+    },
+    {
+      "tokenId": 1024,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 2428,
+        "cacheStatus": "MISS",
+        "size": 41684
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 584,
+        "text": "LESS 1024 minted by 0xd745...9B56\n\nhttps://less.ripe.wtf/1024"
+      }
+    },
+    {
+      "tokenId": 1025,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 16912,
+        "cacheStatus": "MISS",
+        "size": 111315
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 331,
+        "text": "LESS 1025 minted by @harkin200\n\nhttps://less.ripe.wtf/1025"
+      }
+    },
+    {
+      "tokenId": 1026,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11329,
+        "cacheStatus": "MISS",
+        "size": 937493
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 331,
+        "text": "LESS 1026 minted by @0kvlt\n\nhttps://less.ripe.wtf/1026"
+      }
+    },
+    {
+      "tokenId": 1027,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 13576,
+        "cacheStatus": "MISS",
+        "size": 31344
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 646,
+        "text": "LESS 1027 minted by crucifore.eth\n\nhttps://less.ripe.wtf/1027"
+      }
+    },
+    {
+      "tokenId": 1028,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11197,
+        "cacheStatus": "MISS",
+        "size": 54491
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 629,
+        "text": "LESS 1028 minted by mindtheart.eth\n\nhttps://less.ripe.wtf/1028"
+      }
+    },
+    {
+      "tokenId": 1029,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 6278,
+        "cacheStatus": "MISS",
+        "size": 142411
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 431,
+        "text": "LESS 1029 minted by @ripe0x\n\nhttps://less.ripe.wtf/1029"
+      }
+    },
+    {
+      "tokenId": 1030,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11198,
+        "cacheStatus": "MISS",
+        "size": 61782
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 583,
+        "text": "LESS 1030 minted by 0x9Edc...38fa\n\nhttps://less.ripe.wtf/1030"
+      }
+    },
+    {
+      "tokenId": 1031,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 5057,
+        "cacheStatus": "MISS",
+        "size": 769500
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 646,
+        "text": "LESS 1031 minted by foretwenty.eth\n\nhttps://less.ripe.wtf/1031"
+      }
+    },
+    {
+      "tokenId": 1032,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 6307,
+        "cacheStatus": "MISS",
+        "size": 275282
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 642,
+        "text": "LESS 1032 minted by artizen.eth\n\nhttps://less.ripe.wtf/1032"
+      }
+    },
+    {
+      "tokenId": 1033,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 11231,
+        "cacheStatus": "MISS",
+        "size": 59166
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 535,
+        "text": "LESS 1033 minted by @0kvlt\n\nhttps://less.ripe.wtf/1033"
+      }
+    },
+    {
+      "tokenId": 1034,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 13801,
+        "cacheStatus": "MISS",
+        "size": 40371
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 639,
+        "text": "LESS 1034 minted by iouhk.eth\n\nhttps://less.ripe.wtf/1034"
+      }
+    },
+    {
+      "tokenId": 1035,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 15305,
+        "cacheStatus": "MISS",
+        "size": 555398
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 613,
+        "text": "LESS 1035 minted by 0x9Edc...38fa\n\nhttps://less.ripe.wtf/1035"
+      }
+    },
+    {
+      "tokenId": 102,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 17147,
+        "cacheStatus": "MISS",
+        "size": 14478
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 358,
+        "text": "LESS 102 minted by @22cerodos\n\nhttps://less.ripe.wtf/102"
+      }
+    },
+    {
+      "tokenId": 103,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 17209,
+        "cacheStatus": "MISS",
+        "size": 82491
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 608,
+        "text": "LESS 103 minted by 0x2DC4...9b5C\n\nhttps://less.ripe.wtf/103"
+      }
+    },
+    {
+      "tokenId": 104,
+      "success": true,
+      "image": {
+        "success": true,
+        "elapsed": 4917,
+        "cacheStatus": "MISS",
+        "size": 14478
+      },
+      "tweet": {
+        "success": true,
+        "elapsed": 673,
+        "text": "LESS 104 minted by ilyeslesarazin.savedsouls.eth\n\nhttps://less.ripe.wtf/104"
+      }
+    }
+  ]
+}

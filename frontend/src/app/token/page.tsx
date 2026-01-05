@@ -213,7 +213,7 @@ export default function TokenPage() {
                   NFTs created from burns
                 </div>
                 <div className="text-xl font-mono tabular-nums">
-                  {nftsMinted} pieces
+                  {nftsMinted} LESS
                 </div>
                 <div className="text-sm text-muted mt-2">
                   across {windowCount} mint windows

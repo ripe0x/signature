@@ -29,6 +29,10 @@ const CHAIN = process.env.CHAIN || 'sepolia';
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '../data');
 const LEADERBOARD_FILE = join(DATA_DIR, 'leaderboard.json');
 
+// Event topic hashes for window events
+const WINDOW_CREATED_TOPIC = '0xe06ce442afd483033ce0a251188ca4c4d1c81a74bf69c6d3699cede668afda47';
+const WINDOW_0_STARTED_TOPIC = '0xcd075a155ea16f406de513a02424429933bc404c9ce85800b7700c185e54df9c';
+
 // Admin address for protected endpoints
 const ADMIN_ADDRESS = '0xCB43078C32423F5348Cab5885911C3B5faE217F9'.toLowerCase();
 
@@ -129,6 +133,34 @@ app.get('/api/leaderboard', (req, res) => {
     console.error('Leaderboard fetch error:', error);
     res.status(500).json({
       error: 'Failed to fetch leaderboard',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Windows endpoint - serves window timestamps
+app.get('/api/windows', (req, res) => {
+  try {
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Window data not available',
+        message: 'Run the indexer to generate data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({
+      totalWindows: leaderboard.totalWindows,
+      windows: leaderboard.windowTimestamps || [],
+      generatedAt: leaderboard.generatedAt,
+    });
+  } catch (error) {
+    console.error('Windows fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch windows',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
@@ -354,6 +386,60 @@ app.post('/api/admin/index-collectors', async (req, res) => {
     const total = Number(totalSupply);
     const windows = Number(windowCount) + 1; // +1 to include Window 0
 
+    // Fetch window timestamps from events
+    const windowTimestamps: { windowId: number; startTime: number; endTime: number }[] = [];
+
+    // Fetch Window0Started event
+    const window0Logs = await client.getLogs({
+      address: CONTRACT_ADDRESS as `0x${string}`,
+      event: {
+        type: 'event',
+        name: 'Window0Started',
+        inputs: [
+          { name: 'startTime', type: 'uint64', indexed: false },
+          { name: 'endTime', type: 'uint64', indexed: false },
+        ],
+      },
+      fromBlock: 0n,
+      toBlock: 'latest',
+    });
+
+    if (window0Logs.length > 0) {
+      const log = window0Logs[0];
+      windowTimestamps.push({
+        windowId: 0,
+        startTime: Number(log.args.startTime),
+        endTime: Number(log.args.endTime),
+      });
+    }
+
+    // Fetch WindowCreated events (windows 1+)
+    const windowCreatedLogs = await client.getLogs({
+      address: CONTRACT_ADDRESS as `0x${string}`,
+      event: {
+        type: 'event',
+        name: 'WindowCreated',
+        inputs: [
+          { name: 'windowId', type: 'uint256', indexed: true },
+          { name: 'startTime', type: 'uint64', indexed: false },
+          { name: 'endTime', type: 'uint64', indexed: false },
+        ],
+      },
+      fromBlock: 0n,
+      toBlock: 'latest',
+    });
+
+    for (const log of windowCreatedLogs) {
+      windowTimestamps.push({
+        windowId: Number(log.args.windowId),
+        startTime: Number(log.args.startTime),
+        endTime: Number(log.args.endTime),
+      });
+    }
+
+    // Sort by windowId
+    windowTimestamps.sort((a, b) => a.windowId - b.windowId);
+
     if (total === 0) {
       isIndexingInProgress = false;
       lastIndexResult = { success: true, totalTokens: 0, totalCollectors: 0, fullCollectors: 0, duration: Date.now() - startTime, completedAt: new Date().toISOString() };
@@ -456,6 +542,7 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       totalCollectors: collectors.length,
       fullCollectors: collectors.filter(c => c.isFullCollector).map(c => c.address),
       collectors,
+      windowTimestamps,
       generatedAt: Date.now(),
       generatedAtISO: new Date().toISOString(),
     };

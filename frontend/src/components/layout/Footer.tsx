@@ -31,6 +31,12 @@ export function Footer() {
               collectors
             </Link>
             <Link
+              href="/windows"
+              className="text-muted hover:text-foreground transition-colors"
+            >
+              windows
+            </Link>
+            <Link
               href="/bounties"
               className="text-muted hover:text-foreground transition-colors"
             >

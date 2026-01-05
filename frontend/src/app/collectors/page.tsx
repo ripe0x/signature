@@ -72,7 +72,7 @@ function CollectorRow({
       </div>
 
       {/* Tokens */}
-      <div className="text-right tabular-nums">{collector.tokenCount}</div>
+      <div className="text-right tabular-nums">{collector.tokenCount.toLocaleString()}</div>
 
       {/* Windows */}
       <div className="text-right tabular-nums">
@@ -229,7 +229,7 @@ export default function CollectorsPage() {
           <div className="mb-8">
             <h1 className="text-2xl mb-2">collectors</h1>
             <p className="text-sm text-muted">
-              {rankedCollectors.length} collectors · {data.totalTokens} tokens ·{" "}
+              {rankedCollectors.length.toLocaleString()} collectors · {data.totalTokens.toLocaleString()} tokens ·{" "}
               {
                 data.fullCollectors.filter(
                   (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
@@ -245,7 +245,7 @@ export default function CollectorsPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-4">
             {data.fullCollectors.filter(
               (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
             ).length > 0 && (

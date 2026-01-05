@@ -880,15 +880,18 @@ async function runTestMintMode() {
   // Resolve display name (Twitter handle > ENS > truncated address)
   const minterDisplay = await resolveDisplayName(testMinter);
 
+  // Initialize client for contract reads
+  const rpcUrl = getRpcUrl();
+  const contractAddress = getContractAddress();
+  const abi = loadContractABI();
+  const client = createPublicClient({
+    chain: getChain(),
+    transport: http(rpcUrl),
+  });
+
   // Fetch remaining time in window (if contract is configured)
   let minutesRemaining = null;
   try {
-    const rpcUrl = getRpcUrl();
-    const contractAddress = getContractAddress();
-    const client = createPublicClient({
-      chain: getChain(),
-      transport: http(rpcUrl),
-    });
     const timeUntilClose = await client.readContract({
       address: contractAddress,
       abi: [
@@ -908,11 +911,17 @@ async function runTestMintMode() {
     logWarn(`Could not fetch time remaining: ${e.message}`);
   }
 
+  // Get collector stats for the minter
+  const collectorStats = await getCollectorStats(testMinter, client, contractAddress, abi);
+
   // Format and display the tweet with image
   const tweetMessage = formatMintTweet(
     testTokenId,
     minterDisplay,
-    minutesRemaining
+    minutesRemaining,
+    null, // windowId
+    false, // isBountyMint
+    collectorStats
   );
 
   await postTweet(null, tweetMessage, imageBuffer);
@@ -1007,12 +1016,17 @@ async function runPostMintMode(tokenId) {
   }
   logSuccess(`Image fetched: ${imageBuffer.length} bytes`);
 
+  // Get collector stats for the minter
+  const collectorStats = await getCollectorStats(minter, client, contractAddress, abi);
+
   // Format tweet
   const tweetMessage = formatMintTweet(
     Number(tokenId),
     minterDisplay,
     minutesRemaining,
-    windowId
+    windowId,
+    false, // isBountyMint
+    collectorStats
   );
 
   // Check for dry-run mode
@@ -1756,7 +1770,8 @@ function formatMintTweet(
   minterDisplay,
   minutesRemaining = null,
   windowId = null,
-  isBountyMint = false
+  isBountyMint = false,
+  collectorStats = null
 ) {
   const timeText =
     minutesRemaining !== null && minutesRemaining > 0
@@ -1767,7 +1782,19 @@ function formatMintTweet(
   const mintedBy = isBountyMint
     ? `minted by ${minterDisplay} via bounty`
     : `minted by ${minterDisplay}`;
-  return `LESS ${tokenId} ${mintedBy}${timeText}
+
+  // Build collector stats line (similar to secondary sales)
+  let statsLine = "";
+  if (collectorStats) {
+    const { tokenCount, windowCount, totalWindows, isFullCollector } = collectorStats;
+    if (isFullCollector) {
+      statsLine = `\n\nowns ${tokenCount} LESS across all ${totalWindows} mint windows`;
+    } else {
+      statsLine = `\n\nowns ${tokenCount} LESS across ${windowCount}/${totalWindows} mint windows`;
+    }
+  }
+
+  return `LESS ${tokenId} ${mintedBy}${timeText}${statsLine}
 
 ${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 }
@@ -2548,13 +2575,19 @@ async function processMintEvent(
       return;
     }
 
+    // Get collector stats for the minter (use bounty owner if bounty mint)
+    const collectorAddress = bountyOwner || minter;
+    const abi = loadContractABI();
+    const collectorStats = await getCollectorStats(collectorAddress, client, contractAddress, abi);
+
     // Format and post tweet with image
     const tweetMessage = formatMintTweet(
       Number(tokenId),
       minterDisplay,
       minutesRemaining,
       windowId,
-      bountyOwnerDisplay !== null // isBountyMint
+      bountyOwnerDisplay !== null, // isBountyMint
+      collectorStats
     );
 
     logInfo("Posting mint tweet...");
@@ -3918,7 +3951,11 @@ async function generateMintTweet(tokenId) {
   const minterDisplay = await resolveDisplayName(owner);
   const minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
 
-  return formatMintTweet(tokenId, minterDisplay, minutesRemaining > 0 ? minutesRemaining : null, Number(windowId));
+  // Get collector stats for the owner
+  const abi = loadContractABI();
+  const collectorStats = await getCollectorStats(owner, client, contractAddress, abi);
+
+  return formatMintTweet(tokenId, minterDisplay, minutesRemaining > 0 ? minutesRemaining : null, Number(windowId), false, collectorStats);
 }
 
 // Generate window tweet with live data

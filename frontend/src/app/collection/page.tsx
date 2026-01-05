@@ -167,8 +167,14 @@ function LiveCollection() {
           <div className="mb-12">
             <h1 className="text-2xl mb-2">collection</h1>
             <p className="text-sm text-muted">
-              {total} pieces across {windowGroups.length + 1} window
-              {windowGroups.length + 1 !== 1 ? "s" : ""}
+              {total.toLocaleString()} LESS across{" "}
+              <Link
+                href="/windows"
+                className="underline underline-offset-4 hover:text-foreground transition-colors"
+              >
+                {windowMintCounts.size} window
+                {windowMintCounts.size !== 1 ? "s" : ""}
+              </Link>
             </p>
           </div>
 
@@ -192,8 +198,7 @@ function LiveCollection() {
                     window {group.windowId}
                   </h2>
                   <span className="text-sm text-muted">
-                    {windowMintCounts.get(group.windowId) ?? group.tokens.length} piece
-                    {(windowMintCounts.get(group.windowId) ?? group.tokens.length) !== 1 ? "s" : ""}
+                    {(windowMintCounts.get(group.windowId) ?? group.tokens.length).toLocaleString()} LESS
                   </span>
                   <span className="text-sm text-muted opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                     view all →

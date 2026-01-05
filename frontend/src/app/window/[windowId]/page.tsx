@@ -1,11 +1,34 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
+import { useEnsName } from 'wagmi';
 import { ArtworkCard } from '@/components/artwork/ArtworkCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useWindowTokens } from '@/hooks/useWindowTokens';
 import { useWindowMintCounts } from '@/hooks/useWindowMintCounts';
+import { useWindowDetails } from '@/hooks/useWindowDetails';
 import { IS_PRE_LAUNCH } from '@/lib/contracts';
+import { truncateAddress } from '@/lib/utils';
+
+function CollectorChip({ address, count }: { address: `0x${string}`; count: number }) {
+  const { data: ensName } = useEnsName({
+    address,
+    chainId: 1,
+  });
+
+  return (
+    <Link
+      href={`/collector/${address}`}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-muted/10 hover:bg-muted/20 transition-colors"
+    >
+      <span className={ensName ? '' : 'font-mono'}>
+        {ensName || truncateAddress(address)}
+      </span>
+      <span className="text-muted">×{count}</span>
+    </Link>
+  );
+}
 
 interface WindowPageProps {
   params: { windowId: string };
@@ -50,12 +73,12 @@ function WindowNotFound({ windowId }: { windowId: number }) {
 
           <div className="text-center py-20">
             <h1 className="text-2xl mb-4">window {windowId}</h1>
-            <p className="text-muted mb-6">no pieces found in this window</p>
+            <p className="text-muted mb-6">no LESS found in this window</p>
             <Link
               href="/collection"
               className="text-sm underline underline-offset-4 hover:text-muted transition-colors"
             >
-              view all pieces
+              view collection
             </Link>
           </div>
         </div>
@@ -64,15 +87,56 @@ function WindowNotFound({ windowId }: { windowId: number }) {
   );
 }
 
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 function WindowCollection({ windowId }: { windowId: number }) {
   const { tokens, count, isLoading } = useWindowTokens(windowId);
-  const { windowMintCounts, total: totalPieces } = useWindowMintCounts();
+  const { windowMintCounts } = useWindowMintCounts();
+  const { startTime, endTime, isLoading: isLoadingDetails } = useWindowDetails(windowId);
 
   // Get total number of windows for navigation context
   const windowIds = Array.from(windowMintCounts.keys()).sort((a, b) => b - a);
   const currentIndex = windowIds.indexOf(windowId);
   const prevWindow = currentIndex < windowIds.length - 1 ? windowIds[currentIndex + 1] : null;
   const nextWindow = currentIndex > 0 ? windowIds[currentIndex - 1] : null;
+
+  // Calculate token ID range
+  const tokenIdRange = useMemo(() => {
+    if (tokens.length === 0) return null;
+    const ids = tokens.map((t) => t.id);
+    return { min: Math.min(...ids), max: Math.max(...ids) };
+  }, [tokens]);
+
+  // Calculate collector breakdown (current owners)
+  const collectors = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const token of tokens) {
+      if (token.owner) {
+        const addr = token.owner.toLowerCase();
+        counts.set(addr, (counts.get(addr) || 0) + 1);
+      }
+    }
+    // Sort by count descending
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([address, tokenCount]) => ({ address: address as `0x${string}`, count: tokenCount }));
+  }, [tokens]);
 
   if (isLoading && tokens.length === 0) {
     return <WindowSkeleton />;
@@ -96,12 +160,37 @@ function WindowCollection({ windowId }: { windowId: number }) {
           </Link>
 
           {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-2xl mb-2">window {windowId}</h1>
-            <p className="text-sm text-muted">
-              {count} piece{count !== 1 ? 's' : ''} minted in this window
-            </p>
+          <div className="mb-8">
+            <h1 className="text-2xl mb-3">window {windowId}</h1>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+              <span>{count.toLocaleString()} LESS</span>
+              {tokenIdRange && (
+                <span>#{tokenIdRange.min}–{tokenIdRange.max}</span>
+              )}
+              {startTime && !isLoadingDetails && (
+                <span>{formatDate(startTime)} at {formatTime(startTime)}</span>
+              )}
+            </div>
           </div>
+
+          {/* Collectors section */}
+          {collectors.length > 0 && (
+            <div className="mb-10 pb-8 border-b border-border">
+              <h2 className="text-sm text-muted mb-3">
+                {collectors.length.toLocaleString()} collector{collectors.length !== 1 ? 's' : ''}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {collectors.slice(0, 12).map(({ address, count: tokenCount }) => (
+                  <CollectorChip key={address} address={address} count={tokenCount} />
+                ))}
+                {collectors.length > 12 && (
+                  <span className="inline-flex items-center px-2.5 py-1 text-xs text-muted">
+                    +{(collectors.length - 12).toLocaleString()} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Tokens grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

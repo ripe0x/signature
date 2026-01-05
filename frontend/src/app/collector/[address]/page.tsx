@@ -179,7 +179,7 @@ export default function CollectorPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="border border-border p-4">
-              <div className="text-2xl mb-1">{collector.tokenCount}</div>
+              <div className="text-2xl mb-1">{collector.tokenCount.toLocaleString()}</div>
               <div className="text-sm text-muted">tokens</div>
             </div>
             <div className="border border-border p-4">
@@ -220,7 +220,7 @@ export default function CollectorPage() {
               <h2 className="text-lg">collection</h2>
               {selectedWindow !== null && (
                 <span className="text-sm text-muted">
-                  showing Window {selectedWindow} · {sortedTokens.length} piece{sortedTokens.length !== 1 ? "s" : ""}
+                  showing Window {selectedWindow} · {sortedTokens.length} LESS
                   <button
                     onClick={() => setSelectedWindow(null)}
                     className="ml-2 text-muted hover:text-foreground transition-colors"
