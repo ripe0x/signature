@@ -284,20 +284,20 @@ export default function TokenPage() {
 
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted">window</span>
-                      <span>{windowId}</span>
+                      <Link href={`/window/${windowId}`} className="hover:underline">
+                        {windowId}
+                      </Link>
                     </div>
 
                     {owner && (
                       <div className="flex justify-between py-2 border-b border-border">
                         <span className="text-muted">owner</span>
-                        <a
-                          href={`https://etherscan.io/address/${owner}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Link
+                          href={`/collector/${owner}`}
                           className="hover:underline"
                         >
                           {ensName || truncateAddress(owner)}
-                        </a>
+                        </Link>
                       </div>
                     )}
                   </div>
