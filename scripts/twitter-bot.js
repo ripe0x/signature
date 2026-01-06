@@ -493,6 +493,33 @@ async function fetchEthPrice() {
   }
 }
 
+// Fetch LESS token market cap from DexScreener
+async function fetchLessMarketCap() {
+  try {
+    if (!LESS_TOKEN_ADDRESS) {
+      return null;
+    }
+    const response = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${LESS_TOKEN_ADDRESS}`
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    // Get the first pair's market cap (usually the main liquidity pool)
+    const pair = data.pairs?.[0];
+    if (pair?.marketCap) {
+      return pair.marketCap;
+    }
+    // Fallback: calculate from fdv if available
+    if (pair?.fdv) {
+      return pair.fdv;
+    }
+    return null;
+  } catch (error) {
+    logWarn(`Failed to fetch LESS market cap: ${error.message}`);
+    return null;
+  }
+}
+
 // Format URL for tweet - just returns the full URL
 // Cards are suppressed by attaching media to the tweet
 function formatUrlForTweet(url) {
@@ -1203,6 +1230,7 @@ async function runTestBalanceProgressMode() {
 
   try {
     let currentBalance, minEthForWindow, nextWindowId;
+    let client, contractAddress, abi;
 
     if (usingMockData) {
       // Use mock values if provided
@@ -1218,12 +1246,21 @@ async function runTestBalanceProgressMode() {
       logInfo(`  Balance: ${mockBalanceEth} ETH`);
       logInfo(`  Threshold: ${mockThresholdEth} ETH`);
       logInfo(`  Window ID: ${nextWindowId}`);
+
+      // Set up client for burn data fetch even in mock mode
+      const rpcUrl = getRpcUrl();
+      contractAddress = getContractAddress();
+      abi = loadContractABI();
+      client = createPublicClient({
+        chain: getChain(),
+        transport: http(rpcUrl),
+      });
     } else {
       // Fetch real data from contract
       const rpcUrl = getRpcUrl();
-      const contractAddress = getContractAddress();
-      const abi = loadContractABI();
-      const client = createPublicClient({
+      contractAddress = getContractAddress();
+      abi = loadContractABI();
+      client = createPublicClient({
         chain: getChain(),
         transport: http(rpcUrl),
       });
@@ -1296,7 +1333,7 @@ async function runTestBalanceProgressMode() {
 
     logInfo(`Progress: ${progressPercent.toFixed(1)}%`);
 
-    // Get ETH price (mock or real)
+    // Get ETH price (mock or real), burn data, and market cap
     let ethPrice = null;
     if (mockEthPrice) {
       ethPrice = parseFloat(mockEthPrice);
@@ -1308,6 +1345,18 @@ async function runTestBalanceProgressMode() {
         logInfo(`ETH price: $${ethPrice}`);
       }
     }
+
+    // Fetch burn data and market cap
+    const [burnData, marketCap] = await Promise.all([
+      fetchBurnData(client, contractAddress, abi),
+      fetchLessMarketCap(),
+    ]);
+    if (marketCap) {
+      logInfo(`Market cap: $${marketCap.toLocaleString()}`);
+    }
+    if (burnData?.supplyRemaining) {
+      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
+    }
     console.log();
 
     // Format and display the tweet (test mode doesn't fetch timeUntilFundsMoved)
@@ -1317,7 +1366,9 @@ async function runTestBalanceProgressMode() {
       progressPercent,
       nextWindowId,
       ethPrice,
-      0 // timeUntilOpen - not fetched in test mode
+      0, // timeUntilOpen - not fetched in test mode
+      burnData,
+      marketCap
     );
 
     await postTweet(null, tweetMessage);
@@ -1629,10 +1680,20 @@ async function runPostBalanceMode() {
 
     logInfo(`Progress: ${progressPercent.toFixed(1)}%`);
 
-    // Fetch real ETH price
-    const ethPrice = await fetchEthPrice();
+    // Fetch ETH price, burn data, and market cap in parallel
+    const [ethPrice, burnData, marketCap] = await Promise.all([
+      fetchEthPrice(),
+      fetchBurnData(client, contractAddress, abi),
+      fetchLessMarketCap(),
+    ]);
     if (ethPrice) {
       logInfo(`ETH price: $${ethPrice}`);
+    }
+    if (marketCap) {
+      logInfo(`Market cap: $${marketCap.toLocaleString()}`);
+    }
+    if (burnData?.supplyRemaining) {
+      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
     }
 
     console.log();
@@ -1644,7 +1705,9 @@ async function runPostBalanceMode() {
       progressPercent,
       nextWindowId,
       ethPrice,
-      Number(timeUntilFundsMoved)
+      Number(timeUntilFundsMoved),
+      burnData,
+      marketCap
     );
 
     if (dryRun) {
@@ -1828,7 +1891,9 @@ function formatBalanceProgressTweet(
   progressPercent,
   windowId,
   ethPrice = null,
-  timeUntilOpen = 0
+  timeUntilOpen = 0,
+  burnData = null,
+  marketCap = null
 ) {
   // Create progress bar using unicode shade characters
   // Dark shades (█, ▓, ▒) for filled, light (░) for empty
@@ -1879,6 +1944,25 @@ function formatBalanceProgressTweet(
   // Format percentages
   const percentStr = progressPercent.toFixed(1);
 
+  // Build market stats line (market cap + burn %)
+  let marketStatsLine = "";
+  if (marketCap || burnData?.supplyRemaining) {
+    const parts = [];
+    if (marketCap) {
+      const mcFormatted = marketCap >= 1000000
+        ? `$${(marketCap / 1000000).toFixed(2)}M`
+        : `$${(marketCap / 1000).toFixed(0)}K`;
+      parts.push(`${mcFormatted} mcap`);
+    }
+    if (burnData?.supplyRemaining) {
+      const burnedPercent = (100 - Number(burnData.supplyRemaining)).toFixed(2);
+      parts.push(`${burnedPercent}% burned`);
+    }
+    if (parts.length > 0) {
+      marketStatsLine = `\n\n${parts.join(" · ")}`;
+    }
+  }
+
   return `$LESS buy + burn balance progress toward window ${windowId}
 
 ${progressBar} ${percentStr}%
@@ -1894,9 +1978,7 @@ ${
     : remainingEth <= 0
     ? `\nready to open!`
     : ""
-}
-
-${formatUrlForTweet(`${BASE_URL}/mint`)}`;
+}${marketStatsLine}`;
 }
 
 // Fetch NFT sales from OpenSea API
@@ -2988,8 +3070,12 @@ async function processBalanceProgressCheck(
       Number((currentBalance * 100n) / minEthForWindow)
     );
 
-    // Fetch ETH price for trading volume estimate
-    const ethPrice = await fetchEthPrice();
+    // Fetch ETH price, burn data, and market cap in parallel
+    const [ethPrice, burnData, marketCap] = await Promise.all([
+      fetchEthPrice(),
+      fetchBurnData(client, contractAddress, abi),
+      fetchLessMarketCap(),
+    ]);
 
     logInfo(
       `Balance progress: ${formatEther(currentBalance)} ETH / ${formatEther(
@@ -3013,6 +3099,12 @@ async function processBalanceProgressCheck(
         );
       }
     }
+    if (marketCap) {
+      logInfo(`Market cap: $${marketCap.toLocaleString()}`);
+    }
+    if (burnData?.supplyRemaining) {
+      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
+    }
 
     // Format and post tweet
     const tweetMessage = formatBalanceProgressTweet(
@@ -3021,7 +3113,9 @@ async function processBalanceProgressCheck(
       progressPercent,
       nextWindowId,
       ethPrice,
-      Number(timeUntilFundsMoved)
+      Number(timeUntilFundsMoved),
+      burnData,
+      marketCap
     );
 
     logInfo("Posting balance progress tweet...");
@@ -3912,10 +4006,14 @@ async function generateBalanceTweet() {
   ]);
 
   const progressPercent = Number((currentBalance * 10000n) / minEthForWindow) / 100;
-  const ethPrice = await fetchEthPrice();
+  const [ethPrice, burnData, marketCap] = await Promise.all([
+    fetchEthPrice(),
+    fetchBurnData(client, contractAddress, abi),
+    fetchLessMarketCap(),
+  ]);
   const timeUntilOpen = Number(timeUntilFundsMoved);
 
-  return formatBalanceProgressTweet(currentBalance, minEthForWindow, progressPercent, nextWindowId, ethPrice, timeUntilOpen);
+  return formatBalanceProgressTweet(currentBalance, minEthForWindow, progressPercent, nextWindowId, ethPrice, timeUntilOpen, burnData, marketCap);
 }
 
 // Generate mint tweet with live data

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { formatEther } from 'viem';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 import Link from 'next/link';
 import { useBounties, useExecuteBounty, type BountyStatus } from '@/hooks/useBounties';
 import { truncateAddress, getAddressUrl, getTxUrl } from '@/lib/utils';
+import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 
 function BountyItem({
   bounty,
@@ -100,11 +101,38 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
   const [expanded, setExpanded] = useState(false);
   const { bounties, claimableBounties, isLoading, refetch } = useBounties();
 
+  // Get base mint price for calculating costs when window is not active
+  const { data: baseMintPriceWei } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'mintPrice',
+    query: { refetchInterval: 30000 },
+  });
+
   // For active windows, show claimable bounties
-  // For future windows, show all bounties that have enough balance to fund the next mint
-  const relevantBounties = isWindowActive
-    ? claimableBounties
-    : bounties.filter(b => b.balance >= b.totalCost && b.totalCost > BigInt(0));
+  // For future windows, estimate cost using base mint price (since mint counts reset)
+  const { relevantBounties, totalCost } = useMemo(() => {
+    if (isWindowActive) {
+      const relevant = claimableBounties;
+      const total = relevant.reduce((sum, b) => sum + b.totalCost, BigInt(0));
+      return { relevantBounties: relevant, totalCost: total };
+    }
+
+    // Window is NOT active - mint counts will reset, so use base mint price
+    const baseCost = baseMintPriceWei ?? BigInt(0);
+    const relevant: typeof bounties = [];
+    let total = BigInt(0);
+
+    for (const b of bounties) {
+      const estimatedCost = baseCost + b.reward;
+      if (b.balance >= estimatedCost && estimatedCost > BigInt(0)) {
+        relevant.push(b);
+        total += estimatedCost;
+      }
+    }
+
+    return { relevantBounties: relevant, totalCost: total };
+  }, [isWindowActive, claimableBounties, bounties, baseMintPriceWei]);
 
   if (isLoading) {
     return null;
@@ -121,12 +149,6 @@ export function BountyList({ windowId, isWindowActive, compact = false }: Bounty
 
   const displayBounties = expanded ? relevantBounties : relevantBounties.slice(0, 3);
   const hasMore = relevantBounties.length > 3;
-
-  // Calculate total cost (mint + reward) available
-  const totalCost = relevantBounties.reduce(
-    (sum, b) => sum + b.totalCost,
-    BigInt(0)
-  );
   const totalEth = Number(formatEther(totalCost)).toFixed(4);
 
   return (

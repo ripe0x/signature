@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { formatEther } from 'viem';
 import { useReadContract, useBalance } from 'wagmi';
 import Link from 'next/link';
@@ -7,6 +8,8 @@ import {
   BOUNTY_FACTORY_ADDRESS,
   BOUNTY_FACTORY_ABI,
   BOUNTY_ABI,
+  CONTRACTS,
+  LESS_NFT_ABI,
 } from '@/lib/contracts';
 import { getAddressUrl } from '@/lib/utils';
 
@@ -62,6 +65,62 @@ export function CollectorBounty({ address }: CollectorBountyProps) {
     },
   });
 
+  // Get bounty status for totalCost and windowActive
+  const { data: bountyStatus } = useReadContract({
+    address: hasBounty ? (bountyAddress as `0x${string}`) : undefined,
+    abi: BOUNTY_ABI,
+    functionName: 'getBountyStatus',
+    query: {
+      enabled: hasBounty,
+      refetchInterval: 30000,
+    },
+  });
+
+  // Get base mint price for estimating cost when window is not active
+  const { data: baseMintPriceWei } = useReadContract({
+    address: CONTRACTS.LESS_NFT,
+    abi: LESS_NFT_ABI,
+    functionName: 'mintPrice',
+    query: { refetchInterval: 30000 },
+  });
+
+  // Parse bounty status
+  const parsedStatus = useMemo(() => {
+    if (!bountyStatus) return null;
+    const [
+      , // isActive
+      , // isPaused (already fetched separately)
+      , // currentWindowId
+      windowActive,
+      , // windowMintedAlready
+      , // windowTargeted
+      , // canClaim
+      , // mintCost
+      reward,
+      totalCost,
+      balance,
+    ] = bountyStatus as [boolean, boolean, bigint, boolean, boolean, boolean, boolean, bigint, bigint, bigint, bigint, bigint];
+    return { windowActive, reward, totalCost, balance };
+  }, [bountyStatus]);
+
+  // Determine if bounty can fund the next window
+  const canFundNextWindow = useMemo(() => {
+    if (!parsedStatus) return false;
+    const { windowActive, reward, totalCost, balance } = parsedStatus;
+
+    let estimatedCost: bigint;
+    if (windowActive) {
+      // Window is active - use on-chain totalCost (includes escalating pricing)
+      estimatedCost = totalCost;
+    } else {
+      // Window is NOT active - estimate using base mint price (mint counts will reset)
+      const baseCost = baseMintPriceWei ?? BigInt(0);
+      estimatedCost = baseCost + reward;
+    }
+
+    return balance >= estimatedCost && estimatedCost > BigInt(0);
+  }, [parsedStatus, baseMintPriceWei]);
+
   if (isLoadingAddress) {
     return null;
   }
@@ -80,8 +139,10 @@ export function CollectorBounty({ address }: CollectorBountyProps) {
         <h3 className="text-sm">mint bounty</h3>
         {isPaused ? (
           <span className="text-xs px-2 py-0.5 bg-border text-muted">paused</span>
-        ) : balance > BigInt(0) ? (
+        ) : canFundNextWindow ? (
           <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800">active</span>
+        ) : balance > BigInt(0) ? (
+          <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800">inactive</span>
         ) : (
           <span className="text-xs px-2 py-0.5 bg-border text-muted">unfunded</span>
         )}
