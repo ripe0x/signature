@@ -41,17 +41,28 @@ try {
   // First load from persistent storage (or local cache)
   if (existsSync(handlesPath)) {
     twitterHandles = JSON.parse(readFileSync(handlesPath, "utf8"));
-    console.log(`Loaded ${Object.keys(twitterHandles).length} Twitter handle mappings from ${handlesPath}`);
+    console.log(
+      `Loaded ${
+        Object.keys(twitterHandles).length
+      } Twitter handle mappings from ${handlesPath}`
+    );
   }
   // Also merge in any manual entries from the repo file (local dev or deploy-time additions)
   if (existsSync(localHandlesPath) && localHandlesPath !== handlesPath) {
     const localHandles = JSON.parse(readFileSync(localHandlesPath, "utf8"));
     twitterHandles = { ...twitterHandles, ...localHandles };
-    console.log(`Merged ${Object.keys(localHandles).length} manual Twitter handle mappings`);
+    console.log(
+      `Merged ${
+        Object.keys(localHandles).length
+      } manual Twitter handle mappings`
+    );
   }
   // Normalize addresses to lowercase for lookup
   twitterHandles = Object.fromEntries(
-    Object.entries(twitterHandles).map(([addr, handle]) => [addr.toLowerCase(), handle])
+    Object.entries(twitterHandles).map(([addr, handle]) => [
+      addr.toLowerCase(),
+      handle,
+    ])
   );
 } catch (e) {
   console.log("No twitter-handles.json found, starting fresh");
@@ -120,7 +131,8 @@ const pollingInterval =
 
 // Admin HTTP server config
 const ADMIN_PORT = parseInt(process.env.ADMIN_PORT || "8080", 10);
-const ADMIN_ADDRESS = "0xCB43078C32423F5348Cab5885911C3B5faE217F9".toLowerCase();
+const ADMIN_ADDRESS =
+  "0xCB43078C32423F5348Cab5885911C3B5faE217F9".toLowerCase();
 
 // Color logging
 const colors = {
@@ -161,7 +173,7 @@ function logWarn(message) {
 
 // Format ETH value without trailing zeros
 function formatEthValue(value, decimals = 4) {
-  return Number(value).toFixed(decimals).replace(/0+$/, '').replace(/\.$/, '');
+  return Number(value).toFixed(decimals).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 // State persistence - tracks processed windows, mints, and last block
@@ -229,7 +241,12 @@ function loadState(contractAddress) {
           data.processedWindows || data.processedFolds || []
         ),
         processedMints: new Set(data.processedMints || []),
-        pendingMints: new Map(Object.entries(data.pendingMints || {}).map(([k, v]) => [Number(k), v])),
+        pendingMints: new Map(
+          Object.entries(data.pendingMints || {}).map(([k, v]) => [
+            Number(k),
+            v,
+          ])
+        ),
         fifteenMinReminders: new Set(data.fifteenMinReminders || []),
         processedEndedWindows: new Set(data.processedEndedWindows || []),
         windowReadyAlerted: data.windowReadyAlerted || false,
@@ -352,12 +369,18 @@ async function fetchImage(tokenId) {
     }
 
     if (attempt < IMAGE_FETCH_RETRIES) {
-      logInfo(`Retry ${attempt}/${IMAGE_FETCH_RETRIES} for image ${tokenId} in ${IMAGE_FETCH_RETRY_DELAY / 1000}s...`);
+      logInfo(
+        `Retry ${attempt}/${IMAGE_FETCH_RETRIES} for image ${tokenId} in ${
+          IMAGE_FETCH_RETRY_DELAY / 1000
+        }s...`
+      );
       await sleep(IMAGE_FETCH_RETRY_DELAY);
     }
   }
 
-  logError(`Failed to fetch image for token ${tokenId} after ${IMAGE_FETCH_RETRIES} attempts`);
+  logError(
+    `Failed to fetch image for token ${tokenId} after ${IMAGE_FETCH_RETRIES} attempts`
+  );
   return null;
 }
 
@@ -939,7 +962,12 @@ async function runTestMintMode() {
   }
 
   // Get collector stats for the minter
-  const collectorStats = await getCollectorStats(testMinter, client, contractAddress, abi);
+  const collectorStats = await getCollectorStats(
+    testMinter,
+    client,
+    contractAddress,
+    abi
+  );
 
   // Format and display the tweet with image
   const tweetMessage = formatMintTweet(
@@ -1044,7 +1072,12 @@ async function runPostMintMode(tokenId) {
   logSuccess(`Image fetched: ${imageBuffer.length} bytes`);
 
   // Get collector stats for the minter
-  const collectorStats = await getCollectorStats(minter, client, contractAddress, abi);
+  const collectorStats = await getCollectorStats(
+    minter,
+    client,
+    contractAddress,
+    abi
+  );
 
   // Format tweet
   const tweetMessage = formatMintTweet(
@@ -1355,7 +1388,9 @@ async function runTestBalanceProgressMode() {
       logInfo(`Market cap: $${marketCap.toLocaleString()}`);
     }
     if (burnData?.supplyRemaining) {
-      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
+      logInfo(
+        `Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`
+      );
     }
     console.log();
 
@@ -1412,7 +1447,13 @@ async function runTestSaleMode() {
     }
 
     // Format and display tweet with window IDs
-    const tweetMessage = formatSaleTweet(testTokenIds, buyerDisplay, testPriceEth, null, testWindowIds);
+    const tweetMessage = formatSaleTweet(
+      testTokenIds,
+      buyerDisplay,
+      testPriceEth,
+      null,
+      testWindowIds
+    );
 
     if (imageBuffer) {
       await postTweetWithMultipleImages(null, tweetMessage, [imageBuffer]);
@@ -1434,7 +1475,11 @@ async function runTestSaleMode() {
 // Supports multiple token IDs (comma-separated) for grouped sales
 async function runPreviewSaleMode(tokenIds) {
   const tokenIdList = Array.isArray(tokenIds) ? tokenIds : [tokenIds];
-  logInfo(`Running in PREVIEW SALE MODE - fetching real sale data for token(s) #${tokenIdList.join(", #")}`);
+  logInfo(
+    `Running in PREVIEW SALE MODE - fetching real sale data for token(s) #${tokenIdList.join(
+      ", #"
+    )}`
+  );
   console.log();
 
   try {
@@ -1451,7 +1496,7 @@ async function runPreviewSaleMode(tokenIds) {
     logInfo(`Fetching sales from OpenSea...`);
     const response = await fetch(url, {
       headers: {
-        "accept": "application/json",
+        accept: "application/json",
         "x-api-key": apiKey,
       },
     });
@@ -1468,10 +1513,14 @@ async function runPreviewSaleMode(tokenIds) {
     // Find sales for all requested tokens
     const sales = [];
     for (const tokenId of tokenIdList) {
-      const sale = events.find(e => e.nft?.identifier === tokenId);
+      const sale = events.find((e) => e.nft?.identifier === tokenId);
       if (!sale) {
         logError(`No sale found for token #${tokenId} in recent sales`);
-        logInfo(`Available token IDs in recent sales: ${events.map(e => e.nft?.identifier).join(", ")}`);
+        logInfo(
+          `Available token IDs in recent sales: ${events
+            .map((e) => e.nft?.identifier)
+            .join(", ")}`
+        );
         process.exit(1);
       }
       sales.push({ tokenId, sale });
@@ -1514,10 +1563,17 @@ async function runPreviewSaleMode(tokenIds) {
     });
 
     // Get collector stats for the buyer
-    const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
+    const collectorStats = await getCollectorStats(
+      buyer,
+      client,
+      contractAddress,
+      abi
+    );
 
     // Format token IDs and fetch window IDs for them
-    const sortedTokenIds = tokenIdList.map(id => parseInt(id, 10)).sort((a, b) => a - b);
+    const sortedTokenIds = tokenIdList
+      .map((id) => parseInt(id, 10))
+      .sort((a, b) => a - b);
 
     // Fetch window IDs for the sold tokens
     let windowIds = null;
@@ -1557,13 +1613,23 @@ async function runPreviewSaleMode(tokenIds) {
     }
 
     // Format tweet with all token IDs and window IDs
-    const tweetMessage = formatSaleTweet(sortedTokenIds, buyerDisplay, totalPriceEth, collectorStats, windowIds);
+    const tweetMessage = formatSaleTweet(
+      sortedTokenIds,
+      buyerDisplay,
+      totalPriceEth,
+      collectorStats,
+      windowIds
+    );
 
     // Initialize Twitter client if not in dry-run mode
     const twitterClient = dryRun ? null : initTwitterClient();
 
     if (imageBuffers.length > 0) {
-      await postTweetWithMultipleImages(twitterClient, tweetMessage, imageBuffers);
+      await postTweetWithMultipleImages(
+        twitterClient,
+        tweetMessage,
+        imageBuffers
+      );
     } else {
       await postTweet(twitterClient, tweetMessage);
     }
@@ -1669,7 +1735,9 @@ async function runPostBalanceMode() {
 
     logInfo(`Current balance: ${formatEther(currentBalance)} ETH`);
     if (timeUntilFundsMoved > 0n) {
-      logInfo(`Time until window can open: ${Number(timeUntilFundsMoved)} seconds`);
+      logInfo(
+        `Time until window can open: ${Number(timeUntilFundsMoved)} seconds`
+      );
     }
 
     // Calculate progress percentage (capped at 100%)
@@ -1693,7 +1761,9 @@ async function runPostBalanceMode() {
       logInfo(`Market cap: $${marketCap.toLocaleString()}`);
     }
     if (burnData?.supplyRemaining) {
-      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
+      logInfo(
+        `Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`
+      );
     }
 
     console.log();
@@ -1849,7 +1919,8 @@ function formatMintTweet(
   // Build collector stats line (similar to secondary sales)
   let statsLine = "";
   if (collectorStats) {
-    const { tokenCount, windowCount, totalWindows, isFullCollector } = collectorStats;
+    const { tokenCount, windowCount, totalWindows, isFullCollector } =
+      collectorStats;
     if (isFullCollector) {
       statsLine = `\n\nowns ${tokenCount} LESS across all ${totalWindows} mint windows`;
     } else {
@@ -1864,9 +1935,10 @@ ${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 
 // Format 15-minute reminder tweet
 function formatReminderTweet(windowId, minutesRemaining, mintCount = 0) {
-  const mintText = mintCount === 1
-    ? `${mintCount} piece minted so far`
-    : `${mintCount} pieces minted so far`;
+  const mintText =
+    mintCount === 1
+      ? `${mintCount} piece minted so far`
+      : `${mintCount} pieces minted so far`;
 
   return `~${minutesRemaining} minutes remain in mint window ${windowId}
 
@@ -1937,9 +2009,9 @@ function formatBalanceProgressTweet(
   if (remainingEth > 0 && ethPrice) {
     const volumeNeededEth = remainingEth / 0.08;
     const volumeNeededUsd = volumeNeededEth * ethPrice;
-    volumeText = `\n~$${volumeNeededUsd.toLocaleString(undefined, {
+    volumeText = `\n(~$${volumeNeededUsd.toLocaleString(undefined, {
       maximumFractionDigits: 0,
-    })} worth of $LESS trading volume`;
+    })} worth of $LESS trading volume)`;
   }
 
   // Format percentages
@@ -1950,9 +2022,10 @@ function formatBalanceProgressTweet(
   if (marketCap || burnData?.supplyRemaining) {
     const parts = [];
     if (marketCap) {
-      const mcFormatted = marketCap >= 1000000
-        ? `$${(marketCap / 1000000).toFixed(2)}M`
-        : `$${(marketCap / 1000).toFixed(0)}K`;
+      const mcFormatted =
+        marketCap >= 1000000
+          ? `$${(marketCap / 1000000).toFixed(2)}M`
+          : `$${(marketCap / 1000).toFixed(0)}K`;
       parts.push(`${mcFormatted} mcap`);
     }
     if (burnData?.supplyRemaining) {
@@ -1960,31 +2033,36 @@ function formatBalanceProgressTweet(
       parts.push(`${burnedPercent}% burned`);
     }
     if (parts.length > 0) {
-      marketStatsLine = `\n\n${parts.join(" · ")}`;
+      marketStatsLine = `\n\n${parts.join(" / ")}`;
     }
   }
 
   // Build bounty line if there are active bounties waiting
-  const bountyLine = activeBountiesCount > 0
-    ? `\n${activeBountiesCount} bounty mint${activeBountiesCount !== 1 ? 's' : ''} awaiting window`
-    : "";
+  const bountyLine =
+    activeBountiesCount > 0
+      ? `\n${activeBountiesCount} bounty mint${
+          activeBountiesCount !== 1 ? "s" : ""
+        } awaiting window`
+      : "";
 
-  return `$LESS buy + burn balance progress toward window ${windowId}
+  return `$LESS buy + burn balance progress to mint window ${windowId}
 
 ${progressBar} ${percentStr}%
+${formatEthValue(currentEth)} ETH / ${formatEthValue(thresholdEth)} ETH
 
-${currentEth.toFixed(4)} ETH / ${thresholdEth.toFixed(4)} ETH
 ${
   remainingEth > 0
-    ? `${remainingEth.toFixed(4)} ETH remaining${volumeText}`
+    ? `${formatEthValue(remainingEth)} ETH needed${volumeText}`
     : ""
 }${
-  remainingEth <= 0 && timeUntilOpen > 0
-    ? `\nthreshold reached! opens in ${Math.floor(timeUntilOpen / 60)}:${String(timeUntilOpen % 60).padStart(2, '0')}`
-    : remainingEth <= 0
-    ? `\nready to open!`
-    : ""
-}${bountyLine}${marketStatsLine}`;
+    remainingEth <= 0 && timeUntilOpen > 0
+      ? `\nthreshold reached! opens in ${Math.floor(
+          timeUntilOpen / 60
+        )}:${String(timeUntilOpen % 60).padStart(2, "0")}`
+      : remainingEth <= 0
+      ? `\nready to open!`
+      : ""
+  }${bountyLine}${marketStatsLine}`;
 }
 
 // Fetch NFT sales from OpenSea API
@@ -2001,7 +2079,7 @@ async function fetchNFTSales(fromBlock, toBlock) {
   try {
     const response = await fetch(url, {
       headers: {
-        "accept": "application/json",
+        accept: "application/json",
         "x-api-key": apiKey,
       },
     });
@@ -2055,7 +2133,12 @@ async function getCollectorStats(address, client, contractAddress, abi) {
     const windows = Number(totalWindows) + 1; // +1 to include Window 0
 
     if (supply === 0) {
-      return { tokenCount: 0, windowCount: 0, totalWindows: windows, isFullCollector: false };
+      return {
+        tokenCount: 0,
+        windowCount: 0,
+        totalWindows: windows,
+        isFullCollector: false,
+      };
     }
 
     // Use multicall to batch ownerOf and getTokenData calls
@@ -2095,12 +2178,16 @@ async function getCollectorStats(address, client, contractAddress, abi) {
         const ownerResult = results[i * 2];
         const tokenDataResult = results[i * 2 + 1];
 
-        if (ownerResult.status === "success" && tokenDataResult.status === "success") {
+        if (
+          ownerResult.status === "success" &&
+          tokenDataResult.status === "success"
+        ) {
           const owner = ownerResult.result.toLowerCase();
           if (owner === address.toLowerCase()) {
             collectedTokens.push(tokenId);
             // getTokenData returns { windowId, seed } - extract windowId
-            const windowId = tokenDataResult.result.windowId ?? tokenDataResult.result;
+            const windowId =
+              tokenDataResult.result.windowId ?? tokenDataResult.result;
             windowsSet.add(Number(windowId));
           }
         }
@@ -2111,7 +2198,14 @@ async function getCollectorStats(address, client, contractAddress, abi) {
     const windowCount = windowsSet.size;
     const isFullCollector = windowCount === windows;
 
-    logInfo(`Collector stats for ${address.slice(0, 8)}...: ${tokenCount} tokens, ${windowCount}/${windows} windows${isFullCollector ? " (FULL)" : ""}`);
+    logInfo(
+      `Collector stats for ${address.slice(
+        0,
+        8
+      )}...: ${tokenCount} tokens, ${windowCount}/${windows} windows${
+        isFullCollector ? " (FULL)" : ""
+      }`
+    );
 
     return { tokenCount, windowCount, totalWindows: windows, isFullCollector };
   } catch (error) {
@@ -2121,13 +2215,21 @@ async function getCollectorStats(address, client, contractAddress, abi) {
 }
 
 // Format sale tweet - handles single or multiple tokens
-function formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats = null, windowIds = null) {
+function formatSaleTweet(
+  tokenIds,
+  buyerDisplay,
+  priceEth,
+  collectorStats = null,
+  windowIds = null
+) {
   const isSingle = tokenIds.length === 1;
 
   // Build token list with window IDs in parentheses
   let tokenList;
   if (windowIds && windowIds.length === tokenIds.length) {
-    tokenList = tokenIds.map((id, i) => `${id} (window ${windowIds[i]})`).join(", ");
+    tokenList = tokenIds
+      .map((id, i) => `${id} (window ${windowIds[i]})`)
+      .join(", ");
   } else {
     tokenList = tokenIds.join(", ");
   }
@@ -2135,7 +2237,8 @@ function formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats = null
   // Build collector stats line
   let statsLine = "";
   if (collectorStats) {
-    const { tokenCount, windowCount, totalWindows, isFullCollector } = collectorStats;
+    const { tokenCount, windowCount, totalWindows, isFullCollector } =
+      collectorStats;
     if (isFullCollector) {
       statsLine = `\n\nowns ${tokenCount} LESS across all ${totalWindows} mint windows`;
     } else {
@@ -2163,12 +2266,16 @@ async function processGroupedSales(
   try {
     // All sales should have same buyer
     const buyer = sales[0].buyerAddress;
-    const tokenIds = sales.map((s) => parseInt(s.tokenId, 10)).sort((a, b) => a - b);
+    const tokenIds = sales
+      .map((s) => parseInt(s.tokenId, 10))
+      .sort((a, b) => a - b);
     const txHashes = sales.map((s) => s.transactionHash);
 
     // Skip if any tx already processed
     if (txHashes.some((hash) => processedSales.has(hash))) {
-      logInfo(`Skipping already processed sales for tokens: ${tokenIds.join(", ")}`);
+      logInfo(
+        `Skipping already processed sales for tokens: ${tokenIds.join(", ")}`
+      );
       return false;
     }
 
@@ -2182,14 +2289,21 @@ async function processGroupedSales(
     const priceEth = formatEthValue(formatEther(totalPrice));
 
     logInfo(
-      `Detected ${sales.length > 1 ? "multi-token " : ""}sale: token${sales.length > 1 ? "s" : ""} #${tokenIds.join(", #")} for ${priceEth} ETH`
+      `Detected ${sales.length > 1 ? "multi-token " : ""}sale: token${
+        sales.length > 1 ? "s" : ""
+      } #${tokenIds.join(", #")} for ${priceEth} ETH`
     );
 
     // Resolve display name (Twitter handle > ENS > truncated address)
     const buyerDisplay = await resolveDisplayName(buyer);
 
     // Get collector stats for the buyer
-    const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
+    const collectorStats = await getCollectorStats(
+      buyer,
+      client,
+      contractAddress,
+      abi
+    );
 
     // Fetch window IDs for the sold tokens
     let windowIds = null;
@@ -2222,7 +2336,9 @@ async function processGroupedSales(
         const gridImage = await createGridImage(tokenIds);
         imageBuffers = [gridImage];
       } catch (error) {
-        logWarn(`Grid creation failed, falling back to individual images: ${error.message}`);
+        logWarn(
+          `Grid creation failed, falling back to individual images: ${error.message}`
+        );
         // Fall back to individual images (up to 4)
         for (const tokenId of tokenIds.slice(0, 4)) {
           const imageBuffer = await fetchImage(tokenId);
@@ -2236,15 +2352,29 @@ async function processGroupedSales(
     }
 
     if (imageBuffers.length === 0) {
-      logWarn(`Skipping sale tweet - no images available for tokens: ${tokenIds.join(", ")}`);
+      logWarn(
+        `Skipping sale tweet - no images available for tokens: ${tokenIds.join(
+          ", "
+        )}`
+      );
       return false;
     }
 
     // Format and post tweet with collector stats and window IDs
-    const tweetMessage = formatSaleTweet(tokenIds, buyerDisplay, priceEth, collectorStats, windowIds);
+    const tweetMessage = formatSaleTweet(
+      tokenIds,
+      buyerDisplay,
+      priceEth,
+      collectorStats,
+      windowIds
+    );
 
     logInfo("Posting sale tweet...");
-    const tweetId = await postTweetWithMultipleImages(twitterClient, tweetMessage, imageBuffers);
+    const tweetId = await postTweetWithMultipleImages(
+      twitterClient,
+      tweetMessage,
+      imageBuffers
+    );
 
     if (tweetId) {
       logSuccess(`Sale tweet posted! Tweet ID: ${tweetId}`);
@@ -2262,9 +2392,20 @@ async function processGroupedSales(
 }
 
 // Post tweet with multiple images (up to 4)
-async function postTweetWithMultipleImages(twitterClient, message, imageBuffers) {
+async function postTweetWithMultipleImages(
+  twitterClient,
+  message,
+  imageBuffers
+) {
   // In dry-run or test mode, just preview
-  if (dryRun || testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode) {
+  if (
+    dryRun ||
+    testMode ||
+    testMintMode ||
+    testReminderMode ||
+    testWindowReadyMode ||
+    testBalanceProgressMode
+  ) {
     displayTweetPreview(message);
     logInfo(`[DRY-RUN] Would attach ${imageBuffers.length} image(s)`);
     return "dry-run-id";
@@ -2283,7 +2424,8 @@ async function postTweetWithMultipleImages(twitterClient, message, imageBuffers)
     }
 
     // Post tweet with all media
-    const tweetOptions = mediaIds.length > 0 ? { media: { media_ids: mediaIds } } : {};
+    const tweetOptions =
+      mediaIds.length > 0 ? { media: { media_ids: mediaIds } } : {};
     const tweet = await twitterClient.v2.tweet(message, tweetOptions);
     return tweet.data.id;
   } catch (error) {
@@ -2295,7 +2437,9 @@ async function postTweetWithMultipleImages(twitterClient, message, imageBuffers)
       const waitSeconds = error.rateLimit?.reset
         ? Math.max(error.rateLimit.reset - Math.floor(Date.now() / 1000), 60)
         : 900;
-      logWarn(`Rate limited. Waiting ${Math.ceil(waitSeconds / 60)} minutes...`);
+      logWarn(
+        `Rate limited. Waiting ${Math.ceil(waitSeconds / 60)} minutes...`
+      );
       await sleep(waitSeconds * 1000);
       // Retry without images
       const tweet = await twitterClient.v2.tweet(message);
@@ -2320,7 +2464,9 @@ async function processSalesCheck(
 
     // On first run (no lastSalesTimestamp), set to current time to avoid posting historical sales
     if (lastSalesTimestamp === 0) {
-      logInfo("First sales check run - setting baseline timestamp to now (no historical posts)");
+      logInfo(
+        "First sales check run - setting baseline timestamp to now (no historical posts)"
+      );
       return { processed: 0, lastTimestamp: currentTimestamp };
     }
 
@@ -2332,13 +2478,17 @@ async function processSalesCheck(
     }
 
     // Filter to only sales AFTER our last check
-    const newSales = allSales.filter(sale => sale.eventTimestamp > lastSalesTimestamp);
+    const newSales = allSales.filter(
+      (sale) => sale.eventTimestamp > lastSalesTimestamp
+    );
 
     if (newSales.length === 0) {
       return { processed: 0, lastTimestamp: lastSalesTimestamp };
     }
 
-    logInfo(`Found ${newSales.length} new sale(s) to process (after timestamp ${lastSalesTimestamp})`);
+    logInfo(
+      `Found ${newSales.length} new sale(s) to process (after timestamp ${lastSalesTimestamp})`
+    );
 
     // Group sales by buyer address (for multi-token purchases)
     const salesByBuyer = new Map();
@@ -2354,7 +2504,14 @@ async function processSalesCheck(
     let newestTimestamp = lastSalesTimestamp;
 
     for (const [buyer, buyerSales] of salesByBuyer) {
-      const success = await processGroupedSales(buyerSales, processedSales, twitterClient, client, contractAddress, abi);
+      const success = await processGroupedSales(
+        buyerSales,
+        processedSales,
+        twitterClient,
+        client,
+        contractAddress,
+        abi
+      );
       if (success) {
         processedCount++;
         // Track the newest timestamp we've processed
@@ -2410,7 +2567,7 @@ async function resolveFarcasterTwitterHandle(address) {
     const url = `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`;
     const response = await fetch(url, {
       headers: {
-        "accept": "application/json",
+        accept: "application/json",
         "x-api-key": apiKey,
       },
     });
@@ -2429,9 +2586,13 @@ async function resolveFarcasterTwitterHandle(address) {
     // Check verified_accounts for X/Twitter
     const user = users[0];
     if (user.verified_accounts && Array.isArray(user.verified_accounts)) {
-      const xAccount = user.verified_accounts.find(acc => acc.platform === "x");
+      const xAccount = user.verified_accounts.find(
+        (acc) => acc.platform === "x"
+      );
       if (xAccount && xAccount.username) {
-        logInfo(`Resolved Twitter from Farcaster: ${address} -> @${xAccount.username}`);
+        logInfo(
+          `Resolved Twitter from Farcaster: ${address} -> @${xAccount.username}`
+        );
         return xAccount.username;
       }
     }
@@ -2462,14 +2623,22 @@ async function resolveTwitterHandle(address) {
     }
 
     // Try com.twitter first (standard ENS text record), then twitter
-    let handle = await mainnetClient.getEnsText({ name: ensName, key: "com.twitter" });
+    let handle = await mainnetClient.getEnsText({
+      name: ensName,
+      key: "com.twitter",
+    });
     if (!handle) {
-      handle = await mainnetClient.getEnsText({ name: ensName, key: "twitter" });
+      handle = await mainnetClient.getEnsText({
+        name: ensName,
+        key: "twitter",
+      });
     }
 
     if (handle) {
       // Extract handle from URL if needed (e.g., https://twitter.com/username or https://x.com/username)
-      const urlMatch = handle.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/i);
+      const urlMatch = handle.match(
+        /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/i
+      );
       if (urlMatch) {
         handle = urlMatch[1];
       }
@@ -2778,7 +2947,12 @@ async function processMintEvent(
     // Get collector stats for the minter (use bounty owner if bounty mint)
     const collectorAddress = bountyOwner || minter;
     const abi = loadContractABI();
-    const collectorStats = await getCollectorStats(collectorAddress, client, contractAddress, abi);
+    const collectorStats = await getCollectorStats(
+      collectorAddress,
+      client,
+      contractAddress,
+      abi
+    );
 
     // Format and post tweet with image
     const tweetMessage = formatMintTweet(
@@ -2879,7 +3053,12 @@ async function processReminderCheck(
     // Get mint count for this window
     const currentBlock = await client.getBlockNumber();
     const fromBlock = currentBlock > 10000n ? currentBlock - 10000n : 0n;
-    const tokenIds = await getMintsForWindow(client, contractAddress, windowId, fromBlock);
+    const tokenIds = await getMintsForWindow(
+      client,
+      contractAddress,
+      windowId,
+      fromBlock
+    );
     const mintCount = tokenIds.length;
 
     // Format and post tweet
@@ -2967,7 +3146,7 @@ function calculateGridDimensions(count) {
     const cols = Math.ceil(count / rows);
     if (cols < rows) break; // Only consider landscape or square (cols >= rows)
 
-    const waste = (cols * rows) - count;
+    const waste = cols * rows - count;
     const ratio = cols / rows;
 
     // Ideal ratio is around 1.5-2 (mild landscape). Penalize extremes.
@@ -3034,7 +3213,12 @@ async function createGridImage(tokenIds) {
 }
 
 // Format window end summary tweet
-function formatWindowEndTweet(windowId, mintCount, tokenIds, progressInfo = null) {
+function formatWindowEndTweet(
+  windowId,
+  mintCount,
+  tokenIds,
+  progressInfo = null
+) {
   const tokenRange =
     tokenIds.length > 0
       ? tokenIds.length === 1
@@ -3044,16 +3228,20 @@ function formatWindowEndTweet(windowId, mintCount, tokenIds, progressInfo = null
 
   let progressLine = "";
   if (progressInfo) {
-    const { currentBalance, minEthForWindow, progressPercent, nextWindowId } = progressInfo;
-    const balanceEth = parseFloat(formatEther(currentBalance)).toFixed(4);
-    const thresholdEth = parseFloat(formatEther(minEthForWindow)).toFixed(2);
+    const { currentBalance, minEthForWindow, progressPercent, nextWindowId } =
+      progressInfo;
+    const balanceEth = formatEthValue(formatEther(currentBalance));
+    const thresholdEth = formatEthValue(formatEther(minEthForWindow));
 
     // Create progress bar
     const barLength = 15;
     const filledBlocks = Math.floor((progressPercent / 100) * barLength);
-    let progressBar = "▓".repeat(filledBlocks) + "░".repeat(barLength - filledBlocks);
+    let progressBar =
+      "▓".repeat(filledBlocks) + "░".repeat(barLength - filledBlocks);
 
-    progressLine = `\n\nprogress to window ${nextWindowId}:\n${progressBar} ${progressPercent.toFixed(0)}%`;
+    progressLine = `\n\nprogress to LESS mint window ${nextWindowId}:\n${progressBar} ${progressPercent.toFixed(
+      0
+    )}%`;
   }
 
   return `LESS mint window ${windowId} closed
@@ -3147,37 +3335,38 @@ async function processBalanceProgressCheck(
     }
 
     // Get current balance of strategy contract, window count, and timeUntilFundsMoved
-    const [currentBalance, windowCount, timeUntilFundsMoved] = await Promise.all([
-      client.getBalance({
-        address: strategyAddress,
-      }),
-      client.readContract({
-        address: contractAddress,
-        abi: [
-          {
-            inputs: [],
-            name: "windowCount",
-            outputs: [{ name: "", type: "uint256" }],
-            stateMutability: "view",
-            type: "function",
-          },
-        ],
-        functionName: "windowCount",
-      }),
-      client.readContract({
-        address: strategyAddress,
-        abi: [
-          {
-            inputs: [],
-            name: "timeUntilFundsMoved",
-            outputs: [{ name: "", type: "uint256" }],
-            stateMutability: "view",
-            type: "function",
-          },
-        ],
-        functionName: "timeUntilFundsMoved",
-      }),
-    ]);
+    const [currentBalance, windowCount, timeUntilFundsMoved] =
+      await Promise.all([
+        client.getBalance({
+          address: strategyAddress,
+        }),
+        client.readContract({
+          address: contractAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "windowCount",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "windowCount",
+        }),
+        client.readContract({
+          address: strategyAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "timeUntilFundsMoved",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "timeUntilFundsMoved",
+        }),
+      ]);
 
     // Next window ID is current windowCount + 1
     const nextWindowId = Number(windowCount) + 1;
@@ -3189,17 +3378,20 @@ async function processBalanceProgressCheck(
     );
 
     // Fetch ETH price, burn data, market cap, and active bounties in parallel
-    const [ethPrice, burnData, marketCap, activeBountiesCount] = await Promise.all([
-      fetchEthPrice(),
-      fetchBurnData(client, contractAddress, abi),
-      fetchLessMarketCap(),
-      getActiveBountiesCount(client, contractAddress),
-    ]);
+    const [ethPrice, burnData, marketCap, activeBountiesCount] =
+      await Promise.all([
+        fetchEthPrice(),
+        fetchBurnData(client, contractAddress, abi),
+        fetchLessMarketCap(),
+        getActiveBountiesCount(client, contractAddress),
+      ]);
 
     logInfo(
       `Balance progress: ${formatEther(currentBalance)} ETH / ${formatEther(
         minEthForWindow
-      )} ETH (${progressPercent.toFixed(1)}%), ${activeBountiesCount} active bounties`
+      )} ETH (${progressPercent.toFixed(
+        1
+      )}%), ${activeBountiesCount} active bounties`
     );
     if (ethPrice) {
       const remainingEth = Math.max(
@@ -3222,7 +3414,9 @@ async function processBalanceProgressCheck(
       logInfo(`Market cap: $${marketCap.toLocaleString()}`);
     }
     if (burnData?.supplyRemaining) {
-      logInfo(`Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`);
+      logInfo(
+        `Supply burned: ${(100 - Number(burnData.supplyRemaining)).toFixed(2)}%`
+      );
     }
 
     // Format and post tweet
@@ -3380,9 +3574,7 @@ async function processEndedWindowsCheck(
     }
 
     // Window has ended and we haven't processed it
-    logInfo(
-      `Window ${currentWindowId} has ended, creating summary tweet...`
-    );
+    logInfo(`Window ${currentWindowId} has ended, creating summary tweet...`);
 
     // Get all mints for this window
     // Use a lookback block for efficiency (last 1000 blocks ~3.5 hours)
@@ -3436,7 +3628,10 @@ async function processEndedWindowsCheck(
         }),
       ]);
 
-      if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
+      if (
+        strategyAddress &&
+        strategyAddress !== "0x0000000000000000000000000000000000000000"
+      ) {
         const currentBalance = await client.getBalance({
           address: strategyAddress,
         });
@@ -3450,7 +3645,11 @@ async function processEndedWindowsCheck(
           progressPercent,
           nextWindowId: currentWindowId + 1,
         };
-        logInfo(`Progress towards window ${currentWindowId + 1}: ${progressPercent.toFixed(1)}%`);
+        logInfo(
+          `Progress towards window ${
+            currentWindowId + 1
+          }: ${progressPercent.toFixed(1)}%`
+        );
       }
     } catch (error) {
       logError(`Failed to fetch progress info: ${error.message}`);
@@ -3617,9 +3816,7 @@ async function runBot() {
     );
   }
   if (pendingMints.size > 0) {
-    logInfo(
-      `Loaded ${pendingMints.size} pending mints to retry from state`
-    );
+    logInfo(`Loaded ${pendingMints.size} pending mints to retry from state`);
   }
   if (fifteenMinReminders.size > 0) {
     logInfo(
@@ -3979,7 +4176,10 @@ async function runBot() {
             contractAddress,
             abi
           );
-          if (result.processed > 0 || result.lastTimestamp > lastSalesTimestamp) {
+          if (
+            result.processed > 0 ||
+            result.lastTimestamp > lastSalesTimestamp
+          ) {
             lastSalesTimestamp = result.lastTimestamp;
             saveState(
               processedWindows,
@@ -4102,15 +4302,35 @@ async function generateBalanceTweet() {
   });
 
   const [strategyAddress, minEthForWindow, windowCount] = await Promise.all([
-    client.readContract({ address: contractAddress, abi, functionName: "strategy" }),
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [], name: "minEthForWindow", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi,
+      functionName: "strategy",
+    }),
+    client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          inputs: [],
+          name: "minEthForWindow",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "minEthForWindow",
     }),
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [], name: "windowCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [],
+          name: "windowCount",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "windowCount",
     }),
   ]);
@@ -4120,12 +4340,21 @@ async function generateBalanceTweet() {
     client.getBalance({ address: strategyAddress }),
     client.readContract({
       address: strategyAddress,
-      abi: [{ inputs: [], name: "timeUntilFundsMoved", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [],
+          name: "timeUntilFundsMoved",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "timeUntilFundsMoved",
     }),
   ]);
 
-  const progressPercent = Number((currentBalance * 10000n) / minEthForWindow) / 100;
+  const progressPercent =
+    Number((currentBalance * 10000n) / minEthForWindow) / 100;
   const [ethPrice, burnData, marketCap] = await Promise.all([
     fetchEthPrice(),
     fetchBurnData(client, contractAddress, abi),
@@ -4133,7 +4362,16 @@ async function generateBalanceTweet() {
   ]);
   const timeUntilOpen = Number(timeUntilFundsMoved);
 
-  return formatBalanceProgressTweet(currentBalance, minEthForWindow, progressPercent, nextWindowId, ethPrice, timeUntilOpen, burnData, marketCap);
+  return formatBalanceProgressTweet(
+    currentBalance,
+    minEthForWindow,
+    progressPercent,
+    nextWindowId,
+    ethPrice,
+    timeUntilOpen,
+    burnData,
+    marketCap
+  );
 }
 
 // Generate mint tweet with live data
@@ -4149,21 +4387,47 @@ async function generateMintTweet(tokenId) {
   const [windowId, owner, timeUntilClose] = await Promise.all([
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [{ name: "tokenId", type: "uint256" }], name: "getTokenData", outputs: [{ name: "windowId", type: "uint64" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [{ name: "tokenId", type: "uint256" }],
+          name: "getTokenData",
+          outputs: [{ name: "windowId", type: "uint64" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "getTokenData",
       args: [BigInt(tokenId)],
     }),
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [{ name: "tokenId", type: "uint256" }], name: "ownerOf", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [{ name: "tokenId", type: "uint256" }],
+          name: "ownerOf",
+          outputs: [{ name: "", type: "address" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "ownerOf",
       args: [BigInt(tokenId)],
     }),
-    client.readContract({
-      address: contractAddress,
-      abi: [{ inputs: [], name: "timeUntilWindowCloses", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
-      functionName: "timeUntilWindowCloses",
-    }).catch(() => 0n),
+    client
+      .readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilWindowCloses",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilWindowCloses",
+      })
+      .catch(() => 0n),
   ]);
 
   const minterDisplay = await resolveDisplayName(owner);
@@ -4171,9 +4435,21 @@ async function generateMintTweet(tokenId) {
 
   // Get collector stats for the owner
   const abi = loadContractABI();
-  const collectorStats = await getCollectorStats(owner, client, contractAddress, abi);
+  const collectorStats = await getCollectorStats(
+    owner,
+    client,
+    contractAddress,
+    abi
+  );
 
-  return formatMintTweet(tokenId, minterDisplay, minutesRemaining > 0 ? minutesRemaining : null, Number(windowId), false, collectorStats);
+  return formatMintTweet(
+    tokenId,
+    minterDisplay,
+    minutesRemaining > 0 ? minutesRemaining : null,
+    Number(windowId),
+    false,
+    collectorStats
+  );
 }
 
 // Generate window tweet with live data
@@ -4189,12 +4465,28 @@ async function generateWindowTweet(windowId) {
   const [windowDuration, windowCount] = await Promise.all([
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [], name: "windowDuration", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [],
+          name: "windowDuration",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "windowDuration",
     }),
     client.readContract({
       address: contractAddress,
-      abi: [{ inputs: [], name: "windowCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi: [
+        {
+          inputs: [],
+          name: "windowCount",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
       functionName: "windowCount",
     }),
   ]);
@@ -4288,7 +4580,9 @@ function startAdminServer() {
           }
           sendJson(200, { preview, type });
         } catch (error) {
-          sendJson(500, { error: `Failed to generate preview: ${error.message}` });
+          sendJson(500, {
+            error: `Failed to generate preview: ${error.message}`,
+          });
         }
         return;
       }
@@ -4304,7 +4598,10 @@ function startAdminServer() {
           return;
         }
 
-        if (!type || !["balance", "window", "mint", "window-ended"].includes(type)) {
+        if (
+          !type ||
+          !["balance", "window", "mint", "window-ended"].includes(type)
+        ) {
           sendJson(400, { error: "Invalid type" });
           return;
         }
@@ -4342,7 +4639,8 @@ function startAdminServer() {
               sendJson(400, { error: "windowId required" });
               return;
             }
-            const imageApiUrl = process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+            const imageApiUrl =
+              process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
             const targetWindowId = Number(windowId);
 
             // Create client for blockchain queries
@@ -4356,12 +4654,23 @@ function startAdminServer() {
 
             // Fetch token IDs directly from blockchain (more reliable than leaderboard)
             // Use fromBlock 0n to get all historical events for this window
-            const tokenIds = await getMintsForWindow(client, contractAddress, targetWindowId, 0n);
+            const tokenIds = await getMintsForWindow(
+              client,
+              contractAddress,
+              targetWindowId,
+              0n
+            );
 
-            logInfo(`Window ${targetWindowId} ended: found ${tokenIds.length} tokens (${tokenIds[0]}-${tokenIds[tokenIds.length-1]})`);
+            logInfo(
+              `Window ${targetWindowId} ended: found ${
+                tokenIds.length
+              } tokens (${tokenIds[0]}-${tokenIds[tokenIds.length - 1]})`
+            );
 
             if (tokenIds.length === 0) {
-              sendJson(400, { error: `No tokens found for window ${windowId}` });
+              sendJson(400, {
+                error: `No tokens found for window ${windowId}`,
+              });
               return;
             }
 
@@ -4376,32 +4685,59 @@ function startAdminServer() {
                 }),
                 client.readContract({
                   address: contractAddress,
-                  abi: [{ inputs: [], name: "minEthForWindow", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }],
+                  abi: [
+                    {
+                      inputs: [],
+                      name: "minEthForWindow",
+                      outputs: [{ name: "", type: "uint256" }],
+                      stateMutability: "view",
+                      type: "function",
+                    },
+                  ],
                   functionName: "minEthForWindow",
                 }),
               ]);
 
-              if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
-                const currentBalance = await client.getBalance({ address: strategyAddress });
-                const progressPercent = Math.min(100, Number((currentBalance * 100n) / minEthForWindow));
+              if (
+                strategyAddress &&
+                strategyAddress !== "0x0000000000000000000000000000000000000000"
+              ) {
+                const currentBalance = await client.getBalance({
+                  address: strategyAddress,
+                });
+                const progressPercent = Math.min(
+                  100,
+                  Number((currentBalance * 100n) / minEthForWindow)
+                );
                 progressInfo = {
                   currentBalance,
                   minEthForWindow,
                   progressPercent,
                   nextWindowId: targetWindowId + 1,
                 };
-                logInfo(`Progress towards window ${targetWindowId + 1}: ${progressPercent.toFixed(1)}%`);
+                logInfo(
+                  `Progress towards window ${
+                    targetWindowId + 1
+                  }: ${progressPercent.toFixed(1)}%`
+                );
               }
             } catch (progressErr) {
               logWarn(`Failed to fetch progress info: ${progressErr.message}`);
             }
 
             // Format tweet
-            tweetText = formatWindowEndTweet(targetWindowId, tokenIds.length, tokenIds, progressInfo);
+            tweetText = formatWindowEndTweet(
+              targetWindowId,
+              tokenIds.length,
+              tokenIds,
+              progressInfo
+            );
 
             // Fetch grid image
             try {
-              const gridUrl = `${imageApiUrl}/api/grid?tokenIds=${tokenIds.join(",")}&cellWidth=300&cellHeight=424`;
+              const gridUrl = `${imageApiUrl}/api/grid?tokenIds=${tokenIds.join(
+                ","
+              )}&cellWidth=300&cellHeight=424`;
               const gridRes = await fetch(gridUrl);
               if (gridRes.ok) {
                 imageBuffer = Buffer.from(await gridRes.arrayBuffer());
@@ -4413,7 +4749,11 @@ function startAdminServer() {
           }
 
           // Post the tweet
-          const tweetId = await postTweet(adminTwitterClient, tweetText, imageBuffer);
+          const tweetId = await postTweet(
+            adminTwitterClient,
+            tweetText,
+            imageBuffer
+          );
 
           if (tweetId) {
             logSuccess(`Admin posted ${type} tweet via API, ID: ${tweetId}`);
@@ -4472,7 +4812,15 @@ function startAdminServer() {
 }
 
 // Start admin server (runs alongside bot, but not for test/preview modes)
-const isTestOrPreviewMode = testMode || testMintMode || testReminderMode || testWindowReadyMode || testBalanceProgressMode || testSaleMode || previewSaleTokenIds || verifyMode;
+const isTestOrPreviewMode =
+  testMode ||
+  testMintMode ||
+  testReminderMode ||
+  testWindowReadyMode ||
+  testBalanceProgressMode ||
+  testSaleMode ||
+  previewSaleTokenIds ||
+  verifyMode;
 const adminServer = isTestOrPreviewMode ? null : startAdminServer();
 
 // Run the bot
