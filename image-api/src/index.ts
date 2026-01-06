@@ -735,11 +735,20 @@ app.get('/api/grid', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch any images' });
     }
 
+    // Recalculate grid dimensions based on actually rendered images (not requested count)
+    // This prevents black cells when some images fail to render
+    const actualCount = validImages.length;
+    const actualDimensions = calculateGridDimensions(actualCount);
+    const actualCols = actualDimensions.cols;
+    const actualRows = actualDimensions.rows;
+    const actualGridWidth = actualCols * cw + (actualCols - 1) * gap + padding * 2;
+    const actualGridHeight = actualRows * ch + (actualRows - 1) * gap + padding * 2;
+
     // Create base image with black background
     const gridImage = sharp({
       create: {
-        width: gridWidth,
-        height: gridHeight,
+        width: actualGridWidth,
+        height: actualGridHeight,
         channels: 4,
         background: { r: 0, g: 0, b: 0, alpha: 1 },
       },
@@ -749,8 +758,8 @@ app.get('/api/grid', async (req, res) => {
     const composites = [];
     let imageIndex = 0;
 
-    for (let row = 0; row < rows && imageIndex < validImages.length; row++) {
-      for (let col = 0; col < cols && imageIndex < validImages.length; col++) {
+    for (let row = 0; row < actualRows && imageIndex < validImages.length; row++) {
+      for (let col = 0; col < actualCols && imageIndex < validImages.length; col++) {
         const x = padding + col * (cw + gap);
         const y = padding + row * (ch + gap);
 
@@ -775,8 +784,8 @@ app.get('/api/grid', async (req, res) => {
     // Composite all images onto the grid
     const finalImage = await gridImage.composite(composites).png().toBuffer();
 
-    // Cache result
-    await cache.set(cacheKey, gridWidth, gridHeight, finalImage);
+    // Cache result (use actual dimensions since grid may be smaller due to failed renders)
+    await cache.set(cacheKey, actualGridWidth, actualGridHeight, finalImage);
 
     res.set('Content-Type', 'image/png');
     res.set('Access-Control-Allow-Origin', '*');
