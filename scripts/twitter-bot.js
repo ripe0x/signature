@@ -1893,7 +1893,8 @@ function formatBalanceProgressTweet(
   ethPrice = null,
   timeUntilOpen = 0,
   burnData = null,
-  marketCap = null
+  marketCap = null,
+  activeBountiesCount = 0
 ) {
   // Create progress bar using unicode shade characters
   // Dark shades (█, ▓, ▒) for filled, light (░) for empty
@@ -1963,6 +1964,11 @@ function formatBalanceProgressTweet(
     }
   }
 
+  // Build bounty line if there are active bounties waiting
+  const bountyLine = activeBountiesCount > 0
+    ? `\n${activeBountiesCount} bounty mint${activeBountiesCount !== 1 ? 's' : ''} awaiting window`
+    : "";
+
   return `$LESS buy + burn balance progress toward window ${windowId}
 
 ${progressBar} ${percentStr}%
@@ -1978,7 +1984,7 @@ ${
     : remainingEth <= 0
     ? `\nready to open!`
     : ""
-}${marketStatsLine}`;
+}${bountyLine}${marketStatsLine}`;
 }
 
 // Fetch NFT sales from OpenSea API
@@ -2521,6 +2527,37 @@ const BOUNTY_FACTORY_ABI = [
     inputs: [],
     outputs: [{ type: "address[]" }],
   },
+  {
+    name: "totalBounties",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "getBountyStatuses",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "offset", type: "uint256" },
+      { name: "limit", type: "uint256" },
+    ],
+    outputs: [
+      {
+        type: "tuple[]",
+        components: [
+          { name: "bountyAddress", type: "address" },
+          { name: "owner", type: "address" },
+          { name: "canClaim", type: "bool" },
+          { name: "reward", type: "uint256" },
+          { name: "totalCost", type: "uint256" },
+          { name: "balance", type: "uint256" },
+          { name: "currentWindowId", type: "uint256" },
+          { name: "windowActive", type: "bool" },
+        ],
+      },
+    ],
+  },
 ];
 const BOUNTY_ABI = [
   {
@@ -2563,6 +2600,87 @@ async function checkIfBountyMint(minterAddress, client) {
   } catch (error) {
     logWarn(`Bounty check failed: ${error.message}`);
     return null;
+  }
+}
+
+// Get count of active bounties that can fund the next window
+async function getActiveBountiesCount(client, contractAddress) {
+  try {
+    // Get total bounties count
+    const totalBounties = await client.readContract({
+      address: BOUNTY_FACTORY_ADDRESS,
+      abi: BOUNTY_FACTORY_ABI,
+      functionName: "totalBounties",
+    });
+
+    if (!totalBounties || totalBounties === 0n) {
+      return 0;
+    }
+
+    // Get bounty statuses (fetch first 50)
+    const bountyStatuses = await client.readContract({
+      address: BOUNTY_FACTORY_ADDRESS,
+      abi: BOUNTY_FACTORY_ABI,
+      functionName: "getBountyStatuses",
+      args: [0n, 50n],
+    });
+
+    if (!bountyStatuses || bountyStatuses.length === 0) {
+      return 0;
+    }
+
+    // Get base mint price from the LESS contract
+    const baseMintPrice = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          name: "mintPrice",
+          type: "function",
+          stateMutability: "view",
+          inputs: [],
+          outputs: [{ type: "uint256" }],
+        },
+      ],
+      functionName: "mintPrice",
+    });
+
+    // Check if window is active (we already know it's not when calling from balance progress)
+    // But we'll check anyway for accurate counting
+    const isWindowActive = await client.readContract({
+      address: contractAddress,
+      abi: [
+        {
+          name: "isWindowActive",
+          type: "function",
+          stateMutability: "view",
+          inputs: [],
+          outputs: [{ type: "bool" }],
+        },
+      ],
+      functionName: "isWindowActive",
+    });
+
+    // Count bounties that can fund the next window
+    let activeCount = 0;
+    for (const bounty of bountyStatuses) {
+      let estimatedCost;
+      if (isWindowActive) {
+        // Window is active - use on-chain totalCost (includes escalating pricing)
+        estimatedCost = bounty.totalCost;
+      } else {
+        // Window is NOT active - estimate using base mint price (mint counts will reset)
+        estimatedCost = baseMintPrice + bounty.reward;
+      }
+
+      if (bounty.balance >= estimatedCost && estimatedCost > 0n) {
+        activeCount++;
+      }
+    }
+
+    return activeCount;
+  } catch (error) {
+    logWarn(`Failed to get active bounties count: ${error.message}`);
+    return 0;
   }
 }
 
@@ -3070,17 +3188,18 @@ async function processBalanceProgressCheck(
       Number((currentBalance * 100n) / minEthForWindow)
     );
 
-    // Fetch ETH price, burn data, and market cap in parallel
-    const [ethPrice, burnData, marketCap] = await Promise.all([
+    // Fetch ETH price, burn data, market cap, and active bounties in parallel
+    const [ethPrice, burnData, marketCap, activeBountiesCount] = await Promise.all([
       fetchEthPrice(),
       fetchBurnData(client, contractAddress, abi),
       fetchLessMarketCap(),
+      getActiveBountiesCount(client, contractAddress),
     ]);
 
     logInfo(
       `Balance progress: ${formatEther(currentBalance)} ETH / ${formatEther(
         minEthForWindow
-      )} ETH (${progressPercent.toFixed(1)}%)`
+      )} ETH (${progressPercent.toFixed(1)}%), ${activeBountiesCount} active bounties`
     );
     if (ethPrice) {
       const remainingEth = Math.max(
@@ -3115,7 +3234,8 @@ async function processBalanceProgressCheck(
       ethPrice,
       Number(timeUntilFundsMoved),
       burnData,
-      marketCap
+      marketCap,
+      activeBountiesCount
     );
 
     logInfo("Posting balance progress tweet...");
