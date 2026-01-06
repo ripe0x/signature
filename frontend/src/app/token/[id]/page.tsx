@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useEnsName } from "wagmi";
 import { useToken } from "@/hooks/useToken";
 import { truncateAddress } from "@/lib/utils";
@@ -10,6 +10,10 @@ import { CONTRACTS } from "@/lib/contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 import { renderToCanvas, REFERENCE_WIDTH, REFERENCE_HEIGHT } from "@/lib/fold-core-wrapper";
+
+// Font for download rendering (must match on-chain font)
+const FOLD_FONT_NAME = "FoldMono";
+const FOLD_FONT_DATA_URI = "data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAOIAA4AAAAADAQAAAM2AAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbEBwmBmAAPBEQCo9sjiABNgIkAwwLDAAEIAWCfAcgGzkKIK4GbGOy2GicLj5u8RpRKYyZuIy26Oe9GkG0llXPQhAUoVLRQOiIjYYnUuLluRfqlUh8nv35d3DbeacPRpI7wLzuWl2XGTr+R4rdqk48ecPEg8A0wvynUz9VJ0gGYLd1C/5xl7xv3SZnBWzBGr8QtP8P9KU3gF/4v///XtV/LeBjv+MBmzYJYqG96Ce0h6/5XmbHBNnLAlygYMFqXKAK1bYRcgkLxgZhXaf627YE6gFJIBcCteo1AuwbDBChbA4tEHHa8CDi2utCBABSXokNorp4phkhurc/Cdkmqp0bWqrKalIqUp4jaAbAzD4U5MOrPfX1JpR/yDVAQLZF3YE+VCRkaEcRaEc1Bkq5kJLE/gHUNnm3+zdMKK9aMhR+h189BajFT9I/lJ0BIAcwLMQ2l3Yj73wvYnyWbjmo3XbjJ0eY8W5h/BrjMzLJ2VlnUo3PYuKqtuQN3OLm3X+/upK1DTdwjZsDyUyqec6GEF09syI3F92yUZdMJ62DE7XK6uCueMYse9occDNSOJk2TzuvAA1ohsS27Vw8Tqt1nSmHabjbFnGndFO5K3PzpJ4CUz1JBorMmHHLdmQwBHRTnMkKhQ2QvVOwlGW8DcP5FqbrJJvdjsuaDB97D7UPuQfMWVxWiURGZPMptIkVhKEJKCNQDIyTFKlyZLbV+p53gX4egWr7bX73rYYTy+fRt6NAzImHc31/acg9fC0EFH1/obMyd7VtOx4JfU3acYK4OL1wfhzUFbtqf+2dJ+YG3K/voIAkorej7to5G4ZgZG5J17dlDgasZyO9xT2bOM2geuh5N335H/05CBAo+D8a3teHrs9kVYNvlTICfznXj/qG+mEqQY0AQfnnlyCvvGfUD0jWq5FXOCj0rhgQshT513IJVZZQRF6DIzii0KmJkkZPKLNkNZ7LUKHHe3ulrkb3x2Kgo2PDk1VXwRPT09UzttAnIRgd6m8KBWMNkbgGj19b25mmG2vqxkaEs7LdVDE0VVGmSeKcTHfjguaJm3smpWsmdnzBsDSJIzDqMKW8o1bEecw0dHS0TGzyS4Z6n9NTNSaXDzlPw2BeyPLakJQRk0Wx9HurZUEAAA==";
 
 // Toggle to show 3-column comparison layout (local, on-chain, image-api)
 const TEST_MODE = false;
@@ -27,81 +31,84 @@ export default function TokenPage() {
     address: owner as `0x${string}` | undefined,
   });
 
+  // Use local viewer for same-origin access to _interactiveState
+  const localViewerUrl = useMemo(() => {
+    if (!seedNumber || windowId === undefined) return undefined;
+    return `/interactive-viewer.html?seed=${seedNumber}&foldCount=${windowId}`;
+  }, [seedNumber, windowId]);
+
   const handleDownloadPNG = async () => {
     if (!seedNumber || !windowId || isDownloading) return;
-    
+
     setIsDownloading(true);
     try {
-      // Try to get edited state from iframe
-      let editedChars: Array<{ char: string; originalChar: string; x: number; y: number; width: number; height: number; fontSize: number; color: string }> = [];
-      let renderWidth = 0;
-      let renderHeight = 0;
-      
-      try {
-        const iframe = iframeRef.current;
-        if (iframe?.contentWindow) {
-          // Try to access the iframe's interactive state
-          // The state might be in a module scope, try accessing via window if exposed
-          const iframeWindow = iframe.contentWindow as any;
-          
-          // Try different ways to access the state
-          let state = null;
-          if (iframeWindow._interactiveState) {
-            state = iframeWindow._interactiveState;
-          } else if (iframeWindow.window?._interactiveState) {
-            state = iframeWindow.window._interactiveState;
-          }
-          
-          if (state && state.textBuffer && state.renderWidth && state.renderHeight) {
-            // Extract edited characters
-            editedChars = state.textBuffer.filter((entry: any) => 
-              entry.char !== entry.originalChar && entry.char.trim() !== ""
-            );
-            renderWidth = state.renderWidth;
-            renderHeight = state.renderHeight;
-          }
-        }
-      } catch (e) {
-        // Can't access iframe state, will render without edits
-        console.log("Could not access iframe state for edits, downloading unedited version");
-      }
-
       // Create offscreen canvas at high resolution (2x reference size)
       const DOWNLOAD_SCALE = 2;
       const width = REFERENCE_WIDTH * DOWNLOAD_SCALE; // 2400px
       const height = REFERENCE_HEIGHT * DOWNLOAD_SCALE; // 3394px
 
-      // Create a temporary canvas for rendering (renderToCanvas will set it to 2x for retina)
-      const tempCanvas = document.createElement("canvas");
-      await renderToCanvas(tempCanvas, seedNumber, width, height, windowId);
-      
       // Create final canvas at exact download size
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Could not get canvas context");
-      
-      // Copy from temp canvas (which may be 2x) to final canvas at 1x
+
+      // Render base artwork at exact target dimensions
+      const tempCanvas = document.createElement("canvas");
+      await renderToCanvas(tempCanvas, seedNumber, width, height, windowId);
       ctx.drawImage(tempCanvas, 0, 0, width, height);
 
-      // Draw edited characters on top if we have them
-      if (editedChars.length > 0 && renderWidth > 0 && renderHeight > 0) {
-        const scaleX = width / renderWidth;
-        const scaleY = height / renderHeight;
-        
-        for (const entry of editedChars) {
-          if (entry.char.trim() === "") continue;
-          
-          const scaledFontSize = entry.fontSize * scaleX;
-          ctx.font = `${scaledFontSize}px "Courier New", monospace`;
-          ctx.fillStyle = entry.color;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const centerX = (entry.x + entry.width / 2) * scaleX;
-          const centerY = (entry.y + entry.height / 2) * scaleY;
-          ctx.fillText(entry.char, centerX, centerY);
+      // Overlay edited characters from iframe state
+      try {
+        const iframe = iframeRef.current;
+        const iframeWindow = iframe?.contentWindow as any;
+        const state = iframeWindow?._interactiveState;
+
+        // Find edited characters (where char differs from originalChar)
+        const editedChars = state?.textBuffer?.filter((entry: any) =>
+          entry.char !== entry.originalChar
+        ) || [];
+
+        if (editedChars.length > 0 && state?.renderWidth && state?.renderHeight) {
+          // Load the FoldMono font
+          const font = new FontFace(FOLD_FONT_NAME, `url(${FOLD_FONT_DATA_URI})`);
+          await font.load();
+          document.fonts.add(font);
+
+          // Scale from iframe's artwork dimensions to download dimensions
+          const scaleX = width / state.renderWidth;
+          const scaleY = height / state.renderHeight;
+
+          // Draw only edited characters on top of base artwork
+          for (const entry of editedChars) {
+            // First, clear the area with background color
+            const bgColor = state.state?.params?.palette?.bg || '#ffffff';
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(
+              entry.x * scaleX,
+              entry.y * scaleY,
+              entry.width * scaleX,
+              entry.height * scaleY
+            );
+
+            // Then draw the new character
+            const text = entry.char;
+            if (!text || !text.trim()) continue;
+
+            const fontSize = entry.fontSize * scaleX;
+            const x = (entry.x + entry.width / 2) * scaleX;
+            const y = (entry.y + entry.height / 2) * scaleY;
+
+            ctx.font = `${fontSize}px "${FOLD_FONT_NAME}", "Courier New", monospace`;
+            ctx.fillStyle = entry.color;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, x, y);
+          }
         }
+      } catch (e) {
+        console.log("Could not access iframe state for character overlay:", e);
       }
 
       // Download the canvas
@@ -110,7 +117,7 @@ export default function TokenPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `fold-${seedNumber}.png`;
+        a.download = `LESS-${id}.png`;
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
@@ -242,13 +249,12 @@ export default function TokenPage() {
               {/* Artwork - left column */}
               <div>
                 <div className="aspect-[1/1.414]">
-                  {metadata?.animation_url ? (
+                  {localViewerUrl ? (
                     <iframe
                       ref={iframeRef}
-                      src={metadata.animation_url}
+                      src={localViewerUrl}
                       className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin allow-forms"
-                      title="On-chain artwork"
+                      title="Artwork"
                     />
                   ) : (
                     <div className="w-full h-full bg-muted/10 flex items-center justify-center text-xs text-muted">

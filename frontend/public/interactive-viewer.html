@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+  </style>
+  <script>
+    // Parse URL parameters for seed and foldCount
+    const params = new URLSearchParams(window.location.search);
+    const seed = params.get('seed');
+    const foldCount = params.get('foldCount');
+
+    // Use SEED (numeric) format, not LESS_SEED (hex string)
+    if (seed) {
+      window.SEED = parseInt(seed, 10);
+    }
+    if (foldCount !== null) {
+      window.FOLD_COUNT = parseInt(foldCount, 10);
+    }
+  </script>
+</head>
+<body>
+  <script type="module" src="/fold-core.js"></script>
+</body>
+</html>
