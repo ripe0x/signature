@@ -1933,6 +1933,55 @@ function formatMintTweet(
 ${formatUrlForTweet(`${BASE_URL}/${tokenId}`)}`;
 }
 
+// Format grouped mint tweet message (multiple tokens from same minter)
+function formatGroupedMintTweet(
+  tokenIds,
+  minterDisplay,
+  minutesRemaining = null,
+  windowId = null,
+  isBountyMint = false,
+  collectorStats = null
+) {
+  // For single token, delegate to original function
+  if (tokenIds.length === 1) {
+    return formatMintTweet(
+      tokenIds[0],
+      minterDisplay,
+      minutesRemaining,
+      windowId,
+      isBountyMint,
+      collectorStats
+    );
+  }
+
+  const tokenList = tokenIds.join(", ");
+  const timeText =
+    minutesRemaining !== null && minutesRemaining > 0
+      ? `\n${minutesRemaining} minute${
+          minutesRemaining !== 1 ? "s" : ""
+        } remain in mint window ${windowId}`
+      : "";
+  const mintedBy = isBountyMint
+    ? `minted by ${minterDisplay} via bounty`
+    : `minted by ${minterDisplay}`;
+
+  // Build collector stats line
+  let statsLine = "";
+  if (collectorStats) {
+    const { tokenCount, windowCount, totalWindows, isFullCollector } =
+      collectorStats;
+    if (isFullCollector) {
+      statsLine = `\n\nowns ${tokenCount} LESS across all ${totalWindows} mint windows`;
+    } else {
+      statsLine = `\n\nowns ${tokenCount} LESS across ${windowCount}/${totalWindows} mint windows`;
+    }
+  }
+
+  return `LESS ${tokenList} ${mintedBy}${timeText}${statsLine}
+
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
+}
+
 // Format 15-minute reminder tweet
 function formatReminderTweet(windowId, minutesRemaining, mintCount = 0) {
   const mintText =
@@ -2982,6 +3031,198 @@ async function processMintEvent(
   }
 }
 
+// Process grouped mints (same minter) as a single tweet
+async function processGroupedMints(
+  logs,
+  processedMints,
+  pendingMints,
+  twitterClient,
+  client,
+  contractAddress
+) {
+  try {
+    // All logs should have same minter
+    const minter = logs[0].args.minter;
+    const windowId = logs[0].args.windowId;
+    const tokenIds = logs
+      .map((log) => Number(log.args.tokenId))
+      .sort((a, b) => a - b);
+
+    // Skip any already processed tokens
+    const unprocessedTokenIds = tokenIds.filter(
+      (id) => !processedMints.has(id)
+    );
+    if (unprocessedTokenIds.length === 0) {
+      logInfo(
+        `Skipping already processed mints for tokens: ${tokenIds.join(", ")}`
+      );
+      return;
+    }
+
+    logInfo(
+      `Detected ${unprocessedTokenIds.length > 1 ? "multi-token " : ""}mint: token${
+        unprocessedTokenIds.length > 1 ? "s" : ""
+      } #${unprocessedTokenIds.join(", #")} by ${minter}`
+    );
+
+    // Check if this is a bounty mint (same for all tokens since same minter)
+    const bountyOwner = await checkIfBountyMint(minter, client);
+    let minterDisplay;
+    const isBountyMint = bountyOwner !== null;
+
+    if (bountyOwner) {
+      minterDisplay = await resolveDisplayName(bountyOwner);
+      logInfo(`Bounty owner display: ${minterDisplay}`);
+    } else {
+      minterDisplay = await resolveDisplayName(minter);
+    }
+
+    // Fetch remaining time in window (same for all tokens since same window)
+    let minutesRemaining = null;
+    try {
+      const timeUntilClose = await client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilWindowCloses",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilWindowCloses",
+      });
+      minutesRemaining = Math.ceil(Number(timeUntilClose) / 60);
+      logInfo(`Time remaining in window: ${minutesRemaining} minutes`);
+    } catch (e) {
+      logWarn(`Could not fetch time remaining: ${e.message}`);
+    }
+
+    // Fetch images for all tokens with retry logic
+    let imageBuffers = [];
+    const maxRetries = 3;
+    const retryDelay = 2000;
+
+    if (unprocessedTokenIds.length > 1) {
+      // Try grid image first for multiple tokens
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const gridImage = await createGridImage(unprocessedTokenIds);
+          imageBuffers = [gridImage];
+          break;
+        } catch (error) {
+          if (attempt < maxRetries) {
+            logWarn(
+              `Grid creation attempt ${attempt}/${maxRetries} failed, retrying in ${retryDelay}ms: ${error.message}`
+            );
+            await sleep(retryDelay);
+          } else {
+            logWarn(
+              `Grid creation failed after ${maxRetries} attempts, falling back to individual images: ${error.message}`
+            );
+            // Fall back to individual images (up to 4)
+            for (const tokenId of unprocessedTokenIds.slice(0, 4)) {
+              for (let imgAttempt = 1; imgAttempt <= maxRetries; imgAttempt++) {
+                const imageBuffer = await fetchImage(tokenId);
+                if (imageBuffer) {
+                  imageBuffers.push(imageBuffer);
+                  break;
+                }
+                if (imgAttempt < maxRetries) {
+                  logWarn(
+                    `Image fetch attempt ${imgAttempt}/${maxRetries} failed for token ${tokenId}, retrying...`
+                  );
+                  await sleep(retryDelay);
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Single token - fetch with retry
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const imageBuffer = await fetchImage(unprocessedTokenIds[0]);
+        if (imageBuffer) {
+          imageBuffers.push(imageBuffer);
+          break;
+        }
+        if (attempt < maxRetries) {
+          logWarn(
+            `Image fetch attempt ${attempt}/${maxRetries} failed for token ${unprocessedTokenIds[0]}, retrying in ${retryDelay}ms...`
+          );
+          await sleep(retryDelay);
+        }
+      }
+    }
+
+    // If still no images after retries, add to pending for later
+    if (imageBuffers.length === 0) {
+      logWarn(
+        `No images available after retries for tokens: ${unprocessedTokenIds.join(", ")} - adding to pending queue`
+      );
+      for (const log of logs) {
+        const tokenId = Number(log.args.tokenId);
+        if (!processedMints.has(tokenId)) {
+          const existing = pendingMints.get(tokenId);
+          pendingMints.set(tokenId, {
+            windowId: Number(log.args.windowId),
+            minter: log.args.minter,
+            seed: log.args.seed,
+            retries: existing ? existing.retries + 1 : 0,
+            addedAt: existing?.addedAt || Date.now(),
+          });
+        }
+      }
+      return;
+    }
+
+    // Get collector stats for the minter (use bounty owner if bounty mint)
+    const collectorAddress = bountyOwner || minter;
+    const abi = loadContractABI();
+    const collectorStats = await getCollectorStats(
+      collectorAddress,
+      client,
+      contractAddress,
+      abi
+    );
+
+    // Format and post tweet
+    const tweetMessage = formatGroupedMintTweet(
+      unprocessedTokenIds,
+      minterDisplay,
+      minutesRemaining,
+      windowId,
+      isBountyMint,
+      collectorStats
+    );
+
+    logInfo("Posting mint tweet...");
+    const tweetId = await postTweetWithMultipleImages(
+      twitterClient,
+      tweetMessage,
+      imageBuffers
+    );
+
+    if (tweetId) {
+      logSuccess(`Mint tweet posted! Tweet ID: ${tweetId}`);
+      // Mark all tokens as processed
+      for (const tokenId of unprocessedTokenIds) {
+        processedMints.add(tokenId);
+        pendingMints.delete(tokenId);
+      }
+    } else {
+      logError("Failed to post mint tweet");
+    }
+  } catch (error) {
+    logError(`Error processing grouped mints: ${error.message}`);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+  }
+}
+
 // Process 15-minute reminder check
 async function processReminderCheck(
   fifteenMinReminders,
@@ -3911,18 +4152,30 @@ async function runBot() {
 
         if (missedMintLogs.length > 0) {
           logInfo(`Found ${missedMintLogs.length} Minted events`);
+
+          // Group logs by minter address for batch processing
+          const mintsByMinter = new Map();
           for (const log of missedMintLogs) {
-            await processMintEvent(
-              log,
+            const minterKey = log.args.minter.toLowerCase();
+            if (!mintsByMinter.has(minterKey)) {
+              mintsByMinter.set(minterKey, []);
+            }
+            mintsByMinter.get(minterKey).push(log);
+          }
+
+          // Process each minter's batch
+          for (const [minter, minterLogs] of mintsByMinter) {
+            await processGroupedMints(
+              minterLogs,
               processedMints,
               pendingMints,
               twitterClient,
               client,
               contractAddress
             );
-            // Delay between tweets to avoid rate limiting
-            if (missedMintLogs.length > 1) {
-              await new Promise((r) => setTimeout(r, 5000));
+            // Rate limit delay between different minters
+            if (mintsByMinter.size > 1) {
+              await sleep(5000);
             }
           }
         }
@@ -3999,31 +4252,49 @@ async function runBot() {
           "event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed)"
         ),
         onLogs: async (logs) => {
+          // Group logs by minter address for batch processing
+          const mintsByMinter = new Map();
           for (const log of logs) {
-            await processMintEvent(
-              log,
+            const minterKey = log.args.minter.toLowerCase();
+            if (!mintsByMinter.has(minterKey)) {
+              mintsByMinter.set(minterKey, []);
+            }
+            mintsByMinter.get(minterKey).push(log);
+          }
+
+          // Process each minter's batch
+          for (const [minter, minterLogs] of mintsByMinter) {
+            await processGroupedMints(
+              minterLogs,
               processedMints,
               pendingMints,
               twitterClient,
               client,
               contractAddress
             );
-            if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
-              lastProcessedBlock = log.blockNumber;
-              saveState(
-                processedWindows,
-                processedMints,
-                fifteenMinReminders,
-                processedEndedWindows,
-                windowReadyAlerted,
-                lastBalanceProgressPost,
-                lastProcessedBlock,
-                contractAddress,
-                processedSales,
-                lastSalesTimestamp,
-                pendingMints
-              );
+            // Rate limit delay between different minters
+            if (mintsByMinter.size > 1) {
+              await sleep(5000);
             }
+          }
+
+          // Update last processed block
+          const maxBlock = Math.max(...logs.map((l) => Number(l.blockNumber || 0)));
+          if (maxBlock > lastProcessedBlock) {
+            lastProcessedBlock = BigInt(maxBlock);
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp,
+              pendingMints
+            );
           }
         },
         onError: (error) => {
