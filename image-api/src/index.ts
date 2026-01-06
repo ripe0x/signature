@@ -369,6 +369,65 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       transport: http(RPC_URL),
     });
 
+    // Check for changes since last index by looking for Transfer events
+    let lastIndexedBlock = 0n;
+    let existingLeaderboard: {
+      lastIndexedBlock?: number;
+      totalTokens?: number;
+      totalCollectors?: number;
+      fullCollectors?: string[];
+    } | null = null;
+    try {
+      const { readFileSync } = await import('fs');
+      const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+      existingLeaderboard = JSON.parse(data);
+      lastIndexedBlock = BigInt(existingLeaderboard?.lastIndexedBlock ?? 0);
+    } catch {
+      // No existing leaderboard or invalid JSON - will do full index
+    }
+
+    const currentBlock = await client.getBlockNumber();
+
+    // If we have a previous index, check for Transfer events since then
+    if (lastIndexedBlock > 0n) {
+      const transferLogs = await client.getLogs({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        event: {
+          type: 'event',
+          name: 'Transfer',
+          inputs: [
+            { name: 'from', type: 'address', indexed: true },
+            { name: 'to', type: 'address', indexed: true },
+            { name: 'tokenId', type: 'uint256', indexed: true },
+          ],
+        },
+        fromBlock: lastIndexedBlock + 1n,
+        toBlock: currentBlock,
+      });
+
+      if (transferLogs.length === 0) {
+        isIndexingInProgress = false;
+        const duration = Date.now() - startTime;
+        lastIndexResult = {
+          success: true,
+          totalTokens: existingLeaderboard?.totalTokens,
+          totalCollectors: existingLeaderboard?.totalCollectors,
+          fullCollectors: existingLeaderboard?.fullCollectors?.length,
+          duration,
+          completedAt: new Date().toISOString(),
+        };
+        return res.json({
+          message: 'No transfers since last index, skipping',
+          cached: true,
+          lastIndexedBlock: Number(lastIndexedBlock),
+          currentBlock: Number(currentBlock),
+          ...lastIndexResult,
+        });
+      }
+
+      console.log(`Found ${transferLogs.length} transfer(s) since block ${lastIndexedBlock}, re-indexing...`);
+    }
+
     // Get total supply and window count
     const [totalSupply, windowCount] = await Promise.all([
       client.readContract({
@@ -543,6 +602,7 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       fullCollectors: collectors.filter(c => c.isFullCollector).map(c => c.address),
       collectors,
       windowTimestamps,
+      lastIndexedBlock: Number(currentBlock),
       generatedAt: Date.now(),
       generatedAtISO: new Date().toISOString(),
     };

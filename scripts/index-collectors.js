@@ -74,6 +74,47 @@ async function main() {
     transport: http(RPC_URL),
   });
 
+  // Check for changes since last index by looking for Transfer events
+  let lastIndexedBlock = 0n;
+  let existingLeaderboard = null;
+  try {
+    const data = readFileSync(OUTPUT_FILE, 'utf-8');
+    existingLeaderboard = JSON.parse(data);
+    lastIndexedBlock = BigInt(existingLeaderboard?.lastIndexedBlock ?? 0);
+  } catch {
+    // No existing leaderboard or invalid JSON - will do full index
+  }
+
+  const currentBlock = await client.getBlockNumber();
+
+  // If we have a previous index, check for Transfer events since then
+  if (lastIndexedBlock > 0n) {
+    console.log(`Checking for transfers since block ${lastIndexedBlock}...`);
+    const transferLogs = await client.getLogs({
+      address: CONTRACT_ADDRESS,
+      event: {
+        type: 'event',
+        name: 'Transfer',
+        inputs: [
+          { name: 'from', type: 'address', indexed: true },
+          { name: 'to', type: 'address', indexed: true },
+          { name: 'tokenId', type: 'uint256', indexed: true },
+        ],
+      },
+      fromBlock: lastIndexedBlock + 1n,
+      toBlock: currentBlock,
+    });
+
+    if (transferLogs.length === 0) {
+      console.log('No transfers since last index, skipping re-index.');
+      console.log(`Last indexed block: ${lastIndexedBlock}`);
+      console.log(`Current block: ${currentBlock}`);
+      return;
+    }
+
+    console.log(`Found ${transferLogs.length} transfer(s) since block ${lastIndexedBlock}, re-indexing...`);
+  }
+
   // Get total supply and window count
   const [totalSupply, windowCount] = await Promise.all([
     client.readContract({
@@ -200,6 +241,7 @@ async function main() {
     totalCollectors: collectors.length,
     fullCollectors: collectors.filter(c => c.isFullCollector).map(c => c.address),
     collectors,
+    lastIndexedBlock: Number(currentBlock),
     generatedAt: Date.now(),
     generatedAtISO: new Date().toISOString(),
   };
