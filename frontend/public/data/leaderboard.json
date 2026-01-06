@@ -2669,6 +2669,46 @@
       ]
     },
     {
+      "address": "0x3a6372b2013f9876a84761187d933dee0653e377",
+      "tokenCount": 5,
+      "windowsCollected": [
+        0,
+        1,
+        3,
+        13,
+        19
+      ],
+      "windowCount": 5,
+      "isFullCollector": false,
+      "tokens": [
+        {
+          "tokenId": 160,
+          "windowId": 0,
+          "seed": "0xf10009bfcee6961f4e2d56b0002da93fe3fa508491b031d989af79d70f1cdaaa"
+        },
+        {
+          "tokenId": 195,
+          "windowId": 1,
+          "seed": "0x8f556e238c574c868e402c1bca85ff7942c1459b27768a3cb30b4ef64bea934f"
+        },
+        {
+          "tokenId": 468,
+          "windowId": 3,
+          "seed": "0x174eeda106f72185718cf0d8d3ff979fd7772fba3c07fbc3dfd374a6f44293b4"
+        },
+        {
+          "tokenId": 800,
+          "windowId": 13,
+          "seed": "0xd25bab20bf1110815d16d682da96df18492bb3657d259a00c157a470702a0a83"
+        },
+        {
+          "tokenId": 1035,
+          "windowId": 19,
+          "seed": "0x168a1750de343b345c64077929ac41ad7ba4c219eaad93e083b1f3bea98e4d77"
+        }
+      ]
+    },
+    {
       "address": "0xce968df5424e2864feead96197aeb7a93c2bd353",
       "tokenCount": 5,
       "windowsCollected": [
@@ -2784,45 +2824,6 @@
           "tokenId": 635,
           "windowId": 6,
           "seed": "0x375b1d768632b5f9d5a06d213f70a09171caaf91521a4e1b35007b9dd1614bdf"
-        }
-      ]
-    },
-    {
-      "address": "0x9edceff0218a87226e28381491f7dfa6775538fa",
-      "tokenCount": 5,
-      "windowsCollected": [
-        5,
-        17,
-        18,
-        19
-      ],
-      "windowCount": 4,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 582,
-          "windowId": 5,
-          "seed": "0xd2b9bd92baa52a37bcaa0aa45b591292cd7a97aea988c2397a986e8e7aeca226"
-        },
-        {
-          "tokenId": 939,
-          "windowId": 17,
-          "seed": "0xb2a3cef7adfc9983e314b444e1b327ccec6d8b7798f01a8d41e45d18deef97dc"
-        },
-        {
-          "tokenId": 971,
-          "windowId": 18,
-          "seed": "0x7dd7aaeb39b79279fabcabcc974c8aafa07cd417de6183bb5943dc5577b1c5be"
-        },
-        {
-          "tokenId": 1030,
-          "windowId": 19,
-          "seed": "0xceff86505c03dc0a7e2b34dd035fba100416f50ad41e4c8c41f1b83a79fc37f8"
-        },
-        {
-          "tokenId": 1035,
-          "windowId": 19,
-          "seed": "0x168a1750de343b345c64077929ac41ad7ba4c219eaad93e083b1f3bea98e4d77"
         }
       ]
     },
@@ -3263,36 +3264,36 @@
       ]
     },
     {
-      "address": "0x3a6372b2013f9876a84761187d933dee0653e377",
+      "address": "0x9edceff0218a87226e28381491f7dfa6775538fa",
       "tokenCount": 4,
       "windowsCollected": [
-        0,
-        1,
-        3,
-        13
+        5,
+        17,
+        18,
+        19
       ],
       "windowCount": 4,
       "isFullCollector": false,
       "tokens": [
         {
-          "tokenId": 160,
-          "windowId": 0,
-          "seed": "0xf10009bfcee6961f4e2d56b0002da93fe3fa508491b031d989af79d70f1cdaaa"
+          "tokenId": 582,
+          "windowId": 5,
+          "seed": "0xd2b9bd92baa52a37bcaa0aa45b591292cd7a97aea988c2397a986e8e7aeca226"
         },
         {
-          "tokenId": 195,
-          "windowId": 1,
-          "seed": "0x8f556e238c574c868e402c1bca85ff7942c1459b27768a3cb30b4ef64bea934f"
+          "tokenId": 939,
+          "windowId": 17,
+          "seed": "0xb2a3cef7adfc9983e314b444e1b327ccec6d8b7798f01a8d41e45d18deef97dc"
         },
         {
-          "tokenId": 468,
-          "windowId": 3,
-          "seed": "0x174eeda106f72185718cf0d8d3ff979fd7772fba3c07fbc3dfd374a6f44293b4"
+          "tokenId": 971,
+          "windowId": 18,
+          "seed": "0x7dd7aaeb39b79279fabcabcc974c8aafa07cd417de6183bb5943dc5577b1c5be"
         },
         {
-          "tokenId": 800,
-          "windowId": 13,
-          "seed": "0xd25bab20bf1110815d16d682da96df18492bb3657d259a00c157a470702a0a83"
+          "tokenId": 1030,
+          "windowId": 19,
+          "seed": "0xceff86505c03dc0a7e2b34dd035fba100416f50ad41e4c8c41f1b83a79fc37f8"
         }
       ]
     },
@@ -9906,6 +9907,6 @@
       ]
     }
   ],
-  "generatedAt": 1767650681582,
-  "generatedAtISO": "2026-01-05T22:04:41.582Z"
+  "generatedAt": 1767658664923,
+  "generatedAtISO": "2026-01-06T00:17:44.923Z"
 }
