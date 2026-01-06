@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useEnsName } from "wagmi";
+import { useEnsName, useEnsAddress } from "wagmi";
 import { useCollector, type CollectorToken } from "@/hooks/useLeaderboard";
 import { truncateAddress, seedToNumber } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -105,17 +105,78 @@ function LoadingSkeleton() {
 
 export default function CollectorPage() {
   const params = useParams();
-  const address = params.address as string;
+  const addressParam = params.address as string;
 
   const [selectedWindow, setSelectedWindow] = useState<number | null>(null);
 
-  const { data: collector, isLoading, error } = useCollector(address);
+  // Check if param is an ENS name or address
+  const isEnsName = addressParam.endsWith('.eth');
+
+  // Resolve ENS name to address if needed
+  const { data: resolvedAddress, isLoading: isResolvingEns, isSuccess: ensResolved } = useEnsAddress({
+    name: isEnsName ? addressParam : undefined,
+  });
+
+  // Use resolved address if ENS name, otherwise use param directly
+  const address = isEnsName ? (resolvedAddress ?? '') : addressParam;
+
+  // Only fetch collector once we have a valid address
+  const shouldFetchCollector = !isEnsName || (ensResolved && !!resolvedAddress);
+  const { data: collector, isLoading: isLoadingCollector, error } = useCollector(
+    shouldFetchCollector ? address : ''
+  );
+
+  // Get ENS name for display (if we came via address URL)
   const { data: ensName } = useEnsName({
     address: address as `0x${string}`,
+    query: { enabled: !!address && !isEnsName },
   });
+
+  // Use the URL param as display name if it's an ENS, otherwise use resolved ENS or truncated address
+  const displayEnsName = isEnsName ? addressParam : ensName;
+
+  // Update URL to ENS name if user arrived via address but has ENS name (no navigation)
+  useEffect(() => {
+    if (!isEnsName && ensName) {
+      window.history.replaceState(null, '', `/collector/${ensName}`);
+    }
+  }, [isEnsName, ensName]);
+
+  // Update page title
+  useEffect(() => {
+    if (displayEnsName) {
+      document.title = `${displayEnsName} | LESS Collectors`;
+    }
+  }, [displayEnsName]);
+
+  const isLoading = isResolvingEns || (shouldFetchCollector && isLoadingCollector);
 
   if (isLoading) {
     return <LoadingSkeleton />;
+  }
+
+  // Handle case where ENS name doesn't resolve to an address
+  if (isEnsName && ensResolved && !resolvedAddress) {
+    return (
+      <div className="min-h-screen pt-20 lg:pt-28">
+        <div className="px-6 md:px-8 py-12">
+          <div className="max-w-7xl mx-auto">
+            <Link
+              href="/collectors"
+              className="text-sm text-muted hover:text-foreground transition-colors inline-block mb-8"
+            >
+              ← collectors
+            </Link>
+            <div className="text-center py-20">
+              <p className="text-muted mb-2">ENS name not found</p>
+              <p className="text-sm text-muted">
+                {addressParam} does not resolve to an address
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !collector) {
@@ -141,7 +202,7 @@ export default function CollectorPage() {
     );
   }
 
-  const displayName = ensName || truncateAddress(address, 6);
+  const displayName = displayEnsName || truncateAddress(address, 6);
   const completionPercent = Math.round(
     (collector.windowCount / (collector.totalWindows || 1)) * 100
   );

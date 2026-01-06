@@ -36,9 +36,12 @@ function CollectorRow({
 
   const progressBar = generateUnicodeProgressBar(completionPercent, 5);
 
+  // Use ENS name in URL if available, otherwise use address
+  const collectorUrl = ensName ? `/collector/${ensName}` : `/collector/${collector.address}`;
+
   return (
     <Link
-      href={`/collector/${collector.address}`}
+      href={collectorUrl}
       className={`grid grid-cols-[2rem_1fr_2.5rem_3.5rem] md:grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-2 md:gap-3 py-2 md:py-2.5 px-3 md:px-4 border-b border-border hover:bg-foreground/5 transition-colors items-center text-[11px] md:text-xs ${
         excluded ? "opacity-40" : ""
       }`}
