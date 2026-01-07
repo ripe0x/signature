@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createPublicClient, http, getContract } from 'viem';
 import { sepolia, mainnet } from 'viem/chains';
+import { normalize } from 'viem/ens';
 import { PlaywrightRenderer } from './lib/renderer.js';
 import { DiskCache } from './lib/cache.js';
 import sharp from 'sharp';
@@ -167,7 +168,7 @@ app.get('/api/windows', (req, res) => {
 });
 
 // Single collector endpoint
-app.get('/api/collector/:address', (req, res) => {
+app.get('/api/collector/:address', async (req, res) => {
   try {
     if (!existsSync(LEADERBOARD_FILE)) {
       return res.status(503).json({
@@ -176,9 +177,32 @@ app.get('/api/collector/:address', (req, res) => {
       });
     }
 
-    const address = req.params.address.toLowerCase();
-    if (!/^0x[a-f0-9]{40}$/.test(address)) {
-      return res.status(400).json({ error: 'Invalid address format' });
+    // Handle both ENS names and addresses
+    const addressParam = req.params.address.toLowerCase();
+    let address: string;
+
+    if (addressParam.endsWith('.eth')) {
+      // Resolve ENS name to address
+      const ensClient = createPublicClient({
+        chain: mainnet, // ENS is always on mainnet
+        transport: http(),
+      });
+
+      try {
+        const resolved = await ensClient.getEnsAddress({
+          name: normalize(addressParam),
+        });
+        if (!resolved) {
+          return res.status(404).json({ error: 'ENS name not found' });
+        }
+        address = resolved.toLowerCase();
+      } catch (ensError) {
+        return res.status(400).json({ error: 'Failed to resolve ENS name' });
+      }
+    } else if (/^0x[a-f0-9]{40}$/.test(addressParam)) {
+      address = addressParam;
+    } else {
+      return res.status(400).json({ error: 'Invalid address or ENS name format' });
     }
 
     const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
@@ -869,10 +893,33 @@ app.get('/api/collector-grid/:address', async (req, res) => {
   const startTime = Date.now();
 
   try {
-    // Validate address
-    const address = req.params.address.toLowerCase();
-    if (!/^0x[a-f0-9]{40}$/.test(address)) {
-      return res.status(400).json({ error: 'Invalid address format' });
+    // Handle both ENS names and addresses
+    const addressParam = req.params.address.toLowerCase();
+    let address: string;
+
+    if (addressParam.endsWith('.eth')) {
+      // Resolve ENS name to address
+      const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+      const ensClient = createPublicClient({
+        chain: mainnet, // ENS is always on mainnet
+        transport: http(),
+      });
+
+      try {
+        const resolved = await ensClient.getEnsAddress({
+          name: normalize(addressParam),
+        });
+        if (!resolved) {
+          return res.status(404).json({ error: 'ENS name not found' });
+        }
+        address = resolved.toLowerCase();
+      } catch (ensError) {
+        return res.status(400).json({ error: 'Failed to resolve ENS name' });
+      }
+    } else if (/^0x[a-f0-9]{40}$/.test(addressParam)) {
+      address = addressParam;
+    } else {
+      return res.status(400).json({ error: 'Invalid address or ENS name format' });
     }
 
     // Load leaderboard data
@@ -909,7 +956,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
 
     // Check cache
-    const cacheKey = `collector-grid-v9-${address}-${tokenCount}-${windowCount}-${rank}`;
+    const cacheKey = `collector-grid-v10-${address}-${tokenCount}-${windowCount}`;
     const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (cached) {
       res.set('Content-Type', 'image/png');
@@ -1094,12 +1141,12 @@ app.get('/api/collector-grid/:address', async (req, res) => {
           .stats {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 24px;
           }
           .stat {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
           }
           .stat-label {
             font-size: 11px;
@@ -1108,7 +1155,7 @@ app.get('/api/collector-grid/:address', async (req, res) => {
             letter-spacing: 0.15em;
           }
           .stat-value {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 500;
             color: white;
           }
@@ -1118,10 +1165,6 @@ app.get('/api/collector-grid/:address', async (req, res) => {
         <div class="label">COLLECTOR</div>
         <div class="name">${displayName}</div>
         <div class="stats">
-          <div class="stat">
-            <div class="stat-label">RANK</div>
-            <div class="stat-value">#${rank}</div>
-          </div>
           <div class="stat">
             <div class="stat-label">TOKENS</div>
             <div class="stat-value">${tokenCount}</div>

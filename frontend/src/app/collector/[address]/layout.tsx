@@ -39,11 +39,11 @@ async function resolveAddressAndEns(
   }
 }
 
-// Fetch collector data to get token count for cache busting
-async function getCollectorTokenCount(address: string): Promise<number | null> {
+// Fetch collector data to get token count for cache busting (supports both ENS and address)
+async function getCollectorTokenCount(addressOrEns: string): Promise<number | null> {
   try {
     const response = await fetch(
-      `${imageApiUrl}/api/collector/${address.toLowerCase()}`,
+      `${imageApiUrl}/api/collector/${addressOrEns.toLowerCase()}`,
       { next: { revalidate: 60 } } // Cache for 60 seconds
     );
     if (!response.ok) return null;
@@ -61,7 +61,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { address: addressParam } = await params;
 
-  // Resolve ENS name to address or get ENS name for address
+  // Resolve ENS name to address or get ENS name for address (for display)
   const { address, ensName } = await resolveAddressAndEns(addressParam);
 
   if (!address) {
@@ -75,9 +75,10 @@ export async function generateMetadata({
   const displayName = ensName || `${address.slice(0, 6)}...${address.slice(-4)}`;
 
   // Get token count for cache busting - when tokens change, URL changes, forcing social platforms to refetch
-  const tokenCount = await getCollectorTokenCount(address);
+  // Image API supports both ENS and address, so use the original param
+  const tokenCount = await getCollectorTokenCount(addressParam);
   const cacheBuster = tokenCount ? `?t=${tokenCount}` : "";
-  const collectorGridUrl = `${imageApiUrl}/api/collector-grid/${address}${cacheBuster}`;
+  const collectorGridUrl = `${imageApiUrl}/api/collector-grid/${addressParam.toLowerCase()}${cacheBuster}`;
 
   return {
     title: `${displayName} | LESS Collector`,
