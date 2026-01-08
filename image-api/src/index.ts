@@ -1217,6 +1217,347 @@ app.get('/api/collector-grid/:address', async (req, res) => {
   }
 });
 
+// Window grid image - shows tokens from a specific window in a grid layout
+// Left 1/3: black panel with window info (ID, token count, collectors, date)
+// Right 2/3: token grid preserving A4 ratio
+app.get('/api/window-grid/:windowId', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    const windowIdParam = parseInt(req.params.windowId, 10);
+    if (isNaN(windowIdParam) || windowIdParam < 0) {
+      return res.status(400).json({ error: 'Invalid window ID' });
+    }
+
+    // Load leaderboard data
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Check if window exists
+    const totalWindows = leaderboard.totalWindows || 0;
+    if (windowIdParam >= totalWindows) {
+      return res.status(404).json({ error: 'Window not found' });
+    }
+
+    // Get all tokens for this window from collectors
+    const windowTokens: { tokenId: number; owner: string }[] = [];
+    const windowCollectors = new Set<string>();
+
+    for (const collector of leaderboard.collectors) {
+      for (const token of collector.tokens) {
+        if (token.windowId === windowIdParam) {
+          windowTokens.push({ tokenId: token.tokenId, owner: collector.address });
+          windowCollectors.add(collector.address);
+        }
+      }
+    }
+
+    // Sort tokens by tokenId
+    windowTokens.sort((a, b) => a.tokenId - b.tokenId);
+
+    if (windowTokens.length === 0) {
+      return res.status(404).json({ error: 'No tokens found in this window' });
+    }
+
+    const tokenCount = windowTokens.length;
+    const collectorCount = windowCollectors.size;
+
+    // Get window timestamp info
+    const windowTimestamp = leaderboard.windowTimestamps?.find(
+      (w: any) => w.windowId === windowIdParam
+    );
+    const startTimestamp = windowTimestamp?.startTime;
+    const windowDate = startTimestamp
+      ? new Date(startTimestamp * 1000).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : '';
+
+    // Token ID range
+    const minTokenId = windowTokens[0].tokenId;
+    const maxTokenId = windowTokens[windowTokens.length - 1].tokenId;
+    const tokenRange = minTokenId === maxTokenId ? `#${minTokenId}` : `#${minTokenId}-${maxTokenId}`;
+
+    // Twitter card dimensions
+    const CANVAS_WIDTH = 1200;
+    const CANVAS_HEIGHT = 675;
+
+    // Layout: left 1/3 for info panel, right 2/3 for grid
+    const INFO_PANEL_WIDTH = Math.floor(CANVAS_WIDTH / 3);
+    const GRID_WIDTH = CANVAS_WIDTH - INFO_PANEL_WIDTH;
+
+    // Check cache
+    const cacheKey = `window-grid-v1-${windowIdParam}-${tokenCount}`;
+    const cached = await cache.get(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT);
+    if (cached) {
+      res.set('Content-Type', 'image/png');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+      res.set('X-Token-Count', tokenCount.toString());
+      return res.send(cached);
+    }
+
+    // Create viem client
+    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(RPC_URL),
+    });
+
+    // Calculate optimal grid dimensions
+    function getGridDimensions(count: number) {
+      if (count === 1) return { cols: 1, rows: 1 };
+      if (count === 2) return { cols: 2, rows: 1 };
+      if (count === 3) return { cols: 3, rows: 1 };
+      if (count === 4) return { cols: 2, rows: 2 };
+      if (count <= 6) return { cols: 3, rows: 2 };
+      if (count <= 9) return { cols: 3, rows: 3 };
+      if (count <= 12) return { cols: 4, rows: 3 };
+      if (count <= 16) return { cols: 4, rows: 4 };
+      if (count <= 20) return { cols: 5, rows: 4 };
+      if (count <= 25) return { cols: 5, rows: 5 };
+      if (count <= 30) return { cols: 6, rows: 5 };
+      if (count <= 36) return { cols: 6, rows: 6 };
+      if (count <= 42) return { cols: 7, rows: 6 };
+      if (count <= 49) return { cols: 7, rows: 7 };
+      if (count <= 56) return { cols: 8, rows: 7 };
+      if (count <= 64) return { cols: 8, rows: 8 };
+      const cols = Math.ceil(Math.sqrt(count));
+      const rows = Math.ceil(count / cols);
+      return { cols, rows };
+    }
+
+    const { cols, rows } = getGridDimensions(tokenCount);
+
+    // Calculate cell dimensions to fill the grid area completely
+    const cellWidthByWidth = Math.floor(GRID_WIDTH / cols);
+    const cellHeightByHeight = Math.floor(CANVAS_HEIGHT / rows);
+    const cellHeightFromWidth = Math.floor(cellWidthByWidth / A4_RATIO);
+    const cellWidthFromHeight = Math.floor(cellHeightByHeight * A4_RATIO);
+
+    let cellWidth: number;
+    let cellHeight: number;
+    if (cellHeightFromWidth <= cellHeightByHeight) {
+      cellWidth = cellWidthByWidth;
+      cellHeight = cellHeightFromWidth;
+    } else {
+      cellWidth = cellWidthFromHeight;
+      cellHeight = cellHeightByHeight;
+    }
+
+    const grid = { cols, rows, cellWidth, cellHeight };
+
+    // Render function for a single token
+    async function renderToken(tokenId: number, width: number, height: number): Promise<Buffer | null> {
+      try {
+        const tokenURI = await client.readContract({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: LESS_ABI,
+          functionName: 'tokenURI',
+          args: [BigInt(tokenId)],
+        });
+
+        if (!tokenURI) return null;
+
+        const jsonMatch = tokenURI.match(/^data:application\/json;base64,(.+)$/);
+        if (!jsonMatch) return null;
+
+        const metadata = JSON.parse(Buffer.from(jsonMatch[1], 'base64').toString('utf-8'));
+        const animationUrl = metadata.animation_url;
+        if (!animationUrl) return null;
+
+        const htmlMatch = animationUrl.match(/^data:text\/html;base64,(.+)$/);
+        if (!htmlMatch) return null;
+
+        const onChainHtml = Buffer.from(htmlMatch[1], 'base64').toString('utf-8');
+
+        return await renderer.renderHtml({
+          html: onChainHtml,
+          width,
+          height,
+        });
+      } catch (error) {
+        console.warn(`Error rendering token ${tokenId}:`, error);
+        return null;
+      }
+    }
+
+    // Render all tokens in batches
+    const BATCH_SIZE = 4;
+    const tokenImages: { tokenId: number; buffer: Buffer }[] = [];
+
+    for (let i = 0; i < windowTokens.length; i += BATCH_SIZE) {
+      const batch = windowTokens.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (token) => {
+          const buffer = await renderToken(token.tokenId, grid.cellWidth, grid.cellHeight);
+          return buffer ? { tokenId: token.tokenId, buffer } : null;
+        })
+      );
+      tokenImages.push(...results.filter((r): r is { tokenId: number; buffer: Buffer } => r !== null));
+    }
+
+    if (tokenImages.length === 0) {
+      return res.status(500).json({ error: 'Failed to render any tokens' });
+    }
+
+    // Build composite array
+    const composites: { input: Buffer; left: number; top: number }[] = [];
+
+    // Calculate grid positioning - align to top-right
+    const gridTotalWidth = grid.cols * grid.cellWidth;
+    const gridOffsetX = CANVAS_WIDTH - gridTotalWidth;
+    const gridOffsetY = 0;
+
+    // Position tokens in grid
+    for (let i = 0; i < tokenImages.length; i++) {
+      const col = i % grid.cols;
+      const row = Math.floor(i / grid.cols);
+      const x = gridOffsetX + col * grid.cellWidth;
+      const y = gridOffsetY + row * grid.cellHeight;
+
+      const resized = await sharp(tokenImages[i].buffer)
+        .resize(grid.cellWidth, grid.cellHeight, { fit: 'fill' })
+        .toBuffer();
+
+      composites.push({ input: resized, left: x, top: y });
+    }
+
+    // Create info panel using Playwright
+    const PANEL_PADDING = 40;
+    const infoPanelHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            width: ${INFO_PANEL_WIDTH}px;
+            height: ${CANVAS_HEIGHT}px;
+            background: black;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-left: ${PANEL_PADDING}px;
+            font-family: 'IBM Plex Mono', 'Courier New', monospace;
+          }
+          .label {
+            font-size: 14px;
+            font-weight: 400;
+            color: #666666;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+          }
+          .window-id {
+            font-size: 48px;
+            font-weight: 500;
+            color: white;
+            margin-bottom: 32px;
+          }
+          .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+          }
+          .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+          .stat-label {
+            font-size: 11px;
+            font-weight: 400;
+            color: #666666;
+            letter-spacing: 0.15em;
+          }
+          .stat-value {
+            font-size: 28px;
+            font-weight: 500;
+            color: white;
+          }
+          .stat-value-small {
+            font-size: 20px;
+            font-weight: 500;
+            color: white;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label">WINDOW</div>
+        <div class="window-id">${windowIdParam}</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">TOKENS</div>
+            <div class="stat-value">${tokenCount}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">COLLECTORS</div>
+            <div class="stat-value">${collectorCount}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">TOKEN IDS</div>
+            <div class="stat-value-small">${tokenRange}</div>
+          </div>
+          ${windowDate ? `
+          <div class="stat">
+            <div class="stat-label">DATE</div>
+            <div class="stat-value-small">${windowDate}</div>
+          </div>
+          ` : ''}
+        </div>
+      </body>
+      </html>
+    `;
+
+    const infoPanelBuffer = await renderer.renderHtml({
+      html: infoPanelHtml,
+      width: INFO_PANEL_WIDTH,
+      height: CANVAS_HEIGHT,
+    });
+
+    composites.unshift({ input: infoPanelBuffer, left: 0, top: 0 });
+
+    // Create final canvas and composite all images
+    const finalImage = await sharp({
+      create: {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 255 },
+      },
+    })
+      .composite(composites)
+      .png()
+      .toBuffer();
+
+    // Cache result
+    await cache.set(cacheKey, CANVAS_WIDTH, CANVAS_HEIGHT, finalImage);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Grid-Time', `${Date.now() - startTime}ms`);
+    res.set('X-Token-Count', tokenCount.toString());
+    res.send(finalImage);
+  } catch (error) {
+    console.error('Window grid error:', error);
+    res.status(500).json({
+      error: 'Window grid generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Collector profile Twitter card - generates an OG image for collector profiles
 // Shows a grid of tokens with collector stats overlay
 app.get('/api/collector-card/:address', async (req, res) => {
