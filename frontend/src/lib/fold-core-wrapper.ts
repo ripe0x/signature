@@ -86,6 +86,7 @@ export async function renderToCanvas(
     foldStrategy: params.foldStrategy,
     paperProperties: params.paperProperties,
     showCreaseLines: params.showCreaseLines,
+    analyticsMode: params.analyticsMode,
   });
 
   // Draw the dataUrl image onto the provided canvas
