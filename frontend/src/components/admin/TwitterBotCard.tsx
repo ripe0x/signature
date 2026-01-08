@@ -9,7 +9,7 @@ interface TwitterBotCardProps {
   isLoadingBotState: boolean;
   onRefresh: () => void;
   tweetPreview: TweetPreview | null;
-  onPreview: (type: 'balance' | 'window' | 'mint', params: { tokenId?: string; windowId?: string }) => void;
+  onPreview: (type: 'balance' | 'window' | 'mint' | 'window-ended', params: { tokenId?: string; windowId?: string }) => void;
   isPreviewLoading: boolean;
   onPost: () => void;
   isPostingTweet: boolean;
@@ -17,7 +17,7 @@ interface TwitterBotCardProps {
   onClearPreview: () => void;
 }
 
-type TweetType = 'balance' | 'window' | 'mint';
+type TweetType = 'balance' | 'window' | 'mint' | 'window-ended';
 
 export function TwitterBotCard({
   botState,
@@ -101,8 +101,8 @@ export function TwitterBotCard({
         <h3 className="text-sm font-medium">manual tweet</h3>
 
         {/* Type selector */}
-        <div className="flex gap-2">
-          {(['balance', 'window', 'mint'] as TweetType[]).map((type) => (
+        <div className="flex flex-wrap gap-2">
+          {(['balance', 'window', 'mint', 'window-ended'] as TweetType[]).map((type) => (
             <button
               key={type}
               onClick={() => {
@@ -115,7 +115,7 @@ export function TwitterBotCard({
                   : 'border-border hover:border-foreground/50'
               }`}
             >
-              {type}
+              {type === 'window-ended' ? 'window ended' : type}
             </button>
           ))}
         </div>
@@ -130,7 +130,7 @@ export function TwitterBotCard({
             className="w-full border border-border bg-transparent px-3 py-2 text-sm placeholder:text-muted focus:outline-none focus:border-foreground"
           />
         )}
-        {tweetType === 'window' && (
+        {(tweetType === 'window' || tweetType === 'window-ended') && (
           <input
             type="number"
             placeholder="Window ID"
@@ -143,7 +143,7 @@ export function TwitterBotCard({
         {/* Preview button */}
         <button
           onClick={handlePreview}
-          disabled={isPreviewLoading || (tweetType === 'mint' && !tokenId) || (tweetType === 'window' && !windowId)}
+          disabled={isPreviewLoading || (tweetType === 'mint' && !tokenId) || ((tweetType === 'window' || tweetType === 'window-ended') && !windowId)}
           className="w-full border border-border px-4 py-2 text-sm hover:bg-foreground hover:text-background transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPreviewLoading ? 'generating preview...' : 'preview tweet'}

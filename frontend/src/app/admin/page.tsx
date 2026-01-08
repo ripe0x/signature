@@ -7,6 +7,7 @@ import { StrategyStatusCard } from '@/components/admin/StrategyStatusCard';
 import { TwitterBotCard } from '@/components/admin/TwitterBotCard';
 import { WithdrawCard } from '@/components/admin/WithdrawCard';
 import { IndexCollectorsCard } from '@/components/admin/IndexCollectorsCard';
+import { WindowGridCard } from '@/components/admin/WindowGridCard';
 
 export default function AdminPage() {
   const {
@@ -135,6 +136,8 @@ export default function AdminPage() {
             onIndex={runIndexer}
             isIndexing={isRunningIndexer}
           />
+
+          <WindowGridCard windowCount={windowCount} />
 
           <WithdrawCard
             contractBalance={contractBalance}

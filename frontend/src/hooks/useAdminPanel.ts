@@ -20,7 +20,7 @@ export interface TwitterBotState {
 }
 
 export interface TweetPreview {
-  type: 'balance' | 'window' | 'mint';
+  type: 'balance' | 'window' | 'mint' | 'window-ended';
   text: string;
   tokenId?: number;
   windowId?: number;
@@ -186,7 +186,7 @@ export function useAdminPanel() {
   }, [isAdmin, fetchTwitterBotState]);
 
   // Preview tweet
-  const previewTweet = useCallback(async (type: 'balance' | 'window' | 'mint', params: { tokenId?: string; windowId?: string } = {}) => {
+  const previewTweet = useCallback(async (type: 'balance' | 'window' | 'mint' | 'window-ended', params: { tokenId?: string; windowId?: string } = {}) => {
     if (!isAdmin) return;
     setIsPreviewLoading(true);
     setTweetPreview(null);

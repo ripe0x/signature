@@ -4827,7 +4827,7 @@ function startAdminServer() {
         const body = await readBody();
         const { type, tokenId, windowId } = body;
 
-        if (!type || !["balance", "window", "mint"].includes(type)) {
+        if (!type || !["balance", "window", "mint", "window-ended"].includes(type)) {
           sendJson(400, { error: "Invalid type" });
           return;
         }
@@ -4848,6 +4848,76 @@ function startAdminServer() {
               return;
             }
             preview = await generateMintTweet(tokenId);
+          } else if (type === "window-ended") {
+            if (!windowId) {
+              sendJson(400, { error: "windowId required" });
+              return;
+            }
+            // Generate window-ended preview
+            const targetWindowId = Number(windowId);
+            const rpcUrl = getRpcUrl();
+            const contractAddress = getContractAddress();
+            const abi = loadContractABI();
+            const client = createPublicClient({
+              chain: getChain(),
+              transport: http(rpcUrl),
+            });
+
+            // Get mints for this window (returns array of token IDs)
+            // Use fromBlock 0n to get all historical events for this window
+            const tokenIds = await getMintsForWindow(client, contractAddress, targetWindowId, 0n);
+            if (!tokenIds || tokenIds.length === 0) {
+              sendJson(404, { error: `No tokens found for window ${targetWindowId}` });
+              return;
+            }
+
+            // Fetch progress info for next window
+            let progressInfo = null;
+            try {
+              const [strategyAddress, minEthForWindow] = await Promise.all([
+                client.readContract({
+                  address: contractAddress,
+                  abi: abi,
+                  functionName: "strategy",
+                }),
+                client.readContract({
+                  address: contractAddress,
+                  abi: [
+                    {
+                      inputs: [],
+                      name: "minEthForWindow",
+                      outputs: [{ name: "", type: "uint256" }],
+                      stateMutability: "view",
+                      type: "function",
+                    },
+                  ],
+                  functionName: "minEthForWindow",
+                }),
+              ]);
+
+              if (
+                strategyAddress &&
+                strategyAddress !== "0x0000000000000000000000000000000000000000"
+              ) {
+                const currentBalance = await client.getBalance({
+                  address: strategyAddress,
+                });
+                const progressPercent = Math.min(
+                  100,
+                  Number((currentBalance * 100n) / minEthForWindow)
+                );
+                progressInfo = {
+                  currentBalance,
+                  minEthForWindow,
+                  progressPercent,
+                  nextWindowId: targetWindowId + 1,
+                };
+              }
+            } catch (progressErr) {
+              // Progress info is optional, continue without it
+            }
+
+            preview = formatWindowEndTweet(targetWindowId, tokenIds.length, tokenIds, progressInfo);
           }
           sendJson(200, { preview, type });
         } catch (error) {
