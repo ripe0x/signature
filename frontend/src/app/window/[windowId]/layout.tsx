@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const ogImageUrl = `${imageApiUrl}/api/window-grid/${windowIdNum}`;
+  const ogImageUrl = `${imageApiUrl}/api/window-grid/${windowIdNum}?v=2`;
 
   return {
     title: `Window ${windowIdNum} - LESS`,
