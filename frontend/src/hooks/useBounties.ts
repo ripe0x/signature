@@ -7,9 +7,8 @@ import {
   BOUNTY_FACTORY_ADDRESS,
   BOUNTY_FACTORY_ABI,
   BOUNTY_ABI,
-  CONTRACTS,
-  LESS_NFT_ABI,
 } from '@/lib/contracts';
+import { useContractState } from '@/providers/ContractStateContext';
 
 export interface BountyStatus {
   bountyAddress: `0x${string}`;
@@ -38,13 +37,17 @@ export interface DetailedBountyStatus {
 }
 
 export function useBounties() {
+  // Use shared contract state for window info (eliminates duplicate RPC calls)
+  const contractState = useContractState();
+
   // Get total bounties count
   const { data: totalBounties, refetch: refetchTotal } = useReadContract({
     address: BOUNTY_FACTORY_ADDRESS,
     abi: BOUNTY_FACTORY_ABI,
     functionName: 'totalBounties',
     query: {
-      refetchInterval: 10000,
+      refetchInterval: 30000, // Reduced from 10s to 30s
+      staleTime: 15000,
     },
   });
 
@@ -55,33 +58,16 @@ export function useBounties() {
     functionName: 'getBountyStatuses',
     args: [BigInt(0), BigInt(50)],
     query: {
-      refetchInterval: 10000,
+      refetchInterval: 30000, // Reduced from 10s to 30s
+      staleTime: 15000,
       enabled: totalBounties !== undefined && totalBounties > BigInt(0),
-    },
-  });
-
-  // Get current window info from LESS NFT
-  const { data: windowId } = useReadContract({
-    address: CONTRACTS.LESS_NFT,
-    abi: LESS_NFT_ABI,
-    functionName: 'windowCount',
-    query: {
-      refetchInterval: 10000,
-    },
-  });
-
-  const { data: isWindowActive } = useReadContract({
-    address: CONTRACTS.LESS_NFT,
-    abi: LESS_NFT_ABI,
-    functionName: 'isWindowActive',
-    query: {
-      refetchInterval: 10000,
     },
   });
 
   const refetch = () => {
     refetchTotal();
     refetchStatuses();
+    contractState.refetch();
   };
 
   // Filter claimable bounties
@@ -94,8 +80,8 @@ export function useBounties() {
     totalBounties: totalBounties ? Number(totalBounties) : 0,
     bounties: (bountyStatuses as BountyStatus[]) ?? [],
     claimableBounties,
-    currentWindowId: windowId ? Number(windowId) : 0,
-    isWindowActive: isWindowActive ?? false,
+    currentWindowId: contractState.windowCount,
+    isWindowActive: contractState.isWindowActive,
     isLoading,
     refetch,
   };
@@ -110,7 +96,8 @@ export function useBounty(bountyAddress: `0x${string}` | undefined) {
     abi: BOUNTY_ABI,
     functionName: 'getBountyStatus',
     query: {
-      refetchInterval: 5000,
+      refetchInterval: 30000, // Reduced from 5s to 30s
+      staleTime: 15000,
       enabled: !!bountyAddress,
     },
   });

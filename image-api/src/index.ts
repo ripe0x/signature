@@ -37,6 +37,75 @@ const WINDOW_0_STARTED_TOPIC = '0xcd075a155ea16f406de513a02424429933bc404c9ce858
 // Admin address for protected endpoints
 const ADMIN_ADDRESS = '0xCB43078C32423F5348Cab5885911C3B5faE217F9'.toLowerCase();
 
+// ============================================================================
+// SINGLETON CLIENTS - Reused across all requests to avoid connection overhead
+// ============================================================================
+const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
+
+// Main client for contract reads (uses configured RPC)
+const rpcClient = createPublicClient({
+  chain,
+  transport: http(RPC_URL || undefined),
+});
+
+// ENS client - always mainnet for ENS resolution
+const ensClient = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+// In-memory ENS cache (fallback for addresses not in leaderboard)
+const ensCache = new Map<string, { name: string | null; timestamp: number }>();
+const ENS_CACHE_TTL = 3600000; // 1 hour
+
+/**
+ * Get ENS name for an address, checking leaderboard cache first
+ */
+async function getEnsName(address: string): Promise<string | null> {
+  const normalizedAddress = address.toLowerCase();
+
+  // Check leaderboard cache first
+  if (existsSync(LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(readFileSync(LEADERBOARD_FILE, 'utf-8'));
+      const collector = data.collectors?.find(
+        (c: { address: string }) => c.address.toLowerCase() === normalizedAddress
+      );
+      if (collector?.ensName) {
+        return collector.ensName;
+      }
+    } catch {}
+  }
+
+  // Check in-memory cache
+  const cached = ensCache.get(normalizedAddress);
+  if (cached && Date.now() - cached.timestamp < ENS_CACHE_TTL) {
+    return cached.name;
+  }
+
+  // Fetch from RPC
+  try {
+    const name = await ensClient.getEnsName({ address: normalizedAddress as `0x${string}` });
+    ensCache.set(normalizedAddress, { name, timestamp: Date.now() });
+    return name;
+  } catch {
+    ensCache.set(normalizedAddress, { name: null, timestamp: Date.now() });
+    return null;
+  }
+}
+
+/**
+ * Resolve ENS name to address
+ */
+async function resolveEnsAddress(name: string): Promise<string | null> {
+  try {
+    const address = await ensClient.getEnsAddress({ name: normalize(name) });
+    return address;
+  } catch {
+    return null;
+  }
+}
+
 const LESS_ABI = [
   {
     inputs: [{ name: 'tokenId', type: 'uint256' }],
@@ -167,6 +236,183 @@ app.get('/api/windows', (req, res) => {
   }
 });
 
+// Collection endpoint - returns paginated tokens (newest first)
+app.get('/api/collection', (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string, 10) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
+
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Collect all tokens from all collectors
+    const allTokens: { tokenId: number; windowId: number; seed: string; owner: string }[] = [];
+
+    for (const collector of leaderboard.collectors) {
+      for (const token of collector.tokens) {
+        allTokens.push({
+          tokenId: token.tokenId,
+          windowId: token.windowId,
+          seed: token.seed,
+          owner: collector.address,
+        });
+      }
+    }
+
+    // Sort by tokenId descending (newest first)
+    allTokens.sort((a, b) => b.tokenId - a.tokenId);
+
+    // Paginate
+    const start = page * limit;
+    const end = start + limit;
+    const paginatedTokens = allTokens.slice(start, end);
+
+    const totalPages = Math.ceil(allTokens.length / limit);
+    const hasMore = page < totalPages - 1;
+
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({
+      tokens: paginatedTokens,
+      total: allTokens.length,
+      page,
+      limit,
+      totalPages,
+      hasMore,
+      generatedAt: leaderboard.generatedAt,
+    });
+  } catch (error) {
+    console.error('Collection fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch collection',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Window tokens endpoint - returns all tokens for a specific window
+app.get('/api/window-tokens/:windowId', (req, res) => {
+  try {
+    const windowId = parseInt(req.params.windowId, 10);
+    if (isNaN(windowId) || windowId < 0) {
+      return res.status(400).json({ error: 'Invalid window ID' });
+    }
+
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Check if window exists
+    if (windowId >= leaderboard.totalWindows) {
+      return res.status(404).json({ error: 'Window not found' });
+    }
+
+    // Collect all tokens for this window from all collectors
+    const windowTokens: { tokenId: number; seed: string; owner: string }[] = [];
+
+    for (const collector of leaderboard.collectors) {
+      for (const token of collector.tokens) {
+        if (token.windowId === windowId) {
+          windowTokens.push({
+            tokenId: token.tokenId,
+            seed: token.seed,
+            owner: collector.address,
+          });
+        }
+      }
+    }
+
+    // Sort by tokenId
+    windowTokens.sort((a, b) => a.tokenId - b.tokenId);
+
+    // Get window timestamp info
+    const windowTimestamp = leaderboard.windowTimestamps?.find(
+      (w: { windowId: number }) => w.windowId === windowId
+    );
+
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({
+      windowId,
+      tokens: windowTokens,
+      mintCount: windowTokens.length,
+      startTime: windowTimestamp?.startTime || null,
+      endTime: windowTimestamp?.endTime || null,
+      generatedAt: leaderboard.generatedAt,
+    });
+  } catch (error) {
+    console.error('Window tokens fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch window tokens',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Window mint counts endpoint - returns mint count per window (for /windows page)
+app.get('/api/window-counts', (req, res) => {
+  try {
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({
+        error: 'Leaderboard data not available',
+        message: 'Run the indexer script to generate collector data',
+      });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+
+    // Count tokens per window
+    const windowCounts = new Map<number, number>();
+
+    for (const collector of leaderboard.collectors) {
+      for (const token of collector.tokens) {
+        const count = windowCounts.get(token.windowId) || 0;
+        windowCounts.set(token.windowId, count + 1);
+      }
+    }
+
+    // Convert to array with window info
+    const windows = [];
+    for (let i = 0; i < leaderboard.totalWindows; i++) {
+      const windowTimestamp = leaderboard.windowTimestamps?.find(
+        (w: { windowId: number }) => w.windowId === i
+      );
+      windows.push({
+        windowId: i,
+        mintCount: windowCounts.get(i) || 0,
+        startTime: windowTimestamp?.startTime || null,
+        endTime: windowTimestamp?.endTime || null,
+      });
+    }
+
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({
+      totalWindows: leaderboard.totalWindows,
+      totalTokens: leaderboard.totalTokens,
+      windows,
+      generatedAt: leaderboard.generatedAt,
+    });
+  } catch (error) {
+    console.error('Window counts fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch window counts',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Single collector endpoint
 app.get('/api/collector/:address', async (req, res) => {
   try {
@@ -182,23 +428,12 @@ app.get('/api/collector/:address', async (req, res) => {
     let address: string;
 
     if (addressParam.endsWith('.eth')) {
-      // Resolve ENS name to address
-      const ensClient = createPublicClient({
-        chain: mainnet, // ENS is always on mainnet
-        transport: http(),
-      });
-
-      try {
-        const resolved = await ensClient.getEnsAddress({
-          name: normalize(addressParam),
-        });
-        if (!resolved) {
-          return res.status(404).json({ error: 'ENS name not found' });
-        }
-        address = resolved.toLowerCase();
-      } catch (ensError) {
-        return res.status(400).json({ error: 'Failed to resolve ENS name' });
+      // Resolve ENS name to address using singleton client
+      const resolved = await resolveEnsAddress(addressParam);
+      if (!resolved) {
+        return res.status(404).json({ error: 'ENS name not found' });
       }
+      address = resolved.toLowerCase();
     } else if (/^0x[a-f0-9]{40}$/.test(addressParam)) {
       address = addressParam;
     } else {
@@ -386,12 +621,8 @@ app.post('/api/admin/index-collectors', async (req, res) => {
     isIndexingInProgress = true;
     const startTime = Date.now();
 
-    // Create viem client
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    // Use singleton client
+    const client = rpcClient;
 
     // Check for changes since last index by looking for Transfer events
     let lastIndexedBlock = 0n;
@@ -618,6 +849,34 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       return b.windowCount - a.windowCount;
     });
 
+    // Resolve ENS names for all collectors (batch in groups to avoid rate limits)
+    console.log(`Resolving ENS names for ${collectors.length} collectors...`);
+    const ENS_BATCH_SIZE = 10;
+    for (let i = 0; i < collectors.length; i += ENS_BATCH_SIZE) {
+      const batch = collectors.slice(i, i + ENS_BATCH_SIZE);
+      const ensResults = await Promise.all(
+        batch.map(async (collector) => {
+          try {
+            const ensName = await ensClient.getEnsName({
+              address: collector.address as `0x${string}`,
+            });
+            return { address: collector.address, ensName };
+          } catch {
+            return { address: collector.address, ensName: null };
+          }
+        })
+      );
+
+      // Update collectors with ENS names
+      for (const result of ensResults) {
+        const collector = collectors.find(c => c.address === result.address);
+        if (collector) {
+          (collector as any).ensName = result.ensName;
+        }
+      }
+    }
+    console.log('ENS resolution complete');
+
     // Build final leaderboard object
     const leaderboard = {
       totalWindows: windows,
@@ -750,11 +1009,7 @@ app.get('/api/grid', async (req, res) => {
 
     // Fetch all images in parallel
     // Use internal rendering instead of HTTP requests for better performance
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    const client = rpcClient;
 
     // Process images in batches to avoid OOM (limit concurrency to pool size)
     const BATCH_SIZE = 4;
@@ -898,24 +1153,12 @@ app.get('/api/collector-grid/:address', async (req, res) => {
     let address: string;
 
     if (addressParam.endsWith('.eth')) {
-      // Resolve ENS name to address
-      const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-      const ensClient = createPublicClient({
-        chain: mainnet, // ENS is always on mainnet
-        transport: http(),
-      });
-
-      try {
-        const resolved = await ensClient.getEnsAddress({
-          name: normalize(addressParam),
-        });
-        if (!resolved) {
-          return res.status(404).json({ error: 'ENS name not found' });
-        }
-        address = resolved.toLowerCase();
-      } catch (ensError) {
-        return res.status(400).json({ error: 'Failed to resolve ENS name' });
+      // Resolve ENS name to address using singleton client
+      const resolved = await resolveEnsAddress(addressParam);
+      if (!resolved) {
+        return res.status(404).json({ error: 'ENS name not found' });
       }
+      address = resolved.toLowerCase();
     } else if (/^0x[a-f0-9]{40}$/.test(addressParam)) {
       address = addressParam;
     } else {
@@ -967,21 +1210,12 @@ app.get('/api/collector-grid/:address', async (req, res) => {
       return res.send(cached);
     }
 
-    // Create viem client
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    // Use singleton clients
+    const client = rpcClient;
 
-    // Try to resolve ENS name
-    let displayName: string;
-    try {
-      const ensName = await client.getEnsName({ address: address as `0x${string}` });
-      displayName = ensName || `${address.slice(0, 6)}...${address.slice(-4)}`;
-    } catch {
-      displayName = `${address.slice(0, 6)}...${address.slice(-4)}`;
-    }
+    // Try to resolve ENS name (uses cached data first)
+    const ensName = await getEnsName(address);
+    const displayName = ensName || `${address.slice(0, 6)}...${address.slice(-4)}`;
 
     // Calculate optimal grid dimensions (matches twitter-bot approach)
     function getGridDimensions(count: number) {
@@ -1307,12 +1541,8 @@ app.get('/api/window-grid/:windowId', async (req, res) => {
       return res.send(cached);
     }
 
-    // Create viem client
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    // Use singleton client
+    const client = rpcClient;
 
     // Calculate optimal grid dimensions
     function getGridDimensions(count: number) {
@@ -1451,15 +1681,8 @@ app.get('/api/window-grid/:windowId', async (req, res) => {
             padding-left: ${PANEL_PADDING}px;
             font-family: 'IBM Plex Mono', 'Courier New', monospace;
           }
-          .label {
-            font-size: 14px;
-            font-weight: 400;
-            color: #666666;
-            letter-spacing: 0.15em;
-            margin-bottom: 12px;
-          }
-          .window-id {
-            font-size: 48px;
+          .window-title {
+            font-size: 42px;
             font-weight: 500;
             color: white;
             margin-bottom: 32px;
@@ -1493,27 +1716,16 @@ app.get('/api/window-grid/:windowId', async (req, res) => {
         </style>
       </head>
       <body>
-        <div class="label">WINDOW</div>
-        <div class="window-id">${windowIdParam}</div>
+        <div class="window-title">WINDOW ${windowIdParam}</div>
         <div class="stats">
           <div class="stat">
-            <div class="stat-label">TOKENS</div>
+            <div class="stat-label">LESS</div>
             <div class="stat-value">${tokenCount}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">COLLECTORS</div>
-            <div class="stat-value">${collectorCount}</div>
           </div>
           <div class="stat">
             <div class="stat-label">TOKEN IDS</div>
             <div class="stat-value-small">${tokenRange}</div>
           </div>
-          ${windowDate ? `
-          <div class="stat">
-            <div class="stat-label">DATE</div>
-            <div class="stat-value-small">${windowDate}</div>
-          </div>
-          ` : ''}
         </div>
       </body>
       </html>
@@ -1612,12 +1824,8 @@ app.get('/api/collector-card/:address', async (req, res) => {
       return res.send(cached);
     }
 
-    // Create viem client for fetching token data
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    // Use singleton client for fetching token data
+    const client = rpcClient;
 
     // Render function for a single token
     async function renderToken(tokenId: number, size: number): Promise<Buffer | null> {
@@ -1851,12 +2059,8 @@ app.get('/images/:tokenId', async (req, res) => {
       return res.status(400).json({ error: 'Dimensions must be between 100 and 4000' });
     }
 
-    // Create viem client
-    const chain = CHAIN === 'mainnet' ? mainnet : sepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(RPC_URL),
-    });
+    // Use singleton client
+    const client = rpcClient;
 
     // Fetch tokenURI from contract (contains animation_url with on-chain HTML)
     const tokenURI = await client.readContract({

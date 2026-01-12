@@ -1,11 +1,13 @@
 'use client';
 
-import { useReadContract, useReadContracts } from 'wagmi';
+import { useReadContracts } from 'wagmi';
+import { useQuery } from '@tanstack/react-query';
 import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 import { parseDataUri } from '@/lib/utils';
 import type { TokenMetadata } from '@/types';
 import { useMemo, useCallback } from 'react';
 
+const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
 const BATCH_SIZE = 20;
 
 export interface CollectionToken {
@@ -16,68 +18,51 @@ export interface CollectionToken {
   metadata?: TokenMetadata;
 }
 
+interface CollectionApiResponse {
+  tokens: Array<{ tokenId: number; windowId: number; seed: string; owner: string }>;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+  generatedAt: number;
+}
+
+/**
+ * Hook to fetch paginated collection data.
+ * Now uses pre-indexed API data instead of RPC calls for basic token info.
+ * Only fetches tokenURIs via RPC if metadata is needed.
+ */
 export function useCollection(page = 0, options?: { skipMetadata?: boolean; enabled?: boolean }) {
   const skipMetadata = options?.skipMetadata ?? false;
   const enabled = options?.enabled ?? true;
-  // Get total supply
-  const { data: totalSupply, refetch: refetchSupply, error: supplyError, isLoading: isLoadingSupply } = useReadContract({
-    address: CONTRACTS.LESS_NFT,
-    abi: LESS_NFT_ABI,
-    functionName: 'totalSupply',
-    query: {
-      refetchInterval: 10000,
-      enabled,
+
+  // Fetch paginated tokens from API (eliminates most RPC calls)
+  const {
+    data: apiData,
+    isLoading: isLoadingApi,
+    refetch: refetchApi,
+  } = useQuery<CollectionApiResponse>({
+    queryKey: ['collection', page, BATCH_SIZE],
+    queryFn: async () => {
+      const response = await fetch(`${IMAGE_API_URL}/api/collection?page=${page}&limit=${BATCH_SIZE}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch collection');
+      }
+      return response.json();
     },
+    staleTime: 60000, // 1 minute
+    refetchInterval: 60000,
+    enabled,
   });
 
-  // Debug: log any errors
-  if (supplyError) {
-    console.error('Error fetching totalSupply:', supplyError);
-  }
-
-  const total = totalSupply ? Number(totalSupply) : 0;
-
-  // Calculate token IDs for current page (newest first)
+  // Extract token IDs for metadata fetch
   const tokenIds = useMemo(() => {
-    if (total === 0) return [];
+    if (!apiData?.tokens) return [];
+    return apiData.tokens.map(t => t.tokenId);
+  }, [apiData]);
 
-    const start = total - page * BATCH_SIZE;
-    const end = Math.max(1, start - BATCH_SIZE + 1);
-
-    const ids: number[] = [];
-    for (let i = start; i >= end; i--) {
-      ids.push(i);
-    }
-    return ids;
-  }, [total, page]);
-
-  // Batch read token data
-  const { data: tokenDataResults, isLoading: isLoadingData, refetch: refetchData } = useReadContracts({
-    contracts: tokenIds.map((id) => ({
-      address: CONTRACTS.LESS_NFT,
-      abi: LESS_NFT_ABI,
-      functionName: 'getTokenData',
-      args: [BigInt(id)],
-    })),
-    query: {
-      enabled: enabled && tokenIds.length > 0,
-    },
-  });
-
-  // Batch read seeds
-  const { data: seedResults, isLoading: isLoadingSeeds, refetch: refetchSeeds } = useReadContracts({
-    contracts: tokenIds.map((id) => ({
-      address: CONTRACTS.LESS_NFT,
-      abi: LESS_NFT_ABI,
-      functionName: 'getSeed',
-      args: [BigInt(id)],
-    })),
-    query: {
-      enabled: enabled && tokenIds.length > 0,
-    },
-  });
-
-  // Batch read tokenURIs (optional - skip for performance when only seeds are needed)
+  // Only fetch tokenURIs if metadata is needed (still uses RPC, but only for this)
   const { data: uriResults, isLoading: isLoadingURIs, refetch: refetchURIs } = useReadContracts({
     contracts: tokenIds.map((id) => ({
       address: CONTRACTS.LESS_NFT,
@@ -87,69 +72,42 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
     })),
     query: {
       enabled: enabled && tokenIds.length > 0 && !skipMetadata,
+      staleTime: 300000, // 5 minutes - metadata doesn't change
     },
   });
 
-  // Batch read owners
-  const { data: ownerResults, isLoading: isLoadingOwners, refetch: refetchOwners } = useReadContracts({
-    contracts: tokenIds.map((id) => ({
-      address: CONTRACTS.LESS_NFT,
-      abi: LESS_NFT_ABI,
-      functionName: 'ownerOf',
-      args: [BigInt(id)],
-    })),
-    query: {
-      enabled: enabled && tokenIds.length > 0,
-    },
-  });
-
-  // Combine results into tokens
+  // Combine API data with metadata
   const tokens: CollectionToken[] = useMemo(() => {
-    if (!tokenIds.length) return [];
+    if (!apiData?.tokens) return [];
 
-    return tokenIds.map((id, index) => {
-      // getTokenData returns windowId - handle both direct bigint and object formats
-      const tokenDataResult = tokenDataResults?.[index]?.result;
-      let windowId = 0;
-      if (tokenDataResult !== undefined && tokenDataResult !== null) {
-        // Could be bigint directly or {windowId: bigint} object depending on viem version
-        if (typeof tokenDataResult === 'bigint') {
-          windowId = Number(tokenDataResult);
-        } else if (typeof tokenDataResult === 'object' && 'windowId' in tokenDataResult) {
-          windowId = Number((tokenDataResult as { windowId: bigint }).windowId);
-        } else {
-          // Fallback: try to convert whatever it is
-          windowId = Number(tokenDataResult);
-        }
-      }
-
-      const seedResult = seedResults?.[index]?.result as `0x${string}` | undefined;
+    return apiData.tokens.map((token, index) => {
       const uriResult = uriResults?.[index]?.result as string | undefined;
-      const ownerResult = ownerResults?.[index]?.result as `0x${string}` | undefined;
-
       const metadata = uriResult
         ? (parseDataUri(uriResult) as TokenMetadata | null) ?? undefined
         : undefined;
 
       return {
-        id,
-        windowId: isNaN(windowId) ? 0 : windowId,
-        seed: seedResult ?? '0x0',
-        owner: ownerResult,
+        id: token.tokenId,
+        windowId: token.windowId,
+        seed: token.seed as `0x${string}`,
+        owner: token.owner as `0x${string}`,
         metadata,
       };
     });
-  }, [tokenIds, tokenDataResults, seedResults, uriResults, ownerResults]);
+  }, [apiData, uriResults]);
 
-  const isLoading = isLoadingSupply || isLoadingData || isLoadingSeeds || isLoadingOwners || (!skipMetadata && isLoadingURIs);
-  const hasMore = total > (page + 1) * BATCH_SIZE;
-  const totalPages = Math.ceil(total / BATCH_SIZE);
+  const isLoading = isLoadingApi || (!skipMetadata && isLoadingURIs);
+  const total = apiData?.total ?? 0;
+  const hasMore = apiData?.hasMore ?? false;
+  const totalPages = apiData?.totalPages ?? 0;
 
   // Combined refetch function
   const refetch = useCallback(async () => {
-    await refetchSupply();
-    await Promise.all([refetchData(), refetchSeeds(), refetchURIs(), refetchOwners()]);
-  }, [refetchSupply, refetchData, refetchSeeds, refetchURIs, refetchOwners]);
+    await refetchApi();
+    if (!skipMetadata) {
+      await refetchURIs();
+    }
+  }, [refetchApi, refetchURIs, skipMetadata]);
 
   return {
     tokens,

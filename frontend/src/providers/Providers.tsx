@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { useState } from 'react';
 import { config } from '@/lib/wagmi';
+import { ContractStateProvider } from './ContractStateContext';
 import '@rainbow-me/rainbowkit/styles.css';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -13,8 +14,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 1000, // 5 seconds
-            refetchInterval: 10 * 1000, // 10 seconds
+            // Increased stale time to reduce unnecessary refetches
+            staleTime: 30 * 1000, // 30 seconds
+            // Remove global refetchInterval - let individual hooks control their own
+            refetchOnWindowFocus: false,
           },
         },
       })
@@ -24,7 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
-          {children}
+          <ContractStateProvider>
+            {children}
+          </ContractStateProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

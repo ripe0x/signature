@@ -435,6 +435,75 @@ function loadContractABI() {
   return contractJson.abi;
 }
 
+// ============================================================================
+// SINGLETON CLIENTS - Reused across all requests to avoid connection overhead
+// ============================================================================
+
+// Mainnet client for ENS resolution (ENS is always on mainnet)
+let mainnetClient = null;
+function getMainnetClient() {
+  if (!mainnetClient) {
+    const mainnetRpc = process.env.MAINNET_RPC_URL;
+    if (!mainnetRpc) return null;
+    mainnetClient = createPublicClient({
+      chain: mainnet,
+      transport: http(mainnetRpc),
+    });
+  }
+  return mainnetClient;
+}
+
+// NFT client for contract reads (uses configured network)
+let nftClient = null;
+function getNftClient() {
+  if (!nftClient) {
+    const rpcUrl = getRpcUrl();
+    nftClient = createPublicClient({
+      chain: getChain(),
+      transport: http(rpcUrl),
+    });
+  }
+  return nftClient;
+}
+
+// ============================================================================
+// ENS CACHING FROM LEADERBOARD
+// ============================================================================
+const IMAGE_API_BASE =
+  process.env.IMAGE_API_URL || "https://fold-image-api.fly.dev";
+let leaderboardCache = null;
+let leaderboardCacheTime = 0;
+const LEADERBOARD_CACHE_TTL = 300000; // 5 minutes
+
+// Fetch leaderboard data (cached)
+async function getLeaderboard() {
+  if (leaderboardCache && Date.now() - leaderboardCacheTime < LEADERBOARD_CACHE_TTL) {
+    return leaderboardCache;
+  }
+  try {
+    const response = await fetch(`${IMAGE_API_BASE}/api/leaderboard`);
+    if (response.ok) {
+      leaderboardCache = await response.json();
+      leaderboardCacheTime = Date.now();
+      return leaderboardCache;
+    }
+  } catch {
+    // Ignore errors, fall through to null
+  }
+  return null;
+}
+
+// Get ENS name from leaderboard cache
+async function getEnsFromLeaderboard(address) {
+  const leaderboard = await getLeaderboard();
+  if (!leaderboard?.collectors) return null;
+
+  const collector = leaderboard.collectors.find(
+    (c) => c.address.toLowerCase() === address.toLowerCase()
+  );
+  return collector?.ensName || null;
+}
+
 // Initialize Twitter client
 function initTwitterClient() {
   // Skip Twitter initialization in dry-run or test mode
@@ -1845,13 +1914,15 @@ function generatePreviewSeed(windowId, strategyBlock, startTime) {
 }
 
 // Process a single WindowCreated event
+// reminderContext is optional - if provided, schedules the 15-min reminder
 async function processEvent(
   log,
   processedWindows,
   twitterClient,
   contractAddress,
   client,
-  abi
+  abi,
+  reminderContext = null
 ) {
   try {
     const windowId = log.args.windowId;
@@ -1862,7 +1933,7 @@ async function processEvent(
     // Skip if already processed
     if (processedWindows.has(Number(windowId))) {
       logInfo(`Skipping already processed window #${windowId}`);
-      return;
+      return { processed: false, endTime };
     }
 
     logInfo(
@@ -1886,14 +1957,31 @@ async function processEvent(
     if (tweetId) {
       logSuccess(`Tweet posted successfully! Tweet ID: ${tweetId}`);
       processedWindows.add(Number(windowId));
+
+      // Schedule the 15-minute reminder for this window
+      if (reminderContext) {
+        scheduleReminder({
+          windowId: Number(windowId),
+          endTime,
+          fifteenMinReminders: reminderContext.fifteenMinReminders,
+          twitterClient,
+          client,
+          contractAddress,
+          abi,
+          saveStateFn: reminderContext.saveStateFn,
+        });
+      }
     } else {
       logError("Failed to post tweet");
     }
+
+    return { processed: true, endTime };
   } catch (error) {
     logError(`Error processing event: ${error.message}`);
     if (error.stack) {
       console.error(error.stack);
     }
+    return { processed: false, endTime: null };
   }
 }
 
@@ -1994,6 +2082,167 @@ function formatReminderTweet(windowId, minutesRemaining, mintCount = 0) {
 ${mintText}
 
 ${formatUrlForTweet(`${BASE_URL}/mint`)}`;
+}
+
+// ============================================================================
+// SCHEDULED REMINDER SYSTEM
+// Instead of polling every 60s, we schedule the exact time for the reminder
+// based on the known window end time
+// ============================================================================
+let scheduledReminderTimeout = null;
+let scheduledReminderWindowId = null;
+
+/**
+ * Schedule a 15-minute reminder for a window based on its end time.
+ * This eliminates the need for polling - we know exactly when to fire.
+ */
+function scheduleReminder(context) {
+  const {
+    windowId,
+    endTime,
+    fifteenMinReminders,
+    twitterClient,
+    client,
+    contractAddress,
+    abi,
+    saveStateFn,
+  } = context;
+
+  // Clear any existing scheduled reminder
+  if (scheduledReminderTimeout) {
+    clearTimeout(scheduledReminderTimeout);
+    scheduledReminderTimeout = null;
+  }
+
+  // Skip if already reminded for this window
+  if (fifteenMinReminders.has(windowId)) {
+    logInfo(`Reminder already sent for window #${windowId}, not scheduling`);
+    return;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const reminderTime = Number(endTime) - 15 * 60; // 15 minutes before end
+  const delayMs = (reminderTime - now) * 1000;
+
+  // If reminder time has passed, check if we should still send it
+  if (delayMs <= 0) {
+    const timeRemaining = Number(endTime) - now;
+    // If window is still active and we're in the reminder window (10-16 min remaining)
+    if (timeRemaining > 600 && timeRemaining <= 960) {
+      logInfo(`Reminder time passed but still in window, firing immediately`);
+      fireReminder(context);
+    } else if (timeRemaining > 0 && timeRemaining <= 600) {
+      logInfo(`Less than 10 minutes remaining, skipping reminder`);
+    } else {
+      logInfo(`Window #${windowId} has ended, not scheduling reminder`);
+    }
+    return;
+  }
+
+  // Schedule the reminder
+  const delayMinutes = Math.round(delayMs / 60000);
+  logInfo(
+    `Scheduling 15-min reminder for window #${windowId} in ${delayMinutes} minutes`
+  );
+
+  scheduledReminderWindowId = windowId;
+  scheduledReminderTimeout = setTimeout(() => {
+    fireReminder(context);
+  }, delayMs);
+}
+
+/**
+ * Fire the scheduled reminder - get mint count and post tweet
+ * Includes retry logic with exponential backoff for reliability
+ */
+async function fireReminder(context, retryCount = 0) {
+  const MAX_RETRIES = 3;
+  const BASE_DELAY = 5000; // 5 seconds
+
+  const {
+    windowId,
+    fifteenMinReminders,
+    twitterClient,
+    client,
+    contractAddress,
+    abi,
+    saveStateFn,
+  } = context;
+
+  try {
+    // Double-check we haven't already reminded
+    if (fifteenMinReminders.has(windowId)) {
+      logInfo(`Reminder already sent for window #${windowId}`);
+      return;
+    }
+
+    logInfo(`Firing 15-minute reminder for window #${windowId}${retryCount > 0 ? ` (retry ${retryCount}/${MAX_RETRIES})` : ''}`);
+
+    // Get mint count for this window
+    let mintCount = 0;
+    try {
+      const currentBlock = await client.getBlockNumber();
+      const mintLogs = await client.getLogs({
+        address: contractAddress,
+        event: parseAbiItem(
+          "event Minted(uint256 indexed tokenId, uint256 indexed windowId, address indexed minter, bytes32 seed)"
+        ),
+        args: { windowId: BigInt(windowId) },
+        fromBlock: currentBlock - 10000n,
+        toBlock: currentBlock,
+      });
+      mintCount = mintLogs.length;
+    } catch (e) {
+      logWarn(`Could not fetch mint count: ${e.message}`);
+    }
+
+    // Format and post tweet
+    const tweetMessage = formatReminderTweet(windowId, 15, mintCount);
+
+    logInfo("Posting 15-minute reminder tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+
+    if (tweetId) {
+      logSuccess(`Reminder tweet posted! Tweet ID: ${tweetId}`);
+      fifteenMinReminders.add(windowId);
+      if (saveStateFn) {
+        saveStateFn();
+      }
+      // Clear state on success
+      scheduledReminderTimeout = null;
+      scheduledReminderWindowId = null;
+    } else {
+      // Post returned null/undefined - treat as failure
+      throw new Error("postTweet returned falsy value");
+    }
+  } catch (error) {
+    logError(`Error firing reminder: ${error.message}`);
+
+    // Retry with exponential backoff if we haven't exceeded max retries
+    if (retryCount < MAX_RETRIES) {
+      const delay = BASE_DELAY * Math.pow(2, retryCount); // 5s, 10s, 20s
+      logInfo(`Retrying reminder in ${delay / 1000} seconds...`);
+
+      scheduledReminderTimeout = setTimeout(() => {
+        fireReminder(context, retryCount + 1);
+      }, delay);
+    } else {
+      logError(`Reminder failed after ${MAX_RETRIES} retries, giving up`);
+      scheduledReminderTimeout = null;
+      scheduledReminderWindowId = null;
+    }
+  }
+}
+
+/**
+ * Clear any scheduled reminder (e.g., on shutdown)
+ */
+function clearScheduledReminder() {
+  if (scheduledReminderTimeout) {
+    clearTimeout(scheduledReminderTimeout);
+    scheduledReminderTimeout = null;
+    scheduledReminderWindowId = null;
+  }
 }
 
 // Format tweet for when a new window is ready to be opened
@@ -2161,6 +2410,47 @@ async function fetchNFTSales(fromBlock, toBlock) {
   }
 }
 
+// Check if royalty was paid in a Seaport sale by looking for WETH transfers to royalty recipient
+async function getRoyaltyFromTransaction(txHash, client) {
+  const ROYALTY_RECIPIENT = "0x76b861d8f0e802d74f78793545ff82b1fde0fe36";
+  const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+  // WETH Transfer(address,address,uint256) event signature
+  const TRANSFER_TOPIC =
+    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+  try {
+    const receipt = await client.getTransactionReceipt({ hash: txHash });
+
+    let royaltyPaid = 0n;
+
+    for (const log of receipt.logs) {
+      // Check for WETH transfer to royalty recipient
+      if (
+        log.address.toLowerCase() === WETH_ADDRESS &&
+        log.topics[0] === TRANSFER_TOPIC &&
+        log.topics[2]
+      ) {
+        // topics[2] is the 'to' address, padded to 32 bytes
+        const toAddress = "0x" + log.topics[2].slice(26).toLowerCase();
+        if (toAddress === ROYALTY_RECIPIENT) {
+          royaltyPaid += BigInt(log.data);
+        }
+      }
+    }
+
+    if (royaltyPaid > 0n) {
+      const ethValue = formatEther(royaltyPaid);
+      logInfo(`Royalty detected: ${ethValue} ETH to ${ROYALTY_RECIPIENT}`);
+      return ethValue;
+    }
+
+    return null;
+  } catch (error) {
+    logWarn(`Failed to get royalty info: ${error.message}`);
+    return null;
+  }
+}
+
 // Get collector stats for an address - token count and windows covered
 async function getCollectorStats(address, client, contractAddress, abi) {
   try {
@@ -2269,7 +2559,9 @@ function formatSaleTweet(
   buyerDisplay,
   priceEth,
   collectorStats = null,
-  windowIds = null
+  windowIds = null,
+  royaltyEth = null,
+  buyBurnBalanceEth = null
 ) {
   const isSingle = tokenIds.length === 1;
 
@@ -2295,11 +2587,21 @@ function formatSaleTweet(
     }
   }
 
+  // Build royalty line if royalty was paid
+  let royaltyLine = "";
+  if (royaltyEth) {
+    const formattedRoyalty = formatEthValue(royaltyEth);
+    const balancePart = buyBurnBalanceEth
+      ? ` (${formatEthValue(buyBurnBalanceEth)} ETH)`
+      : "";
+    royaltyLine = `\n\n${formattedRoyalty} ETH added to $LESS buy + burn balance${balancePart}`;
+  }
+
   if (isSingle) {
-    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}`;
+    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}${royaltyLine}`;
   } else {
     // Multiple tokens bought by same collector
-    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}`;
+    return `LESS ${tokenList} acquired for ${priceEth} ETH by ${buyerDisplay}${statsLine}${royaltyLine}`;
   }
 }
 
@@ -2378,6 +2680,31 @@ async function processGroupedSales(
       logWarn(`Failed to fetch window IDs: ${error.message}`);
     }
 
+    // Check for royalty payments across all transactions
+    let totalRoyaltyEth = null;
+    let buyBurnBalanceEth = null;
+    const ROYALTY_RECIPIENT = "0x76b861d8f0e802d74f78793545ff82b1fde0fe36";
+    try {
+      // Get unique tx hashes (in case of multi-token purchase in single tx)
+      const uniqueTxHashes = [...new Set(txHashes)];
+      let totalRoyaltyWei = 0n;
+      for (const txHash of uniqueTxHashes) {
+        const royalty = await getRoyaltyFromTransaction(txHash, client);
+        if (royalty) {
+          totalRoyaltyWei += BigInt(Math.floor(parseFloat(royalty) * 1e18));
+        }
+      }
+      if (totalRoyaltyWei > 0n) {
+        totalRoyaltyEth = formatEther(totalRoyaltyWei);
+        // Fetch current balance of buy+burn address
+        const balance = await client.getBalance({ address: ROYALTY_RECIPIENT });
+        buyBurnBalanceEth = formatEther(balance);
+        logInfo(`Buy+burn balance: ${buyBurnBalanceEth} ETH`);
+      }
+    } catch (error) {
+      logWarn(`Failed to fetch royalty info: ${error.message}`);
+    }
+
     // For multi-token sales, use a grid image to show all tokens
     let imageBuffers = [];
     if (tokenIds.length > 1) {
@@ -2409,13 +2736,15 @@ async function processGroupedSales(
       return false;
     }
 
-    // Format and post tweet with collector stats and window IDs
+    // Format and post tweet with collector stats, window IDs, and royalty
     const tweetMessage = formatSaleTweet(
       tokenIds,
       buyerDisplay,
       priceEth,
       collectorStats,
-      windowIds
+      windowIds,
+      totalRoyaltyEth,
+      buyBurnBalanceEth
     );
 
     logInfo("Posting sale tweet...");
@@ -2584,17 +2913,22 @@ async function processSalesCheck(
 }
 
 // Resolve ENS name for an address (always uses mainnet since ENS lives there)
+// Checks leaderboard cache first for better performance
 async function resolveEns(address) {
   try {
-    const mainnetRpc = process.env.MAINNET_RPC_URL;
-    if (!mainnetRpc) {
+    // Check leaderboard cache first (ENS names are indexed by image-api)
+    const cachedEns = await getEnsFromLeaderboard(address);
+    if (cachedEns) {
+      logInfo(`Resolved ENS from leaderboard: ${address} -> ${cachedEns}`);
+      return cachedEns;
+    }
+
+    // Fall back to RPC lookup using singleton client
+    const client = getMainnetClient();
+    if (!client) {
       return null;
     }
-    const mainnetClient = createPublicClient({
-      chain: mainnet,
-      transport: http(mainnetRpc),
-    });
-    const ensName = await mainnetClient.getEnsName({ address });
+    const ensName = await client.getEnsName({ address });
     if (ensName) {
       logInfo(`Resolved ENS: ${address} -> ${ensName}`);
     }
@@ -2654,30 +2988,30 @@ async function resolveFarcasterTwitterHandle(address) {
 }
 
 // Resolve Twitter handle from ENS text records
+// Uses singleton client for better performance
 async function resolveTwitterHandle(address) {
   try {
-    const mainnetRpc = process.env.MAINNET_RPC_URL;
-    if (!mainnetRpc) {
+    const client = getMainnetClient();
+    if (!client) {
       return null;
     }
-    const mainnetClient = createPublicClient({
-      chain: mainnet,
-      transport: http(mainnetRpc),
-    });
 
-    // First get ENS name for the address
-    const ensName = await mainnetClient.getEnsName({ address });
+    // First get ENS name for the address (check leaderboard cache first)
+    let ensName = await getEnsFromLeaderboard(address);
+    if (!ensName) {
+      ensName = await client.getEnsName({ address });
+    }
     if (!ensName) {
       return null;
     }
 
     // Try com.twitter first (standard ENS text record), then twitter
-    let handle = await mainnetClient.getEnsText({
+    let handle = await client.getEnsText({
       name: ensName,
       key: "com.twitter",
     });
     if (!handle) {
-      handle = await mainnetClient.getEnsText({
+      handle = await client.getEnsText({
         name: ensName,
         key: "twitter",
       });
@@ -4124,15 +4458,44 @@ async function runBot() {
 
         if (missedWindowLogs.length > 0) {
           logInfo(`Found ${missedWindowLogs.length} WindowCreated events`);
+
+          // Create a saveStateFn for the reminder context
+          const saveStateFn = () =>
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp,
+              pendingMints
+            );
+
+          // Create reminder context for scheduling
+          const reminderContext = {
+            fifteenMinReminders,
+            saveStateFn,
+          };
+
+          // Process missed windows and schedule reminders for still-active ones
           for (const log of missedWindowLogs) {
-            await processEvent(
+            const result = await processEvent(
               log,
               processedWindows,
               twitterClient,
               contractAddress,
               client,
-              abi
+              abi,
+              reminderContext
             );
+
+            // If this is a recent window that's still active, schedule reminder
+            // (processEvent handles scheduling when it successfully processes)
+
             // Delay between tweets to avoid rate limiting
             if (missedWindowLogs.length > 1) {
               await new Promise((r) => setTimeout(r, 5000));
@@ -4204,6 +4567,22 @@ async function runBot() {
       // Reset retry count on successful connection
       retryCount = 0;
 
+      // Create a saveStateFn for reminders scheduled in the watcher
+      const watcherSaveStateFn = () =>
+        saveState(
+          processedWindows,
+          processedMints,
+          fifteenMinReminders,
+          processedEndedWindows,
+          windowReadyAlerted,
+          lastBalanceProgressPost,
+          lastProcessedBlock,
+          contractAddress,
+          processedSales,
+          lastSalesTimestamp,
+          pendingMints
+        );
+
       // Watch for new WindowCreated events
       const unwatchWindows = client.watchEvent({
         address: contractAddress,
@@ -4212,31 +4591,26 @@ async function runBot() {
         ),
         onLogs: async (logs) => {
           for (const log of logs) {
+            // Create reminder context for this window
+            const reminderContext = {
+              fifteenMinReminders,
+              saveStateFn: watcherSaveStateFn,
+            };
+
             await processEvent(
               log,
               processedWindows,
               twitterClient,
               contractAddress,
               client,
-              abi
+              abi,
+              reminderContext
             );
             // Reset windowReadyAlerted since a new window was created
             windowReadyAlerted = false;
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
-              saveState(
-                processedWindows,
-                processedMints,
-                fifteenMinReminders,
-                processedEndedWindows,
-                windowReadyAlerted,
-                lastBalanceProgressPost,
-                lastProcessedBlock,
-                contractAddress,
-                processedSales,
-                lastSalesTimestamp,
-                pendingMints
-              );
+              watcherSaveStateFn();
             }
           }
         },
@@ -4313,35 +4687,63 @@ async function runBot() {
       );
       logInfo("Press Ctrl+C to stop");
 
-      // 15-minute reminder checker (every 30 seconds)
-      const reminderInterval = setInterval(async () => {
-        try {
-          const reminded = await processReminderCheck(
+      // Check if there's an active window and schedule a reminder for it (handles bot restarts)
+      try {
+        const timeUntilClose = await client.readContract({
+          address: contractAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "timeUntilWindowCloses",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "timeUntilWindowCloses",
+        });
+
+        const timeRemaining = Number(timeUntilClose);
+        if (timeRemaining > 0) {
+          // Window is active - get the current window info to schedule reminder
+          const windowCount = await client.readContract({
+            address: contractAddress,
+            abi: [
+              {
+                inputs: [],
+                name: "windowCount",
+                outputs: [{ name: "", type: "uint256" }],
+                stateMutability: "view",
+                type: "function",
+              },
+            ],
+            functionName: "windowCount",
+          });
+          const windowId = Number(windowCount);
+
+          // Calculate endTime from current time + timeRemaining
+          const now = Math.floor(Date.now() / 1000);
+          const endTime = now + timeRemaining;
+
+          logInfo(
+            `Active window #${windowId} detected (${Math.round(timeRemaining / 60)} minutes remaining)`
+          );
+
+          // Schedule reminder using the new system
+          scheduleReminder({
+            windowId,
+            endTime,
             fifteenMinReminders,
             twitterClient,
             client,
             contractAddress,
-            abi
-          );
-          if (reminded) {
-            saveState(
-              processedWindows,
-              processedMints,
-              fifteenMinReminders,
-              processedEndedWindows,
-              windowReadyAlerted,
-              lastBalanceProgressPost,
-              lastProcessedBlock,
-              contractAddress,
-              processedSales,
-              lastSalesTimestamp,
-              pendingMints
-            );
-          }
-        } catch (error) {
-          logError(`Reminder check error: ${error.message}`);
+            abi,
+            saveStateFn: watcherSaveStateFn,
+          });
         }
-      }, 30000);
+      } catch (error) {
+        logWarn(`Could not check for active window: ${error.message}`);
+      }
 
       // Window ready checker (every 60 seconds) - posts when canCreateWindow() is true
       const windowReadyInterval = setInterval(async () => {
@@ -4475,7 +4877,7 @@ async function runBot() {
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
-        clearInterval(reminderInterval);
+        clearScheduledReminder(); // Clear scheduled reminder timeout
         clearInterval(windowReadyInterval);
         clearInterval(endedWindowsInterval);
         clearInterval(balanceProgressInterval);
@@ -4511,7 +4913,7 @@ async function runBot() {
             );
           } catch (error) {
             clearInterval(healthCheck);
-            clearInterval(reminderInterval);
+            clearScheduledReminder(); // Clear scheduled reminder timeout
             clearInterval(windowReadyInterval);
             clearInterval(endedWindowsInterval);
             clearInterval(balanceProgressInterval);

@@ -1,79 +1,53 @@
 'use client';
 
-import { useReadContract, useReadContracts } from 'wagmi';
-import { CONTRACTS, LESS_NFT_ABI } from '@/lib/contracts';
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-const BATCH_SIZE = 50; // Larger batch for counting only
+const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
+
+interface WindowCountsApiResponse {
+  totalWindows: number;
+  totalTokens: number;
+  windows: Array<{
+    windowId: number;
+    mintCount: number;
+    startTime: number | null;
+    endTime: number | null;
+  }>;
+  generatedAt: number;
+}
 
 /**
- * Hook to get accurate mint counts per window by querying all tokens' windowIds
+ * Hook to get accurate mint counts per window
+ * Now uses pre-indexed API data instead of scanning all tokens via RPC
  */
 export function useWindowMintCounts() {
-  // Get total supply
-  const { data: totalSupply, isLoading: isLoadingSupply } = useReadContract({
-    address: CONTRACTS.LESS_NFT,
-    abi: LESS_NFT_ABI,
-    functionName: 'totalSupply',
-    query: {
-      refetchInterval: 10000,
+  // Fetch window counts from API (eliminates N RPC calls for scanning)
+  const {
+    data: apiData,
+    isLoading,
+  } = useQuery<WindowCountsApiResponse>({
+    queryKey: ['window-counts'],
+    queryFn: async () => {
+      const response = await fetch(`${IMAGE_API_URL}/api/window-counts`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch window counts');
+      }
+      return response.json();
     },
+    staleTime: 60000, // 1 minute
+    refetchInterval: 60000, // Refresh every minute
   });
 
-  const total = totalSupply ? Number(totalSupply) : 0;
-
-  // Generate all token IDs
-  const allTokenIds = useMemo(() => {
-    if (total === 0) return [];
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }, [total]);
-
-  // Batch read all windowIds
-  const { data: windowIdResults, isLoading: isLoadingWindowIds } = useReadContracts({
-    contracts: allTokenIds.map((id) => ({
-      address: CONTRACTS.LESS_NFT,
-      abi: LESS_NFT_ABI,
-      functionName: 'getTokenData',
-      args: [BigInt(id)],
-    })),
-    query: {
-      enabled: allTokenIds.length > 0,
-    },
-  });
-
-  // Count tokens per window
+  // Convert API response to Map format expected by consumers
   const windowMintCounts = useMemo(() => {
-    if (!windowIdResults) return new Map<number, number>();
-
-    const counts = new Map<number, number>();
-
-    for (let i = 0; i < allTokenIds.length; i++) {
-      const result = windowIdResults[i]?.result;
-      let windowId = 0;
-
-      if (result !== undefined && result !== null) {
-        if (typeof result === 'bigint') {
-          windowId = Number(result);
-        } else if (typeof result === 'object' && 'windowId' in result) {
-          windowId = Number((result as { windowId: bigint }).windowId);
-        } else {
-          windowId = Number(result);
-        }
-      }
-
-      if (!isNaN(windowId)) {
-        counts.set(windowId, (counts.get(windowId) || 0) + 1);
-      }
-    }
-
-    return counts;
-  }, [allTokenIds, windowIdResults]);
-
-  const isLoading = isLoadingSupply || isLoadingWindowIds;
+    if (!apiData?.windows) return new Map<number, number>();
+    return new Map(apiData.windows.map(w => [w.windowId, w.mintCount]));
+  }, [apiData]);
 
   return {
     windowMintCounts,
     isLoading,
-    total,
+    total: apiData?.totalTokens ?? 0,
   };
 }
