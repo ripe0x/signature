@@ -1,7 +1,7 @@
 {
   "totalWindows": 21,
   "totalTokens": 1112,
-  "totalCollectors": 403,
+  "totalCollectors": 402,
   "fullCollectors": [
     "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f"
   ],
@@ -5701,6 +5701,28 @@
       ]
     },
     {
+      "address": "0x8479c1c1f41f2ed67309f130e46d87eedf638cdb",
+      "tokenCount": 2,
+      "windowsCollected": [
+        18,
+        20
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "tokens": [
+        {
+          "tokenId": 952,
+          "windowId": 18,
+          "seed": "0x9da1deaf027c6afa6a5e122cc525bb466f7554ebe5c64ef6dab22ebca1651926"
+        },
+        {
+          "tokenId": 1088,
+          "windowId": 20,
+          "seed": "0x3f368a7990eb0b1298bae3b48852e6a74dcce6c51fdac4cb6a5d09433042300f"
+        }
+      ]
+    },
+    {
       "address": "0x142e6ee40bd42643aa4d3f7a0ae066997f902788",
       "tokenCount": 2,
       "windowsCollected": [
@@ -9736,22 +9758,6 @@
       ]
     },
     {
-      "address": "0x41c0f1468f2731671a6dbe5135383a28ad47a5b7",
-      "tokenCount": 1,
-      "windowsCollected": [
-        18
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 952,
-          "windowId": 18,
-          "seed": "0x9da1deaf027c6afa6a5e122cc525bb466f7554ebe5c64ef6dab22ebca1651926"
-        }
-      ]
-    },
-    {
       "address": "0xc485e340587629edd2b14634bd03f2a01dad8dfd",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10280,22 +10286,6 @@
       ]
     },
     {
-      "address": "0xdfa653793077c43c09df945ec756a0d6c34e2369",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1088,
-          "windowId": 20,
-          "seed": "0x3f368a7990eb0b1298bae3b48852e6a74dcce6c51fdac4cb6a5d09433042300f"
-        }
-      ]
-    },
-    {
       "address": "0xec048a52e069cafb9af3a9213f3513cb9cecd763",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10360,7 +10350,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24248379,
-  "generatedAt": 1768579639259,
-  "generatedAtISO": "2026-01-16T16:07:19.259Z"
+  "lastIndexedBlock": 24256741,
+  "generatedAt": 1768680328290,
+  "generatedAtISO": "2026-01-17T20:05:28.290Z"
 }
