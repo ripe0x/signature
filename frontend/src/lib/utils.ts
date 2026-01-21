@@ -7,6 +7,35 @@ export function formatEth(value: bigint, decimals = 4): string {
   return parseFloat(num.toFixed(decimals)).toString();
 }
 
+// Format token balance for display (18 decimals, compact format)
+export function formatTokenBalance(balanceStr: string, compact = true): string {
+  if (!balanceStr || balanceStr === '0') return '0';
+
+  try {
+    const balance = BigInt(balanceStr);
+    const formatted = formatEther(balance);
+    const num = parseFloat(formatted);
+
+    if (compact) {
+      // Compact format: 1.2K, 1.2M, etc.
+      if (num >= 1_000_000) {
+        return `${(num / 1_000_000).toFixed(1)}M`;
+      } else if (num >= 1_000) {
+        return `${(num / 1_000).toFixed(1)}K`;
+      } else if (num >= 1) {
+        return num.toFixed(1);
+      } else if (num > 0) {
+        return num.toFixed(4);
+      }
+    }
+
+    // Full format with commas
+    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } catch {
+    return '0';
+  }
+}
+
 // Truncate address for display
 export function truncateAddress(address: string, chars = 4): string {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;

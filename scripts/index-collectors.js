@@ -8,6 +8,7 @@
  * Run: node scripts/index-collectors.js
  */
 
+import 'dotenv/config';
 import { createPublicClient, http } from 'viem';
 import { mainnet } from 'viem/chains';
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
@@ -22,6 +23,7 @@ const OUTPUT_FILE = join(DATA_DIR, 'leaderboard.json');
 // Contract config
 const RPC_URL = process.env.MAINNET_RPC_URL || process.env.RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo';
 const CONTRACT_ADDRESS = '0x008B66385ed2346E6895031E250B2ac8dc14605C';
+const LESS_STRATEGY_ADDRESS = '0x9c2ca573009f181eac634c4d6e44a0977c24f335';
 
 const LESS_ABI = [
   {
@@ -56,6 +58,17 @@ const LESS_ABI = [
     inputs: [{ name: 'tokenId', type: 'uint256' }],
     name: 'getSeed',
     outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
+
+// LESS Strategy Token ABI (for balance fetching)
+const STRATEGY_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -218,6 +231,34 @@ async function main() {
     collectorMap.set(token.owner, existing);
   }
 
+  // Fetch $LESS token balances for all collectors
+  const collectorAddresses = Array.from(collectorMap.keys());
+  console.log(`Fetching $LESS balances for ${collectorAddresses.length} collectors...`);
+
+  const balanceMap = new Map();
+  for (let start = 0; start < collectorAddresses.length; start += BATCH_SIZE) {
+    const end = Math.min(start + BATCH_SIZE, collectorAddresses.length);
+    const batch = collectorAddresses.slice(start, end);
+
+    const balanceCalls = batch.map(address => ({
+      address: LESS_STRATEGY_ADDRESS,
+      abi: STRATEGY_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    }));
+
+    const balanceResults = await client.multicall({ contracts: balanceCalls });
+
+    for (let i = 0; i < batch.length; i++) {
+      const result = balanceResults[i];
+      if (result.status === 'success') {
+        balanceMap.set(batch[i], result.result.toString());
+      } else {
+        balanceMap.set(batch[i], '0');
+      }
+    }
+  }
+
   // Convert to array and calculate stats
   const collectors = Array.from(collectorMap.values()).map(c => ({
     address: c.address,
@@ -225,6 +266,7 @@ async function main() {
     windowsCollected: Array.from(c.windowsSet).sort((a, b) => a - b),
     windowCount: c.windowsSet.size,
     isFullCollector: c.windowsSet.size === windows,
+    lessBalance: balanceMap.get(c.address) || '0',
     tokens: c.tokens.sort((a, b) => a.tokenId - b.tokenId),
   }));
 

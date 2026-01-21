@@ -4,11 +4,11 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useEnsName } from "wagmi";
 import { useLeaderboard, type Collector } from "@/hooks/useLeaderboard";
-import { truncateAddress, generateUnicodeProgressBar } from "@/lib/utils";
+import { truncateAddress, generateUnicodeProgressBar, formatTokenBalance } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 
-type SortField = "rank" | "tokens" | "windows";
+type SortField = "rank" | "tokens" | "windows" | "balance";
 type SortDir = "asc" | "desc";
 
 // Owner address excluded from rankings (shown at bottom greyed out)
@@ -39,6 +39,8 @@ function CollectorRow({
   // Use ENS name in URL if available, otherwise use address
   const collectorUrl = ensName ? `/collector/${ensName}` : `/collector/${collector.address}`;
 
+  const formattedBalance = formatTokenBalance(collector.lessBalance);
+
   return (
     <Link
       href={collectorUrl}
@@ -60,18 +62,21 @@ function CollectorRow({
       </div>
 
       {/* Collector */}
-      <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-        <span className="truncate">{displayName}</span>
-        {collector.isFullCollector && (
-          <span
-            className={`text-[9px] md:text-[10px] px-1 py-0.5 border shrink-0 ${
-              excluded ? "border-muted" : "border-foreground"
-            }`}
-            title="Full collector - owns token from every window"
-          >
-            FULL
-          </span>
-        )}
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 md:gap-2">
+          <span className="truncate">{displayName}</span>
+          {collector.isFullCollector && (
+            <span
+              className={`text-[9px] md:text-[10px] px-1 py-0.5 border shrink-0 ${
+                excluded ? "border-muted" : "border-foreground"
+              }`}
+              title="Full collector - owns token from every window"
+            >
+              FULL
+            </span>
+          )}
+        </div>
+        <div className="text-[10px] text-muted leading-tight">{formattedBalance} $LESS</div>
       </div>
 
       {/* Tokens */}
@@ -106,10 +111,13 @@ function LoadingSkeleton() {
             {Array.from({ length: 10 }).map((_, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[3rem_1fr_5rem_6rem_5rem] gap-4 py-3 px-4 border-b border-border"
+                className="grid grid-cols-[2.5rem_1fr_3rem_4rem_3.5rem] gap-3 py-2.5 px-4 border-b border-border"
               >
                 <Skeleton className="h-4 w-6" />
-                <Skeleton className="h-4 w-32" />
+                <div>
+                  <Skeleton className="h-4 w-32 mb-1" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
                 <Skeleton className="h-4 w-8 ml-auto" />
                 <Skeleton className="h-4 w-12 ml-auto" />
                 <Skeleton className="h-4 w-10 ml-auto" />
@@ -124,9 +132,8 @@ function LoadingSkeleton() {
 
 export default function CollectorsPage() {
   const { data, isLoading, error } = useLeaderboard();
-  const [sortField, setSortField] = useState<SortField>("rank");
+  const [sortField, setSortField] = useState<SortField>("windows");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [showFullOnly, setShowFullOnly] = useState(false);
   const [page, setPage] = useState(0);
 
   const PAGE_SIZE = 50;
@@ -136,7 +143,7 @@ export default function CollectorsPage() {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDir(field === "rank" ? "asc" : "desc");
+      setSortDir("asc"); // Default to highest first
     }
     setPage(0);
   };
@@ -162,12 +169,7 @@ export default function CollectorsPage() {
   const sortedCollectors = useMemo(() => {
     if (!rankedCollectors.length) return [];
 
-    let collectors = [...rankedCollectors];
-
-    // Filter
-    if (showFullOnly) {
-      collectors = collectors.filter((c) => c.isFullCollector);
-    }
+    const collectors = [...rankedCollectors];
 
     // Sort - default is by windows first, then tokens
     collectors.sort((a, b) => {
@@ -185,12 +187,17 @@ export default function CollectorsPage() {
           cmp = b.windowCount - a.windowCount;
           if (cmp === 0) cmp = b.tokenCount - a.tokenCount;
           break;
+        case "balance":
+          const balA = BigInt(a.lessBalance || "0");
+          const balB = BigInt(b.lessBalance || "0");
+          cmp = balB > balA ? 1 : balB < balA ? -1 : 0;
+          break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
 
     return collectors;
-  }, [rankedCollectors, sortField, sortDir, showFullOnly]);
+  }, [rankedCollectors, sortField, sortDir]);
 
   const paginatedCollectors = useMemo(() => {
     const start = page * PAGE_SIZE;
@@ -247,29 +254,6 @@ export default function CollectorsPage() {
             </p>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-4 mb-4">
-            {data.fullCollectors.filter(
-              (a) => a.toLowerCase() !== EXCLUDED_ADDRESS
-            ).length > 0 && (
-              <button
-                onClick={() => {
-                  setShowFullOnly(!showFullOnly);
-                  setPage(0);
-                }}
-                className={`text-sm px-3 py-1.5 border transition-colors ${
-                  showFullOnly
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border hover:border-foreground"
-                }`}
-              >
-                full collectors only
-              </button>
-            )}
-            {/* <span className="text-sm text-muted">
-              showing {sortedCollectors.length} of {rankedCollectors.length}
-            </span> */}
-          </div>
 
           {/* Table */}
           <div className="border border-border">
@@ -279,14 +263,22 @@ export default function CollectorsPage() {
                 onClick={() => handleSort("rank")}
                 className="text-left hover:text-foreground transition-colors"
               >
-                #
                 {sortField === "rank" && (
-                  <span className="ml-0.5">
-                    {sortDir === "asc" ? "↑" : "↓"}
-                  </span>
+                  <span>{sortDir === "asc" ? "↑" : "↓"}</span>
                 )}
               </button>
-              <div>collector</div>
+              <div className="flex justify-between">
+                <span>collector</span>
+                <button
+                  onClick={() => handleSort("balance")}
+                  className="text-muted/60 hover:text-foreground transition-colors"
+                >
+                  $LESS
+                  {sortField === "balance" && (
+                    <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </div>
               <button
                 onClick={() => handleSort("tokens")}
                 className="text-right hover:text-foreground transition-colors"

@@ -16,6 +16,7 @@ export interface Collector {
   windowsCollected: number[];
   windowCount: number;
   isFullCollector: boolean;
+  lessBalance: string;
   tokens: CollectorToken[];
   rank?: number;
   totalWindows?: number;

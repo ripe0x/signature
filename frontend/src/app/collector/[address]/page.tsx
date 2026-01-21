@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useEnsName, useEnsAddress } from "wagmi";
 import { useCollector, type CollectorToken } from "@/hooks/useLeaderboard";
-import { truncateAddress, seedToNumber } from "@/lib/utils";
+import { truncateAddress, seedToNumber, formatTokenBalance } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ArtworkCanvas } from "@/components/artwork/ArtworkCanvas";
 import { CollectorBounty } from "@/components/bounties/CollectorBounty";
@@ -238,7 +238,7 @@ export default function CollectorPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div className="border border-border p-4">
               <div className="text-2xl mb-1">{collector.tokenCount.toLocaleString()}</div>
               <div className="text-sm text-muted">tokens</div>
@@ -256,6 +256,10 @@ export default function CollectorPage() {
             <div className="border border-border p-4">
               <div className="text-2xl mb-1">{completionPercent}%</div>
               <div className="text-sm text-muted">completion</div>
+            </div>
+            <div className="border border-border p-4">
+              <div className="text-2xl mb-1">{formatTokenBalance(collector.lessBalance, false)}</div>
+              <div className="text-sm text-muted">$LESS</div>
             </div>
           </div>
 

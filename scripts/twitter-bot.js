@@ -2683,7 +2683,6 @@ async function processGroupedSales(
     // Check for royalty payments across all transactions
     let totalRoyaltyEth = null;
     let buyBurnBalanceEth = null;
-    const ROYALTY_RECIPIENT = "0x76b861d8f0e802d74f78793545ff82b1fde0fe36";
     try {
       // Get unique tx hashes (in case of multi-token purchase in single tx)
       const uniqueTxHashes = [...new Set(txHashes)];
@@ -2696,10 +2695,17 @@ async function processGroupedSales(
       }
       if (totalRoyaltyWei > 0n) {
         totalRoyaltyEth = formatEther(totalRoyaltyWei);
-        // Fetch current balance of buy+burn address
-        const balance = await client.getBalance({ address: ROYALTY_RECIPIENT });
-        buyBurnBalanceEth = formatEther(balance);
-        logInfo(`Buy+burn balance: ${buyBurnBalanceEth} ETH`);
+        // Fetch current balance of strategy contract (where buy+burn funds accumulate)
+        const strategyAddress = await client.readContract({
+          address: contractAddress,
+          abi,
+          functionName: "strategy",
+        });
+        if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
+          const balance = await client.getBalance({ address: strategyAddress });
+          buyBurnBalanceEth = formatEther(balance);
+          logInfo(`Buy+burn balance: ${buyBurnBalanceEth} ETH`);
+        }
       }
     } catch (error) {
       logWarn(`Failed to fetch royalty info: ${error.message}`);
@@ -5343,7 +5349,7 @@ function startAdminServer() {
 
         if (
           !type ||
-          !["balance", "window", "mint", "window-ended"].includes(type)
+          !["balance", "window", "mint", "window-ended", "sale"].includes(type)
         ) {
           sendJson(400, { error: "Invalid type" });
           return;
@@ -5488,6 +5494,113 @@ function startAdminServer() {
               }
             } catch (imgErr) {
               logWarn(`Failed to fetch grid image: ${imgErr.message}`);
+            }
+          } else if (type === "sale") {
+            if (!tokenId) {
+              sendJson(400, { error: "tokenId required" });
+              return;
+            }
+
+            const apiKey = process.env.OPENSEA_API_KEY;
+            if (!apiKey) {
+              sendJson(500, { error: "OPENSEA_API_KEY not configured" });
+              return;
+            }
+
+            // Create client for blockchain queries
+            const rpcUrl = getRpcUrl();
+            const contractAddress = getContractAddress();
+            const abi = loadContractABI();
+            const client = createPublicClient({
+              chain: getChain(),
+              transport: http(rpcUrl),
+            });
+
+            // Fetch sales from OpenSea
+            const collectionSlug = "say-less";
+            const url = `https://api.opensea.io/api/v2/events/collection/${collectionSlug}?event_type=sale&limit=50`;
+            const response = await fetch(url, {
+              headers: {
+                accept: "application/json",
+                "x-api-key": apiKey,
+              },
+            });
+
+            if (!response.ok) {
+              sendJson(500, { error: `OpenSea API error: ${response.status}` });
+              return;
+            }
+
+            const data = await response.json();
+            const events = data.asset_events || [];
+            const sale = events.find((e) => e.nft?.identifier === String(tokenId));
+
+            if (!sale) {
+              sendJson(404, { error: `No recent sale found for token #${tokenId}` });
+              return;
+            }
+
+            const buyer = sale.buyer;
+            const priceWei = BigInt(sale.payment?.quantity || "0");
+            const priceEth = formatEthValue(formatEther(priceWei));
+            const txHash = sale.transaction;
+
+            // Resolve display name
+            const buyerDisplay = await resolveDisplayName(buyer);
+
+            // Get collector stats
+            const collectorStats = await getCollectorStats(buyer, client, contractAddress, abi);
+
+            // Fetch window ID for the token
+            let windowIds = null;
+            try {
+              const result = await client.readContract({
+                address: contractAddress,
+                abi,
+                functionName: "getTokenData",
+                args: [BigInt(tokenId)],
+              });
+              windowIds = [Number(result.windowId ?? result)];
+            } catch (err) {
+              logWarn(`Failed to fetch window ID: ${err.message}`);
+            }
+
+            // Calculate royalty (1.69% of sale price)
+            const royaltyWei = (priceWei * 169n) / 10000n;
+            const royaltyEth = formatEther(royaltyWei);
+
+            // Fetch buy+burn balance from strategy contract
+            let buyBurnBalanceEth = null;
+            try {
+              const strategyAddress = await client.readContract({
+                address: contractAddress,
+                abi,
+                functionName: "strategy",
+              });
+              if (strategyAddress && strategyAddress !== "0x0000000000000000000000000000000000000000") {
+                const balance = await client.getBalance({ address: strategyAddress });
+                buyBurnBalanceEth = formatEther(balance);
+                logInfo(`Buy+burn balance: ${buyBurnBalanceEth} ETH`);
+              }
+            } catch (err) {
+              logWarn(`Failed to fetch buy+burn balance: ${err.message}`);
+            }
+
+            // Format tweet
+            tweetText = formatSaleTweet(
+              [Number(tokenId)],
+              buyerDisplay,
+              priceEth,
+              collectorStats,
+              windowIds,
+              formatEthValue(royaltyEth),
+              buyBurnBalanceEth
+            );
+
+            // Fetch image
+            imageBuffer = await fetchImage(Number(tokenId));
+            if (!imageBuffer) {
+              logWarn(`Failed to fetch image for sale tweet`);
             }
           }
 

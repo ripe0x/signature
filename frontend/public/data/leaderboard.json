@@ -1,8 +1,9 @@
 {
   "totalWindows": 21,
   "totalTokens": 1112,
-  "totalCollectors": 408,
+  "totalCollectors": 401,
   "fullCollectors": [
+    "0xe30337c6c904cf7b44c7e374ec427873c7aec95e",
     "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f"
   ],
   "collectors": [
@@ -32,6 +33,7 @@
       ],
       "windowCount": 19,
       "isFullCollector": false,
+      "lessBalance": "1592025535342837147136522",
       "tokens": [
         {
           "tokenId": 95,
@@ -240,6 +242,7 @@
       ],
       "windowCount": 18,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 4,
@@ -400,7 +403,7 @@
     },
     {
       "address": "0xc0549087333b7972088f3aef2b07eacbe0834b44",
-      "tokenCount": 29,
+      "tokenCount": 30,
       "windowsCollected": [
         0,
         1,
@@ -419,6 +422,7 @@
       ],
       "windowCount": 14,
       "isFullCollector": false,
+      "lessBalance": "11916554606304130371474145",
       "tokens": [
         {
           "tokenId": 83,
@@ -561,9 +565,181 @@
           "seed": "0x784bcdfa76a90eaf176be2d5ce00f481e031f4cd9a6a8e9fc18bcef1bdfe945c"
         },
         {
+          "tokenId": 1098,
+          "windowId": 20,
+          "seed": "0x4fa5c2c1641d9e66dc6fa9c44875412840026803973713180c58e66078d7f432"
+        },
+        {
           "tokenId": 1109,
           "windowId": 20,
           "seed": "0xbeb93f816ae3b50407141d096cac2f2e1744ff705daf95b3db9b20998fc52b5a"
+        }
+      ]
+    },
+    {
+      "address": "0xe30337c6c904cf7b44c7e374ec427873c7aec95e",
+      "tokenCount": 27,
+      "windowsCollected": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "windowCount": 21,
+      "isFullCollector": true,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 20,
+          "windowId": 0,
+          "seed": "0xd485b5c010594547e559a8090767e148dac669289c755a960a48c98f8892fa50"
+        },
+        {
+          "tokenId": 29,
+          "windowId": 0,
+          "seed": "0xe37419e231d8b84e5c496b54f2f92b4347e057fc089b6a056d4b9002403de345"
+        },
+        {
+          "tokenId": 121,
+          "windowId": 0,
+          "seed": "0xa0296cd955f5f73928522e4ee76abd43e66d74636dcd6ab63b9e8e0fb11e5507"
+        },
+        {
+          "tokenId": 184,
+          "windowId": 1,
+          "seed": "0x59c760bcd249be18d2a460ef55afa1f30cd85210da6f8c18e4304a1264e43c59"
+        },
+        {
+          "tokenId": 393,
+          "windowId": 2,
+          "seed": "0x1f111f2991966a251280b24f541351e1b05f3a404c8efaf1b75010350e706328"
+        },
+        {
+          "tokenId": 477,
+          "windowId": 3,
+          "seed": "0xe496325f4e2d1d8653ae89340ed17e3b2dfd87ef429940a49e812d16c3cc62d0"
+        },
+        {
+          "tokenId": 530,
+          "windowId": 4,
+          "seed": "0x91a032601de0c85279196c63ec97737551ebf68123d8cd4e642f048d65503897"
+        },
+        {
+          "tokenId": 575,
+          "windowId": 5,
+          "seed": "0x4fec7c3b3126227a59e1058dbb44ecdd72dccb48bf47c28e24a488e2f80b4e99"
+        },
+        {
+          "tokenId": 576,
+          "windowId": 5,
+          "seed": "0x9a430092d1ca5ef7d814bea06b218bedec84c2fd7a5c20269defa729bd786b50"
+        },
+        {
+          "tokenId": 618,
+          "windowId": 6,
+          "seed": "0xbfee8167716114d2909e5e09ae482430930f36e0042233262a914bdc34131cf0"
+        },
+        {
+          "tokenId": 643,
+          "windowId": 7,
+          "seed": "0x8e7faf7283c4ebfec566ab0b2892afb1749f821454f25af48cd267c3de1aae87"
+        },
+        {
+          "tokenId": 678,
+          "windowId": 8,
+          "seed": "0x4f33a5ecf306f59ebc6003da8ebace8f023af66db41c7b84e5d34fb5997b177b"
+        },
+        {
+          "tokenId": 708,
+          "windowId": 9,
+          "seed": "0x3af452ab2e073f14afd68276aa49d6bfc0e3ab194806530d04b6e61c3bd45530"
+        },
+        {
+          "tokenId": 732,
+          "windowId": 10,
+          "seed": "0xcb4ca79f4f2a51d70d3e582400ef92264b0e67599eb5a64ba857fc23b860ca17"
+        },
+        {
+          "tokenId": 746,
+          "windowId": 11,
+          "seed": "0x5bef83872d06e431bed5982a4e777187d28cbc16311e3f2483177e6af86138b7"
+        },
+        {
+          "tokenId": 779,
+          "windowId": 12,
+          "seed": "0x50f28fcfb7b28a2b1e911d4c4bf752d20b35a5c76ae14654c5a1591a9eef45e6"
+        },
+        {
+          "tokenId": 806,
+          "windowId": 13,
+          "seed": "0xf891cafbebf75a8f97386cac711b6517ac9173403fe88647184d4def17f08318"
+        },
+        {
+          "tokenId": 834,
+          "windowId": 14,
+          "seed": "0x55cbc1574cf6e7e91c594798b426f7b7059fd9d9206ce1ddfbde4815521f5b10"
+        },
+        {
+          "tokenId": 867,
+          "windowId": 15,
+          "seed": "0x9014dda6acd51e730156e220bb89b85af15de89762444014278393130a1b839e"
+        },
+        {
+          "tokenId": 879,
+          "windowId": 16,
+          "seed": "0x8722fe614af0907a3765d6312636d3657d0d13c9abd589a7001885aff36704cf"
+        },
+        {
+          "tokenId": 905,
+          "windowId": 16,
+          "seed": "0x7c8dd6b9a6097b3dd7da3f7112f8bf0a93515ad709a7e695a71777aa9f6faeeb"
+        },
+        {
+          "tokenId": 921,
+          "windowId": 17,
+          "seed": "0xf963ee4781939fcc53cb0f9ea999ba311c281296beefffd21783162a05c6c97b"
+        },
+        {
+          "tokenId": 922,
+          "windowId": 17,
+          "seed": "0x49d34020c6e48dc4f5ab4871eb910005c18f225a04fdef7e468618b1cec6cf0c"
+        },
+        {
+          "tokenId": 961,
+          "windowId": 18,
+          "seed": "0xad7566ee63a69326bc3fac93935ee104a30d56b5dc3a2afcf5ca8187b5532eb1"
+        },
+        {
+          "tokenId": 1026,
+          "windowId": 19,
+          "seed": "0xe60cde7d8b83a0a5862b08fd538654231006375d0633fb0f0d8e2eb01f638eb0"
+        },
+        {
+          "tokenId": 1033,
+          "windowId": 19,
+          "seed": "0x61e0c8fb37686e47f271c4e6053cf5447247292ff6db4ca668965f4963a91185"
+        },
+        {
+          "tokenId": 1047,
+          "windowId": 20,
+          "seed": "0x7e93f8f7af3507c019a3d90a63cc5c719f2d33a1123968f82ac71829574a3252"
         }
       ]
     },
@@ -595,6 +771,7 @@
       ],
       "windowCount": 21,
       "isFullCollector": true,
+      "lessBalance": "507088416588406125101861",
       "tokens": [
         {
           "tokenId": 18,
@@ -729,166 +906,13 @@
       ]
     },
     {
-      "address": "0xe30337c6c904cf7b44c7e374ec427873c7aec95e",
-      "tokenCount": 25,
-      "windowsCollected": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ],
-      "windowCount": 19,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 20,
-          "windowId": 0,
-          "seed": "0xd485b5c010594547e559a8090767e148dac669289c755a960a48c98f8892fa50"
-        },
-        {
-          "tokenId": 29,
-          "windowId": 0,
-          "seed": "0xe37419e231d8b84e5c496b54f2f92b4347e057fc089b6a056d4b9002403de345"
-        },
-        {
-          "tokenId": 121,
-          "windowId": 0,
-          "seed": "0xa0296cd955f5f73928522e4ee76abd43e66d74636dcd6ab63b9e8e0fb11e5507"
-        },
-        {
-          "tokenId": 184,
-          "windowId": 1,
-          "seed": "0x59c760bcd249be18d2a460ef55afa1f30cd85210da6f8c18e4304a1264e43c59"
-        },
-        {
-          "tokenId": 393,
-          "windowId": 2,
-          "seed": "0x1f111f2991966a251280b24f541351e1b05f3a404c8efaf1b75010350e706328"
-        },
-        {
-          "tokenId": 477,
-          "windowId": 3,
-          "seed": "0xe496325f4e2d1d8653ae89340ed17e3b2dfd87ef429940a49e812d16c3cc62d0"
-        },
-        {
-          "tokenId": 530,
-          "windowId": 4,
-          "seed": "0x91a032601de0c85279196c63ec97737551ebf68123d8cd4e642f048d65503897"
-        },
-        {
-          "tokenId": 575,
-          "windowId": 5,
-          "seed": "0x4fec7c3b3126227a59e1058dbb44ecdd72dccb48bf47c28e24a488e2f80b4e99"
-        },
-        {
-          "tokenId": 576,
-          "windowId": 5,
-          "seed": "0x9a430092d1ca5ef7d814bea06b218bedec84c2fd7a5c20269defa729bd786b50"
-        },
-        {
-          "tokenId": 618,
-          "windowId": 6,
-          "seed": "0xbfee8167716114d2909e5e09ae482430930f36e0042233262a914bdc34131cf0"
-        },
-        {
-          "tokenId": 643,
-          "windowId": 7,
-          "seed": "0x8e7faf7283c4ebfec566ab0b2892afb1749f821454f25af48cd267c3de1aae87"
-        },
-        {
-          "tokenId": 678,
-          "windowId": 8,
-          "seed": "0x4f33a5ecf306f59ebc6003da8ebace8f023af66db41c7b84e5d34fb5997b177b"
-        },
-        {
-          "tokenId": 708,
-          "windowId": 9,
-          "seed": "0x3af452ab2e073f14afd68276aa49d6bfc0e3ab194806530d04b6e61c3bd45530"
-        },
-        {
-          "tokenId": 732,
-          "windowId": 10,
-          "seed": "0xcb4ca79f4f2a51d70d3e582400ef92264b0e67599eb5a64ba857fc23b860ca17"
-        },
-        {
-          "tokenId": 806,
-          "windowId": 13,
-          "seed": "0xf891cafbebf75a8f97386cac711b6517ac9173403fe88647184d4def17f08318"
-        },
-        {
-          "tokenId": 834,
-          "windowId": 14,
-          "seed": "0x55cbc1574cf6e7e91c594798b426f7b7059fd9d9206ce1ddfbde4815521f5b10"
-        },
-        {
-          "tokenId": 867,
-          "windowId": 15,
-          "seed": "0x9014dda6acd51e730156e220bb89b85af15de89762444014278393130a1b839e"
-        },
-        {
-          "tokenId": 879,
-          "windowId": 16,
-          "seed": "0x8722fe614af0907a3765d6312636d3657d0d13c9abd589a7001885aff36704cf"
-        },
-        {
-          "tokenId": 905,
-          "windowId": 16,
-          "seed": "0x7c8dd6b9a6097b3dd7da3f7112f8bf0a93515ad709a7e695a71777aa9f6faeeb"
-        },
-        {
-          "tokenId": 921,
-          "windowId": 17,
-          "seed": "0xf963ee4781939fcc53cb0f9ea999ba311c281296beefffd21783162a05c6c97b"
-        },
-        {
-          "tokenId": 922,
-          "windowId": 17,
-          "seed": "0x49d34020c6e48dc4f5ab4871eb910005c18f225a04fdef7e468618b1cec6cf0c"
-        },
-        {
-          "tokenId": 961,
-          "windowId": 18,
-          "seed": "0xad7566ee63a69326bc3fac93935ee104a30d56b5dc3a2afcf5ca8187b5532eb1"
-        },
-        {
-          "tokenId": 1026,
-          "windowId": 19,
-          "seed": "0xe60cde7d8b83a0a5862b08fd538654231006375d0633fb0f0d8e2eb01f638eb0"
-        },
-        {
-          "tokenId": 1033,
-          "windowId": 19,
-          "seed": "0x61e0c8fb37686e47f271c4e6053cf5447247292ff6db4ca668965f4963a91185"
-        },
-        {
-          "tokenId": 1047,
-          "windowId": 20,
-          "seed": "0x7e93f8f7af3507c019a3d90a63cc5c719f2d33a1123968f82ac71829574a3252"
-        }
-      ]
-    },
-    {
       "address": "0x1439b4d5a72343b68f12398c649df99d76b2af53",
-      "tokenCount": 23,
+      "tokenCount": 24,
       "windowsCollected": [
         0,
         1,
         2,
+        4,
         5,
         6,
         7,
@@ -904,8 +928,9 @@
         19,
         20
       ],
-      "windowCount": 17,
+      "windowCount": 18,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 167,
@@ -921,6 +946,11 @@
           "tokenId": 343,
           "windowId": 2,
           "seed": "0xbdbdbe1a5ed4b3666201cd1427331c5025ca469a94e44170baeb8a9981380f7b"
+        },
+        {
+          "tokenId": 541,
+          "windowId": 4,
+          "seed": "0x42fc7f83e973898676767a9b46305e514903948da5d85f895bb4bae2c4537c14"
         },
         {
           "tokenId": 557,
@@ -1041,6 +1071,7 @@
       ],
       "windowCount": 10,
       "isFullCollector": false,
+      "lessBalance": "11478679209551179465826047",
       "tokens": [
         {
           "tokenId": 127,
@@ -1178,6 +1209,7 @@
       ],
       "windowCount": 17,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 157,
@@ -1289,6 +1321,7 @@
       ],
       "windowCount": 11,
       "isFullCollector": false,
+      "lessBalance": "400812617964751204228292",
       "tokens": [
         {
           "tokenId": 8,
@@ -1384,7 +1417,7 @@
     },
     {
       "address": "0x06e75d702698f901ba9558e8e8f1ccc14dd9927f",
-      "tokenCount": 13,
+      "tokenCount": 14,
       "windowsCollected": [
         0,
         1,
@@ -1396,10 +1429,12 @@
         15,
         16,
         18,
+        19,
         20
       ],
-      "windowCount": 11,
+      "windowCount": 12,
       "isFullCollector": false,
+      "lessBalance": "690263370985154514763704",
       "tokens": [
         {
           "tokenId": 27,
@@ -1462,6 +1497,11 @@
           "seed": "0xcb908c5673f135654d3b08bcafb33e7356b418fe303cd88a44cb9a7c144b4fd2"
         },
         {
+          "tokenId": 1018,
+          "windowId": 19,
+          "seed": "0x66bbd745748c2d792554b6c5bfdaccad801c64f4ec69fdae9d0c054b993bf090"
+        },
+        {
           "tokenId": 1062,
           "windowId": 20,
           "seed": "0xdde4e3be8b6e8129d4042fedd0d4333ba59e9e81d4da2219b754ce488b93ef53"
@@ -1482,6 +1522,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
+      "lessBalance": "373605205144181216686529",
       "tokens": [
         {
           "tokenId": 355,
@@ -1564,6 +1605,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 128,
@@ -1623,6 +1665,78 @@
       ]
     },
     {
+      "address": "0xd3c624134166c385256f125cac3aed2ff18134a3",
+      "tokenCount": 11,
+      "windowsCollected": [
+        0,
+        1,
+        2,
+        3,
+        19,
+        20
+      ],
+      "windowCount": 6,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 78,
+          "windowId": 0,
+          "seed": "0xc39e3cc964dda4eddf2caf600775c1924d868878317801c51fda0f17e70a0ff7"
+        },
+        {
+          "tokenId": 115,
+          "windowId": 0,
+          "seed": "0x8995b833a4d482e6ffe287ebf8dbb41b36dcd5259b5bc75d5b6f772acd3a8b5f"
+        },
+        {
+          "tokenId": 136,
+          "windowId": 0,
+          "seed": "0xed03c2b6632db283a2dbb9ca972e14f28b1293fa7a97bc2319aabfb874f8e692"
+        },
+        {
+          "tokenId": 180,
+          "windowId": 0,
+          "seed": "0x24b816265c82388aedeb62fee641c717b89ca133a87d7780484c5991f1e985e1"
+        },
+        {
+          "tokenId": 204,
+          "windowId": 1,
+          "seed": "0xfcc2f700919d8e96dc0f07a1f06a1c4fe795a8c90f8f348e5deca8ada738ed1d"
+        },
+        {
+          "tokenId": 258,
+          "windowId": 1,
+          "seed": "0xc619f1bf799d7156ec4cf6051e74c9dc53b24a4ffaa459f2c21a66d898d8ca5f"
+        },
+        {
+          "tokenId": 301,
+          "windowId": 1,
+          "seed": "0xcd02291987fcf98c6ee015a544064f7f9f50f8c7b74401d747df84ea746582ad"
+        },
+        {
+          "tokenId": 447,
+          "windowId": 2,
+          "seed": "0x8ceacf1fde15be7b0cd42c39b6d2cefb120a48bd57ad27cd7c104fb1348d86cc"
+        },
+        {
+          "tokenId": 472,
+          "windowId": 3,
+          "seed": "0x482d02ffe183f631acff700919f94efca877b123c697c16f08d6792bacf177c0"
+        },
+        {
+          "tokenId": 1015,
+          "windowId": 19,
+          "seed": "0xa4e1241d0be66ae60ce1a4190ce72483e1aa902cb11e5c6538184e19869b885c"
+        },
+        {
+          "tokenId": 1050,
+          "windowId": 20,
+          "seed": "0xb945bf05ecc852b7ed597438581081ee429f3569fdd965e3ee9c8699e8da391e"
+        }
+      ]
+    },
+    {
       "address": "0x27e26b04f0850ae04074d3dbbeac98784db900e0",
       "tokenCount": 11,
       "windowsCollected": [
@@ -1631,6 +1745,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 38,
@@ -1703,6 +1818,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 70,
@@ -1768,6 +1884,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 6,
@@ -1830,6 +1947,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 62,
@@ -1892,6 +2010,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 143,
@@ -1960,6 +2079,7 @@
       ],
       "windowCount": 8,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 51,
@@ -2023,6 +2143,7 @@
       ],
       "windowCount": 8,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 193,
@@ -2085,6 +2206,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 11,
@@ -2146,6 +2268,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 793,
@@ -2195,123 +2318,6 @@
       ]
     },
     {
-      "address": "0xd3c624134166c385256f125cac3aed2ff18134a3",
-      "tokenCount": 9,
-      "windowsCollected": [
-        0,
-        1,
-        3,
-        19,
-        20
-      ],
-      "windowCount": 5,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 78,
-          "windowId": 0,
-          "seed": "0xc39e3cc964dda4eddf2caf600775c1924d868878317801c51fda0f17e70a0ff7"
-        },
-        {
-          "tokenId": 115,
-          "windowId": 0,
-          "seed": "0x8995b833a4d482e6ffe287ebf8dbb41b36dcd5259b5bc75d5b6f772acd3a8b5f"
-        },
-        {
-          "tokenId": 136,
-          "windowId": 0,
-          "seed": "0xed03c2b6632db283a2dbb9ca972e14f28b1293fa7a97bc2319aabfb874f8e692"
-        },
-        {
-          "tokenId": 180,
-          "windowId": 0,
-          "seed": "0x24b816265c82388aedeb62fee641c717b89ca133a87d7780484c5991f1e985e1"
-        },
-        {
-          "tokenId": 204,
-          "windowId": 1,
-          "seed": "0xfcc2f700919d8e96dc0f07a1f06a1c4fe795a8c90f8f348e5deca8ada738ed1d"
-        },
-        {
-          "tokenId": 258,
-          "windowId": 1,
-          "seed": "0xc619f1bf799d7156ec4cf6051e74c9dc53b24a4ffaa459f2c21a66d898d8ca5f"
-        },
-        {
-          "tokenId": 472,
-          "windowId": 3,
-          "seed": "0x482d02ffe183f631acff700919f94efca877b123c697c16f08d6792bacf177c0"
-        },
-        {
-          "tokenId": 1015,
-          "windowId": 19,
-          "seed": "0xa4e1241d0be66ae60ce1a4190ce72483e1aa902cb11e5c6538184e19869b885c"
-        },
-        {
-          "tokenId": 1050,
-          "windowId": 20,
-          "seed": "0xb945bf05ecc852b7ed597438581081ee429f3569fdd965e3ee9c8699e8da391e"
-        }
-      ]
-    },
-    {
-      "address": "0xa585d2ae9fc1d84fe2ef0213d114c7a7f4638907",
-      "tokenCount": 8,
-      "windowsCollected": [
-        0,
-        7,
-        9,
-        10,
-        18,
-        19,
-        20
-      ],
-      "windowCount": 7,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 66,
-          "windowId": 0,
-          "seed": "0x45ec436a706a4af903366f084e3a9d5175e73b1f8ca2ee861aa6d093d1ce63ec"
-        },
-        {
-          "tokenId": 649,
-          "windowId": 7,
-          "seed": "0x7241f6a94793ad56367c708ec6221acd93ff34326b90c59a75182f12a876b9db"
-        },
-        {
-          "tokenId": 711,
-          "windowId": 9,
-          "seed": "0x22a897a1b4e467f4b5f3b35b14dafa60da47ef7555b2acc26b36740c6b986883"
-        },
-        {
-          "tokenId": 740,
-          "windowId": 10,
-          "seed": "0x6a61116861d11ca79d2ba53f8773acbb1f4bbf019825ce60ecd8cb144df12e5a"
-        },
-        {
-          "tokenId": 946,
-          "windowId": 18,
-          "seed": "0x56d57c8b776f194955310c482eec0c220c8749dc7c108897d6d4930ea5d9c608"
-        },
-        {
-          "tokenId": 999,
-          "windowId": 19,
-          "seed": "0x09d2f31c685dcd0cf44e889ed953f06c5933715e2e185ca04149225097631cf0"
-        },
-        {
-          "tokenId": 1028,
-          "windowId": 19,
-          "seed": "0xe563c9dd789c3fa33ff130be42091775d8803aedaf39ee7cf3e016d3a96ff111"
-        },
-        {
-          "tokenId": 1099,
-          "windowId": 20,
-          "seed": "0x094047304c9d044473c6d5dfa946bc362b38988c15a25898ebb9cdad21c2f206"
-        }
-      ]
-    },
-    {
       "address": "0x882ebe579e11104ffa610fad8b0b947955cf3d3d",
       "tokenCount": 8,
       "windowsCollected": [
@@ -2325,6 +2331,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
+      "lessBalance": "1051271086959314974661828",
       "tokens": [
         {
           "tokenId": 133,
@@ -2381,6 +2388,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
+      "lessBalance": "1435211508863149016755891",
       "tokens": [
         {
           "tokenId": 60,
@@ -2436,6 +2444,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 244,
@@ -2490,6 +2499,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 546,
@@ -2534,6 +2544,59 @@
       ]
     },
     {
+      "address": "0xa585d2ae9fc1d84fe2ef0213d114c7a7f4638907",
+      "tokenCount": 7,
+      "windowsCollected": [
+        0,
+        7,
+        9,
+        10,
+        18,
+        19,
+        20
+      ],
+      "windowCount": 7,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 66,
+          "windowId": 0,
+          "seed": "0x45ec436a706a4af903366f084e3a9d5175e73b1f8ca2ee861aa6d093d1ce63ec"
+        },
+        {
+          "tokenId": 649,
+          "windowId": 7,
+          "seed": "0x7241f6a94793ad56367c708ec6221acd93ff34326b90c59a75182f12a876b9db"
+        },
+        {
+          "tokenId": 711,
+          "windowId": 9,
+          "seed": "0x22a897a1b4e467f4b5f3b35b14dafa60da47ef7555b2acc26b36740c6b986883"
+        },
+        {
+          "tokenId": 740,
+          "windowId": 10,
+          "seed": "0x6a61116861d11ca79d2ba53f8773acbb1f4bbf019825ce60ecd8cb144df12e5a"
+        },
+        {
+          "tokenId": 946,
+          "windowId": 18,
+          "seed": "0x56d57c8b776f194955310c482eec0c220c8749dc7c108897d6d4930ea5d9c608"
+        },
+        {
+          "tokenId": 1028,
+          "windowId": 19,
+          "seed": "0xe563c9dd789c3fa33ff130be42091775d8803aedaf39ee7cf3e016d3a96ff111"
+        },
+        {
+          "tokenId": 1099,
+          "windowId": 20,
+          "seed": "0x094047304c9d044473c6d5dfa946bc362b38988c15a25898ebb9cdad21c2f206"
+        }
+      ]
+    },
+    {
       "address": "0x3f9a42edfde891198a5fe82cd8b5378a7045df8e",
       "tokenCount": 7,
       "windowsCollected": [
@@ -2546,6 +2609,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
+      "lessBalance": "661381473675216827725091",
       "tokens": [
         {
           "tokenId": 55,
@@ -2597,6 +2661,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 824,
@@ -2647,6 +2712,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "5456120082920364829052300",
       "tokens": [
         {
           "tokenId": 240,
@@ -2696,6 +2762,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 49,
@@ -2743,6 +2810,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 30,
@@ -2794,6 +2862,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 53,
@@ -2839,6 +2908,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "1018290713831810297205719",
       "tokens": [
         {
           "tokenId": 272,
@@ -2884,6 +2954,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 722,
@@ -2927,6 +2998,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 114,
@@ -2970,6 +3042,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 123,
@@ -3013,6 +3086,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 144,
@@ -3055,6 +3129,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "5908174972699536672475416",
       "tokens": [
         {
           "tokenId": 37,
@@ -3096,6 +3171,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 440,
@@ -3137,6 +3213,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "676522561341073836842658",
       "tokens": [
         {
           "tokenId": 702,
@@ -3178,6 +3255,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 763,
@@ -3219,6 +3297,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 985,
@@ -3264,6 +3343,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 160,
@@ -3304,6 +3384,7 @@
       ],
       "windowCount": 5,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 802,
@@ -3343,6 +3424,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 75,
@@ -3381,6 +3463,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 247,
@@ -3419,6 +3502,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "4058780611313603311131512",
       "tokens": [
         {
           "tokenId": 460,
@@ -3457,6 +3541,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 790,
@@ -3494,6 +3579,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 307,
@@ -3531,6 +3617,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "174055822772293842491966",
       "tokens": [
         {
           "tokenId": 360,
@@ -3567,6 +3654,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "3586668019886829814017020",
       "tokens": [
         {
           "tokenId": 321,
@@ -3603,6 +3691,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 377,
@@ -3639,6 +3728,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "865234119835906509977641",
       "tokens": [
         {
           "tokenId": 502,
@@ -3675,6 +3765,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 622,
@@ -3711,6 +3802,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 773,
@@ -3740,6 +3832,41 @@
       ]
     },
     {
+      "address": "0xd910201439151ab8d3a2601a99b1f70347b92a3d",
+      "tokenCount": 4,
+      "windowsCollected": [
+        0,
+        6,
+        8,
+        19
+      ],
+      "windowCount": 4,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 46,
+          "windowId": 0,
+          "seed": "0xe45d38de6b8b150d48cb4b65850a3ed8f745fd54577d9e81c90a8f9832f3556a"
+        },
+        {
+          "tokenId": 616,
+          "windowId": 6,
+          "seed": "0xc3b55044b70eabd08e829e413b6e26778b4e0c08e06c4f6653dfc9b017182dc7"
+        },
+        {
+          "tokenId": 670,
+          "windowId": 8,
+          "seed": "0x90da3962eb3bfbe3023a5f260c02e147a9725a7cc8ec5c736a5e78f47843a79c"
+        },
+        {
+          "tokenId": 999,
+          "windowId": 19,
+          "seed": "0x09d2f31c685dcd0cf44e889ed953f06c5933715e2e185ca04149225097631cf0"
+        }
+      ]
+    },
+    {
       "address": "0x11e85427f582206b913a424d0f1c729645bd1563",
       "tokenCount": 4,
       "windowsCollected": [
@@ -3750,6 +3877,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "1221649085188179547589584",
       "tokens": [
         {
           "tokenId": 52,
@@ -3784,6 +3912,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 102,
@@ -3818,6 +3947,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 129,
@@ -3852,6 +3982,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 469,
@@ -3886,6 +4017,7 @@
       ],
       "windowCount": 4,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 595,
@@ -3919,6 +4051,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 630,
@@ -3952,6 +4085,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "188321076467287998903762",
       "tokens": [
         {
           "tokenId": 645,
@@ -3984,6 +4118,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 110,
@@ -4016,6 +4151,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 302,
@@ -4048,6 +4184,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 791,
@@ -4079,6 +4216,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 23,
@@ -4110,6 +4248,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 233,
@@ -4141,6 +4280,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 363,
@@ -4172,6 +4312,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "171215232617235257910401",
       "tokens": [
         {
           "tokenId": 453,
@@ -4203,6 +4344,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 497,
@@ -4234,6 +4376,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 748,
@@ -4265,6 +4408,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 881,
@@ -4289,34 +4433,6 @@
       ]
     },
     {
-      "address": "0xd910201439151ab8d3a2601a99b1f70347b92a3d",
-      "tokenCount": 3,
-      "windowsCollected": [
-        0,
-        6,
-        8
-      ],
-      "windowCount": 3,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 46,
-          "windowId": 0,
-          "seed": "0xe45d38de6b8b150d48cb4b65850a3ed8f745fd54577d9e81c90a8f9832f3556a"
-        },
-        {
-          "tokenId": 616,
-          "windowId": 6,
-          "seed": "0xc3b55044b70eabd08e829e413b6e26778b4e0c08e06c4f6653dfc9b017182dc7"
-        },
-        {
-          "tokenId": 670,
-          "windowId": 8,
-          "seed": "0x90da3962eb3bfbe3023a5f260c02e147a9725a7cc8ec5c736a5e78f47843a79c"
-        }
-      ]
-    },
-    {
       "address": "0x13a7d2fb3f73b57ef539c35c4ec59ed49b1833ca",
       "tokenCount": 3,
       "windowsCollected": [
@@ -4326,6 +4442,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 88,
@@ -4354,6 +4471,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 178,
@@ -4382,6 +4500,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "185424789674187064979433",
       "tokens": [
         {
           "tokenId": 239,
@@ -4410,6 +4529,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "2772665528040054991412856",
       "tokens": [
         {
           "tokenId": 260,
@@ -4438,6 +4558,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 400,
@@ -4466,6 +4587,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 484,
@@ -4494,6 +4616,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 631,
@@ -4522,6 +4645,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "981290214112380891879305",
       "tokens": [
         {
           "tokenId": 741,
@@ -4550,6 +4674,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "401109323895961570259896",
       "tokens": [
         {
           "tokenId": 744,
@@ -4578,6 +4703,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 799,
@@ -4605,6 +4731,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 59,
@@ -4632,6 +4759,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 109,
@@ -4651,6 +4779,34 @@
       ]
     },
     {
+      "address": "0x759c51e04dd9062e8d2071febe9d47caea199de5",
+      "tokenCount": 3,
+      "windowsCollected": [
+        1,
+        20
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 188,
+          "windowId": 1,
+          "seed": "0x20b25aff204c45a547a729c065d2190265ce625b8d3edd3932d57906e5b48b94"
+        },
+        {
+          "tokenId": 194,
+          "windowId": 1,
+          "seed": "0x0b07666282982c49eb5d34a3a4a55ab72cee447a8199519f45f46a7ec9480d5c"
+        },
+        {
+          "tokenId": 1074,
+          "windowId": 20,
+          "seed": "0xb6fbd015c09e5ed7d7d87972145a416fe06ad7392096496efb85967d39c3c03a"
+        }
+      ]
+    },
+    {
       "address": "0xa00e4ba46907fcbf84b3ba22c7b5689e6db827a0",
       "tokenCount": 3,
       "windowsCollected": [
@@ -4659,6 +4815,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 673,
@@ -4686,6 +4843,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 679,
@@ -4713,6 +4871,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1021,
@@ -4739,6 +4898,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 104,
@@ -4765,6 +4925,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 175,
@@ -4791,6 +4952,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 251,
@@ -4817,6 +4979,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 263,
@@ -4843,6 +5006,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 285,
@@ -4869,6 +5033,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 313,
@@ -4895,6 +5060,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 394,
@@ -4921,6 +5087,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1051405248256647660747474",
       "tokens": [
         {
           "tokenId": 414,
@@ -4947,6 +5114,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 434,
@@ -4973,6 +5141,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 479,
@@ -4999,6 +5168,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 525,
@@ -5025,6 +5195,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 562,
@@ -5051,6 +5222,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 565,
@@ -5077,6 +5249,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "227728807369373837642282",
       "tokens": [
         {
           "tokenId": 1001,
@@ -5104,6 +5277,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 2,
@@ -5126,6 +5300,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 3,
@@ -5148,6 +5323,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 45,
@@ -5170,6 +5346,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 50,
@@ -5192,6 +5369,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 73,
@@ -5214,6 +5392,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 86,
@@ -5236,6 +5415,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 118,
@@ -5258,6 +5438,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 162,
@@ -5272,28 +5453,6 @@
       ]
     },
     {
-      "address": "0x5bd977356546db1adb54b6903862d7c2f187839b",
-      "tokenCount": 2,
-      "windowsCollected": [
-        1,
-        20
-      ],
-      "windowCount": 2,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 188,
-          "windowId": 1,
-          "seed": "0x20b25aff204c45a547a729c065d2190265ce625b8d3edd3932d57906e5b48b94"
-        },
-        {
-          "tokenId": 1083,
-          "windowId": 20,
-          "seed": "0x4d492a257f23cfaced05ff05c5d854bbb4c564403f762b1cb76a16877f92e269"
-        }
-      ]
-    },
-    {
       "address": "0xd7b064f257428e7b0d5f6216bc31ecdebdccad62",
       "tokenCount": 2,
       "windowsCollected": [
@@ -5302,6 +5461,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 259,
@@ -5324,6 +5484,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 425,
@@ -5338,28 +5499,6 @@
       ]
     },
     {
-      "address": "0xd598e0ccbbc94714422d544f1caf162234c296ba",
-      "tokenCount": 2,
-      "windowsCollected": [
-        3,
-        11
-      ],
-      "windowCount": 2,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 461,
-          "windowId": 3,
-          "seed": "0x3c929c0fd80b637e0c7c2818edc0ce0f3ecaf82e67d3423724fa2337a9ff06ba"
-        },
-        {
-          "tokenId": 746,
-          "windowId": 11,
-          "seed": "0x5bef83872d06e431bed5982a4e777187d28cbc16311e3f2483177e6af86138b7"
-        }
-      ]
-    },
-    {
       "address": "0x5526224e992909a632a8430a05e74b814e8ade5a",
       "tokenCount": 2,
       "windowsCollected": [
@@ -5368,6 +5507,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 491,
@@ -5390,6 +5530,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 545,
@@ -5412,6 +5553,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 561,
@@ -5434,6 +5576,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 577,
@@ -5456,6 +5599,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 589,
@@ -5478,6 +5622,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 591,
@@ -5500,6 +5645,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "7306679523278156033605842",
       "tokens": [
         {
           "tokenId": 594,
@@ -5522,6 +5668,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 657,
@@ -5544,6 +5691,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 671,
@@ -5566,6 +5714,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 742,
@@ -5588,6 +5737,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 808,
@@ -5610,6 +5760,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "106659667614699540861085",
       "tokens": [
         {
           "tokenId": 837,
@@ -5632,6 +5783,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 885,
@@ -5654,6 +5806,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 950,
@@ -5668,6 +5821,29 @@
       ]
     },
     {
+      "address": "0x0ef6de1375033dcfd71d4dca24792e809fa59cea",
+      "tokenCount": 2,
+      "windowsCollected": [
+        18,
+        20
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 952,
+          "windowId": 18,
+          "seed": "0x9da1deaf027c6afa6a5e122cc525bb466f7554ebe5c64ef6dab22ebca1651926"
+        },
+        {
+          "tokenId": 1088,
+          "windowId": 20,
+          "seed": "0x3f368a7990eb0b1298bae3b48852e6a74dcce6c51fdac4cb6a5d09433042300f"
+        }
+      ]
+    },
+    {
       "address": "0x142e6ee40bd42643aa4d3f7a0ae066997f902788",
       "tokenCount": 2,
       "windowsCollected": [
@@ -5675,6 +5851,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 14,
@@ -5696,6 +5873,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 22,
@@ -5717,6 +5895,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 41,
@@ -5738,6 +5917,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 47,
@@ -5759,6 +5939,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 56,
@@ -5780,6 +5961,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 57,
@@ -5801,6 +5983,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 76,
@@ -5822,6 +6005,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 81,
@@ -5843,6 +6027,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 84,
@@ -5864,6 +6049,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1934791673234287463463216",
       "tokens": [
         {
           "tokenId": 91,
@@ -5885,6 +6071,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 99,
@@ -5906,6 +6093,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 139,
@@ -5927,6 +6115,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 153,
@@ -5948,6 +6137,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 164,
@@ -5969,6 +6159,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 221,
@@ -5990,6 +6181,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 228,
@@ -6011,6 +6203,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 242,
@@ -6032,6 +6225,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 282,
@@ -6053,6 +6247,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 328,
@@ -6074,6 +6269,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1435004209652541008566176",
       "tokens": [
         {
           "tokenId": 337,
@@ -6095,6 +6291,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 339,
@@ -6116,6 +6313,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 344,
@@ -6137,6 +6335,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 367,
@@ -6158,6 +6357,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 368,
@@ -6179,6 +6379,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 386,
@@ -6200,6 +6401,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 391,
@@ -6221,6 +6423,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 407,
@@ -6242,6 +6445,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 417,
@@ -6263,6 +6467,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 420,
@@ -6284,6 +6489,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 423,
@@ -6305,6 +6511,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 451,
@@ -6326,6 +6533,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 466,
@@ -6347,6 +6555,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 473,
@@ -6368,6 +6577,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 486,
@@ -6389,6 +6599,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 494,
@@ -6410,6 +6621,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 533,
@@ -6424,27 +6636,6 @@
       ]
     },
     {
-      "address": "0xa50ef134470bd9109ab043d8a2132efeb72efdd4",
-      "tokenCount": 2,
-      "windowsCollected": [
-        4
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 540,
-          "windowId": 4,
-          "seed": "0xda1af9a764fd1ab6f10edaa508eb5ad23bc8830ebce8b8f2e2674c687f047c3b"
-        },
-        {
-          "tokenId": 541,
-          "windowId": 4,
-          "seed": "0x42fc7f83e973898676767a9b46305e514903948da5d85f895bb4bae2c4537c14"
-        }
-      ]
-    },
-    {
       "address": "0xa7942ba7e770d83d4ab16d8c513f1666e4af8569",
       "tokenCount": 2,
       "windowsCollected": [
@@ -6452,6 +6643,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 554,
@@ -6473,6 +6665,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 578,
@@ -6494,6 +6687,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 580,
@@ -6515,6 +6709,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "86849814748405904180253",
       "tokens": [
         {
           "tokenId": 598,
@@ -6536,6 +6731,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 600,
@@ -6557,6 +6753,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 611,
@@ -6578,6 +6775,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 614,
@@ -6599,6 +6797,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 619,
@@ -6620,6 +6819,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 659,
@@ -6641,6 +6841,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 675,
@@ -6662,6 +6863,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "69318034570258371446608",
       "tokens": [
         {
           "tokenId": 690,
@@ -6683,6 +6885,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 697,
@@ -6704,6 +6907,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 803,
@@ -6725,6 +6929,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1643857468949739891813937",
       "tokens": [
         {
           "tokenId": 861,
@@ -6746,6 +6951,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 890,
@@ -6767,6 +6973,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 898,
@@ -6788,6 +6995,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1048,
@@ -6809,6 +7017,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1081,
@@ -6830,6 +7039,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1102,
@@ -6851,6 +7061,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1,
@@ -6867,6 +7078,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 5,
@@ -6883,6 +7095,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1000163321503330826240724",
       "tokens": [
         {
           "tokenId": 7,
@@ -6899,6 +7112,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 12,
@@ -6915,6 +7129,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 13,
@@ -6931,6 +7146,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 16,
@@ -6947,6 +7163,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 17,
@@ -6963,6 +7180,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 19,
@@ -6979,6 +7197,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 21,
@@ -6995,6 +7214,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 35,
@@ -7011,6 +7231,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 39,
@@ -7027,6 +7248,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 40,
@@ -7043,6 +7265,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 63,
@@ -7059,6 +7282,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 65,
@@ -7075,6 +7299,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 67,
@@ -7091,6 +7316,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 68,
@@ -7107,6 +7333,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 69,
@@ -7123,6 +7350,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 71,
@@ -7139,6 +7367,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 72,
@@ -7155,6 +7384,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 89,
@@ -7171,6 +7401,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 90,
@@ -7187,6 +7418,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 97,
@@ -7203,6 +7435,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 105,
@@ -7219,6 +7452,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 106,
@@ -7235,6 +7469,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 107,
@@ -7251,6 +7486,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 113,
@@ -7267,6 +7503,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 116,
@@ -7283,6 +7520,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 122,
@@ -7299,6 +7537,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 130,
@@ -7315,6 +7554,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 131,
@@ -7331,6 +7571,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 137,
@@ -7347,6 +7588,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 147,
@@ -7363,6 +7605,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 152,
@@ -7379,6 +7622,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 159,
@@ -7395,27 +7639,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 189,
           "windowId": 1,
           "seed": "0x9a40537570acaff0c3e2bce5863339999b7ed9ab54c108a5651ae5e7ef64976a"
-        }
-      ]
-    },
-    {
-      "address": "0x0683710d2d2f2c373994a33e20b98ceb5fa94443",
-      "tokenCount": 1,
-      "windowsCollected": [
-        1
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 194,
-          "windowId": 1,
-          "seed": "0x0b07666282982c49eb5d34a3a4a55ab72cee447a8199519f45f46a7ec9480d5c"
         }
       ]
     },
@@ -7427,6 +7656,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 200,
@@ -7443,6 +7673,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 203,
@@ -7459,6 +7690,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1903136142750548525689776",
       "tokens": [
         {
           "tokenId": 205,
@@ -7475,6 +7707,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 210,
@@ -7484,13 +7717,14 @@
       ]
     },
     {
-      "address": "0xdf8b970454ff568beba2526b2fbe455a75f84f64",
+      "address": "0x78086ad810f8f99a0b6c92a9a6c8857d3c665622",
       "tokenCount": 1,
       "windowsCollected": [
         1
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 213,
@@ -7507,6 +7741,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 215,
@@ -7523,6 +7758,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 218,
@@ -7539,6 +7775,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 220,
@@ -7555,6 +7792,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 230,
@@ -7571,6 +7809,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 231,
@@ -7587,6 +7826,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 232,
@@ -7603,6 +7843,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 238,
@@ -7619,6 +7860,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 245,
@@ -7635,6 +7877,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 248,
@@ -7651,6 +7894,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 254,
@@ -7667,6 +7911,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 255,
@@ -7683,6 +7928,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 261,
@@ -7699,6 +7945,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 266,
@@ -7715,6 +7962,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 268,
@@ -7731,6 +7979,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 269,
@@ -7747,6 +7996,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "2641746571816325997752947",
       "tokens": [
         {
           "tokenId": 270,
@@ -7763,6 +8013,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 271,
@@ -7779,6 +8030,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 275,
@@ -7795,6 +8047,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 276,
@@ -7811,6 +8064,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 277,
@@ -7827,6 +8081,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 278,
@@ -7843,6 +8098,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 284,
@@ -7859,6 +8115,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 290,
@@ -7875,6 +8132,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 293,
@@ -7891,6 +8149,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 295,
@@ -7907,6 +8166,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 296,
@@ -7923,6 +8183,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 297,
@@ -7939,6 +8200,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 298,
@@ -7955,27 +8217,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 299,
           "windowId": 1,
           "seed": "0xbc43fdc6f52be64238b47c0a82fdf1fbc12e6d621a5b06a693c834b588d8e492"
-        }
-      ]
-    },
-    {
-      "address": "0x517bab93b6d0ad38c7f989cd081b3b18a1a7b179",
-      "tokenCount": 1,
-      "windowsCollected": [
-        1
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 301,
-          "windowId": 1,
-          "seed": "0xcd02291987fcf98c6ee015a544064f7f9f50f8c7b74401d747df84ea746582ad"
         }
       ]
     },
@@ -7987,6 +8234,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 303,
@@ -8003,6 +8251,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 311,
@@ -8019,6 +8268,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 316,
@@ -8035,6 +8285,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 327,
@@ -8051,6 +8302,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 338,
@@ -8067,6 +8319,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 348,
@@ -8076,13 +8329,14 @@
       ]
     },
     {
-      "address": "0x76dcc199e681e976db5926f75cf052e24046eada",
+      "address": "0xfbf8ae69b25542ac6833e2de631e7b082ffab1f5",
       "tokenCount": 1,
       "windowsCollected": [
         2
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 354,
@@ -8099,6 +8353,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 364,
@@ -8115,6 +8370,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 365,
@@ -8131,6 +8387,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 366,
@@ -8147,6 +8404,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 375,
@@ -8163,6 +8421,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 376,
@@ -8179,6 +8438,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 383,
@@ -8195,6 +8455,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 385,
@@ -8211,6 +8472,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 389,
@@ -8227,6 +8489,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 398,
@@ -8243,6 +8506,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 405,
@@ -8259,6 +8523,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 409,
@@ -8275,6 +8540,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 426,
@@ -8291,6 +8557,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 430,
@@ -8307,6 +8574,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 431,
@@ -8323,6 +8591,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 432,
@@ -8339,6 +8608,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 433,
@@ -8355,6 +8625,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 439,
@@ -8371,27 +8642,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 446,
           "windowId": 2,
           "seed": "0xa9af1767622199c0005556b90cb3f0ed645f742114f16694e4f0aa12c21f2e13"
-        }
-      ]
-    },
-    {
-      "address": "0x1383479d3a5886e64e8bec42aaf44ac45d71e954",
-      "tokenCount": 1,
-      "windowsCollected": [
-        2
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 447,
-          "windowId": 2,
-          "seed": "0x8ceacf1fde15be7b0cd42c39b6d2cefb120a48bd57ad27cd7c104fb1348d86cc"
         }
       ]
     },
@@ -8403,6 +8659,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 449,
@@ -8419,11 +8676,29 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 459,
           "windowId": 3,
           "seed": "0x575fabcaa7617bd0671a18f07b61c547913670469be7fd2a05631adc916956e7"
+        }
+      ]
+    },
+    {
+      "address": "0xd598e0ccbbc94714422d544f1caf162234c296ba",
+      "tokenCount": 1,
+      "windowsCollected": [
+        3
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 461,
+          "windowId": 3,
+          "seed": "0x3c929c0fd80b637e0c7c2818edc0ce0f3ecaf82e67d3423724fa2337a9ff06ba"
         }
       ]
     },
@@ -8435,6 +8710,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "1469085212728680292738703",
       "tokens": [
         {
           "tokenId": 462,
@@ -8451,6 +8727,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 463,
@@ -8467,6 +8744,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 470,
@@ -8483,6 +8761,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 471,
@@ -8499,6 +8778,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 476,
@@ -8515,6 +8795,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 485,
@@ -8531,6 +8812,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 492,
@@ -8547,6 +8829,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 507,
@@ -8563,6 +8846,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 511,
@@ -8579,6 +8863,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 513,
@@ -8595,6 +8880,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 516,
@@ -8611,6 +8897,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 523,
@@ -8627,6 +8914,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 524,
@@ -8643,6 +8931,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 531,
@@ -8659,6 +8948,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 532,
@@ -8675,6 +8965,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 538,
@@ -8691,11 +8982,29 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 539,
           "windowId": 4,
           "seed": "0xceaf8301677604d2f865296200b15cf471ae9d7fdeb7d4e3f792bdfdb926e8f3"
+        }
+      ]
+    },
+    {
+      "address": "0xa50ef134470bd9109ab043d8a2132efeb72efdd4",
+      "tokenCount": 1,
+      "windowsCollected": [
+        4
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 540,
+          "windowId": 4,
+          "seed": "0xda1af9a764fd1ab6f10edaa508eb5ad23bc8830ebce8b8f2e2674c687f047c3b"
         }
       ]
     },
@@ -8707,6 +9016,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 566,
@@ -8723,6 +9033,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 570,
@@ -8739,6 +9050,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 572,
@@ -8755,6 +9067,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 574,
@@ -8771,6 +9084,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 586,
@@ -8787,6 +9101,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 587,
@@ -8803,6 +9118,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 590,
@@ -8819,6 +9135,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 597,
@@ -8835,6 +9152,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 602,
@@ -8851,6 +9169,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 603,
@@ -8867,6 +9186,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 628,
@@ -8883,6 +9203,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 629,
@@ -8899,6 +9220,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 633,
@@ -8915,6 +9237,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 638,
@@ -8931,6 +9254,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 644,
@@ -8947,6 +9271,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 651,
@@ -8963,6 +9288,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 652,
@@ -8979,6 +9305,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 653,
@@ -8995,6 +9322,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 658,
@@ -9011,6 +9339,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 661,
@@ -9027,6 +9356,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 662,
@@ -9043,6 +9373,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "306328544412967947748427",
       "tokens": [
         {
           "tokenId": 663,
@@ -9059,6 +9390,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 687,
@@ -9075,6 +9407,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "142269204133611052295638",
       "tokens": [
         {
           "tokenId": 688,
@@ -9091,6 +9424,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 694,
@@ -9107,6 +9441,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 696,
@@ -9123,6 +9458,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 701,
@@ -9139,6 +9475,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 709,
@@ -9155,6 +9492,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 712,
@@ -9171,6 +9509,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 713,
@@ -9187,6 +9526,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 714,
@@ -9203,6 +9543,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 715,
@@ -9219,6 +9560,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 719,
@@ -9235,6 +9577,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 721,
@@ -9251,6 +9594,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 723,
@@ -9267,6 +9611,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 724,
@@ -9283,6 +9628,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 725,
@@ -9299,6 +9645,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 729,
@@ -9315,6 +9662,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "62371773901700245426932",
       "tokens": [
         {
           "tokenId": 730,
@@ -9331,6 +9679,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 739,
@@ -9347,6 +9696,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 745,
@@ -9363,6 +9713,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 753,
@@ -9379,6 +9730,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 755,
@@ -9395,6 +9747,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 756,
@@ -9411,27 +9764,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 761,
           "windowId": 11,
           "seed": "0xd3c461a64ada663cbf162f48f43a5a97f3da8095ed444de7af3fa2a6b82ece42"
-        }
-      ]
-    },
-    {
-      "address": "0x591dd50af3800569005ce206e0219d6a346249be",
-      "tokenCount": 1,
-      "windowsCollected": [
-        12
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 779,
-          "windowId": 12,
-          "seed": "0x50f28fcfb7b28a2b1e911d4c4bf752d20b35a5c76ae14654c5a1591a9eef45e6"
         }
       ]
     },
@@ -9443,6 +9781,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 781,
@@ -9459,6 +9798,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 784,
@@ -9475,6 +9815,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 792,
@@ -9491,6 +9832,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 801,
@@ -9507,6 +9849,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 807,
@@ -9523,6 +9866,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 813,
@@ -9539,6 +9883,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 831,
@@ -9555,6 +9900,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 832,
@@ -9571,6 +9917,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 838,
@@ -9587,6 +9934,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 839,
@@ -9603,6 +9951,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 840,
@@ -9619,6 +9968,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 841,
@@ -9635,6 +9985,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "273942628731166776248984",
       "tokens": [
         {
           "tokenId": 850,
@@ -9651,6 +10002,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 851,
@@ -9667,6 +10019,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 876,
@@ -9683,6 +10036,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 901,
@@ -9699,6 +10053,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 923,
@@ -9715,6 +10070,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 929,
@@ -9731,6 +10087,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 930,
@@ -9747,27 +10104,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "39957074",
       "tokens": [
         {
           "tokenId": 948,
           "windowId": 18,
           "seed": "0x91c38aa8ddd86236fa182cd0f0c9ddc938275f25e070d03c0e667dffa22fce1e"
-        }
-      ]
-    },
-    {
-      "address": "0x41c0f1468f2731671a6dbe5135383a28ad47a5b7",
-      "tokenCount": 1,
-      "windowsCollected": [
-        18
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 952,
-          "windowId": 18,
-          "seed": "0x9da1deaf027c6afa6a5e122cc525bb466f7554ebe5c64ef6dab22ebca1651926"
         }
       ]
     },
@@ -9779,6 +10121,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 958,
@@ -9795,6 +10138,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 963,
@@ -9811,6 +10155,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 965,
@@ -9827,6 +10172,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 983,
@@ -9843,6 +10189,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 992,
@@ -9859,6 +10206,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 998,
@@ -9875,6 +10223,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1000,
@@ -9891,6 +10240,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1004,
@@ -9907,6 +10257,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1012,
@@ -9923,6 +10274,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1013,
@@ -9939,6 +10291,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1014,
@@ -9955,27 +10308,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1016,
           "windowId": 19,
           "seed": "0xd60a7074bc6cc172ad4dc03f412d4744e9769aa9d2726120712cf1e7015a21a2"
-        }
-      ]
-    },
-    {
-      "address": "0x323e6af84789112e93b7e9831c2eb89310c7d7d6",
-      "tokenCount": 1,
-      "windowsCollected": [
-        19
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1018,
-          "windowId": 19,
-          "seed": "0x66bbd745748c2d792554b6c5bfdaccad801c64f4ec69fdae9d0c054b993bf090"
         }
       ]
     },
@@ -9987,6 +10325,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1020,
@@ -10003,6 +10342,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1022,
@@ -10019,6 +10359,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1023,
@@ -10035,6 +10376,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1024,
@@ -10051,6 +10393,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1045,
@@ -10067,6 +10410,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1055,
@@ -10083,6 +10427,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1058,
@@ -10099,6 +10444,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1061,
@@ -10115,6 +10461,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1064,
@@ -10131,6 +10478,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1065,
@@ -10147,6 +10495,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1067,
@@ -10163,6 +10512,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1069,
@@ -10179,27 +10529,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1071,
           "windowId": 20,
           "seed": "0x0b390e8e7e9e219144b0e400175ec406483b18f81f1c8f3d7d4daa0d39a2ed48"
-        }
-      ]
-    },
-    {
-      "address": "0xc01c54d2eac6a2e73be179041296b43a1ead2a09",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1073,
-          "windowId": 20,
-          "seed": "0x12604e752a0bd192304b98b4ad87ac9a4df07fa99d24dd429185ba8b834aa74c"
         }
       ]
     },
@@ -10211,11 +10546,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
-          "tokenId": 1074,
+          "tokenId": 1073,
           "windowId": 20,
-          "seed": "0xb6fbd015c09e5ed7d7d87972145a416fe06ad7392096496efb85967d39c3c03a"
+          "seed": "0x12604e752a0bd192304b98b4ad87ac9a4df07fa99d24dd429185ba8b834aa74c"
         }
       ]
     },
@@ -10227,6 +10563,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1075,
@@ -10236,50 +10573,19 @@
       ]
     },
     {
-      "address": "0x020a7fab33b64aadb01da803c24a29436c64fd98",
+      "address": "0xaa221f92dcca4bedede04d2ea1b8215ba7a7ee2f",
       "tokenCount": 1,
       "windowsCollected": [
         20
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1076,
           "windowId": 20,
           "seed": "0xdc7b72ff53e8ed4b8b6de02760a1ef379e340349ec37623e8a9cdcc68646bf9c"
-        }
-      ]
-    },
-    {
-      "address": "0xf08be9eb9d0fbf8d1abec1926cdc81da45f40778",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1077,
-          "windowId": 20,
-          "seed": "0xc046c5c9f99942fcea1fb48b8c3c0a351a49f30796edf4c21b8f4bc5c18e42ed"
-        }
-      ]
-    },
-    {
-      "address": "0x035d860efb12d700b381700dfb33d0f8cf838b74",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1079,
-          "windowId": 20,
-          "seed": "0x9765ad626d973153373cb791ad4355cb12b9393216f5c38aa9f8bd95e5c8d1ed"
         }
       ]
     },
@@ -10291,6 +10597,41 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1077,
+          "windowId": 20,
+          "seed": "0xc046c5c9f99942fcea1fb48b8c3c0a351a49f30796edf4c21b8f4bc5c18e42ed"
+        }
+      ]
+    },
+    {
+      "address": "0xc01c54d2eac6a2e73be179041296b43a1ead2a09",
+      "tokenCount": 1,
+      "windowsCollected": [
+        20
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1079,
+          "windowId": 20,
+          "seed": "0x9765ad626d973153373cb791ad4355cb12b9393216f5c38aa9f8bd95e5c8d1ed"
+        }
+      ]
+    },
+    {
+      "address": "0x035d860efb12d700b381700dfb33d0f8cf838b74",
+      "tokenCount": 1,
+      "windowsCollected": [
+        20
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1080,
@@ -10307,6 +10648,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1082,
@@ -10316,18 +10658,19 @@
       ]
     },
     {
-      "address": "0xdfa653793077c43c09df945ec756a0d6c34e2369",
+      "address": "0x5bd977356546db1adb54b6903862d7c2f187839b",
       "tokenCount": 1,
       "windowsCollected": [
         20
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
-          "tokenId": 1088,
+          "tokenId": 1083,
           "windowId": 20,
-          "seed": "0x3f368a7990eb0b1298bae3b48852e6a74dcce6c51fdac4cb6a5d09433042300f"
+          "seed": "0x4d492a257f23cfaced05ff05c5d854bbb4c564403f762b1cb76a16877f92e269"
         }
       ]
     },
@@ -10339,6 +10682,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1089,
@@ -10355,6 +10699,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1095,
@@ -10371,27 +10716,12 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1097,
           "windowId": 20,
           "seed": "0xb40721b7664c582740ed2fd9c05eb0a59c351e96059b788bec3c3758b7c42ad2"
-        }
-      ]
-    },
-    {
-      "address": "0xe8d0a25e5bf18870ad5b0d2164144982be2441da",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "tokens": [
-        {
-          "tokenId": 1098,
-          "windowId": 20,
-          "seed": "0x4fa5c2c1641d9e66dc6fa9c44875412840026803973713180c58e66078d7f432"
         }
       ]
     },
@@ -10403,6 +10733,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 1112,
@@ -10412,7 +10743,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24220313,
-  "generatedAt": 1768241181390,
-  "generatedAtISO": "2026-01-12T18:06:21.390Z"
+  "lastIndexedBlock": 24285403,
+  "generatedAt": 1769025499596,
+  "generatedAtISO": "2026-01-21T19:58:19.596Z"
 }
