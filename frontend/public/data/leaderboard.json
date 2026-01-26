@@ -1,7 +1,7 @@
 {
   "totalWindows": 21,
   "totalTokens": 1112,
-  "totalCollectors": 395,
+  "totalCollectors": 394,
   "fullCollectors": [
     "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
     "0xe30337c6c904cf7b44c7e374ec427873c7aec95e"
@@ -9,7 +9,7 @@
   "collectors": [
     {
       "address": "0xcb43078c32423f5348cab5885911c3b5fae217f9",
-      "tokenCount": 36,
+      "tokenCount": 37,
       "windowsCollected": [
         0,
         1,
@@ -33,7 +33,7 @@
       ],
       "windowCount": 19,
       "isFullCollector": false,
-      "lessBalance": "1783481908185973107651744",
+      "lessBalance": "1976543536076901727986043",
       "tokens": [
         {
           "tokenId": 95,
@@ -214,6 +214,11 @@
           "tokenId": 1056,
           "windowId": 20,
           "seed": "0xd09a541d566bcaceebac69a96f480b860757cf729b083d35587817b8afeb0bbe"
+        },
+        {
+          "tokenId": 1079,
+          "windowId": 20,
+          "seed": "0x9765ad626d973153373cb791ad4355cb12b9393216f5c38aa9f8bd95e5c8d1ed"
         }
       ]
     },
@@ -9402,7 +9407,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
-      "lessBalance": "306328544412967947748427",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 663,
@@ -10534,23 +10539,6 @@
       ]
     },
     {
-      "address": "0xc01c54d2eac6a2e73be179041296b43a1ead2a09",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 1079,
-          "windowId": 20,
-          "seed": "0x9765ad626d973153373cb791ad4355cb12b9393216f5c38aa9f8bd95e5c8d1ed"
-        }
-      ]
-    },
-    {
       "address": "0x035d860efb12d700b381700dfb33d0f8cf838b74",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10670,7 +10658,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24306927,
-  "generatedAt": 1769285112732,
-  "generatedAtISO": "2026-01-24T20:05:12.732Z"
+  "lastIndexedBlock": 24320126,
+  "generatedAt": 1769444048651,
+  "generatedAtISO": "2026-01-26T16:14:08.651Z"
 }
