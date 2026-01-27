@@ -50,19 +50,21 @@ function WindowProgress({
     windows.push(
       <button
         key={i}
-        onClick={() => onSelectWindow(isSelected ? null : (hasWindow ? i : null))}
+        onClick={() => onSelectWindow(isSelected ? null : hasWindow ? i : null)}
         disabled={!hasWindow}
         className={`w-8 h-8 flex items-center justify-center text-xs border transition-all ${
           isSelected
             ? "border-foreground bg-foreground text-background ring-2 ring-foreground ring-offset-2 ring-offset-background"
             : hasWindow
-            ? "border-foreground bg-foreground text-background hover:opacity-80 cursor-pointer"
-            : "border-border text-muted cursor-not-allowed"
+              ? "border-foreground bg-foreground text-background hover:opacity-80 cursor-pointer"
+              : "border-border text-muted cursor-not-allowed"
         }`}
-        title={hasWindow ? `Filter to Window ${i}` : `Window ${i} - not collected`}
+        title={
+          hasWindow ? `Filter to Window ${i}` : `Window ${i} - not collected`
+        }
       >
         {i}
-      </button>
+      </button>,
     );
   }
   return <div className="flex flex-wrap gap-2">{windows}</div>;
@@ -110,21 +112,27 @@ export default function CollectorPage() {
   const [selectedWindow, setSelectedWindow] = useState<number | null>(null);
 
   // Check if param is an ENS name or address
-  const isEnsName = addressParam.endsWith('.eth');
+  const isEnsName = addressParam.endsWith(".eth");
 
   // Resolve ENS name to address if needed
-  const { data: resolvedAddress, isLoading: isResolvingEns, isSuccess: ensResolved } = useEnsAddress({
+  const {
+    data: resolvedAddress,
+    isLoading: isResolvingEns,
+    isSuccess: ensResolved,
+  } = useEnsAddress({
     name: isEnsName ? addressParam : undefined,
   });
 
   // Use resolved address if ENS name, otherwise use param directly
-  const address = isEnsName ? (resolvedAddress ?? '') : addressParam;
+  const address = isEnsName ? (resolvedAddress ?? "") : addressParam;
 
   // Only fetch collector once we have a valid address
   const shouldFetchCollector = !isEnsName || (ensResolved && !!resolvedAddress);
-  const { data: collector, isLoading: isLoadingCollector, error } = useCollector(
-    shouldFetchCollector ? address : ''
-  );
+  const {
+    data: collector,
+    isLoading: isLoadingCollector,
+    error,
+  } = useCollector(shouldFetchCollector ? address : "");
 
   // Get ENS name for display (if we came via address URL)
   const { data: ensName } = useEnsName({
@@ -138,7 +146,7 @@ export default function CollectorPage() {
   // Update URL to ENS name if user arrived via address but has ENS name (no navigation)
   useEffect(() => {
     if (!isEnsName && ensName) {
-      window.history.replaceState(null, '', `/collector/${ensName}`);
+      window.history.replaceState(null, "", `/collector/${ensName}`);
     }
   }, [isEnsName, ensName]);
 
@@ -149,7 +157,8 @@ export default function CollectorPage() {
     }
   }, [displayEnsName]);
 
-  const isLoading = isResolvingEns || (shouldFetchCollector && isLoadingCollector);
+  const isLoading =
+    isResolvingEns || (shouldFetchCollector && isLoadingCollector);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -204,12 +213,14 @@ export default function CollectorPage() {
 
   const displayName = displayEnsName || truncateAddress(address, 6);
   const completionPercent = Math.round(
-    (collector.windowCount / (collector.totalWindows || 1)) * 100
+    (collector.windowCount / (collector.totalWindows || 1)) * 100,
   );
 
   // Sort all tokens by tokenId, optionally filter by window
   const sortedTokens = [...collector.tokens]
-    .filter((token) => selectedWindow === null || token.windowId === selectedWindow)
+    .filter(
+      (token) => selectedWindow === null || token.windowId === selectedWindow,
+    )
     .sort((a, b) => a.tokenId - b.tokenId);
 
   return (
@@ -240,7 +251,9 @@ export default function CollectorPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div className="border border-border p-4">
-              <div className="text-2xl mb-1">{collector.tokenCount.toLocaleString()}</div>
+              <div className="text-2xl mb-1">
+                {collector.tokenCount.toLocaleString()}
+              </div>
               <div className="text-sm text-muted">tokens</div>
             </div>
             <div className="border border-border p-4">
@@ -258,7 +271,9 @@ export default function CollectorPage() {
               <div className="text-sm text-muted">completion</div>
             </div>
             <div className="border border-border p-4">
-              <div className="text-2xl mb-1">{formatTokenBalance(collector.lessBalance, false)}</div>
+              <div className="text-2xl mb-1">
+                {formatTokenBalance(collector.lessBalance, false)}
+              </div>
               <div className="text-sm text-muted">$LESS</div>
             </div>
           </div>
@@ -295,10 +310,10 @@ export default function CollectorPage() {
                 </span>
               )}
               <a
-                href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev'}/api/gif/collector/${address}`}
+                href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || "https://fold-image-api.fly.dev"}/api/gif/collector/${address}`}
                 className="ml-auto text-sm text-muted hover:text-foreground transition-colors"
               >
-                download your collection gif →
+                download collection gif →
               </a>
             </div>
 
