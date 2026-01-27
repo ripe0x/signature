@@ -321,6 +321,12 @@ export default function CollectorPage() {
             >
               opensea →
             </a>
+            <a
+              href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://img.sayless.art'}/api/gif/collector/${address}`}
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              download your collection gif →
+            </a>
           </div>
         </div>
       </div>

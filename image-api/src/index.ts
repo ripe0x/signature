@@ -10,6 +10,9 @@ import sharp from 'sharp';
 import { get as httpsGet } from 'https';
 import { get as httpGet } from 'http';
 import { readFileSync, existsSync } from 'fs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const GIFEncoder = require('gif-encoder-2');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -105,6 +108,19 @@ async function resolveEnsAddress(name: string): Promise<string | null> {
     return null;
   }
 }
+
+// LESS Strategy Token contract for balance fetching
+const LESS_STRATEGY_ADDRESS = '0x9c2ca573009f181eac634c4d6e44a0977c24f335' as `0x${string}`;
+
+const STRATEGY_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
 
 const LESS_ABI = [
   {
@@ -660,7 +676,12 @@ app.post('/api/admin/index-collectors', async (req, res) => {
         toBlock: currentBlock,
       });
 
-      if (transferLogs.length === 0) {
+      // Check if existing data has lessBalance field - if not, force re-index
+      const needsSchemaUpdate = existingLeaderboard &&
+        (existingLeaderboard as any).collectors?.[0] &&
+        !('lessBalance' in (existingLeaderboard as any).collectors[0]);
+
+      if (transferLogs.length === 0 && !needsSchemaUpdate) {
         isIndexingInProgress = false;
         const duration = Date.now() - startTime;
         lastIndexResult = {
@@ -678,6 +699,10 @@ app.post('/api/admin/index-collectors', async (req, res) => {
           currentBlock: Number(currentBlock),
           ...lastIndexResult,
         });
+      }
+
+      if (needsSchemaUpdate) {
+        console.log('Schema update needed (missing lessBalance), forcing re-index...');
       }
 
       console.log(`Found ${transferLogs.length} transfer(s) since block ${lastIndexedBlock}, re-indexing...`);
@@ -833,6 +858,35 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       collectorMap.set(token.owner, existing);
     }
 
+    // Fetch $LESS token balances for all collectors
+    const collectorAddresses = Array.from(collectorMap.keys());
+    console.log(`Fetching $LESS balances for ${collectorAddresses.length} collectors...`);
+
+    const balanceMap = new Map<string, string>();
+    for (let start = 0; start < collectorAddresses.length; start += BATCH_SIZE) {
+      const end = Math.min(start + BATCH_SIZE, collectorAddresses.length);
+      const batch = collectorAddresses.slice(start, end);
+
+      const balanceCalls = batch.map(address => ({
+        address: LESS_STRATEGY_ADDRESS,
+        abi: STRATEGY_ABI,
+        functionName: 'balanceOf' as const,
+        args: [address as `0x${string}`],
+      }));
+
+      const balanceResults = await client.multicall({ contracts: balanceCalls });
+
+      for (let i = 0; i < batch.length; i++) {
+        const result = balanceResults[i];
+        if (result.status === 'success') {
+          balanceMap.set(batch[i], (result.result as bigint).toString());
+        } else {
+          balanceMap.set(batch[i], '0');
+        }
+      }
+    }
+    console.log('$LESS balance fetching complete');
+
     // Convert to array and calculate stats
     const collectors = Array.from(collectorMap.values()).map(c => ({
       address: c.address,
@@ -840,6 +894,7 @@ app.post('/api/admin/index-collectors', async (req, res) => {
       windowsCollected: Array.from(c.windowsSet).sort((a, b) => a - b),
       windowCount: c.windowsSet.size,
       isFullCollector: c.windowsSet.size === windows,
+      lessBalance: balanceMap.get(c.address) || '0',
       tokens: c.tokens.sort((a, b) => a.tokenId - b.tokenId),
     }));
 
@@ -2021,6 +2076,271 @@ app.get('/api/collector-card/:address', async (req, res) => {
     console.error('Collector card error:', error);
     res.status(500).json({
       error: 'Collector card generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Collector GIF endpoint - animated GIF of all tokens owned by a collector
+app.get('/api/gif/collector/:address', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    if (!RPC_URL || !CONTRACT_ADDRESS) {
+      return res.status(503).json({ error: 'Service not configured' });
+    }
+
+    if (!existsSync(LEADERBOARD_FILE)) {
+      return res.status(503).json({ error: 'Leaderboard data not available' });
+    }
+
+    // Resolve address
+    const addressParam = req.params.address.toLowerCase();
+    let address: string;
+
+    if (addressParam.endsWith('.eth')) {
+      const resolved = await resolveEnsAddress(addressParam);
+      if (!resolved) {
+        return res.status(404).json({ error: 'ENS name not found' });
+      }
+      address = resolved.toLowerCase();
+    } else if (/^0x[a-f0-9]{40}$/.test(addressParam)) {
+      address = addressParam;
+    } else {
+      return res.status(400).json({ error: 'Invalid address or ENS name format' });
+    }
+
+    const data = readFileSync(LEADERBOARD_FILE, 'utf-8');
+    const leaderboard = JSON.parse(data);
+    const collector = leaderboard.collectors.find(
+      (c: any) => c.address.toLowerCase() === address
+    );
+
+    if (!collector || !collector.tokens || collector.tokens.length === 0) {
+      return res.status(404).json({ error: 'Collector not found or has no tokens' });
+    }
+
+    const ids: number[] = collector.tokens
+      .map((t: any) => t.tokenId)
+      .sort((a: number, b: number) => a - b);
+
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 tokens per GIF' });
+    }
+
+    const { width: w, height: h, delay: d } = req.query;
+    const width = w ? parseInt(w as string, 10) : 600;
+    const height = h ? parseInt(h as string, 10) : 849;
+    const delay = d ? parseInt(d as string, 10) : 250;
+
+    if (width < 100 || width > 2000 || height < 100 || height > 2000) {
+      return res.status(400).json({ error: 'Dimensions must be between 100 and 2000' });
+    }
+
+    // Check cache
+    const cacheKey = `gif-collector-${address}-${width}x${height}-${delay}`;
+    const cachedGif = await cache.get(cacheKey, width, height);
+    if (cachedGif) {
+      res.set('Content-Type', 'image/gif');
+      res.set('Content-Disposition', `attachment; filename="LESS-${req.params.address}-collection.gif"`);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      return res.send(cachedGif);
+    }
+
+    // Render frames using per-token cache
+    const client = rpcClient;
+    const frames: Buffer[] = [];
+    const BATCH_SIZE = 4;
+
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchFrames = await Promise.all(
+        batch.map(async (tokenId) => {
+          const tokenCacheKey = `token-${tokenId}`;
+          const cached = await cache.get(tokenCacheKey, width, height);
+          if (cached) return cached;
+
+          const seed = await client.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: LESS_ABI,
+            functionName: 'getSeed',
+            args: [BigInt(tokenId)],
+          }) as string;
+
+          const png = await renderer.render({ seed, width, height });
+          await cache.set(tokenCacheKey, width, height, png);
+          return png;
+        })
+      );
+      frames.push(...batchFrames);
+    }
+
+    // Build animated GIF
+    const encoder = new GIFEncoder(width, height, 'neuquant', false);
+    encoder.setDelay(delay);
+    encoder.setRepeat(0);
+    encoder.setQuality(10);
+    encoder.start();
+
+    for (const frame of frames) {
+      const { data: pixelData } = await sharp(frame)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      encoder.addFrame(pixelData);
+    }
+
+    encoder.finish();
+    const gifBuffer = encoder.out.getData();
+
+    await cache.set(cacheKey, width, height, gifBuffer);
+
+    console.log(`Collector GIF generated: ${ids.length} frames, ${width}x${height}, ${delay}ms delay, ${Date.now() - startTime}ms total`);
+
+    res.set('Content-Type', 'image/gif');
+    res.set('Content-Disposition', `attachment; filename="LESS-${req.params.address}-collection.gif"`);
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Gif-Time', `${Date.now() - startTime}ms`);
+    res.send(gifBuffer);
+  } catch (error) {
+    console.error('Collector GIF generation error:', error);
+    res.status(500).json({
+      error: 'GIF generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Animated GIF endpoint - rotates through X minted pieces
+// Usage: /api/gif?tokenIds=1,2,3,4,5 or /api/gif?count=10 (random/latest)
+// Optional: &width=600&height=849&delay=250
+app.get('/api/gif', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    if (!RPC_URL || !CONTRACT_ADDRESS) {
+      return res.status(503).json({ error: 'Service not configured' });
+    }
+
+    const { tokenIds, count, width: w, height: h, delay: d } = req.query;
+
+    const width = w ? parseInt(w as string, 10) : 600;
+    const height = h ? parseInt(h as string, 10) : 849;
+    const delay = d ? parseInt(d as string, 10) : 250;
+
+    if (width < 100 || width > 2000 || height < 100 || height > 2000) {
+      return res.status(400).json({ error: 'Dimensions must be between 100 and 2000' });
+    }
+
+    let ids: number[] = [];
+
+    if (tokenIds && typeof tokenIds === 'string') {
+      ids = tokenIds.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id) && id > 0);
+    } else if (count) {
+      const n = parseInt(count as string, 10);
+      if (isNaN(n) || n < 1 || n > 100) {
+        return res.status(400).json({ error: 'count must be between 1 and 100' });
+      }
+      // Get latest N tokens
+      const client = rpcClient;
+      const totalSupply = await client.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: LESS_ABI,
+        functionName: 'totalSupply',
+      }) as bigint;
+      const total = Number(totalSupply);
+      const start = Math.max(1, total - n + 1);
+      for (let i = start; i <= total; i++) {
+        ids.push(i);
+      }
+    } else {
+      return res.status(400).json({ error: 'Provide tokenIds (comma-separated) or count parameter' });
+    }
+
+    if (ids.length === 0) {
+      return res.status(400).json({ error: 'No valid token IDs' });
+    }
+
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 tokens per GIF' });
+    }
+
+    // Check cache
+    const cacheKey = `gif-${ids.join('-')}-${width}x${height}-${delay}`;
+    const cached = await cache.get(cacheKey, width, height);
+    if (cached) {
+      res.set('Content-Type', 'image/gif');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('X-Cache', 'HIT');
+      return res.send(cached);
+    }
+
+    // Render frames, using per-token cache when available
+    const client = rpcClient;
+    const frames: Buffer[] = [];
+    const BATCH_SIZE = 4;
+
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchFrames = await Promise.all(
+        batch.map(async (tokenId) => {
+          // Check per-token image cache first
+          const tokenCacheKey = `token-${tokenId}`;
+          const cached = await cache.get(tokenCacheKey, width, height);
+          if (cached) return cached;
+
+          // Not cached at this size — fetch seed and render
+          const seed = await client.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: LESS_ABI,
+            functionName: 'getSeed',
+            args: [BigInt(tokenId)],
+          }) as string;
+
+          const png = await renderer.render({ seed, width, height });
+          // Cache the individual frame for future reuse
+          await cache.set(tokenCacheKey, width, height, png);
+          return png;
+        })
+      );
+      frames.push(...batchFrames);
+    }
+
+    // Build animated GIF
+    const encoder = new GIFEncoder(width, height, 'neuquant', false);
+    encoder.setDelay(delay);
+    encoder.setRepeat(0); // loop forever
+    encoder.setQuality(10);
+    encoder.start();
+
+    for (const frame of frames) {
+      // Convert PNG to raw RGBA pixels
+      const { data } = await sharp(frame)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      encoder.addFrame(data);
+    }
+
+    encoder.finish();
+    const gifBuffer = encoder.out.getData();
+
+    // Cache the result (store as .png key but it's actually gif - cache doesn't care about extension)
+    await cache.set(cacheKey, width, height, gifBuffer);
+
+    console.log(`GIF generated: ${ids.length} frames, ${width}x${height}, ${delay}ms delay, ${Date.now() - startTime}ms total`);
+
+    res.set('Content-Type', 'image/gif');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('X-Cache', 'MISS');
+    res.set('X-Gif-Time', `${Date.now() - startTime}ms`);
+    res.send(gifBuffer);
+  } catch (error) {
+    console.error('GIF generation error:', error);
+    res.status(500).json({
+      error: 'GIF generation failed',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
