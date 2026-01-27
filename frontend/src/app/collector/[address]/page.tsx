@@ -294,6 +294,12 @@ export default function CollectorPage() {
                   </button>
                 </span>
               )}
+              <a
+                href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://img.sayless.art'}/api/gif/collector/${address}`}
+                className="ml-auto text-sm text-muted hover:text-foreground transition-colors"
+              >
+                download your collection gif →
+              </a>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -320,12 +326,6 @@ export default function CollectorPage() {
               className="text-sm text-muted hover:text-foreground transition-colors"
             >
               opensea →
-            </a>
-            <a
-              href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://img.sayless.art'}/api/gif/collector/${address}`}
-              className="text-sm text-muted hover:text-foreground transition-colors"
-            >
-              download your collection gif →
             </a>
           </div>
         </div>
