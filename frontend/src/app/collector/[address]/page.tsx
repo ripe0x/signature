@@ -295,7 +295,7 @@ export default function CollectorPage() {
                 </span>
               )}
               <a
-                href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://img.sayless.art'}/api/gif/collector/${address}`}
+                href={`${process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev'}/api/gif/collector/${address}`}
                 className="ml-auto text-sm text-muted hover:text-foreground transition-colors"
               >
                 download your collection gif →

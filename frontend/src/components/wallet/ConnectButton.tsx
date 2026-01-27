@@ -86,13 +86,13 @@ export function ConnectButton() {
                     {account.displayName}
                   </button>
                   {open && (
-                    <div className="absolute right-0 mt-1 min-w-[160px] border border-border bg-background z-50">
+                    <div className="absolute right-0 mt-1 w-max border border-border bg-background z-50">
                       <button
                         onClick={() => {
                           setOpen(false);
                           router.push(`/collector/${account.ensName || account.address}`);
                         }}
-                        className="w-full text-left text-xs md:text-sm px-4 py-2 hover:bg-foreground/5 transition-colors"
+                        className="w-full text-left text-xs md:text-sm px-4 py-2 whitespace-nowrap hover:bg-foreground/5 transition-colors"
                       >
                         my collection
                       </button>
@@ -101,7 +101,7 @@ export function ConnectButton() {
                           setOpen(false);
                           disconnect();
                         }}
-                        className="w-full text-left text-xs md:text-sm px-4 py-2 hover:bg-foreground/5 transition-colors"
+                        className="w-full text-left text-xs md:text-sm px-4 py-2 whitespace-nowrap hover:bg-foreground/5 transition-colors"
                       >
                         disconnect
                       </button>
