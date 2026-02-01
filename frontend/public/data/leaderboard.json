@@ -8089,7 +8089,7 @@
       ]
     },
     {
-      "address": "0x6c39dbf7d1a6ee9f42a0211f0f59db38123da995",
+      "address": "0x4789c274d65b6d4c5c9db42813dfc67f87dacde6",
       "tokenCount": 1,
       "windowsCollected": [
         1
@@ -10622,7 +10622,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24347002,
-  "generatedAt": 1769767906422,
-  "generatedAtISO": "2026-01-30T10:11:46.422Z"
+  "lastIndexedBlock": 24361345,
+  "generatedAt": 1769940853730,
+  "generatedAtISO": "2026-02-01T10:14:13.730Z"
 }
