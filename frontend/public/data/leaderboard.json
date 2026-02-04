@@ -1,15 +1,14 @@
 {
-  "totalWindows": 21,
-  "totalTokens": 1112,
+  "totalWindows": 22,
+  "totalTokens": 1132,
   "totalCollectors": 388,
   "fullCollectors": [
-    "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
-    "0xe30337c6c904cf7b44c7e374ec427873c7aec95e"
+    "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f"
   ],
   "collectors": [
     {
       "address": "0xcb43078c32423f5348cab5885911c3b5fae217f9",
-      "tokenCount": 37,
+      "tokenCount": 38,
       "windowsCollected": [
         0,
         1,
@@ -29,9 +28,10 @@
         17,
         18,
         19,
-        20
+        20,
+        21
       ],
-      "windowCount": 19,
+      "windowCount": 20,
       "isFullCollector": false,
       "lessBalance": "1976543536076901727986043",
       "tokens": [
@@ -219,6 +219,219 @@
           "tokenId": 1079,
           "windowId": 20,
           "seed": "0x9765ad626d973153373cb791ad4355cb12b9393216f5c38aa9f8bd95e5c8d1ed"
+        },
+        {
+          "tokenId": 1121,
+          "windowId": 21,
+          "seed": "0x084d5559a189475410bc5f8070715e1922b4185b7c2fde9e31269a3f8dbc7285"
+        }
+      ]
+    },
+    {
+      "address": "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
+      "tokenCount": 35,
+      "windowsCollected": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "windowCount": 22,
+      "isFullCollector": true,
+      "lessBalance": "507088416588406125101861",
+      "tokens": [
+        {
+          "tokenId": 18,
+          "windowId": 0,
+          "seed": "0xec6a4453950b2ababcc152aece250175ce8db20b9669b91ae1db6e97a16f3a99"
+        },
+        {
+          "tokenId": 246,
+          "windowId": 1,
+          "seed": "0xd38d1fe503d702cc2088b37ce02d65a9f9a9e0ea9b93e0a998a7606e8192c26b"
+        },
+        {
+          "tokenId": 397,
+          "windowId": 2,
+          "seed": "0x7af61c7dff95246dbc8e86877520990162115595034ec0e43203bc36ee0b03c5"
+        },
+        {
+          "tokenId": 464,
+          "windowId": 3,
+          "seed": "0x10f113dc098e8375891aa543eac8fc5f3785e3b0f7e0c1b8fc9aad1f5654cdb9"
+        },
+        {
+          "tokenId": 528,
+          "windowId": 4,
+          "seed": "0x8e61456a72a69afecf47c25dcbcf7aa20793f4a00078daac3788c979306eb3af"
+        },
+        {
+          "tokenId": 583,
+          "windowId": 5,
+          "seed": "0xae576313d5e49805e9d919cd1724e3ab2d372b092d513451b5ce8b1c59ecbdb2"
+        },
+        {
+          "tokenId": 606,
+          "windowId": 6,
+          "seed": "0xa6c53e65732bb9797da5cf141ddf63400cb68c4315c44f80d43ad7aff5b1492f"
+        },
+        {
+          "tokenId": 654,
+          "windowId": 7,
+          "seed": "0x59d7c93bbfa1c562083b09ada1f0b91314ced8a4bab581106ca4f3e1b34ac5c8"
+        },
+        {
+          "tokenId": 668,
+          "windowId": 8,
+          "seed": "0x28d5fd64446a65f5a115d32aac3ab4c75717464386d5b20438ac94a554aa74f6"
+        },
+        {
+          "tokenId": 699,
+          "windowId": 9,
+          "seed": "0x547ed1f8807eb147e99cc436b40e1faef1cb9b5a6f55854bc05befbb011dac59"
+        },
+        {
+          "tokenId": 720,
+          "windowId": 10,
+          "seed": "0x1d4cd9234a29e046b89c302d240a47649c7c256bd548cce6da806b940d5727d4"
+        },
+        {
+          "tokenId": 759,
+          "windowId": 11,
+          "seed": "0x689448485d840af137f655f96a56e1a3f37ce817855454ba33a6aa689e1c15cb"
+        },
+        {
+          "tokenId": 783,
+          "windowId": 12,
+          "seed": "0x3335e8f4e9ef11cc121f1b2ef05abada6cd2783eeb43c5c02e0893c2e24521a1"
+        },
+        {
+          "tokenId": 809,
+          "windowId": 13,
+          "seed": "0xd0fc11abbfedce499964174507f02466a6c053bbf0cc32c3c1dbd4fe327ce277"
+        },
+        {
+          "tokenId": 812,
+          "windowId": 13,
+          "seed": "0x253e2148f59053cd8832eebc6bc346ee435906e6f8a3f63825a2bb83d53b4965"
+        },
+        {
+          "tokenId": 821,
+          "windowId": 13,
+          "seed": "0x223d7eb82f11a588d216e3cc4686f71007002b8b7a96936c309df6b2ac60a595"
+        },
+        {
+          "tokenId": 825,
+          "windowId": 14,
+          "seed": "0x98e375dd0f1e635b895c71158fe76813af48096b8ba280eec2c3d259e05d38fe"
+        },
+        {
+          "tokenId": 829,
+          "windowId": 14,
+          "seed": "0x64d52412ad241ff1c927295363bb9fa8f96a073d75092f90e82a2059b494573b"
+        },
+        {
+          "tokenId": 855,
+          "windowId": 15,
+          "seed": "0x0baac43b5be26499ca46ff5f3473bfd13b1a349adba094a6da9d9151db9660a1"
+        },
+        {
+          "tokenId": 864,
+          "windowId": 15,
+          "seed": "0x023ff79bc1dd47ff6176bae2fdae8edd5a5640260b03dd5f00f6c80dd5578276"
+        },
+        {
+          "tokenId": 886,
+          "windowId": 16,
+          "seed": "0x9d78e198b84f5e11ac81f5af7365851ae5121b3fc794b958ebbbdac0b92de3d7"
+        },
+        {
+          "tokenId": 934,
+          "windowId": 17,
+          "seed": "0x51d97485a08b659ff670e7a952c94628f78a359645696b37debc8c51677d8c89"
+        },
+        {
+          "tokenId": 937,
+          "windowId": 17,
+          "seed": "0xee2c9c33447bcaf5a3115bd44f912cd2951a3faa263e86ac2e6020a5662db1f1"
+        },
+        {
+          "tokenId": 977,
+          "windowId": 18,
+          "seed": "0x12dcc17440fcecc884e34fc0b76b482fbede64bcaf80ebfdef6ae9b4559bc8ae"
+        },
+        {
+          "tokenId": 981,
+          "windowId": 18,
+          "seed": "0x8c42c2e9cbabcb74208237488d9968d6cfff02a6e4189e80fa02680ca027f375"
+        },
+        {
+          "tokenId": 1010,
+          "windowId": 19,
+          "seed": "0x361867b37bdeb84d90919bf60692c13eb7d607a7c2659c746a259ae25c564b8f"
+        },
+        {
+          "tokenId": 1012,
+          "windowId": 19,
+          "seed": "0x29fd339fcdf5b565ab7f9f6ab029f59b69e0bb9876243a7ed42eec338eb1f77e"
+        },
+        {
+          "tokenId": 1014,
+          "windowId": 19,
+          "seed": "0xd9d266d92b862eaba246da9d94f7c13dec984471b959b2e8a6d68dd5c41579a1"
+        },
+        {
+          "tokenId": 1046,
+          "windowId": 20,
+          "seed": "0xf1c3c0425fc011d10436f2d46d13db8915c6f32a672d2f09bd13c0d025fb43bd"
+        },
+        {
+          "tokenId": 1051,
+          "windowId": 20,
+          "seed": "0xd15592e47053278ae6be034a77acba4d9e09dc99f716cc161073a427ef98f4e5"
+        },
+        {
+          "tokenId": 1055,
+          "windowId": 20,
+          "seed": "0x58a0a550e02d02f7b3d243d8aca4a75cb231ac43615f39bf7853d2f060139a9a"
+        },
+        {
+          "tokenId": 1076,
+          "windowId": 20,
+          "seed": "0xdc7b72ff53e8ed4b8b6de02760a1ef379e340349ec37623e8a9cdcc68646bf9c"
+        },
+        {
+          "tokenId": 1077,
+          "windowId": 20,
+          "seed": "0xc046c5c9f99942fcea1fb48b8c3c0a351a49f30796edf4c21b8f4bc5c18e42ed"
+        },
+        {
+          "tokenId": 1119,
+          "windowId": 21,
+          "seed": "0xa6936ad726c0dcf8b069cd6ae99501c28647d210ff1597a7cdf8d3b412a79259"
+        },
+        {
+          "tokenId": 1123,
+          "windowId": 21,
+          "seed": "0xaebcd2937b0c803fef38028b1e20486f59311297e7b0467302e13ec6448c31ef"
         }
       ]
     },
@@ -418,203 +631,6 @@
           "tokenId": 1109,
           "windowId": 20,
           "seed": "0xbeb93f816ae3b50407141d096cac2f2e1744ff705daf95b3db9b20998fc52b5a"
-        }
-      ]
-    },
-    {
-      "address": "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
-      "tokenCount": 33,
-      "windowsCollected": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ],
-      "windowCount": 21,
-      "isFullCollector": true,
-      "lessBalance": "507088416588406125101861",
-      "tokens": [
-        {
-          "tokenId": 18,
-          "windowId": 0,
-          "seed": "0xec6a4453950b2ababcc152aece250175ce8db20b9669b91ae1db6e97a16f3a99"
-        },
-        {
-          "tokenId": 246,
-          "windowId": 1,
-          "seed": "0xd38d1fe503d702cc2088b37ce02d65a9f9a9e0ea9b93e0a998a7606e8192c26b"
-        },
-        {
-          "tokenId": 397,
-          "windowId": 2,
-          "seed": "0x7af61c7dff95246dbc8e86877520990162115595034ec0e43203bc36ee0b03c5"
-        },
-        {
-          "tokenId": 464,
-          "windowId": 3,
-          "seed": "0x10f113dc098e8375891aa543eac8fc5f3785e3b0f7e0c1b8fc9aad1f5654cdb9"
-        },
-        {
-          "tokenId": 528,
-          "windowId": 4,
-          "seed": "0x8e61456a72a69afecf47c25dcbcf7aa20793f4a00078daac3788c979306eb3af"
-        },
-        {
-          "tokenId": 583,
-          "windowId": 5,
-          "seed": "0xae576313d5e49805e9d919cd1724e3ab2d372b092d513451b5ce8b1c59ecbdb2"
-        },
-        {
-          "tokenId": 606,
-          "windowId": 6,
-          "seed": "0xa6c53e65732bb9797da5cf141ddf63400cb68c4315c44f80d43ad7aff5b1492f"
-        },
-        {
-          "tokenId": 654,
-          "windowId": 7,
-          "seed": "0x59d7c93bbfa1c562083b09ada1f0b91314ced8a4bab581106ca4f3e1b34ac5c8"
-        },
-        {
-          "tokenId": 668,
-          "windowId": 8,
-          "seed": "0x28d5fd64446a65f5a115d32aac3ab4c75717464386d5b20438ac94a554aa74f6"
-        },
-        {
-          "tokenId": 699,
-          "windowId": 9,
-          "seed": "0x547ed1f8807eb147e99cc436b40e1faef1cb9b5a6f55854bc05befbb011dac59"
-        },
-        {
-          "tokenId": 720,
-          "windowId": 10,
-          "seed": "0x1d4cd9234a29e046b89c302d240a47649c7c256bd548cce6da806b940d5727d4"
-        },
-        {
-          "tokenId": 759,
-          "windowId": 11,
-          "seed": "0x689448485d840af137f655f96a56e1a3f37ce817855454ba33a6aa689e1c15cb"
-        },
-        {
-          "tokenId": 783,
-          "windowId": 12,
-          "seed": "0x3335e8f4e9ef11cc121f1b2ef05abada6cd2783eeb43c5c02e0893c2e24521a1"
-        },
-        {
-          "tokenId": 809,
-          "windowId": 13,
-          "seed": "0xd0fc11abbfedce499964174507f02466a6c053bbf0cc32c3c1dbd4fe327ce277"
-        },
-        {
-          "tokenId": 812,
-          "windowId": 13,
-          "seed": "0x253e2148f59053cd8832eebc6bc346ee435906e6f8a3f63825a2bb83d53b4965"
-        },
-        {
-          "tokenId": 821,
-          "windowId": 13,
-          "seed": "0x223d7eb82f11a588d216e3cc4686f71007002b8b7a96936c309df6b2ac60a595"
-        },
-        {
-          "tokenId": 825,
-          "windowId": 14,
-          "seed": "0x98e375dd0f1e635b895c71158fe76813af48096b8ba280eec2c3d259e05d38fe"
-        },
-        {
-          "tokenId": 829,
-          "windowId": 14,
-          "seed": "0x64d52412ad241ff1c927295363bb9fa8f96a073d75092f90e82a2059b494573b"
-        },
-        {
-          "tokenId": 855,
-          "windowId": 15,
-          "seed": "0x0baac43b5be26499ca46ff5f3473bfd13b1a349adba094a6da9d9151db9660a1"
-        },
-        {
-          "tokenId": 864,
-          "windowId": 15,
-          "seed": "0x023ff79bc1dd47ff6176bae2fdae8edd5a5640260b03dd5f00f6c80dd5578276"
-        },
-        {
-          "tokenId": 886,
-          "windowId": 16,
-          "seed": "0x9d78e198b84f5e11ac81f5af7365851ae5121b3fc794b958ebbbdac0b92de3d7"
-        },
-        {
-          "tokenId": 934,
-          "windowId": 17,
-          "seed": "0x51d97485a08b659ff670e7a952c94628f78a359645696b37debc8c51677d8c89"
-        },
-        {
-          "tokenId": 937,
-          "windowId": 17,
-          "seed": "0xee2c9c33447bcaf5a3115bd44f912cd2951a3faa263e86ac2e6020a5662db1f1"
-        },
-        {
-          "tokenId": 977,
-          "windowId": 18,
-          "seed": "0x12dcc17440fcecc884e34fc0b76b482fbede64bcaf80ebfdef6ae9b4559bc8ae"
-        },
-        {
-          "tokenId": 981,
-          "windowId": 18,
-          "seed": "0x8c42c2e9cbabcb74208237488d9968d6cfff02a6e4189e80fa02680ca027f375"
-        },
-        {
-          "tokenId": 1010,
-          "windowId": 19,
-          "seed": "0x361867b37bdeb84d90919bf60692c13eb7d607a7c2659c746a259ae25c564b8f"
-        },
-        {
-          "tokenId": 1012,
-          "windowId": 19,
-          "seed": "0x29fd339fcdf5b565ab7f9f6ab029f59b69e0bb9876243a7ed42eec338eb1f77e"
-        },
-        {
-          "tokenId": 1014,
-          "windowId": 19,
-          "seed": "0xd9d266d92b862eaba246da9d94f7c13dec984471b959b2e8a6d68dd5c41579a1"
-        },
-        {
-          "tokenId": 1046,
-          "windowId": 20,
-          "seed": "0xf1c3c0425fc011d10436f2d46d13db8915c6f32a672d2f09bd13c0d025fb43bd"
-        },
-        {
-          "tokenId": 1051,
-          "windowId": 20,
-          "seed": "0xd15592e47053278ae6be034a77acba4d9e09dc99f716cc161073a427ef98f4e5"
-        },
-        {
-          "tokenId": 1055,
-          "windowId": 20,
-          "seed": "0x58a0a550e02d02f7b3d243d8aca4a75cb231ac43615f39bf7853d2f060139a9a"
-        },
-        {
-          "tokenId": 1076,
-          "windowId": 20,
-          "seed": "0xdc7b72ff53e8ed4b8b6de02760a1ef379e340349ec37623e8a9cdcc68646bf9c"
-        },
-        {
-          "tokenId": 1077,
-          "windowId": 20,
-          "seed": "0xc046c5c9f99942fcea1fb48b8c3c0a351a49f30796edf4c21b8f4bc5c18e42ed"
         }
       ]
     },
@@ -829,7 +845,7 @@
         20
       ],
       "windowCount": 21,
-      "isFullCollector": true,
+      "isFullCollector": false,
       "lessBalance": "0",
       "tokens": [
         {
@@ -971,7 +987,7 @@
     },
     {
       "address": "0x1439b4d5a72343b68f12398c649df99d76b2af53",
-      "tokenCount": 25,
+      "tokenCount": 26,
       "windowsCollected": [
         0,
         1,
@@ -991,9 +1007,10 @@
         17,
         18,
         19,
-        20
+        20,
+        21
       ],
-      "windowCount": 19,
+      "windowCount": 20,
       "isFullCollector": false,
       "lessBalance": "0",
       "tokens": [
@@ -1121,12 +1138,17 @@
           "tokenId": 1100,
           "windowId": 20,
           "seed": "0x7a9d87b5b69c2afe767a0639033e5ab805143263cf4e11e86670b6deff88c9d2"
+        },
+        {
+          "tokenId": 1114,
+          "windowId": 21,
+          "seed": "0xf5625a20131ea5bdc44eeb4ae4a1c7c26dd9df54d4fc945d8a6efd435afe0e98"
         }
       ]
     },
     {
       "address": "0x5c70af3ddc7e815a40f2a09d22483e6e24eddf8e",
-      "tokenCount": 22,
+      "tokenCount": 23,
       "windowsCollected": [
         0,
         1,
@@ -1137,9 +1159,10 @@
         16,
         17,
         19,
-        20
+        20,
+        21
       ],
-      "windowCount": 10,
+      "windowCount": 11,
       "isFullCollector": false,
       "lessBalance": "11478679209551179465826047",
       "tokens": [
@@ -1252,12 +1275,17 @@
           "tokenId": 1054,
           "windowId": 20,
           "seed": "0xcfc1fed56029d2eaed99141cf5b420999db602f129957b3f078f5afb82155504"
+        },
+        {
+          "tokenId": 1116,
+          "windowId": 21,
+          "seed": "0x8799cc35d7ae6ff0470379dde14d70b810ec9c115cee44291d4f941934bf4d1d"
         }
       ]
     },
     {
       "address": "0x577c58ebed517748b752252de2a7cbdb92c3a739",
-      "tokenCount": 18,
+      "tokenCount": 19,
       "windowsCollected": [
         0,
         1,
@@ -1269,9 +1297,10 @@
         17,
         18,
         19,
-        20
+        20,
+        21
       ],
-      "windowCount": 11,
+      "windowCount": 12,
       "isFullCollector": false,
       "lessBalance": "400812617964751204228292",
       "tokens": [
@@ -1364,6 +1393,110 @@
           "tokenId": 1059,
           "windowId": 20,
           "seed": "0x1da32179fc1f6f4ebbb07a1f32d09273c91117cbd2d690c08f87d61d48ff1214"
+        },
+        {
+          "tokenId": 1118,
+          "windowId": 21,
+          "seed": "0xe8c4415db1c198aa5eaa2ed2d3c65afa8f023d4b5b92b8e039219f53e687cd2d"
+        }
+      ]
+    },
+    {
+      "address": "0x06e75d702698f901ba9558e8e8f1ccc14dd9927f",
+      "tokenCount": 15,
+      "windowsCollected": [
+        0,
+        1,
+        2,
+        6,
+        10,
+        12,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21
+      ],
+      "windowCount": 13,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 27,
+          "windowId": 0,
+          "seed": "0xd6773c1f91f2bf5dd3eb18f0aef12b2a82cb703638c69c6af2ab79e8b108144a"
+        },
+        {
+          "tokenId": 28,
+          "windowId": 0,
+          "seed": "0x7e2ab53fb1a1372a6ec53c0fffd9c16c7e9333a0aa9585a8b20f5e874024c889"
+        },
+        {
+          "tokenId": 237,
+          "windowId": 1,
+          "seed": "0xd2c0afb1cd3fdac887311baba90b2881f833a2ccde2c8ce39f08c467e2a091e0"
+        },
+        {
+          "tokenId": 335,
+          "windowId": 2,
+          "seed": "0xb3fb997b9bcb1f57664a92c371405359a6121303bb0eb8cba89eb02d6f67803a"
+        },
+        {
+          "tokenId": 605,
+          "windowId": 6,
+          "seed": "0xe6e09e2e6df478cbf00403446fe1921213c07626ec891ba4ddbdc07e54684876"
+        },
+        {
+          "tokenId": 728,
+          "windowId": 10,
+          "seed": "0xeee6bc3848df2bd6e5fbc44a6d9916acfd4d71d2b625a71d770001fb812147f1"
+        },
+        {
+          "tokenId": 785,
+          "windowId": 12,
+          "seed": "0x3c8581aea060d0ae9f15ae1f2d77ac5ecc19d2680c12aa962d527db8740f6408"
+        },
+        {
+          "tokenId": 836,
+          "windowId": 14,
+          "seed": "0xcd4bf40b38f223771abd0e21a91aeec3ad7d93f3575e027ef5bd33f0929f3862"
+        },
+        {
+          "tokenId": 866,
+          "windowId": 15,
+          "seed": "0x02ab9e724726194219b09aa15cfde1b8408d94f3e5fc50125f3f3af180087571"
+        },
+        {
+          "tokenId": 907,
+          "windowId": 16,
+          "seed": "0xb2ff57e834593216423af746f61c5043c98cee69c32f582c0599259844aaf8c4"
+        },
+        {
+          "tokenId": 969,
+          "windowId": 18,
+          "seed": "0x202faf9d94576c083717b37d465a5af6338b51e10d31028365034d6e07ea6230"
+        },
+        {
+          "tokenId": 970,
+          "windowId": 18,
+          "seed": "0xcb908c5673f135654d3b08bcafb33e7356b418fe303cd88a44cb9a7c144b4fd2"
+        },
+        {
+          "tokenId": 1018,
+          "windowId": 19,
+          "seed": "0x66bbd745748c2d792554b6c5bfdaccad801c64f4ec69fdae9d0c054b993bf090"
+        },
+        {
+          "tokenId": 1062,
+          "windowId": 20,
+          "seed": "0xdde4e3be8b6e8129d4042fedd0d4333ba59e9e81d4da2219b754ce488b93ef53"
+        },
+        {
+          "tokenId": 1125,
+          "windowId": 21,
+          "seed": "0x495977c3a3bee3a4d67b47579c7df80bc466bcdcb3c0a5e57df64e1403a2c7ac"
         }
       ]
     },
@@ -1462,95 +1595,91 @@
       ]
     },
     {
-      "address": "0x06e75d702698f901ba9558e8e8f1ccc14dd9927f",
+      "address": "0xbdde100544020fc3dd072bf4ce9a62845e6c9884",
       "tokenCount": 14,
       "windowsCollected": [
         0,
         1,
         2,
-        6,
-        10,
-        12,
-        14,
-        15,
-        16,
+        4,
+        7,
         18,
-        19,
-        20
+        20,
+        21
       ],
-      "windowCount": 12,
+      "windowCount": 8,
       "isFullCollector": false,
       "lessBalance": "0",
       "tokens": [
         {
-          "tokenId": 27,
+          "tokenId": 6,
           "windowId": 0,
-          "seed": "0xd6773c1f91f2bf5dd3eb18f0aef12b2a82cb703638c69c6af2ab79e8b108144a"
+          "seed": "0x905ec1a0f09e63d10a167386f0ac733988645405be34cc967348c0fe763cbb3d"
         },
         {
-          "tokenId": 28,
+          "tokenId": 42,
           "windowId": 0,
-          "seed": "0x7e2ab53fb1a1372a6ec53c0fffd9c16c7e9333a0aa9585a8b20f5e874024c889"
+          "seed": "0xf9d70b64c3f261a7aeb5fe8b4a33d08d7660578de3b589b48165c0f4b58ad7df"
         },
         {
-          "tokenId": 237,
+          "tokenId": 43,
+          "windowId": 0,
+          "seed": "0x53f0923d742a3f1a62f8f0e85266450e6a70684b0193418637b862164e58ce07"
+        },
+        {
+          "tokenId": 124,
+          "windowId": 0,
+          "seed": "0x144f4f4dfa4b40c155beb703bde93d5a0b77c36f9df4da5a6456a63bbb47b6b2"
+        },
+        {
+          "tokenId": 212,
           "windowId": 1,
-          "seed": "0xd2c0afb1cd3fdac887311baba90b2881f833a2ccde2c8ce39f08c467e2a091e0"
+          "seed": "0xd708304325173960d64688c2024cc32ed0d5ad6a76fbbfffd55bae69f3df2092"
         },
         {
-          "tokenId": 335,
+          "tokenId": 353,
           "windowId": 2,
-          "seed": "0xb3fb997b9bcb1f57664a92c371405359a6121303bb0eb8cba89eb02d6f67803a"
+          "seed": "0xe8a0a4b1c93e54210af1a5b9ae3f78786c2f132017adec2ae391d1a2bd36e1e8"
         },
         {
-          "tokenId": 605,
-          "windowId": 6,
-          "seed": "0xe6e09e2e6df478cbf00403446fe1921213c07626ec891ba4ddbdc07e54684876"
+          "tokenId": 507,
+          "windowId": 4,
+          "seed": "0x398cd45b0adaf493d8257fcdaf5d40a334777ac32302e1a0041c1175e0517faf"
         },
         {
-          "tokenId": 728,
-          "windowId": 10,
-          "seed": "0xeee6bc3848df2bd6e5fbc44a6d9916acfd4d71d2b625a71d770001fb812147f1"
+          "tokenId": 649,
+          "windowId": 7,
+          "seed": "0x7241f6a94793ad56367c708ec6221acd93ff34326b90c59a75182f12a876b9db"
         },
         {
-          "tokenId": 785,
-          "windowId": 12,
-          "seed": "0x3c8581aea060d0ae9f15ae1f2d77ac5ecc19d2680c12aa962d527db8740f6408"
+          "tokenId": 653,
+          "windowId": 7,
+          "seed": "0xab03ba57bb92ee21d5a76a2a42761ae018c21b150bd0e2ae34b43f3748010b76"
         },
         {
-          "tokenId": 836,
-          "windowId": 14,
-          "seed": "0xcd4bf40b38f223771abd0e21a91aeec3ad7d93f3575e027ef5bd33f0929f3862"
-        },
-        {
-          "tokenId": 866,
-          "windowId": 15,
-          "seed": "0x02ab9e724726194219b09aa15cfde1b8408d94f3e5fc50125f3f3af180087571"
-        },
-        {
-          "tokenId": 907,
-          "windowId": 16,
-          "seed": "0xb2ff57e834593216423af746f61c5043c98cee69c32f582c0599259844aaf8c4"
-        },
-        {
-          "tokenId": 969,
+          "tokenId": 959,
           "windowId": 18,
-          "seed": "0x202faf9d94576c083717b37d465a5af6338b51e10d31028365034d6e07ea6230"
+          "seed": "0x29b155dbddd80452c22692724ad5fa4d0e9f097820fea9e06bd953b61ed5dff5"
         },
         {
-          "tokenId": 970,
-          "windowId": 18,
-          "seed": "0xcb908c5673f135654d3b08bcafb33e7356b418fe303cd88a44cb9a7c144b4fd2"
-        },
-        {
-          "tokenId": 1018,
-          "windowId": 19,
-          "seed": "0x66bbd745748c2d792554b6c5bfdaccad801c64f4ec69fdae9d0c054b993bf090"
-        },
-        {
-          "tokenId": 1062,
+          "tokenId": 1053,
           "windowId": 20,
-          "seed": "0xdde4e3be8b6e8129d4042fedd0d4333ba59e9e81d4da2219b754ce488b93ef53"
+          "seed": "0x8d2ed6561f04497e165be195bb91916d0851cce4eaf04c7b4996ea43128f2c50"
+        },
+        {
+          "tokenId": 1078,
+          "windowId": 20,
+          "seed": "0x88f0ade423530d9c35ffbbe3675de66142a37470375c4df7d50ff02344de1442"
+        },
+        {
+          "tokenId": 1111,
+          "windowId": 20,
+          "seed": "0x346d059f5e0ac1a993d88bfc6b9842c13a1cc7289a35beeccadb16c2ce730baf"
+        },
+        {
+          "tokenId": 1131,
+          "windowId": 21,
+          "seed": "0xfde587125a457b09021f9eb9852eddd90a6fe3518c8cc6cd3876bf5cc938d18f"
         }
       ]
     },
@@ -1634,83 +1763,6 @@
           "tokenId": 1042,
           "windowId": 20,
           "seed": "0xfa038dd86410b1258fbe28c1a8fec7309f829d9a73c9fda51e4cdbef1e199de4"
-        }
-      ]
-    },
-    {
-      "address": "0xbdde100544020fc3dd072bf4ce9a62845e6c9884",
-      "tokenCount": 12,
-      "windowsCollected": [
-        0,
-        1,
-        2,
-        7,
-        18,
-        20
-      ],
-      "windowCount": 6,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 6,
-          "windowId": 0,
-          "seed": "0x905ec1a0f09e63d10a167386f0ac733988645405be34cc967348c0fe763cbb3d"
-        },
-        {
-          "tokenId": 42,
-          "windowId": 0,
-          "seed": "0xf9d70b64c3f261a7aeb5fe8b4a33d08d7660578de3b589b48165c0f4b58ad7df"
-        },
-        {
-          "tokenId": 43,
-          "windowId": 0,
-          "seed": "0x53f0923d742a3f1a62f8f0e85266450e6a70684b0193418637b862164e58ce07"
-        },
-        {
-          "tokenId": 124,
-          "windowId": 0,
-          "seed": "0x144f4f4dfa4b40c155beb703bde93d5a0b77c36f9df4da5a6456a63bbb47b6b2"
-        },
-        {
-          "tokenId": 212,
-          "windowId": 1,
-          "seed": "0xd708304325173960d64688c2024cc32ed0d5ad6a76fbbfffd55bae69f3df2092"
-        },
-        {
-          "tokenId": 353,
-          "windowId": 2,
-          "seed": "0xe8a0a4b1c93e54210af1a5b9ae3f78786c2f132017adec2ae391d1a2bd36e1e8"
-        },
-        {
-          "tokenId": 649,
-          "windowId": 7,
-          "seed": "0x7241f6a94793ad56367c708ec6221acd93ff34326b90c59a75182f12a876b9db"
-        },
-        {
-          "tokenId": 653,
-          "windowId": 7,
-          "seed": "0xab03ba57bb92ee21d5a76a2a42761ae018c21b150bd0e2ae34b43f3748010b76"
-        },
-        {
-          "tokenId": 959,
-          "windowId": 18,
-          "seed": "0x29b155dbddd80452c22692724ad5fa4d0e9f097820fea9e06bd953b61ed5dff5"
-        },
-        {
-          "tokenId": 1053,
-          "windowId": 20,
-          "seed": "0x8d2ed6561f04497e165be195bb91916d0851cce4eaf04c7b4996ea43128f2c50"
-        },
-        {
-          "tokenId": 1078,
-          "windowId": 20,
-          "seed": "0x88f0ade423530d9c35ffbbe3675de66142a37470375c4df7d50ff02344de1442"
-        },
-        {
-          "tokenId": 1111,
-          "windowId": 20,
-          "seed": "0x346d059f5e0ac1a993d88bfc6b9842c13a1cc7289a35beeccadb16c2ce730baf"
         }
       ]
     },
@@ -2370,6 +2422,64 @@
       ]
     },
     {
+      "address": "0x3f9a42edfde891198a5fe82cd8b5378a7045df8e",
+      "tokenCount": 8,
+      "windowsCollected": [
+        0,
+        1,
+        15,
+        17,
+        18,
+        20,
+        21
+      ],
+      "windowCount": 7,
+      "isFullCollector": false,
+      "lessBalance": "661381473675216827725091",
+      "tokens": [
+        {
+          "tokenId": 55,
+          "windowId": 0,
+          "seed": "0xd507f60975e9234adf60a8b68629a406c3735ca83147cfeddad4d1a338bb4954"
+        },
+        {
+          "tokenId": 280,
+          "windowId": 1,
+          "seed": "0xeb6e46b78a3afecb305e857d915ddbc0a0edf356cebdb3d8e9cc321684007758"
+        },
+        {
+          "tokenId": 858,
+          "windowId": 15,
+          "seed": "0x4cae0598315db0541da4e27bce2e0b828dcd4f248753c4af00627bfb367bf539"
+        },
+        {
+          "tokenId": 911,
+          "windowId": 17,
+          "seed": "0xe590dfe500414adb42293bd4ef8a35035be67d03f0eb107f776484e9813c4229"
+        },
+        {
+          "tokenId": 967,
+          "windowId": 18,
+          "seed": "0x20b85b8e900d12bcac14032e0720ffcf1aec4c23a8d3c5f28aea953f2ddca96c"
+        },
+        {
+          "tokenId": 1036,
+          "windowId": 20,
+          "seed": "0x9f7534ec37dd1c5d1b87002a9b6f87fdb03287db01547f94b7b9c5a598bea5f0"
+        },
+        {
+          "tokenId": 1085,
+          "windowId": 20,
+          "seed": "0x241ea723b892c61c7e0cccc773ad43527297c6498c2f2361c70fe976bf0069cc"
+        },
+        {
+          "tokenId": 1128,
+          "windowId": 21,
+          "seed": "0x566e1afb641637bbfd323c16a2a384c6f59791d89a13a27341c0c82b17057c3b"
+        }
+      ]
+    },
+    {
       "address": "0x882ebe579e11104ffa610fad8b0b947955cf3d3d",
       "tokenCount": 8,
       "windowsCollected": [
@@ -2424,6 +2534,64 @@
           "tokenId": 1019,
           "windowId": 19,
           "seed": "0xfb0bd9942597b6c07d05a476156bcd7b8c77bc70b37d21941fa712262041aeac"
+        }
+      ]
+    },
+    {
+      "address": "0xbe99e01d0bbfb80e12a88ecc9619d8223c6925b9",
+      "tokenCount": 8,
+      "windowsCollected": [
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "windowCount": 7,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 824,
+          "windowId": 14,
+          "seed": "0x87ce9f3a77d892de7b606901569bf613c483c4052e5f1de0e9659309262a17b2"
+        },
+        {
+          "tokenId": 868,
+          "windowId": 15,
+          "seed": "0x9c1521d7e798637722ce99770a7d621b4284c57404285dfb92bf76fb9fb74a06"
+        },
+        {
+          "tokenId": 918,
+          "windowId": 17,
+          "seed": "0x10720eb3c40b95cdcd245b179dbd88f3a939d30164cecd6e4c849e058386a9ce"
+        },
+        {
+          "tokenId": 938,
+          "windowId": 17,
+          "seed": "0xb3c7813c90a9e6d1fd7c393bd4e5f41ce389ece12abc427041ebe9990cb213eb"
+        },
+        {
+          "tokenId": 973,
+          "windowId": 18,
+          "seed": "0x1e353ec56ce85430440c494190800b42236a3ab94d01caab2a54a9e1b7dba058"
+        },
+        {
+          "tokenId": 1011,
+          "windowId": 19,
+          "seed": "0x50b9bbbf94b820d4dd99a8da0ba068626c9febc2d1de5bffb81695a2ce46341a"
+        },
+        {
+          "tokenId": 1044,
+          "windowId": 20,
+          "seed": "0x42ea22627efcfe117a7212fd7a141041879ecacb2477096f68715d26d5f650df"
+        },
+        {
+          "tokenId": 1117,
+          "windowId": 21,
+          "seed": "0xed2c99ac253ad943103d131c05e90d17c1ed4a0cbbe1b5f4d22a207a9e501a71"
         }
       ]
     },
@@ -2596,106 +2764,159 @@
       ]
     },
     {
-      "address": "0x3f9a42edfde891198a5fe82cd8b5378a7045df8e",
+      "address": "0xa585d2ae9fc1d84fe2ef0213d114c7a7f4638907",
       "tokenCount": 7,
       "windowsCollected": [
         0,
-        1,
-        15,
-        17,
+        9,
+        10,
         18,
-        20
+        19,
+        20,
+        21
       ],
-      "windowCount": 6,
+      "windowCount": 7,
       "isFullCollector": false,
-      "lessBalance": "661381473675216827725091",
+      "lessBalance": "0",
       "tokens": [
         {
-          "tokenId": 55,
+          "tokenId": 66,
           "windowId": 0,
-          "seed": "0xd507f60975e9234adf60a8b68629a406c3735ca83147cfeddad4d1a338bb4954"
+          "seed": "0x45ec436a706a4af903366f084e3a9d5175e73b1f8ca2ee861aa6d093d1ce63ec"
         },
         {
-          "tokenId": 280,
-          "windowId": 1,
-          "seed": "0xeb6e46b78a3afecb305e857d915ddbc0a0edf356cebdb3d8e9cc321684007758"
+          "tokenId": 711,
+          "windowId": 9,
+          "seed": "0x22a897a1b4e467f4b5f3b35b14dafa60da47ef7555b2acc26b36740c6b986883"
         },
         {
-          "tokenId": 858,
-          "windowId": 15,
-          "seed": "0x4cae0598315db0541da4e27bce2e0b828dcd4f248753c4af00627bfb367bf539"
+          "tokenId": 740,
+          "windowId": 10,
+          "seed": "0x6a61116861d11ca79d2ba53f8773acbb1f4bbf019825ce60ecd8cb144df12e5a"
         },
         {
-          "tokenId": 911,
-          "windowId": 17,
-          "seed": "0xe590dfe500414adb42293bd4ef8a35035be67d03f0eb107f776484e9813c4229"
-        },
-        {
-          "tokenId": 967,
+          "tokenId": 946,
           "windowId": 18,
-          "seed": "0x20b85b8e900d12bcac14032e0720ffcf1aec4c23a8d3c5f28aea953f2ddca96c"
+          "seed": "0x56d57c8b776f194955310c482eec0c220c8749dc7c108897d6d4930ea5d9c608"
         },
         {
-          "tokenId": 1036,
-          "windowId": 20,
-          "seed": "0x9f7534ec37dd1c5d1b87002a9b6f87fdb03287db01547f94b7b9c5a598bea5f0"
+          "tokenId": 1028,
+          "windowId": 19,
+          "seed": "0xe563c9dd789c3fa33ff130be42091775d8803aedaf39ee7cf3e016d3a96ff111"
         },
         {
-          "tokenId": 1085,
+          "tokenId": 1099,
           "windowId": 20,
-          "seed": "0x241ea723b892c61c7e0cccc773ad43527297c6498c2f2361c70fe976bf0069cc"
+          "seed": "0x094047304c9d044473c6d5dfa946bc362b38988c15a25898ebb9cdad21c2f206"
+        },
+        {
+          "tokenId": 1122,
+          "windowId": 21,
+          "seed": "0x34e7ef393f9e818cb355ccb138003a16069c87e4208fef3826e0e7398f699246"
         }
       ]
     },
     {
-      "address": "0xbe99e01d0bbfb80e12a88ecc9619d8223c6925b9",
+      "address": "0x5a084aaef5eddd9195f28f6fe056785e01f210eb",
       "tokenCount": 7,
       "windowsCollected": [
-        14,
-        15,
-        17,
+        1,
+        10,
         18,
         19,
-        20
+        20,
+        21
+      ],
+      "windowCount": 6,
+      "isFullCollector": false,
+      "lessBalance": "1018290713831810297205719",
+      "tokens": [
+        {
+          "tokenId": 272,
+          "windowId": 1,
+          "seed": "0xf2e421e93ea783d7b890412cb79f3ad2c9a7b6d5e1117be5a805a4de5dfb8d63"
+        },
+        {
+          "tokenId": 726,
+          "windowId": 10,
+          "seed": "0x14b2a2cf45c7ae6ad20475de3b6f74771edfe6b8a3a9b73cdb8f667e77c74eb7"
+        },
+        {
+          "tokenId": 727,
+          "windowId": 10,
+          "seed": "0x9e5cc4a620c5798d2da184a2f9781f967834a4c872ebdf0bcca456e4792631d2"
+        },
+        {
+          "tokenId": 962,
+          "windowId": 18,
+          "seed": "0xd5323013cdbc6cc8244b766483608a436506718b71af559f71cd97d850edc64b"
+        },
+        {
+          "tokenId": 997,
+          "windowId": 19,
+          "seed": "0xa4f551a714956370e725e082a7f79b6a36192cbac7b397c0c3645f4ee0fb15a5"
+        },
+        {
+          "tokenId": 1043,
+          "windowId": 20,
+          "seed": "0x2518a12854f753dcc9937a5b5dc5053cd67eeebaf7868b2d2709f4bb4c63fd23"
+        },
+        {
+          "tokenId": 1115,
+          "windowId": 21,
+          "seed": "0xaf907c47a7810c5a33a6ec73e954e67adfe7f8225756f009a0c989f7d196dbae"
+        }
+      ]
+    },
+    {
+      "address": "0x635b41de5c42323ff1c2234ad5351b0ce065186f",
+      "tokenCount": 7,
+      "windowsCollected": [
+        10,
+        15,
+        16,
+        18,
+        20,
+        21
       ],
       "windowCount": 6,
       "isFullCollector": false,
       "lessBalance": "0",
       "tokens": [
         {
-          "tokenId": 824,
-          "windowId": 14,
-          "seed": "0x87ce9f3a77d892de7b606901569bf613c483c4052e5f1de0e9659309262a17b2"
+          "tokenId": 722,
+          "windowId": 10,
+          "seed": "0x816112fba999aa645c932bdf3116fa97a2cf2ccf5e1a4f42919612eeb59ccde3"
         },
         {
-          "tokenId": 868,
+          "tokenId": 869,
           "windowId": 15,
-          "seed": "0x9c1521d7e798637722ce99770a7d621b4284c57404285dfb92bf76fb9fb74a06"
+          "seed": "0x0e8a8376e6686af03f84edc4eb9f83cac628465a296f812aacbb5f18cd9a8af2"
         },
         {
-          "tokenId": 918,
-          "windowId": 17,
-          "seed": "0x10720eb3c40b95cdcd245b179dbd88f3a939d30164cecd6e4c849e058386a9ce"
+          "tokenId": 883,
+          "windowId": 16,
+          "seed": "0x4d5b6a0949962500a69cba3f18c1c8a0ccf233b7da42b392f78a1aa36d05dd9c"
         },
         {
-          "tokenId": 938,
-          "windowId": 17,
-          "seed": "0xb3c7813c90a9e6d1fd7c393bd4e5f41ce389ece12abc427041ebe9990cb213eb"
-        },
-        {
-          "tokenId": 973,
+          "tokenId": 974,
           "windowId": 18,
-          "seed": "0x1e353ec56ce85430440c494190800b42236a3ab94d01caab2a54a9e1b7dba058"
+          "seed": "0xeab6b42827c85dcda4c946463bafbac6a22ffebf53407020ce75232fa2b20bfb"
         },
         {
-          "tokenId": 1011,
-          "windowId": 19,
-          "seed": "0x50b9bbbf94b820d4dd99a8da0ba068626c9febc2d1de5bffb81695a2ce46341a"
-        },
-        {
-          "tokenId": 1044,
+          "tokenId": 1091,
           "windowId": 20,
-          "seed": "0x42ea22627efcfe117a7212fd7a141041879ecacb2477096f68715d26d5f650df"
+          "seed": "0x1978622a952d317418f8a4abdf00746352586ec23d3dc459ad585ec56e887f14"
+        },
+        {
+          "tokenId": 1096,
+          "windowId": 20,
+          "seed": "0xc744634d492236cb59507b419552bc4eb272d1f15bd84ca05b0761a998299f46"
+        },
+        {
+          "tokenId": 1132,
+          "windowId": 21,
+          "seed": "0x0720405b3dc4572ae8e646de23d14f704af849461d7e5a093c801e629dbb95fd"
         }
       ]
     },
@@ -2896,145 +3117,6 @@
       ]
     },
     {
-      "address": "0xa585d2ae9fc1d84fe2ef0213d114c7a7f4638907",
-      "tokenCount": 6,
-      "windowsCollected": [
-        0,
-        9,
-        10,
-        18,
-        19,
-        20
-      ],
-      "windowCount": 6,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 66,
-          "windowId": 0,
-          "seed": "0x45ec436a706a4af903366f084e3a9d5175e73b1f8ca2ee861aa6d093d1ce63ec"
-        },
-        {
-          "tokenId": 711,
-          "windowId": 9,
-          "seed": "0x22a897a1b4e467f4b5f3b35b14dafa60da47ef7555b2acc26b36740c6b986883"
-        },
-        {
-          "tokenId": 740,
-          "windowId": 10,
-          "seed": "0x6a61116861d11ca79d2ba53f8773acbb1f4bbf019825ce60ecd8cb144df12e5a"
-        },
-        {
-          "tokenId": 946,
-          "windowId": 18,
-          "seed": "0x56d57c8b776f194955310c482eec0c220c8749dc7c108897d6d4930ea5d9c608"
-        },
-        {
-          "tokenId": 1028,
-          "windowId": 19,
-          "seed": "0xe563c9dd789c3fa33ff130be42091775d8803aedaf39ee7cf3e016d3a96ff111"
-        },
-        {
-          "tokenId": 1099,
-          "windowId": 20,
-          "seed": "0x094047304c9d044473c6d5dfa946bc362b38988c15a25898ebb9cdad21c2f206"
-        }
-      ]
-    },
-    {
-      "address": "0x5a084aaef5eddd9195f28f6fe056785e01f210eb",
-      "tokenCount": 6,
-      "windowsCollected": [
-        1,
-        10,
-        18,
-        19,
-        20
-      ],
-      "windowCount": 5,
-      "isFullCollector": false,
-      "lessBalance": "1018290713831810297205719",
-      "tokens": [
-        {
-          "tokenId": 272,
-          "windowId": 1,
-          "seed": "0xf2e421e93ea783d7b890412cb79f3ad2c9a7b6d5e1117be5a805a4de5dfb8d63"
-        },
-        {
-          "tokenId": 726,
-          "windowId": 10,
-          "seed": "0x14b2a2cf45c7ae6ad20475de3b6f74771edfe6b8a3a9b73cdb8f667e77c74eb7"
-        },
-        {
-          "tokenId": 727,
-          "windowId": 10,
-          "seed": "0x9e5cc4a620c5798d2da184a2f9781f967834a4c872ebdf0bcca456e4792631d2"
-        },
-        {
-          "tokenId": 962,
-          "windowId": 18,
-          "seed": "0xd5323013cdbc6cc8244b766483608a436506718b71af559f71cd97d850edc64b"
-        },
-        {
-          "tokenId": 997,
-          "windowId": 19,
-          "seed": "0xa4f551a714956370e725e082a7f79b6a36192cbac7b397c0c3645f4ee0fb15a5"
-        },
-        {
-          "tokenId": 1043,
-          "windowId": 20,
-          "seed": "0x2518a12854f753dcc9937a5b5dc5053cd67eeebaf7868b2d2709f4bb4c63fd23"
-        }
-      ]
-    },
-    {
-      "address": "0x635b41de5c42323ff1c2234ad5351b0ce065186f",
-      "tokenCount": 6,
-      "windowsCollected": [
-        10,
-        15,
-        16,
-        18,
-        20
-      ],
-      "windowCount": 5,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 722,
-          "windowId": 10,
-          "seed": "0x816112fba999aa645c932bdf3116fa97a2cf2ccf5e1a4f42919612eeb59ccde3"
-        },
-        {
-          "tokenId": 869,
-          "windowId": 15,
-          "seed": "0x0e8a8376e6686af03f84edc4eb9f83cac628465a296f812aacbb5f18cd9a8af2"
-        },
-        {
-          "tokenId": 883,
-          "windowId": 16,
-          "seed": "0x4d5b6a0949962500a69cba3f18c1c8a0ccf233b7da42b392f78a1aa36d05dd9c"
-        },
-        {
-          "tokenId": 974,
-          "windowId": 18,
-          "seed": "0xeab6b42827c85dcda4c946463bafbac6a22ffebf53407020ce75232fa2b20bfb"
-        },
-        {
-          "tokenId": 1091,
-          "windowId": 20,
-          "seed": "0x1978622a952d317418f8a4abdf00746352586ec23d3dc459ad585ec56e887f14"
-        },
-        {
-          "tokenId": 1096,
-          "windowId": 20,
-          "seed": "0xc744634d492236cb59507b419552bc4eb272d1f15bd84ca05b0761a998299f46"
-        }
-      ]
-    },
-    {
       "address": "0xea5eb1eedc37942ce7e59ab169e29fbfecae5559",
       "tokenCount": 6,
       "windowsCollected": [
@@ -3175,7 +3257,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
-      "lessBalance": "5908174972699536672475416",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 37,
@@ -3374,6 +3456,47 @@
           "tokenId": 990,
           "windowId": 18,
           "seed": "0x0b94aacf6128a9405cd7450a25bcf41e985b579fa4cf795ad54ab31c399cc2e8"
+        }
+      ]
+    },
+    {
+      "address": "0xd910201439151ab8d3a2601a99b1f70347b92a3d",
+      "tokenCount": 5,
+      "windowsCollected": [
+        0,
+        6,
+        8,
+        19,
+        21
+      ],
+      "windowCount": 5,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 46,
+          "windowId": 0,
+          "seed": "0xe45d38de6b8b150d48cb4b65850a3ed8f745fd54577d9e81c90a8f9832f3556a"
+        },
+        {
+          "tokenId": 616,
+          "windowId": 6,
+          "seed": "0xc3b55044b70eabd08e829e413b6e26778b4e0c08e06c4f6653dfc9b017182dc7"
+        },
+        {
+          "tokenId": 670,
+          "windowId": 8,
+          "seed": "0x90da3962eb3bfbe3023a5f260c02e147a9725a7cc8ec5c736a5e78f47843a79c"
+        },
+        {
+          "tokenId": 999,
+          "windowId": 19,
+          "seed": "0x09d2f31c685dcd0cf44e889ed953f06c5933715e2e185ca04149225097631cf0"
+        },
+        {
+          "tokenId": 1129,
+          "windowId": 21,
+          "seed": "0x226405fa1c660b19e06c9174694548b59e237a7569158a67945894e84d4eab6f"
         }
       ]
     },
@@ -3953,41 +4076,6 @@
           "tokenId": 777,
           "windowId": 11,
           "seed": "0xdb97eb94617d9051d258eff036cd6fb57d6fda6235e83c630c570a4b21d79ba5"
-        }
-      ]
-    },
-    {
-      "address": "0xd910201439151ab8d3a2601a99b1f70347b92a3d",
-      "tokenCount": 4,
-      "windowsCollected": [
-        0,
-        6,
-        8,
-        19
-      ],
-      "windowCount": 4,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 46,
-          "windowId": 0,
-          "seed": "0xe45d38de6b8b150d48cb4b65850a3ed8f745fd54577d9e81c90a8f9832f3556a"
-        },
-        {
-          "tokenId": 616,
-          "windowId": 6,
-          "seed": "0xc3b55044b70eabd08e829e413b6e26778b4e0c08e06c4f6653dfc9b017182dc7"
-        },
-        {
-          "tokenId": 670,
-          "windowId": 8,
-          "seed": "0x90da3962eb3bfbe3023a5f260c02e147a9725a7cc8ec5c736a5e78f47843a79c"
-        },
-        {
-          "tokenId": 999,
-          "windowId": 19,
-          "seed": "0x09d2f31c685dcd0cf44e889ed953f06c5933715e2e185ca04149225097631cf0"
         }
       ]
     },
@@ -4894,6 +4982,34 @@
       ]
     },
     {
+      "address": "0x295cf39d923bc491e138ab5f7f1c570d4732b5a1",
+      "tokenCount": 3,
+      "windowsCollected": [
+        3,
+        21
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 494,
+          "windowId": 3,
+          "seed": "0xdfbe316a07816595c0f7272b697fef3157fade729e9e7f4b8571df4793e0c6b4"
+        },
+        {
+          "tokenId": 495,
+          "windowId": 3,
+          "seed": "0xcf86ea4cc857f6487dea29f51b09e70cbfb47dbc96ac85843f7468171f4429d6"
+        },
+        {
+          "tokenId": 1124,
+          "windowId": 21,
+          "seed": "0x32ed4cf509abb7889ae2abc8fcfc840d8d23288079ecaa8b75dab1bbc23b1fd0"
+        }
+      ]
+    },
+    {
       "address": "0xa00e4ba46907fcbf84b3ba22c7b5689e6db827a0",
       "tokenCount": 3,
       "windowsCollected": [
@@ -4946,6 +5062,34 @@
           "tokenId": 1063,
           "windowId": 20,
           "seed": "0x5fd5dc6af0f73ada63a0c04078072245e4b79bc4eaf8e9e123c1cf36f0b27302"
+        }
+      ]
+    },
+    {
+      "address": "0x90f64e01ffae16490aefe03c8ed7dab6c66198c3",
+      "tokenCount": 3,
+      "windowsCollected": [
+        15,
+        21
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "1643857468949739891813937",
+      "tokens": [
+        {
+          "tokenId": 861,
+          "windowId": 15,
+          "seed": "0x8d652f470b22655dc320a076010accecd0360826fa652b788d2e7d8ac8a339b9"
+        },
+        {
+          "tokenId": 863,
+          "windowId": 15,
+          "seed": "0xe44b6097f7a84b7dce389c6c530c007cf5c8e35148ce823d8cefede134a7a337"
+        },
+        {
+          "tokenId": 1113,
+          "windowId": 21,
+          "seed": "0xb2c9f3c0834aaf8126758bf95d524e69dfd9eb3baa3b213ccdb5cff9b640fc99"
         }
       ]
     },
@@ -5908,6 +6052,75 @@
       ]
     },
     {
+      "address": "0xcf6f5a68d94165081a634ada997be3a93426c467",
+      "tokenCount": 2,
+      "windowsCollected": [
+        20,
+        21
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1045,
+          "windowId": 20,
+          "seed": "0x50384d8266dae8f6935efb14ef0a2d0acd17b37ba1fb2844cc82d98148bfed14"
+        },
+        {
+          "tokenId": 1120,
+          "windowId": 21,
+          "seed": "0x90c9efd7c27a6880fdfd572b85266662984b5df2d99be9fad11893d571cd7768"
+        }
+      ]
+    },
+    {
+      "address": "0x4027cdb0502bae14fea8ff50b0ea59d560fc880b",
+      "tokenCount": 2,
+      "windowsCollected": [
+        20,
+        21
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1069,
+          "windowId": 20,
+          "seed": "0xa68a3019323079809e0ae92334a023aabb98bb96a7d899a085a29fca92cfb320"
+        },
+        {
+          "tokenId": 1126,
+          "windowId": 21,
+          "seed": "0x3f9391be4111a37ac43241976e6f1e0120a27b4c03abca5e758acdc5a011bf5e"
+        }
+      ]
+    },
+    {
+      "address": "0x9a3e204bd2f012122b228fa68bf97539da965d3b",
+      "tokenCount": 2,
+      "windowsCollected": [
+        20,
+        21
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1071,
+          "windowId": 20,
+          "seed": "0x0b390e8e7e9e219144b0e400175ec406483b18f81f1c8f3d7d4daa0d39a2ed48"
+        },
+        {
+          "tokenId": 1127,
+          "windowId": 21,
+          "seed": "0xf9c41b3005be7b16cd83c89ebd87e6735a4a50041e1a45e5c547952d6636f866"
+        }
+      ]
+    },
+    {
       "address": "0x142e6ee40bd42643aa4d3f7a0ae066997f902788",
       "tokenCount": 2,
       "windowsCollected": [
@@ -6656,28 +6869,6 @@
       ]
     },
     {
-      "address": "0x295cf39d923bc491e138ab5f7f1c570d4732b5a1",
-      "tokenCount": 2,
-      "windowsCollected": [
-        3
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 494,
-          "windowId": 3,
-          "seed": "0xdfbe316a07816595c0f7272b697fef3157fade729e9e7f4b8571df4793e0c6b4"
-        },
-        {
-          "tokenId": 495,
-          "windowId": 3,
-          "seed": "0xcf86ea4cc857f6487dea29f51b09e70cbfb47dbc96ac85843f7468171f4429d6"
-        }
-      ]
-    },
-    {
       "address": "0xfc8f57a04f4df6f167599162bf5fdaa098ac18cc",
       "tokenCount": 2,
       "windowsCollected": [
@@ -6982,28 +7173,6 @@
           "tokenId": 804,
           "windowId": 13,
           "seed": "0x37b1a56497995113ac59d926643cf88fd31f50a3ae94f6d28d3f65e06e753a29"
-        }
-      ]
-    },
-    {
-      "address": "0x90f64e01ffae16490aefe03c8ed7dab6c66198c3",
-      "tokenCount": 2,
-      "windowsCollected": [
-        15
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "1643857468949739891813937",
-      "tokens": [
-        {
-          "tokenId": 861,
-          "windowId": 15,
-          "seed": "0x8d652f470b22655dc320a076010accecd0360826fa652b788d2e7d8ac8a339b9"
-        },
-        {
-          "tokenId": 863,
-          "windowId": 15,
-          "seed": "0xe44b6097f7a84b7dce389c6c530c007cf5c8e35148ce823d8cefede134a7a337"
         }
       ]
     },
@@ -8869,23 +9038,6 @@
       ]
     },
     {
-      "address": "0x72e7b5056a5694217c15f521d8637f461055aafe",
-      "tokenCount": 1,
-      "windowsCollected": [
-        4
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 507,
-          "windowId": 4,
-          "seed": "0x398cd45b0adaf493d8257fcdaf5d40a334777ac32302e1a0041c1175e0517faf"
-        }
-      ]
-    },
-    {
       "address": "0xbc769e783796bab3d614683d1f2f5e1446b3724d",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10365,23 +10517,6 @@
       ]
     },
     {
-      "address": "0xcf6f5a68d94165081a634ada997be3a93426c467",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 1045,
-          "windowId": 20,
-          "seed": "0x50384d8266dae8f6935efb14ef0a2d0acd17b37ba1fb2844cc82d98148bfed14"
-        }
-      ]
-    },
-    {
       "address": "0xbcdf14124b95f65c8db241aafb3ef5c1abd2adc6",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10429,40 +10564,6 @@
           "tokenId": 1067,
           "windowId": 20,
           "seed": "0x423165f500a392be57e339aed3111e2302db639ca8b826a1f3136ad3afa92117"
-        }
-      ]
-    },
-    {
-      "address": "0x4027cdb0502bae14fea8ff50b0ea59d560fc880b",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 1069,
-          "windowId": 20,
-          "seed": "0xa68a3019323079809e0ae92334a023aabb98bb96a7d899a085a29fca92cfb320"
-        }
-      ]
-    },
-    {
-      "address": "0x9a3e204bd2f012122b228fa68bf97539da965d3b",
-      "tokenCount": 1,
-      "windowsCollected": [
-        20
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 1071,
-          "windowId": 20,
-          "seed": "0x0b390e8e7e9e219144b0e400175ec406483b18f81f1c8f3d7d4daa0d39a2ed48"
         }
       ]
     },
@@ -10584,9 +10685,26 @@
           "seed": "0x558f13428ce0eda5bffcf030ab15a8744530bc0d709ac648f408a2cfa90ca1d5"
         }
       ]
+    },
+    {
+      "address": "0xb9cdff118874f05c4c5ee8b34582ab4e5f0eb2b2",
+      "tokenCount": 1,
+      "windowsCollected": [
+        21
+      ],
+      "windowCount": 1,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 1130,
+          "windowId": 21,
+          "seed": "0xa4f2527047166eec8c4e636fa66684f542902dd75b3c464e541849c5fb4d538a"
+        }
+      ]
     }
   ],
-  "lastIndexedBlock": 24380651,
-  "generatedAt": 1770173890824,
-  "generatedAtISO": "2026-02-04T02:58:10.824Z"
+  "lastIndexedBlock": 24385214,
+  "generatedAt": 1770228969941,
+  "generatedAtISO": "2026-02-04T18:16:09.941Z"
 }
