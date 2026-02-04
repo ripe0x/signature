@@ -64,16 +64,16 @@ export function useMintWindow() {
   // Check if user is on the correct network
   const isWrongNetwork = isConnected && chainId !== CHAIN_ID;
 
-  // Fetch time until window closes - ONLY ONCE to initialize countdown
-  // The client-side timer handles the countdown, no need for 1s polling
+  // Fetch time until window closes - fresh on each page load, then client-side timer takes over
   const { data: timeUntilClose, refetch: refetchTimeUntilClose } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'timeUntilWindowCloses',
     query: {
       enabled: isWindowActive,
-      // No refetchInterval - we only need initial value, client-side timer does the rest
-      staleTime: Infinity,
+      // Always fetch fresh on mount, no polling after that
+      refetchOnMount: 'always',
+      staleTime: Infinity, // Don't refetch during session (client-side timer handles countdown)
     },
   });
 
