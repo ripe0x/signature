@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useWindowTokens } from '@/hooks/useWindowTokens';
 import { useWindowMintCounts } from '@/hooks/useWindowMintCounts';
 import { useWindowDetails } from '@/hooks/useWindowDetails';
+import { useCurrentWindowTokens } from '@/hooks/useCurrentWindowTokens';
+import { useMintWindow } from '@/hooks/useMintWindow';
 import { IS_PRE_LAUNCH } from '@/lib/contracts';
 import { truncateAddress } from '@/lib/utils';
 
@@ -106,9 +108,46 @@ function formatTime(timestamp: number): string {
 }
 
 function WindowCollection({ windowId }: { windowId: number }) {
-  const { tokens, count, isLoading } = useWindowTokens(windowId);
+  const { tokens: apiTokens, count: apiCount, isLoading } = useWindowTokens(windowId);
   const { windowMintCounts } = useWindowMintCounts();
-  const { startTime, endTime, isLoading: isLoadingDetails } = useWindowDetails(windowId);
+  const { startTime: apiStartTime, endTime, isLoading: isLoadingDetails } = useWindowDetails(windowId);
+  const { isActive, windowId: activeWindowId, timeRemaining, windowDuration } = useMintWindow();
+  const { tokens: currentWindowTokens, count: currentWindowCount } = useCurrentWindowTokens();
+
+  // Check if this is the currently active window
+  const isThisWindowActive = isActive && windowId === activeWindowId;
+
+  // Merge API tokens with real-time current window tokens if this is the active window
+  const tokens = useMemo(() => {
+    if (!isThisWindowActive || currentWindowTokens.length === 0) {
+      return apiTokens;
+    }
+
+    // Create a Set of existing token IDs from API
+    const existingIds = new Set(apiTokens.map(t => t.id));
+
+    // Add current window tokens that aren't already in API results
+    const newTokens = currentWindowTokens
+      .filter(t => !existingIds.has(t.id))
+      .map(t => ({
+        id: t.id,
+        windowId: t.windowId,
+        seed: t.seed,
+        owner: t.owner,
+        metadata: t.metadata,
+      }));
+
+    // Combine and sort by ID descending (newest first)
+    return [...newTokens, ...apiTokens].sort((a, b) => b.id - a.id);
+  }, [apiTokens, currentWindowTokens, isThisWindowActive]);
+
+  // Use real-time count for active window
+  const count = isThisWindowActive ? Math.max(currentWindowCount, apiCount) : apiCount;
+
+  // Calculate start time for active window
+  const startTime = isThisWindowActive && windowDuration > 0
+    ? Math.floor(Date.now() / 1000) - (windowDuration - timeRemaining)
+    : apiStartTime;
 
   // Get total number of windows for navigation context
   const windowIds = Array.from(windowMintCounts.keys()).sort((a, b) => b - a);
@@ -161,13 +200,21 @@ function WindowCollection({ windowId }: { windowId: number }) {
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl mb-3">window {windowId}</h1>
+            <div className="flex items-center gap-4 mb-3">
+              <h1 className="text-2xl">window {windowId}</h1>
+              {isThisWindowActive && (
+                <span className="text-sm text-green-600">
+                  <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse mr-1.5 align-middle" />
+                  <span>minting now</span>
+                </span>
+              )}
+            </div>
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
               <span>{count.toLocaleString()} LESS</span>
               {tokenIdRange && (
                 <span>#{tokenIdRange.min}–{tokenIdRange.max}</span>
               )}
-              {startTime && !isLoadingDetails && (
+              {startTime && (isThisWindowActive || !isLoadingDetails) && (
                 <span>{formatDate(startTime)} at {formatTime(startTime)}</span>
               )}
             </div>
