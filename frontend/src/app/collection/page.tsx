@@ -218,9 +218,9 @@ function LiveCollection() {
                     window {group.windowId}
                   </h2>
                   {isCurrentWindow && (
-                    <span className="flex items-center gap-1.5 text-sm text-green-600">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                      minting now
+                    <span className="text-sm text-green-600">
+                      <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse mr-1.5 align-middle" />
+                      <span>minting now</span>
                     </span>
                   )}
                   <span className="text-sm text-muted">
