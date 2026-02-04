@@ -133,7 +133,7 @@ export function TokenPanel() {
   const formattedPrice =
     tokenPrice !== null
       ? tokenPrice < 0.0001
-        ? tokenPrice.toExponential(2)
+        ? tokenPrice.toFixed(8).replace(/0+$/, "").replace(/\.$/, "")
         : tokenPrice < 1
         ? tokenPrice.toFixed(6)
         : tokenPrice.toFixed(4)
