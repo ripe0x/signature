@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCollection, type CollectionToken } from "@/hooks/useCollection";
 import { useWindowMintCounts } from "@/hooks/useWindowMintCounts";
+import { useCurrentWindowTokens } from "@/hooks/useCurrentWindowTokens";
 import {
   IS_PRE_LAUNCH,
   IS_TOKEN_LIVE,
@@ -114,13 +115,30 @@ function LiveCollection() {
 
   const { tokens, total, isLoading, hasMore, totalPages } = useCollection(page);
   const { windowMintCounts } = useWindowMintCounts();
+  const { tokens: currentWindowTokens, isActive: isWindowActive, windowId: currentWindowId } = useCurrentWindowTokens();
+
+  // Merge API tokens with real-time current window tokens
+  const mergedTokens = useMemo(() => {
+    if (!isWindowActive || currentWindowTokens.length === 0) {
+      return tokens;
+    }
+
+    // Create a Set of existing token IDs from API
+    const existingIds = new Set(tokens.map(t => t.id));
+
+    // Add current window tokens that aren't in API yet
+    const newTokens = currentWindowTokens.filter(t => !existingIds.has(t.id));
+
+    // Combine and return (current window tokens will be grouped separately)
+    return [...newTokens, ...tokens];
+  }, [tokens, currentWindowTokens, isWindowActive]);
 
   // Group tokens by windowId, sorted by most recent window first
   const windowGroups: WindowGroup[] = useMemo(() => {
     const groups = new Map<number, CollectionToken[]>();
 
     // Group tokens by windowId
-    for (const token of tokens) {
+    for (const token of mergedTokens) {
       const existing = groups.get(token.windowId) || [];
       existing.push(token);
       groups.set(token.windowId, existing);
@@ -134,7 +152,7 @@ function LiveCollection() {
         // Sort tokens within window by id descending (newest first)
         tokens: windowTokens.sort((a, b) => b.id - a.id),
       }));
-  }, [tokens]);
+  }, [mergedTokens]);
 
   if (isLoading && tokens.length === 0) {
     return (
@@ -167,19 +185,19 @@ function LiveCollection() {
           <div className="mb-12">
             <h1 className="text-2xl mb-2">collection</h1>
             <p className="text-sm text-muted">
-              {total.toLocaleString()} LESS across{" "}
+              {mergedTokens.length > total ? mergedTokens.length.toLocaleString() : total.toLocaleString()} LESS across{" "}
               <Link
                 href="/windows"
                 className="underline underline-offset-4 hover:text-foreground transition-colors"
               >
-                {windowMintCounts.size} window
-                {windowMintCounts.size !== 1 ? "s" : ""}
+                {isWindowActive ? Math.max(windowMintCounts.size, currentWindowId) : windowMintCounts.size} window
+                {(isWindowActive ? Math.max(windowMintCounts.size, currentWindowId) : windowMintCounts.size) !== 1 ? "s" : ""}
               </Link>
             </p>
           </div>
 
           {/* Empty state */}
-          {tokens.length === 0 && (
+          {mergedTokens.length === 0 && (
             <div className="text-center py-20">
               <p className="text-muted">no tokens minted yet</p>
             </div>
@@ -187,7 +205,9 @@ function LiveCollection() {
 
           {/* Window groups */}
           <div className="space-y-16">
-            {windowGroups.map((group) => (
+            {windowGroups.map((group) => {
+              const isCurrentWindow = isWindowActive && group.windowId === currentWindowId;
+              return (
               <section key={group.windowId}>
                 {/* Window header - clickable link to window detail */}
                 <Link
@@ -197,6 +217,12 @@ function LiveCollection() {
                   <h2 className="text-lg group-hover:underline underline-offset-4">
                     window {group.windowId}
                   </h2>
+                  {isCurrentWindow && (
+                    <span className="flex items-center gap-1.5 text-sm text-green-600">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                      minting now
+                    </span>
+                  )}
                   <span className="text-sm text-muted">
                     {(windowMintCounts.get(group.windowId) ?? group.tokens.length).toLocaleString()} LESS
                   </span>
@@ -212,7 +238,8 @@ function LiveCollection() {
                   ))}
                 </div>
               </section>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination */}
