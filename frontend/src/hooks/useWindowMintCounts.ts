@@ -54,7 +54,5 @@ export function useWindowMintCounts() {
     windowMintCounts,
     isLoading,
     total: apiData?.totalTokens ?? 0,
-    // Debug: expose raw data
-    _debug: { hasData: !!apiData, windowCount: apiData?.windows?.length ?? 0 },
   };
 }

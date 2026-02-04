@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useAllWindows } from "@/hooks/useAllWindows";
 import { useMintWindow } from "@/hooks/useMintWindow";
 import { useTokenStats } from "@/hooks/useTokenStats";
+import { useCurrentWindowTokens } from "@/hooks/useCurrentWindowTokens";
 import { IS_PRE_LAUNCH } from "@/lib/contracts";
 import { generateUnicodeProgressBar } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ function WindowsList() {
   const { windows, isLoading, totalWindows } = useAllWindows();
   const { isActive, windowId: activeWindowId, timeRemaining, windowDuration } = useMintWindow();
   const { buybackBalance } = useTokenStats();
+  const { count: activeWindowMintCount } = useCurrentWindowTokens();
 
   // Calculate buyback progress percentage (threshold is 0.25 ETH)
   const buybackBalanceEth = Number(buybackBalance) / 1e18;
@@ -70,6 +72,11 @@ function WindowsList() {
   // Calculate active window time progress
   const activeWindowPercent = windowDuration > 0
     ? ((windowDuration - timeRemaining) / windowDuration) * 100
+    : 0;
+
+  // Calculate when the active window opened
+  const activeWindowStartTime = windowDuration > 0
+    ? Math.floor(Date.now() / 1000) - (windowDuration - timeRemaining)
     : 0;
 
   if (isLoading && windows.length === 0) {
@@ -140,8 +147,10 @@ function WindowsList() {
                     minting
                   </span>
                 </div>
-                <div className="hidden md:block text-right text-muted whitespace-nowrap">now</div>
-                <div className="text-right text-muted">—</div>
+                <div className="hidden md:block text-right text-muted tabular-nums whitespace-nowrap">
+                  {activeWindowStartTime > 0 ? formatDateTime(activeWindowStartTime) : "—"}
+                </div>
+                <div className="text-right tabular-nums">{activeWindowMintCount.toLocaleString()}</div>
               </Link>
             )}
 
