@@ -19,10 +19,10 @@ interface WindowCountsApiResponse {
 
 /**
  * Hook to get accurate mint counts per window
- * Now uses pre-indexed API data instead of scanning all tokens via RPC
+ * Uses pre-indexed API data
  */
 export function useWindowMintCounts() {
-  // Fetch window counts from API (eliminates N RPC calls for scanning)
+  // Fetch window counts from API
   const {
     data: apiData,
     isLoading,
@@ -39,15 +39,22 @@ export function useWindowMintCounts() {
     refetchInterval: 60000, // Refresh every minute
   });
 
-  // Convert API response to Map format expected by consumers
+  // Convert API response to Map format
   const windowMintCounts = useMemo(() => {
-    if (!apiData?.windows) return new Map<number, number>();
-    return new Map(apiData.windows.map(w => [w.windowId, w.mintCount]));
+    const map = new Map<number, number>();
+    if (apiData?.windows) {
+      for (const w of apiData.windows) {
+        map.set(w.windowId, w.mintCount);
+      }
+    }
+    return map;
   }, [apiData]);
 
   return {
     windowMintCounts,
     isLoading,
     total: apiData?.totalTokens ?? 0,
+    // Debug: expose raw data
+    _debug: { hasData: !!apiData, windowCount: apiData?.windows?.length ?? 0 },
   };
 }

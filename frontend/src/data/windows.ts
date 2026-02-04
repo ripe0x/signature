@@ -29,6 +29,7 @@ export const WINDOW_TIMESTAMPS: WindowTimestamp[] = [
   { windowId: 17, startTime: 1767148991, endTime: 1767154391 }, // 2025-12-31T02:43:11.000Z
   { windowId: 18, startTime: 1767292535, endTime: 1767297935 }, // 2026-01-01T18:35:35.000Z
   { windowId: 19, startTime: 1767586391, endTime: 1767591791 }, // 2026-01-05T04:13:11.000Z
+  { windowId: 20, startTime: 1767883499, endTime: 1767888899 }, // 2026-01-08T14:44:59.000Z
 ];
 
 // Helper to get timestamps as a Map

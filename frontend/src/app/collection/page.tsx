@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useCollection, type CollectionToken } from "@/hooks/useCollection";
 import { useWindowMintCounts } from "@/hooks/useWindowMintCounts";
 import { useCurrentWindowTokens } from "@/hooks/useCurrentWindowTokens";
+import { useRecentTokens } from "@/hooks/useRecentTokens";
 import {
   IS_PRE_LAUNCH,
   IS_TOKEN_LIVE,
@@ -113,25 +114,59 @@ function PreLaunchCollection() {
 function LiveCollection() {
   const [page, setPage] = useState(0);
 
-  const { tokens, total, isLoading, hasMore, totalPages } = useCollection(page);
-  const { windowMintCounts } = useWindowMintCounts();
-  const { tokens: currentWindowTokens, isActive: isWindowActive, windowId: currentWindowId } = useCurrentWindowTokens();
+  const { tokens: apiTokens, total, isLoading, hasMore, totalPages } = useCollection(page);
+  const { windowMintCounts, isLoading: isLoadingCounts } = useWindowMintCounts();
+  const { tokens: currentWindowTokens, isActive: isWindowActive, windowId: currentWindowId, isLoading: isLoadingCurrentWindow } = useCurrentWindowTokens();
 
-  // Merge API tokens with real-time current window tokens
-  const mergedTokens = useMemo(() => {
-    if (!isWindowActive || currentWindowTokens.length === 0) {
-      return tokens;
+  // Fallback: fetch recent tokens from chain when API fails or returns empty
+  // Only enable fallback when API has finished loading AND returned no data
+  const apiFinishedEmpty = !isLoading && apiTokens.length === 0;
+  const { tokens: recentTokens, isLoading: isLoadingRecent, total: onChainTotal } = useRecentTokens(apiFinishedEmpty ? 40 : 0);
+
+  // Use API tokens if available, otherwise fall back to on-chain recent tokens
+  const baseTokens: CollectionToken[] = useMemo(() => {
+    // If API has data, always use it
+    if (apiTokens.length > 0) {
+      return apiTokens;
     }
 
-    // Create a Set of existing token IDs from API
-    const existingIds = new Set(tokens.map(t => t.id));
+    // Only use fallback if API finished loading with no data
+    if (apiFinishedEmpty && recentTokens.length > 0) {
+      return recentTokens.map(t => ({
+        id: t.id,
+        windowId: t.windowId,
+        seed: t.seed,
+        metadata: t.metadata,
+      }));
+    }
 
-    // Add current window tokens that aren't in API yet
-    const newTokens = currentWindowTokens.filter(t => !existingIds.has(t.id));
+    return [];
+  }, [apiTokens, recentTokens, apiFinishedEmpty]);
 
-    // Combine and return (current window tokens will be grouped separately)
-    return [...newTokens, ...tokens];
-  }, [tokens, currentWindowTokens, isWindowActive]);
+  // Merge base tokens with real-time current window tokens
+  const mergedTokens: CollectionToken[] = useMemo(() => {
+    // If still loading current window or no current window tokens, use base tokens
+    if (!isWindowActive || isLoadingCurrentWindow || currentWindowTokens.length === 0) {
+      return baseTokens;
+    }
+
+    // Create a Set of existing token IDs
+    const existingIds = new Set(baseTokens.map(t => t.id));
+
+    // Add current window tokens that aren't already included
+    const newTokens: CollectionToken[] = currentWindowTokens
+      .filter(t => !existingIds.has(t.id))
+      .map(t => ({
+        id: t.id,
+        windowId: t.windowId,
+        seed: t.seed,
+        owner: t.owner,
+        metadata: t.metadata,
+      }));
+
+    // Combine: new current window tokens first, then all base tokens
+    return [...newTokens, ...baseTokens];
+  }, [baseTokens, currentWindowTokens, isWindowActive, isLoadingCurrentWindow]);
 
   // Group tokens by windowId, sorted by most recent window first
   const windowGroups: WindowGroup[] = useMemo(() => {
@@ -154,7 +189,8 @@ function LiveCollection() {
       }));
   }, [mergedTokens]);
 
-  if (isLoading && tokens.length === 0) {
+  // Show loading skeleton while API is loading and we have no data yet
+  if (isLoading && mergedTokens.length === 0) {
     return (
       <div className="min-h-screen pt-20 lg:pt-28">
         <div className="px-6 md:px-8 py-12">
@@ -185,7 +221,7 @@ function LiveCollection() {
           <div className="mb-12">
             <h1 className="text-2xl mb-2">collection</h1>
             <p className="text-sm text-muted">
-              {mergedTokens.length > total ? mergedTokens.length.toLocaleString() : total.toLocaleString()} LESS across{" "}
+              {Math.max(mergedTokens.length, total, onChainTotal || 0).toLocaleString()} LESS across{" "}
               <Link
                 href="/windows"
                 className="underline underline-offset-4 hover:text-foreground transition-colors"
@@ -224,7 +260,10 @@ function LiveCollection() {
                     </span>
                   )}
                   <span className="text-sm text-muted">
-                    {(windowMintCounts.get(group.windowId) ?? group.tokens.length).toLocaleString()} LESS
+                    {(!isLoadingCounts && windowMintCounts.has(group.windowId)
+                      ? windowMintCounts.get(group.windowId)!
+                      : group.tokens.length
+                    ).toLocaleString()} LESS
                   </span>
                   <span className="text-sm text-muted opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                     view all →

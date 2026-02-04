@@ -41,6 +41,7 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
   const {
     data: apiData,
     isLoading: isLoadingApi,
+    error: apiError,
     refetch: refetchApi,
   } = useQuery<CollectionApiResponse>({
     queryKey: ['collection', page, BATCH_SIZE],
@@ -54,6 +55,7 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
     staleTime: 60000, // 1 minute
     refetchInterval: 60000,
     enabled,
+    retry: 2, // Retry twice on failure
   });
 
   // Extract token IDs for metadata fetch
@@ -117,5 +119,6 @@ export function useCollection(page = 0, options?: { skipMetadata?: boolean; enab
     page,
     totalPages,
     refetch,
+    error: apiError,
   };
 }

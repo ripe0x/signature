@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { WINDOW_TIMESTAMPS, getWindowTimestampMap } from '@/data/windows';
+import { useState, useEffect, useMemo } from 'react';
+import { getWindowTimestampMap } from '@/data/windows';
 
 const IMAGE_API_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL || 'https://fold-image-api.fly.dev';
 
@@ -21,9 +21,7 @@ interface WindowsApiResponse {
  * Hook to fetch window timestamps from API with static fallback
  */
 export function useWindowTimestamps() {
-  const [timestamps, setTimestamps] = useState<Map<number, { start: number; end: number }>>(
-    () => getWindowTimestampMap()
-  );
+  const [apiTimestamps, setApiTimestamps] = useState<Map<number, { start: number; end: number }> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -38,9 +36,10 @@ export function useWindowTimestamps() {
         for (const w of data.windows) {
           map.set(w.windowId, { start: w.startTime, end: w.endTime });
         }
-        setTimestamps(map);
+        setApiTimestamps(map);
       } catch {
-        // Keep static fallback data (already set as initial state)
+        // API failed, will use static fallback
+        setApiTimestamps(null);
       } finally {
         setIsLoading(false);
       }
@@ -48,6 +47,20 @@ export function useWindowTimestamps() {
 
     fetchTimestamps();
   }, []);
+
+  // Merge static fallback with API data (API takes precedence)
+  const timestamps = useMemo(() => {
+    const map = getWindowTimestampMap(); // Start with static data
+
+    // Override/add API data if available
+    if (apiTimestamps) {
+      for (const [windowId, ts] of apiTimestamps) {
+        map.set(windowId, ts);
+      }
+    }
+
+    return map;
+  }, [apiTimestamps]);
 
   return { timestamps, isLoading };
 }
