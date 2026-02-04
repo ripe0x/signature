@@ -92,14 +92,14 @@ export function useMintWindow() {
   });
 
   // Get total cost for minting the selected quantity
-  // Only fetch when user is connected, window is active, and quantity > 0
+  // Fetch when user is connected and window is active OR can be opened
   const { data: totalCost, refetch: refetchTotalCost } = useReadContract({
     address: CONTRACTS.LESS_NFT,
     abi: LESS_NFT_ABI,
     functionName: 'getMintCost',
     args: address ? [address, BigInt(quantity)] : undefined,
     query: {
-      enabled: !!address && quantity > 0 && isWindowActive,
+      enabled: !!address && quantity > 0 && (isWindowActive || contractState.canCreateWindow),
       refetchInterval: isWindowActive ? 15000 : false,
       staleTime: 10000,
     },
@@ -274,7 +274,7 @@ export function useMintWindow() {
     basePrice: contractState.basePrice,
     isPriceLoading: contractState.isLoading,
     nextMintPrice: nextMintPrice || contractState.basePrice || BigInt(0),
-    totalCost: totalCost ?? BigInt(0),
+    totalCost: totalCost ?? contractState.basePrice ?? BigInt(0),
     mintCount: mintCountNum,
     multiplier,
     canCreateWindow: contractState.canCreateWindow,
