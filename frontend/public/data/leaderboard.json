@@ -5615,7 +5615,7 @@
       ]
     },
     {
-      "address": "0x029d3801d64d458150edb213fa25801c921f5438",
+      "address": "0x8d9c2833f0fd6cd37c96b698c8d53241cf208e87",
       "tokenCount": 2,
       "windowsCollected": [
         0,
@@ -10638,7 +10638,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24466564,
-  "generatedAt": 1771210978268,
-  "generatedAtISO": "2026-02-16T03:02:58.268Z"
+  "lastIndexedBlock": 24495706,
+  "generatedAt": 1771562105919,
+  "generatedAtISO": "2026-02-20T04:35:05.919Z"
 }
