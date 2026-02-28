@@ -2687,7 +2687,7 @@
       ],
       "windowCount": 6,
       "isFullCollector": false,
-      "lessBalance": "4058780611313603311131512",
+      "lessBalance": "4537207869700779487192971",
       "tokens": [
         {
           "tokenId": 460,
@@ -6190,7 +6190,7 @@
       ]
     },
     {
-      "address": "0x9a3e204bd2f012122b228fa68bf97539da965d3b",
+      "address": "0x5800e19584ffc413efd296038d5fd117dd0dccce",
       "tokenCount": 2,
       "windowsCollected": [
         20,
@@ -8265,7 +8265,7 @@
       ],
       "windowCount": 1,
       "isFullCollector": false,
-      "lessBalance": "2641746571816325997752947",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 270,
@@ -10638,7 +10638,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24541654,
-  "generatedAt": 1772115673237,
-  "generatedAtISO": "2026-02-26T14:21:13.237Z"
+  "lastIndexedBlock": 24557700,
+  "generatedAt": 1772309129279,
+  "generatedAtISO": "2026-02-28T20:05:29.279Z"
 }
