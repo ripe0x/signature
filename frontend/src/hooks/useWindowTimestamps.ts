@@ -54,9 +54,9 @@ export function useWindowTimestamps() {
 
     // Override/add API data if available
     if (apiTimestamps) {
-      for (const [windowId, ts] of apiTimestamps) {
+      apiTimestamps.forEach((ts, windowId) => {
         map.set(windowId, ts);
-      }
+      });
     }
 
     return map;
@@ -65,10 +65,3 @@ export function useWindowTimestamps() {
   return { timestamps, isLoading };
 }
 
-/**
- * Get timestamp for a specific window (from static data for immediate use)
- */
-export function getWindowTimestamp(windowId: number): { start: number; end: number } | null {
-  const w = WINDOW_TIMESTAMPS.find(w => w.windowId === windowId);
-  return w ? { start: w.startTime, end: w.endTime } : null;
-}
