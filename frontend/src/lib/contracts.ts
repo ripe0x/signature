@@ -2,6 +2,10 @@
 export const CONTRACTS = {
   LESS_NFT: "0x008B66385ed2346E6895031E250B2ac8dc14605C" as `0x${string}`,
   LESS_STRATEGY: "0x9c2ca573009f181eac634c4d6e44a0977c24f335" as `0x${string}`,
+  // Extensions (placeholders - set after deployment)
+  EXTENSIONS_AUCTION: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  EXTENSIONS_EXTENSION: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  MANIFOLD_CREATOR: "0x0000000000000000000000000000000000000000" as `0x${string}`,
 } as const;
 
 // Admin address
@@ -218,6 +222,153 @@ export const STRATEGY_ABI = [
     stateMutability: "view",
     inputs: [],
     outputs: [{ type: "uint256" }],
+  },
+] as const;
+
+// Generic ERC20 ABI (balance/allowance/approve)
+export const ERC20_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+// Extensions Auction ABI (minimal)
+export const EXTENSIONS_AUCTION_ABI = [
+  {
+    name: "currentAuctionTokenId",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "auctions",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "amount", type: "uint256" },
+      { name: "duration", type: "uint256" },
+      { name: "firstBidTime", type: "uint256" },
+      { name: "reservePrice", type: "uint256" },
+      { name: "bidder", type: "address" },
+      { name: "settled", type: "bool" },
+    ],
+  },
+  {
+    name: "auctionCreated",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "isAuctionActive",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    name: "minReservePrice",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "minBidIncrementPercentage",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    name: "timeBuffer",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "createAuctionWithBid",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "createBid",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "settleAuction",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [],
+  },
+] as const;
+
+// Extensions Manifold Extension ABI (minimal)
+export const EXTENSIONS_EXTENSION_ABI = [
+  {
+    name: "getRegisteredTokenIds",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256[]" }],
+  },
+  {
+    name: "tokenURI",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "creator", type: "address" },
+      { name: "tokenId", type: "uint256" },
+    ],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "tokenRegistered",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ type: "bool" }],
   },
 ] as const;
 

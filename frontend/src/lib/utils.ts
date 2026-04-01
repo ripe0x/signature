@@ -89,6 +89,22 @@ export function parseDataUri(dataUri: string): unknown {
   }
 }
 
+// Normalize token URI to a fetchable URL
+export function normalizeTokenUri(uri: string): string {
+  if (!uri) return uri;
+
+  if (uri.startsWith("ipfs://")) {
+    const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
+    return gateway + uri.replace("ipfs://", "");
+  }
+
+  if (uri.startsWith("ar://")) {
+    return "https://arweave.net/" + uri.replace("ar://", "");
+  }
+
+  return uri;
+}
+
 // Convert hex seed to number for artwork generation
 // Must match hexSeedToNumber in fold-core.js exactly
 export function seedToNumber(seed: `0x${string}`): number {
