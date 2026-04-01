@@ -180,13 +180,6 @@ export function Header() {
           collection
         </Link>
       )}
-      <Link
-        href="/extensions"
-        className="text-sm text-muted hover:text-foreground transition-colors"
-        onClick={() => setMobileMenuOpen(false)}
-      >
-        extensions
-      </Link>
       {!IS_PRE_LAUNCH && (
         <Link
           href="/collectors"
