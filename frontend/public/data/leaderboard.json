@@ -4,7 +4,7 @@
   "totalCollectors": 378,
   "fullCollectors": [
     "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
-    "0xe30337c6c904cf7b44c7e374ec427873c7aec95e"
+    "0x45ba9969c78aa4c76302c664ab5a71c306575f0b"
   ],
   "collectors": [
     {
@@ -885,7 +885,7 @@
       ]
     },
     {
-      "address": "0xe30337c6c904cf7b44c7e374ec427873c7aec95e",
+      "address": "0x45ba9969c78aa4c76302c664ab5a71c306575f0b",
       "tokenCount": 28,
       "windowsCollected": [
         0,
@@ -2463,7 +2463,7 @@
       ],
       "windowCount": 7,
       "isFullCollector": false,
-      "lessBalance": "1051271086959314974661828",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 133,
@@ -4862,7 +4862,7 @@
       ],
       "windowCount": 3,
       "isFullCollector": false,
-      "lessBalance": "2772665528040054991412856",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 260,
@@ -5953,7 +5953,7 @@
       ],
       "windowCount": 2,
       "isFullCollector": false,
-      "lessBalance": "7306679523278156033605842",
+      "lessBalance": "0",
       "tokens": [
         {
           "tokenId": 594,
@@ -10629,7 +10629,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 24826608,
-  "generatedAt": 1775550440544,
-  "generatedAtISO": "2026-04-07T08:27:20.544Z"
+  "lastIndexedBlock": 24991822,
+  "generatedAt": 1777538854279,
+  "generatedAtISO": "2026-04-30T08:47:34.279Z"
 }
