@@ -14,5 +14,6 @@ COPY out/ ./out/
 COPY deployment-sepolia.json ./
 
 # Run the bot
-# Use shorter polling interval for testing (15s instead of 60s)
-CMD ["node", "scripts/twitter-bot.js", "--network=mainnet", "--interval=60"]
+# --interval is how often viem's watchEvent polls eth_getLogs, in seconds.
+# 600s = every 10 min; tweets fire up to 10 min after the on-chain event.
+CMD ["node", "scripts/twitter-bot.js", "--network=mainnet", "--interval=600"]

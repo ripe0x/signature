@@ -10,7 +10,7 @@
  *   node scripts/twitter-bot.js [--network mainnet]
  */
 
-import { createPublicClient, http, parseAbiItem, formatEther } from "viem";
+import { createPublicClient, http, fallback, parseAbiItem, formatEther } from "viem";
 import { mainnet, sepolia } from "viem/chains";
 import { TwitterApi } from "twitter-api-v2";
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -93,6 +93,7 @@ const testMode = args.includes("--test");
 const testMintMode = args.includes("--test-mint");
 const testReminderMode = args.includes("--test-reminder");
 const testWindowReadyMode = args.includes("--test-window-ready");
+const testThresholdReachedMode = args.includes("--test-threshold-reached");
 const testBalanceProgressMode = args.includes("--test-balance-progress");
 const testSaleMode = args.includes("--test-sale");
 const previewSaleTokenIds = args
@@ -205,6 +206,7 @@ function loadState(contractAddress) {
       fifteenMinReminders: new Set(),
       processedEndedWindows: new Set(),
       windowReadyAlerted: false,
+      thresholdReachedAlerted: false,
       lastBalanceProgressPost: null,
       lastBlock: 0n,
       processedSales: new Set(),
@@ -229,6 +231,7 @@ function loadState(contractAddress) {
           fifteenMinReminders: new Set(),
           processedEndedWindows: new Set(),
           windowReadyAlerted: false,
+          thresholdReachedAlerted: false,
           lastBalanceProgressPost: null,
           lastBlock: 0n,
           processedSales: new Set(),
@@ -250,6 +253,7 @@ function loadState(contractAddress) {
         fifteenMinReminders: new Set(data.fifteenMinReminders || []),
         processedEndedWindows: new Set(data.processedEndedWindows || []),
         windowReadyAlerted: data.windowReadyAlerted || false,
+        thresholdReachedAlerted: data.thresholdReachedAlerted || false,
         lastBalanceProgressPost: data.lastBalanceProgressPost || null,
         lastBlock: BigInt(data.lastBlock || 0),
         processedSales: new Set(data.processedSales || []),
@@ -266,6 +270,7 @@ function loadState(contractAddress) {
     fifteenMinReminders: new Set(),
     processedEndedWindows: new Set(),
     windowReadyAlerted: false,
+    thresholdReachedAlerted: false,
     lastBalanceProgressPost: null,
     lastBlock: 0n,
     processedSales: new Set(),
@@ -279,6 +284,7 @@ function saveState(
   fifteenMinReminders,
   processedEndedWindows,
   windowReadyAlerted,
+  thresholdReachedAlerted,
   lastBalanceProgressPost,
   lastBlock,
   contractAddress,
@@ -295,6 +301,7 @@ function saveState(
       fifteenMinReminders: Array.from(fifteenMinReminders),
       processedEndedWindows: Array.from(processedEndedWindows),
       windowReadyAlerted,
+      thresholdReachedAlerted,
       lastBalanceProgressPost,
       lastBlock: lastBlock.toString(),
       processedSales: Array.from(processedSales),
@@ -402,6 +409,30 @@ function getChain() {
   throw new Error(`Unsupported network: ${network}`);
 }
 
+// Public RPC fallbacks per chain — used so the bot keeps running if the
+// primary (Alchemy) endpoint is rate-limited, over-quota, or down.
+const PUBLIC_RPC_FALLBACKS = {
+  mainnet: [
+    "https://ethereum-rpc.publicnode.com",
+    "https://eth.llamarpc.com",
+  ],
+  sepolia: [
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://sepolia.drpc.org",
+  ],
+};
+
+// Build a viem transport: primary RPC first, then 2 public fallbacks.
+// `chainName` defaults to the bot's configured network; pass "mainnet"
+// explicitly when building a mainnet-only client (e.g. ENS lookups).
+function getTransport(primaryRpcUrl, chainName = network) {
+  const fallbacks = PUBLIC_RPC_FALLBACKS[chainName] || [];
+  return fallback([
+    http(primaryRpcUrl),
+    ...fallbacks.map((url) => http(url)),
+  ]);
+}
+
 // Get contract address
 function getContractAddress() {
   // Allow env override
@@ -447,7 +478,7 @@ function getMainnetClient() {
     if (!mainnetRpc) return null;
     mainnetClient = createPublicClient({
       chain: mainnet,
-      transport: http(mainnetRpc),
+      transport: getTransport(mainnetRpc, "mainnet"),
     });
   }
   return mainnetClient;
@@ -460,7 +491,7 @@ function getNftClient() {
     const rpcUrl = getRpcUrl();
     nftClient = createPublicClient({
       chain: getChain(),
-      transport: http(rpcUrl),
+      transport: getTransport(rpcUrl),
     });
   }
   return nftClient;
@@ -635,7 +666,7 @@ async function fetchBurnData(client, contractAddress, abi) {
 
     const mainnetClient = createPublicClient({
       chain: mainnet,
-      transport: http(mainnetRpc),
+      transport: getTransport(mainnetRpc, "mainnet"),
     });
 
     // Get current total supply and burned amount from token (on mainnet)
@@ -961,7 +992,7 @@ async function runTestMode() {
     const abi = loadContractABI();
     const client = createPublicClient({
       chain: getChain(),
-      transport: http(rpcUrl),
+      transport: getTransport(rpcUrl),
     });
     burnData = await fetchBurnData(client, contractAddress, abi);
   } catch (error) {
@@ -1005,7 +1036,7 @@ async function runTestMintMode() {
   const abi = loadContractABI();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   // Fetch remaining time in window (if contract is configured)
@@ -1061,7 +1092,7 @@ async function runPostMintMode(tokenId) {
   const contractAddress = getContractAddress();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   // Fetch token data from contract
@@ -1196,7 +1227,7 @@ async function runPostWindowMode(windowId) {
   const contractAddress = getContractAddress();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   // Fetch time until window closes
@@ -1317,6 +1348,130 @@ async function runTestWindowReadyMode() {
   logSuccess("Test window ready completed!");
 }
 
+// Run test threshold reached mode - test threshold reached tweet with real or mock data
+async function runTestThresholdReachedMode() {
+  const usingMockData = mockBalance || mockThreshold || mockWindowId;
+
+  if (usingMockData) {
+    logInfo("Running in TEST THRESHOLD REACHED MODE - using mock values");
+  } else {
+    logInfo(
+      "Running in TEST THRESHOLD REACHED MODE - fetching real data from contract"
+    );
+  }
+  console.log();
+
+  try {
+    let currentBalance, minEthForWindow, nextWindowId, timeUntilOpen;
+
+    if (usingMockData) {
+      // Use mock values if provided
+      const mockBalanceEth = parseFloat(mockBalance || "0.25");
+      const mockThresholdEth = parseFloat(mockThreshold || "0.25");
+      const mockWindowIdNum = parseInt(mockWindowId || "11", 10);
+      const mockTimeUntilOpen = 1140; // 19 minutes default
+
+      currentBalance = BigInt(Math.floor(mockBalanceEth * 1e18));
+      minEthForWindow = BigInt(Math.floor(mockThresholdEth * 1e18));
+      nextWindowId = mockWindowIdNum;
+      timeUntilOpen = mockTimeUntilOpen;
+
+      logInfo(`Using mock values:`);
+      logInfo(`  Balance: ${mockBalanceEth} ETH`);
+      logInfo(`  Threshold: ${mockThresholdEth} ETH`);
+      logInfo(`  Window ID: ${nextWindowId}`);
+      logInfo(`  Time until open: ${timeUntilOpen}s`);
+    } else {
+      // Fetch real data from contract
+      const rpcUrl = getRpcUrl();
+      const contractAddress = getContractAddress();
+      const abi = loadContractABI();
+      const client = createPublicClient({
+        chain: network === "sepolia" ? sepolia : mainnet,
+        transport: getTransport(rpcUrl),
+      });
+
+      // Get strategy address and minEthForWindow
+      const [strategyAddress, threshold, windowCount] = await Promise.all([
+        client.readContract({
+          address: contractAddress,
+          abi: abi,
+          functionName: "strategy",
+        }),
+        client.readContract({
+          address: contractAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "minEthForWindow",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "minEthForWindow",
+        }),
+        client.readContract({
+          address: contractAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "windowCount",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "windowCount",
+        }),
+      ]);
+
+      // Get balance and timeUntilFundsMoved
+      const [balance, twapDelay] = await Promise.all([
+        client.getBalance({ address: strategyAddress }),
+        client.readContract({
+          address: strategyAddress,
+          abi: [
+            {
+              inputs: [],
+              name: "timeUntilFundsMoved",
+              outputs: [{ name: "", type: "uint256" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "timeUntilFundsMoved",
+        }),
+      ]);
+
+      currentBalance = balance;
+      minEthForWindow = threshold;
+      nextWindowId = Number(windowCount) + 1;
+      timeUntilOpen = Number(twapDelay);
+
+      logInfo(`Real contract data:`);
+      logInfo(`  Balance: ${formatEther(currentBalance)} ETH`);
+      logInfo(`  Threshold: ${formatEther(minEthForWindow)} ETH`);
+      logInfo(`  Window ID: ${nextWindowId}`);
+      logInfo(`  Time until open: ${timeUntilOpen}s`);
+    }
+
+    // Format and display the tweet
+    const tweetMessage = formatThresholdReachedTweet(
+      currentBalance,
+      minEthForWindow,
+      nextWindowId,
+      timeUntilOpen
+    );
+
+    await postTweet(null, tweetMessage);
+    logSuccess("Test threshold reached completed!");
+  } catch (error) {
+    logError(`Error in test threshold reached mode: ${error.message}`);
+    process.exit(1);
+  }
+}
+
 // Run test balance progress mode - test balance progress tweet with real or mock data
 async function runTestBalanceProgressMode() {
   const usingMockData = mockBalance || mockThreshold || mockWindowId;
@@ -1355,7 +1510,7 @@ async function runTestBalanceProgressMode() {
       abi = loadContractABI();
       client = createPublicClient({
         chain: getChain(),
-        transport: http(rpcUrl),
+        transport: getTransport(rpcUrl),
       });
     } else {
       // Fetch real data from contract
@@ -1364,7 +1519,7 @@ async function runTestBalanceProgressMode() {
       abi = loadContractABI();
       client = createPublicClient({
         chain: getChain(),
-        transport: http(rpcUrl),
+        transport: getTransport(rpcUrl),
       });
 
       // Get strategy address, minEthForWindow, and windowCount
@@ -1628,7 +1783,7 @@ async function runPreviewSaleMode(tokenIds) {
     const abi = loadContractABI();
     const client = createPublicClient({
       chain: getChain(),
-      transport: http(rpcUrl),
+      transport: getTransport(rpcUrl),
     });
 
     // Get collector stats for the buyer
@@ -1729,7 +1884,7 @@ async function runPostBalanceMode() {
     const abi = loadContractABI();
     const client = createPublicClient({
       chain: getChain(),
-      transport: http(rpcUrl),
+      transport: getTransport(rpcUrl),
     });
 
     // Get strategy address, minEthForWindow, and windowCount
@@ -1876,6 +2031,7 @@ async function runPostBalanceMode() {
         state.fifteenMinReminders,
         state.processedEndedWindows,
         state.windowReadyAlerted,
+        state.thresholdReachedAlerted,
         now,
         state.lastBlock,
         contractAddress,
@@ -2250,6 +2406,44 @@ function formatWindowReadyTweet() {
   return `a new LESS window is ready to open
 
 minting will trigger a 0.25 ETH buy + burn of $LESS
+
+${formatUrlForTweet(`${BASE_URL}/mint`)}`;
+}
+
+// Format tweet for when threshold is reached but TWAP delay is still active
+function formatThresholdReachedTweet(
+  currentBalance,
+  threshold,
+  windowId,
+  timeUntilOpen
+) {
+  // Full progress bar (100%)
+  const progressBar = "▓".repeat(20);
+
+  // Format ETH amounts
+  const currentEth = Number(formatEther(currentBalance));
+  const thresholdEth = Number(formatEther(threshold));
+
+  // Calculate when the window will open (ET timezone)
+  const now = new Date();
+  const openTime = new Date(now.getTime() + timeUntilOpen * 1000);
+  const etFormatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  });
+  const openTimeET = etFormatter.format(openTime).toLowerCase();
+
+  // Calculate minutes until open
+  const minutesUntilOpen = Math.ceil(timeUntilOpen / 60);
+
+  return `$LESS buy + burn threshold reached
+
+${progressBar} 100%
+${formatEthValue(currentEth)} ETH / ${formatEthValue(thresholdEth)} ETH
+
+mint window ${windowId} opens in ${minutesUntilOpen} minutes (${openTimeET} ET)
 
 ${formatUrlForTweet(`${BASE_URL}/mint`)}`;
 }
@@ -4037,6 +4231,133 @@ async function processBalanceProgressCheck(
   }
 }
 
+// Process threshold reached check - posts once when balance >= threshold but TWAP delay is active
+async function processThresholdReachedCheck(
+  thresholdReachedAlerted,
+  twitterClient,
+  client,
+  contractAddress,
+  abi
+) {
+  try {
+    // Get strategy address and minEthForWindow
+    const [strategyAddress, minEthForWindow, windowCount] = await Promise.all([
+      client.readContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: "strategy",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "minEthForWindow",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "minEthForWindow",
+      }),
+      client.readContract({
+        address: contractAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "windowCount",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "windowCount",
+      }),
+    ]);
+
+    if (
+      !strategyAddress ||
+      strategyAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      return { alerted: thresholdReachedAlerted, shouldReset: false };
+    }
+
+    // Get current balance and timeUntilFundsMoved
+    const [currentBalance, timeUntilFundsMoved] = await Promise.all([
+      client.getBalance({
+        address: strategyAddress,
+      }),
+      client.readContract({
+        address: strategyAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "timeUntilFundsMoved",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "timeUntilFundsMoved",
+      }),
+    ]);
+
+    const thresholdMet = currentBalance >= minEthForWindow;
+    const twapDelayActive = Number(timeUntilFundsMoved) > 0;
+
+    // If threshold not met, reset the alert state
+    if (!thresholdMet) {
+      return { alerted: false, shouldReset: true };
+    }
+
+    // If threshold met but TWAP delay is done (window ready), don't post this tweet
+    // The windowReadyCheck will handle it
+    if (!twapDelayActive) {
+      return { alerted: thresholdReachedAlerted, shouldReset: false };
+    }
+
+    // If we've already alerted for this threshold reached state, skip
+    if (thresholdReachedAlerted) {
+      return { alerted: true, shouldReset: false };
+    }
+
+    // Threshold is met and TWAP delay is active - post the tweet!
+    const nextWindowId = Number(windowCount) + 1;
+    logInfo(
+      `Threshold reached! Balance: ${formatEther(currentBalance)} ETH >= ${formatEther(minEthForWindow)} ETH. TWAP delay: ${timeUntilFundsMoved}s`
+    );
+
+    // Format and post tweet
+    const tweetMessage = formatThresholdReachedTweet(
+      currentBalance,
+      minEthForWindow,
+      nextWindowId,
+      Number(timeUntilFundsMoved)
+    );
+
+    logInfo("Posting threshold reached tweet...");
+    const tweetId = await postTweet(twitterClient, tweetMessage);
+
+    if (tweetId) {
+      logSuccess(`Threshold reached tweet posted! Tweet ID: ${tweetId}`);
+      return { alerted: true, shouldReset: false };
+    } else {
+      logError("Failed to post threshold reached tweet");
+      return { alerted: false, shouldReset: false };
+    }
+  } catch (error) {
+    // Silently handle contract errors
+    if (
+      error.message?.includes("revert") ||
+      error.message?.includes("execution reverted")
+    ) {
+      return { alerted: thresholdReachedAlerted, shouldReset: false };
+    }
+    logError(`Error checking threshold reached: ${error.message}`);
+    return { alerted: thresholdReachedAlerted, shouldReset: false };
+  }
+}
+
 // Process window ready check - posts when canCreateWindow() is true
 async function processWindowReadyCheck(
   windowReadyAlerted,
@@ -4319,6 +4640,12 @@ async function runBot() {
     return;
   }
 
+  // Handle test threshold reached mode
+  if (testThresholdReachedMode) {
+    await runTestThresholdReachedMode();
+    return;
+  }
+
   // Handle test balance progress mode
   if (testBalanceProgressMode) {
     await runTestBalanceProgressMode();
@@ -4378,6 +4705,7 @@ async function runBot() {
   const fifteenMinReminders = state.fifteenMinReminders;
   const processedEndedWindows = state.processedEndedWindows;
   let windowReadyAlerted = state.windowReadyAlerted;
+  let thresholdReachedAlerted = state.thresholdReachedAlerted;
   let lastBalanceProgressPost = state.lastBalanceProgressPost;
   let lastProcessedBlock = rescanMode ? 0n : state.lastBlock; // Reset if --rescan flag
   const processedSales = state.processedSales;
@@ -4425,7 +4753,7 @@ async function runBot() {
       // Create viem client
       const client = createPublicClient({
         chain: getChain(),
-        transport: http(rpcUrl),
+        transport: getTransport(rpcUrl),
         pollingInterval,
       });
 
@@ -4473,6 +4801,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4562,6 +4891,7 @@ async function runBot() {
         fifteenMinReminders,
         processedEndedWindows,
         windowReadyAlerted,
+        thresholdReachedAlerted,
         lastBalanceProgressPost,
         lastProcessedBlock,
         contractAddress,
@@ -4581,6 +4911,7 @@ async function runBot() {
           fifteenMinReminders,
           processedEndedWindows,
           windowReadyAlerted,
+          thresholdReachedAlerted,
           lastBalanceProgressPost,
           lastProcessedBlock,
           contractAddress,
@@ -4612,8 +4943,9 @@ async function runBot() {
               abi,
               reminderContext
             );
-            // Reset windowReadyAlerted since a new window was created
+            // Reset windowReadyAlerted and thresholdReachedAlerted since a new window was created
             windowReadyAlerted = false;
+            thresholdReachedAlerted = false;
             if (log.blockNumber && log.blockNumber > lastProcessedBlock) {
               lastProcessedBlock = log.blockNumber;
               watcherSaveStateFn();
@@ -4668,6 +5000,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4751,7 +5084,40 @@ async function runBot() {
         logWarn(`Could not check for active window: ${error.message}`);
       }
 
-      // Window ready checker (every 60 seconds) - posts when canCreateWindow() is true
+      // Threshold reached checker (every 10 minutes) - posts when balance >= threshold but TWAP delay active
+      const thresholdReachedInterval = setInterval(async () => {
+        try {
+          const result = await processThresholdReachedCheck(
+            thresholdReachedAlerted,
+            twitterClient,
+            client,
+            contractAddress,
+            abi
+          );
+          // Update state if changed
+          if (result.alerted !== thresholdReachedAlerted || result.shouldReset) {
+            thresholdReachedAlerted = result.alerted;
+            saveState(
+              processedWindows,
+              processedMints,
+              fifteenMinReminders,
+              processedEndedWindows,
+              windowReadyAlerted,
+              thresholdReachedAlerted,
+              lastBalanceProgressPost,
+              lastProcessedBlock,
+              contractAddress,
+              processedSales,
+              lastSalesTimestamp,
+              pendingMints
+            );
+          }
+        } catch (error) {
+          logError(`Threshold reached check error: ${error.message}`);
+        }
+      }, 600000);
+
+      // Window ready checker (every 10 minutes) - posts when canCreateWindow() is true
       const windowReadyInterval = setInterval(async () => {
         try {
           const result = await processWindowReadyCheck(
@@ -4769,6 +5135,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4780,9 +5147,9 @@ async function runBot() {
         } catch (error) {
           logError(`Window ready check error: ${error.message}`);
         }
-      }, 60000);
+      }, 600000);
 
-      // Ended windows checker (every 60 seconds) - posts summary when windows end
+      // Ended windows checker (every 10 minutes) - posts summary when windows end
       const endedWindowsInterval = setInterval(async () => {
         try {
           const processedWindowId = await processEndedWindowsCheck(
@@ -4799,6 +5166,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4810,7 +5178,7 @@ async function runBot() {
         } catch (error) {
           logError(`Ended windows check error: ${error.message}`);
         }
-      }, 60000);
+      }, 600000);
 
       // Balance progress checker (every 6 hours) - posts progress when no active window
       const balanceProgressInterval = setInterval(async () => {
@@ -4831,6 +5199,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4844,7 +5213,7 @@ async function runBot() {
         }
       }, 6 * 60 * 60 * 1000); // 6 hours in milliseconds
 
-      // Secondary sales checker (every 2 minutes)
+      // Secondary sales checker (every 10 minutes)
       const salesInterval = setInterval(async () => {
         try {
           const result = await processSalesCheck(
@@ -4866,6 +5235,7 @@ async function runBot() {
               fifteenMinReminders,
               processedEndedWindows,
               windowReadyAlerted,
+              thresholdReachedAlerted,
               lastBalanceProgressPost,
               lastProcessedBlock,
               contractAddress,
@@ -4877,13 +5247,14 @@ async function runBot() {
         } catch (error) {
           logError(`Sales check error: ${error.message}`);
         }
-      }, 120000); // 2 minutes
+      }, 600000); // 10 minutes
 
       // Graceful shutdown handler
       const shutdown = () => {
         logInfo("Shutting down...");
         if (unwatch) unwatch();
         clearScheduledReminder(); // Clear scheduled reminder timeout
+        clearInterval(thresholdReachedInterval);
         clearInterval(windowReadyInterval);
         clearInterval(endedWindowsInterval);
         clearInterval(balanceProgressInterval);
@@ -4894,6 +5265,7 @@ async function runBot() {
           fifteenMinReminders,
           processedEndedWindows,
           windowReadyAlerted,
+          thresholdReachedAlerted,
           lastBalanceProgressPost,
           lastProcessedBlock,
           contractAddress,
@@ -4977,7 +5349,7 @@ async function generateBalanceTweet() {
   const abi = loadContractABI();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   const [strategyAddress, minEthForWindow, windowCount] = await Promise.all([
@@ -5059,7 +5431,7 @@ async function generateMintTweet(tokenId) {
   const contractAddress = getContractAddress();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   // Get token data
@@ -5138,7 +5510,7 @@ async function generateWindowTweet(windowId) {
   const abi = loadContractABI();
   const client = createPublicClient({
     chain: getChain(),
-    transport: http(rpcUrl),
+    transport: getTransport(rpcUrl),
   });
 
   const [windowDuration, windowCount] = await Promise.all([
@@ -5268,7 +5640,7 @@ function startAdminServer() {
             const abi = loadContractABI();
             const client = createPublicClient({
               chain: getChain(),
-              transport: http(rpcUrl),
+              transport: getTransport(rpcUrl),
             });
 
             // Get mints for this window (returns array of token IDs)
@@ -5398,7 +5770,7 @@ function startAdminServer() {
             const abi = loadContractABI();
             const client = createPublicClient({
               chain: getChain(),
-              transport: http(rpcUrl),
+              transport: getTransport(rpcUrl),
             });
 
             // Fetch token IDs directly from blockchain (more reliable than leaderboard)
@@ -5513,7 +5885,7 @@ function startAdminServer() {
             const abi = loadContractABI();
             const client = createPublicClient({
               chain: getChain(),
-              transport: http(rpcUrl),
+              transport: getTransport(rpcUrl),
             });
 
             // Fetch sales from OpenSea
