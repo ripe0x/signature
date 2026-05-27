@@ -4,6 +4,7 @@ import { useReadContract } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { CONTRACTS, STRATEGY_ABI, IS_TOKEN_LIVE, DEAD_ADDRESS } from '@/lib/contracts';
 import { useContractState } from '@/providers/ContractStateContext';
+import { useEthPrice, useLessPrice } from '@/hooks/usePrices';
 
 export interface TokenStats {
   // Strategy token stats
@@ -55,40 +56,12 @@ export function useTokenStats() {
     },
   });
 
-  // Fetch token price from DexScreener using React Query
-  const { data: dexData } = useQuery({
-    queryKey: ['dexscreener', CONTRACTS.LESS_STRATEGY],
-    queryFn: async () => {
-      const response = await fetch(
-        `https://api.dexscreener.com/latest/dex/tokens/${CONTRACTS.LESS_STRATEGY}`
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (data.pairs && data.pairs.length > 0) {
-        return parseFloat(data.pairs[0].priceUsd) || null;
-      }
-      return null;
-    },
-    enabled: IS_TOKEN_LIVE,
-    staleTime: 30000,
-    refetchInterval: 30000,
-  });
+  // ETH/USD with multi-source fallback (CoinGecko → Chainlink on-chain).
+  // Computed first because the on-chain LESS price fallback uses it.
+  const { price: ethPrice } = useEthPrice();
 
-  // Fetch ETH price from CoinGecko using React Query
-  const { data: ethPrice } = useQuery({
-    queryKey: ['coingecko', 'ethereum'],
-    queryFn: async () => {
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.ethereum?.usd ?? null;
-    },
-    enabled: IS_TOKEN_LIVE,
-    staleTime: 60000, // ETH price doesn't need to be super fresh
-    refetchInterval: 60000,
-  });
+  // LESS/USD with multi-source fallback (GeckoTerminal → DexScreener → on-chain V4)
+  const { price: tokenPrice } = useLessPrice(ethPrice);
 
   // Fetch holder count and last window from internal API
   const { data: tokenStatsApi } = useQuery({
@@ -107,9 +80,9 @@ export function useTokenStats() {
     tokenSupply: tokenSupply ?? BigInt(0),
     buybackBalance: contractState.buybackBalance,
     burnCount: contractState.windowCount,
-    tokenPrice: dexData ?? null,
+    tokenPrice,
     holderCount: tokenStatsApi?.holderCount ?? null,
-    ethPrice: ethPrice ?? null,
+    ethPrice,
     nftsMinted: contractState.totalSupply,
     windowCount: contractState.windowCount,
     minEthForWindow: contractState.minEthForWindow,
