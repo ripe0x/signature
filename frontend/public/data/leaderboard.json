@@ -1,7 +1,7 @@
 {
   "totalWindows": 22,
   "totalTokens": 1139,
-  "totalCollectors": 373,
+  "totalCollectors": 372,
   "fullCollectors": [
     "0xd7fe95c58f8fcc7a762c7713653630e601f3b44f",
     "0x45ba9969c78aa4c76302c664ab5a71c306575f0b"
@@ -5076,6 +5076,34 @@
       ]
     },
     {
+      "address": "0xddac37fd1e29533a9f39c786e92efbf6a6ad3c45",
+      "tokenCount": 3,
+      "windowsCollected": [
+        1,
+        13
+      ],
+      "windowCount": 2,
+      "isFullCollector": false,
+      "lessBalance": "0",
+      "tokens": [
+        {
+          "tokenId": 328,
+          "windowId": 1,
+          "seed": "0x56ad3c15bbcd914fa644d92ef17c40149ae6b1cd66ccde9bbb967e806b06c43a"
+        },
+        {
+          "tokenId": 329,
+          "windowId": 1,
+          "seed": "0x10780157719261259a336c2ef66d32041c0bed05b79199358d56ca51c75a7099"
+        },
+        {
+          "tokenId": 807,
+          "windowId": 13,
+          "seed": "0x6dcff9f5a0572d087ac07b5ef45e52a41ed77d5bc6f60a0e21eaf108a45fe9f6"
+        }
+      ]
+    },
+    {
       "address": "0x295cf39d923bc491e138ab5f7f1c570d4732b5a1",
       "tokenCount": 3,
       "windowsCollected": [
@@ -6653,28 +6681,6 @@
           "tokenId": 289,
           "windowId": 1,
           "seed": "0xe1c5baa75478845ca540f4ce913e6a730eaf9a1e989bf7b8bb911ac40386279f"
-        }
-      ]
-    },
-    {
-      "address": "0x517730d3fd7bb3e0458ee38753f20a73662c9818",
-      "tokenCount": 2,
-      "windowsCollected": [
-        1
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 328,
-          "windowId": 1,
-          "seed": "0x56ad3c15bbcd914fa644d92ef17c40149ae6b1cd66ccde9bbb967e806b06c43a"
-        },
-        {
-          "tokenId": 329,
-          "windowId": 1,
-          "seed": "0x10780157719261259a336c2ef66d32041c0bed05b79199358d56ca51c75a7099"
         }
       ]
     },
@@ -10023,23 +10029,6 @@
       ]
     },
     {
-      "address": "0xddac37fd1e29533a9f39c786e92efbf6a6ad3c45",
-      "tokenCount": 1,
-      "windowsCollected": [
-        13
-      ],
-      "windowCount": 1,
-      "isFullCollector": false,
-      "lessBalance": "0",
-      "tokens": [
-        {
-          "tokenId": 807,
-          "windowId": 13,
-          "seed": "0x6dcff9f5a0572d087ac07b5ef45e52a41ed77d5bc6f60a0e21eaf108a45fe9f6"
-        }
-      ]
-    },
-    {
       "address": "0xbff6b65e4ac2963cf62e92eb617c892febf038b9",
       "tokenCount": 1,
       "windowsCollected": [
@@ -10567,7 +10556,7 @@
       ]
     }
   ],
-  "lastIndexedBlock": 25623141,
-  "generatedAt": 1785143217741,
-  "generatedAtISO": "2026-07-27T09:06:57.741Z"
+  "lastIndexedBlock": 25679876,
+  "generatedAt": 1785826381464,
+  "generatedAtISO": "2026-08-04T06:53:01.464Z"
 }
